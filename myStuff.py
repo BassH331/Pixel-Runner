@@ -58,6 +58,26 @@ class Obstacle(pg.sprite.Sprite):
             fly_2 = pg.image.load("Resources/graphics/fly/fly2.png").convert_alpha()
             self.frames = [fly_1, fly_2]
             y_pos = 210
+        elif type == 'python':
+            # Load and scale images to 64x64 pixels
+            python_1 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_0.png").convert_alpha(), (64, 64))
+            python_2 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_1.png").convert_alpha(), (64, 64))
+            python_3 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_2.png").convert_alpha(), (64, 64))
+            python_4 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_3.png").convert_alpha(), (64, 64))
+            python_5 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_4.png").convert_alpha(), (64, 64))
+            python_6 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_5.png").convert_alpha(), (64, 64))
+            python_7 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_6.png").convert_alpha(), (64, 64))
+            python_8 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_7.png").convert_alpha(), (64, 64))
+            self.frames = [pg.transform.flip(frame, True, False) for frame in [python_1, python_2, python_3, python_4, python_5, python_6, python_7, python_8]]
+            y_pos = 300
+        elif type == 'snake':
+            # Load and scale images to 64x64 pixels
+            snake_1 = pg.transform.scale(pg.image.load("Resources/graphics/snake/white_snake_0.png").convert_alpha(), (64, 64))
+            snake_2 = pg.transform.scale(pg.image.load("Resources/graphics/snake/white_snake_1.png").convert_alpha(), (64, 64))
+            snake_3 = pg.transform.scale(pg.image.load("Resources/graphics/snake/white_snake_2.png").convert_alpha(), (64, 64))
+            snake_4 = pg.transform.scale(pg.image.load("Resources/graphics/snake/white_snake_3.png").convert_alpha(), (64, 64))
+            self.frames = [pg.transform.flip(frame, True, False) for frame in [snake_1, snake_2, snake_3, snake_4]]
+            y_pos = 300
         else:
             snail_1 = pg.image.load("Resources/graphics/snail/snail1.png").convert_alpha()
             snail_2 = pg.image.load("Resources/graphics/snail/snail2.png").convert_alpha()
@@ -139,7 +159,7 @@ score = 0
 # import background music
 bg_music = pg.mixer.Sound("Resources/audio/music.wav")
 bg_music.play(loops = -1)# loops = [how many times you want to loop the music] (-1 means forever)
-bg_music.set_volume(3)
+bg_music.set_volume(0.1)
 # Create instance of Player class
 player = pg.sprite.GroupSingle()
 player.add(Player())
@@ -181,6 +201,12 @@ pg.time.set_timer(snail_animation_timer, 300)
 fly_animation_timer = pg.USEREVENT + 3
 pg.time.set_timer(fly_animation_timer, 70)
 
+python_animation_timer = pg.USEREVENT + 2
+pg.time.set_timer(python_animation_timer, 100)
+
+snake_animation_timer = pg.USEREVENT + 2
+pg.time.set_timer(snake_animation_timer, 100)
+
 """
 1] Create a list of obstacle rectangles
 2] Everytime the timer triggers we add a new rectangle to that list
@@ -212,7 +238,7 @@ while True:
         if game_active:
             # Dynamicly place objects in game [LOGIC]
             if event.type == obstacle_timer:
-                obstacle_group.add(Obstacle(choice(['fly', 'sanil', 'snail', 'snail'])))
+                obstacle_group.add(Obstacle(choice(['fly', 'python', 'snail', 'snail', 'snake'])))
                 """
                 if randint(0,2):
                     obstacle_rect_list.append(snail_surface.get_rect(midbottom = (randint(900,1100), 300)))
