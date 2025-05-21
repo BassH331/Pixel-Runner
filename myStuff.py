@@ -78,6 +78,14 @@ class Obstacle(pg.sprite.Sprite):
             snake_4 = pg.transform.scale(pg.image.load("Resources/graphics/snake/white_snake_3.png").convert_alpha(), (64, 64))
             self.frames = [pg.transform.flip(frame, True, False) for frame in [snake_1, snake_2, snake_3, snake_4]]
             y_pos = 300
+        elif type == 'pigeon':
+            # Load and scale images to 64x64 pixels
+            pigeon_1 = pg.transform.scale(pg.image.load("Resources/graphics/pigeon/pigeon_0.png").convert_alpha(), (64, 64))
+            pigeon_2 = pg.transform.scale(pg.image.load("Resources/graphics/pigeon/pigeon_1.png").convert_alpha(), (64, 64))
+            pigeon_3 = pg.transform.scale(pg.image.load("Resources/graphics/pigeon/pigeon_2.png").convert_alpha(), (64, 64))
+            pigeon_4 = pg.transform.scale(pg.image.load("Resources/graphics/pigeon/pigeon_3.png").convert_alpha(), (64, 64))
+            self.frames = [pg.transform.flip(frame, True, False) for frame in [pigeon_1, pigeon_2, pigeon_3, pigeon_4]]
+            y_pos = 210
         else:
             snail_1 = pg.image.load("Resources/graphics/snail/snail1.png").convert_alpha()
             snail_2 = pg.image.load("Resources/graphics/snail/snail2.png").convert_alpha()
