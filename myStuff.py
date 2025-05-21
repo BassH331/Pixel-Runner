@@ -215,6 +215,9 @@ pg.time.set_timer(python_animation_timer, 100)
 snake_animation_timer = pg.USEREVENT + 2
 pg.time.set_timer(snake_animation_timer, 100)
 
+pigeon_animation_timer = pg.USEREVENT + 2
+pg.time.set_timer(pigeon_animation_timer, 100)
+
 """
 1] Create a list of obstacle rectangles
 2] Everytime the timer triggers we add a new rectangle to that list
