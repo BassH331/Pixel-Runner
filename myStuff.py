@@ -249,7 +249,7 @@ while True:
         if game_active:
             # Dynamicly place objects in game [LOGIC]
             if event.type == obstacle_timer:
-                obstacle_group.add(Obstacle(choice(['fly', 'python', 'snail', 'snail', 'snake'])))
+                obstacle_group.add(Obstacle(choice(['fly', 'pigeon', 'pigeon', 'python', 'snail', 'snail', 'snake'])))
                 """
                 if randint(0,2):
                     obstacle_rect_list.append(snail_surface.get_rect(midbottom = (randint(900,1100), 300)))
