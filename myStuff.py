@@ -110,7 +110,7 @@ class Obstacle(pg.sprite.Sprite):
     def destroy(self):
         if self.rect.x <= -100:
             self.kill()
-    
+
 # Function display score
 def display_score():
     current_time = int(pg.time.get_ticks() / 1000) - start_time
@@ -179,6 +179,29 @@ obstacle_group = pg.sprite.Group()
 sky_surface = pg.image.load("Resources/graphics/Sky.png").convert()# convert the image to file format pygame can work with more easier
 ground_surface = pg.image.load("Resources/graphics/ground.png").convert()
 
+# Defining the images for the welcome screen
+play_btn = pg.image.load("Resources/graphics/ui/PlayBtn.png").convert()
+play_button = pg.transform.scale(play_btn, (120, 60))
+
+play_btn_pressed = pg.image.load("Resources/graphics/ui/PlayClick.png").convert()
+play_button_pressed = pg.transform.scale(play_btn_pressed, (115, 55))
+
+play_button_rect = play_button.get_rect(center=(400, 200))
+current_play_button = play_button
+button_pressed = False
+button_press_time = 0
+
+# Load exit button images
+exit_btn = pg.image.load("Resources/graphics/ui/ExitIcon.png").convert_alpha()
+exit_btn_original = pg.transform.scale(exit_btn, (25, 25))  # Adjust size as needed
+
+exit_btn_pressed = pg.transform.scale(pg.image.load("Resources/graphics/ui/ExitIconClick.png").convert_alpha(), (36, 36))  # Slightly smaller
+exit_button_rect = exit_btn_original.get_rect(topright=(width - 10, 10))  # 10px from top-right corner
+
+current_exit_button = exit_btn_original
+exit_button_pressed = False
+exit_press_time = 0
+
 """
 score_surface = test_font.render('My game', False, (64,64,64))# Render(text, Anti-Aliazing, color)
 score_rect = score_surface.get_rect(center = (400, 50))
@@ -239,6 +262,37 @@ while True:
             exit()
 
         if game_active == False:
+            
+            # Handle mouse events for both buttons
+            mouse_pos = pg.mouse.get_pos()
+            
+            # Play button handling (existing code)
+            if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                if play_button_rect.collidepoint(mouse_pos):
+                    current_play_button = play_button_pressed
+                    button_pressed = True
+                    button_press_time = pg.time.get_ticks()
+                elif exit_button_rect.collidepoint(mouse_pos):
+                    current_exit_button = exit_btn_pressed
+                    exit_button_pressed = True
+                    exit_press_time = pg.time.get_ticks()
+                    
+            if event.type == pg.MOUSEBUTTONUP and event.button == 1:
+                mouse_pos = pg.mouse.get_pos()
+                if button_pressed:
+                    if play_button_rect.collidepoint(mouse_pos):
+                        game_active = True
+                        start_time = int(pg.time.get_ticks() / 1000)
+                    current_play_button = play_button
+                    button_pressed = False
+                    
+                if exit_button_pressed:
+                    if exit_button_rect.collidepoint(mouse_pos):
+                        pg.quit()
+                        exit()
+                    current_exit_button = exit_btn_original
+                    exit_button_pressed = False
+                
             #Pressing the space button will then restart the game
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_SPACE:
@@ -307,7 +361,6 @@ while True:
         # Display the background for the intro to tell the users their score and hwo to play/ start the game 
         screen.fill((94, 129, 162))
         #display the player_stand character
-        screen.blit(player_stand, player_stand_rect)
         
         # If there is a score display the score but if there isnt one then display the game message
         score_message = test_font.render(f'Your score: {score}', False, (111, 196, 169))
@@ -319,10 +372,28 @@ while True:
         player_gravity = 0
 
         if score == 0:
-            #title and how-to-play
-            screen.blit(how_to_play, how_to_play_rect)
+            # Display the play button
+            screen.blit(current_play_button, play_button_rect)
+            
+            # If button was pressed but not yet released, show pressed state temporarily
+            if button_pressed and pg.time.get_ticks() - button_press_time > 200:  # 200ms press duration
+                current_play_button = play_button
+            
         else: 
             screen.blit(score_message, score_message_rect)
+            
+            # Display the play button
+            screen.blit(current_play_button, play_button_rect)
+            
+            # Display the exit button (always visible when game is not active)
+            screen.blit(current_exit_button, exit_button_rect)
+            
+            ## Handle button press animations
+        if button_pressed and pg.time.get_ticks() - button_press_time > 200:
+            current_play_button = play_button
+            
+        if exit_button_pressed and pg.time.get_ticks() - exit_press_time > 200:
+            current_exit_button = exit_btn_original
 
         #displayt the game name
         screen.blit(game_name, game_name_rect)
