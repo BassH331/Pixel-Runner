@@ -2,6 +2,17 @@ import pygame
 from sys import exit
 from random import randint, choice
 
+pygame.joystick.init()
+
+# Check for joysticks
+joystick = None
+if pygame.joystick.get_count() > 0:
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+    print(f"Joystick detected: {joystick.get_name()}")
+else:
+    print("No joystick detected, using keyboard only.")
+
 class Player(pygame.sprite.Sprite):
 	def __init__(self):
 		super().__init__()
@@ -23,6 +34,16 @@ class Player(pygame.sprite.Sprite):
 		if keys[pygame.K_SPACE] and self.rect.bottom >= 300:
 			self.gravity = -20
 			self.jump_sound.play()
+   
+		# Joystick input
+		if joystick:
+            # Assuming 'X' button is button 0 (common for Xbox/PS controllers)
+            # You can adjust the button index if needed
+			for event in pygame.event.get():
+				if event.type == pygame.JOYBUTTONDOWN:
+					if event.button == 0 and self.rect.bottom >= 300:
+						self.gravity = -20
+						self.jump_sound.play()
 
 	def apply_gravity(self):
 		self.gravity += 1

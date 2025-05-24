@@ -2,6 +2,18 @@ import pygame as pg
 from sys import exit
 from random import randint, choice
 
+pg.joystick.init()
+    
+    
+#Inititalize the joystick
+# Initialize the first joystick
+joystick = pg.joystick.Joystick(0)
+joystick.init()
+# At the start of your game, after initializing the joystick:
+print(f"Joystick detected: {joystick.get_name()}")
+print(f"Number of buttons: {joystick.get_numbuttons()}")
+print(f"Number of axes: {joystick.get_numaxes()}")
+
 #Player Class 
 class Player(pg.sprite.Sprite):
     def __init__(self):
@@ -24,7 +36,13 @@ class Player(pg.sprite.Sprite):
 
     def player_input(self):
         keys = pg.key.get_pressed()
-        if keys[pg.K_SPACE] and self.rect.bottom >= 300:
+        if keys[pg.K_SPACE] or (joystick and (joystick.get_button(1) or  # PS4 Cross button (usually button 1)
+                        joystick.get_button(0))) and self.rect.bottom >= 300:  # PS4 Square button (usually button 0)
+            self.gravity = -20
+            self.jump_sound.play()
+    
+        # Alternative jump with joystick up motion
+        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= 300:  # Left stick up
             self.gravity = -20
             self.jump_sound.play()
     
@@ -138,6 +156,8 @@ def collision_sprites():
 
 # RUN BEFORE ANY PYGMAE CODE
 pg.init()
+
+print("Joystick initialized!")
 
 #We create a display surface
 width = 800 
