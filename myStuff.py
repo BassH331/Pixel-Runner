@@ -60,6 +60,17 @@ class Player(pg.sprite.Sprite):
             if self.player_index >= len(self.player_walk):
                 self.player_index = 0
             self.image = self.player_walk[int(self.player_index)]
+            
+    def apply_movement(self):
+        # Horizontal movement
+        if self.direction != 0:
+            self.rect.x += self.direction * self.speed
+            
+            # Boundary checking
+            if self.rect.left < 0:
+                self.rect.left = 0
+            if self.rect.right > 800:  # Screen width
+                self.rect.right = 800
 
     def update(self):
         self.player_input()
