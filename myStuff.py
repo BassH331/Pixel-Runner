@@ -121,13 +121,13 @@ class Player(pg.sprite.Sprite):
     def apply_movement(self):
         # Horizontal movement
         if self.direction != 0:
-            self.rect.x += self.direction * self.speed
+            self.rect.x += self.direction * self.speed 
             
             # Boundary checking
             if self.rect.left < 0:
                 self.rect.left = 0
-            if self.rect.right > 800:  # Screen width
-                self.rect.right = 800
+            if self.rect.right > 1100:  # Screen width
+                self.rect.right = 1100
     
 
     def animation_state(self):
@@ -155,7 +155,7 @@ class Player(pg.sprite.Sprite):
                     self.current_frames = self.idle_frames
         else:
             # Normal animation progression
-            self.animation_index += 0.11  # Walk/run speed
+            self.animation_index += 0.3  # Walk/run speed
             if self.animation_index >= len(self.current_frames):
                 self.animation_index = 0
         
@@ -181,7 +181,7 @@ class Obstacle(pg.sprite.Sprite):
             fly_1 = pg.image.load("Resources/graphics/fly/fly1.png").convert_alpha()
             fly_2 = pg.image.load("Resources/graphics/fly/fly2.png").convert_alpha()
             self.frames = [fly_1, fly_2]
-            y_pos = 210
+            y_pos = info.current_h + 130
         elif type == 'python':
             # Load and scale images to 64x64 pixels
             python_1 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_0.png").convert_alpha(), (64, 64))
@@ -193,7 +193,7 @@ class Obstacle(pg.sprite.Sprite):
             python_7 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_6.png").convert_alpha(), (64, 64))
             python_8 = pg.transform.scale(pg.image.load("Resources/graphics/python/python_7.png").convert_alpha(), (64, 64))
             self.frames = [pg.transform.flip(frame, True, False) for frame in [python_1, python_2, python_3, python_4, python_5, python_6, python_7, python_8]]
-            y_pos = 300
+            y_pos = info.current_h + 130
         elif type == 'snake':
             # Load and scale images to 64x64 pixels
             snake_1 = pg.transform.scale(pg.image.load("Resources/graphics/snake/white_snake_0.png").convert_alpha(), (64, 64))
@@ -201,7 +201,7 @@ class Obstacle(pg.sprite.Sprite):
             snake_3 = pg.transform.scale(pg.image.load("Resources/graphics/snake/white_snake_2.png").convert_alpha(), (64, 64))
             snake_4 = pg.transform.scale(pg.image.load("Resources/graphics/snake/white_snake_3.png").convert_alpha(), (64, 64))
             self.frames = [pg.transform.flip(frame, True, False) for frame in [snake_1, snake_2, snake_3, snake_4]]
-            y_pos = 300
+            y_pos = info.current_h
         elif type == 'pigeon':
             # Load and scale images to 64x64 pixels
             pigeon_1 = pg.transform.scale(pg.image.load("Resources/graphics/pigeon/pigeon_0.png").convert_alpha(), (64, 64))
@@ -209,12 +209,12 @@ class Obstacle(pg.sprite.Sprite):
             pigeon_3 = pg.transform.scale(pg.image.load("Resources/graphics/pigeon/pigeon_2.png").convert_alpha(), (64, 64))
             pigeon_4 = pg.transform.scale(pg.image.load("Resources/graphics/pigeon/pigeon_3.png").convert_alpha(), (64, 64))
             self.frames = [pg.transform.flip(frame, True, False) for frame in [pigeon_1, pigeon_2, pigeon_3, pigeon_4]]
-            y_pos = 210
+            y_pos = info.current_h + 130
         else:
             snail_1 = pg.image.load("Resources/graphics/snail/snail1.png").convert_alpha()
             snail_2 = pg.image.load("Resources/graphics/snail/snail2.png").convert_alpha()
             self.frames = [snail_1, snail_2]
-            y_pos = 300
+            y_pos = info.current_h + 130
         
         self.animation_index = 0
         self.image = self.frames[self.animation_index]
@@ -243,13 +243,14 @@ def display_score():
     screen.blit(score_surface, score_rect)
     return current_time
 
-
+"""
 def collision(player, obstacles):
     if obstacles:
         for obstacle_rect in obstacles:
             if player.colliderect(obstacle_rect):
                 return False
     return True
+"""
 
 # Function to check player and obstacle collisions
 def collision_sprites():
@@ -537,9 +538,8 @@ while True:
         #Using the player object to display the sprite instead of using blit
         player.draw(screen)
         player.update()#class function that will handle the updates of the sprite in the game
-        #obstacle_group.draw(screen)# Draw the obstacles onto the screen
-        #nobstacle_group.update()
-
+        obstacle_group.draw(screen)# Draw the obstacles onto the screen
+        
         # Stop the game once the player collides with the snail
     
     else:
