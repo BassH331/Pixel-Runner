@@ -14,53 +14,110 @@ print(f"Joystick detected: {joystick.get_name()}")
 print(f"Number of buttons: {joystick.get_numbuttons()}")
 print(f"Number of axes: {joystick.get_numaxes()}")
 
-#Player Class 
 class Player(pg.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        #import player
-        player_walk_1 = pg.image.load("Resources/graphics/player/player_walk_1.png").convert_alpha()
-        player_walk_2 = pg.image.load("Resources/graphics/player/player_walk_2.png").convert_alpha()
-        # The ones with self can be used outside of this function
-        self.player_walk = [player_walk_1, player_walk_2]
-        self.player_index = 0
-        self.player_jump = pg.image.load("Resources/graphics/player/jump.png").convert_alpha()
+        # Load idle animations
+        self.idle_frames = []
+        for i in range(8):
+            frame = pg.image.load(f"Resources/Moon_knight/idle/moon_knight_{i}.png").convert_alpha()
+            original_size = frame.get_size()
+            scaled_size = (original_size[0] * 3, original_size[1] * 3)
+            scaled_frame = pg.transform.scale(frame, scaled_size)
+            self.idle_frames.append(scaled_frame)
+            
+        # Load run animations
+        self.run_frames = []
+        for i in range(8):
+            frame = pg.image.load(f"Resources/Moon_knight/run/m_knight_run{i}.png").convert_alpha()
+            original_size = frame.get_size()
+            scaled_size = (original_size[0] * 3, original_size[1] * 3)
+            scaled_frame = pg.transform.scale(frame, scaled_size)
+            self.run_frames.append(scaled_frame)
 
-        self.image = self.player_walk[self.player_index]
-        self.rect = self.image.get_rect(midbottom = (200, 300))
+        # Load thrust animations (Square button / Q key)
+        self.thrust_frames = []
+        for i in range(13):  # thrust_00.png to thrust_12.png (13 frames)
+            frame = pg.image.load(f"Resources/Moon_knight/thrust/thrust_{i:02d}.png").convert_alpha()
+            original_size = frame.get_size()
+            scaled_size = (original_size[0] * 3, original_size[1] * 3)
+            scaled_frame = pg.transform.scale(frame, scaled_size)
+            self.thrust_frames.append(scaled_frame)
+
+        # Load smash animations (Circle button / E key)
+        self.smash_frames = []
+        for i in range(17):  # smash_00.png to smash_16.png (17 frames)
+            frame = pg.image.load(f"Resources/Moon_knight/smash/smash_{i:02d}.png").convert_alpha()
+            original_size = frame.get_size()
+            scaled_size = (original_size[0] * 3, original_size[1] * 3)
+            scaled_frame = pg.transform.scale(frame, scaled_size)
+            self.smash_frames.append(scaled_frame)
+
+        self.current_frames = self.idle_frames
+        self.animation_index = 0
+        self.image = self.current_frames[self.animation_index]
+        self.rect = self.image.get_rect(midbottom = (200, info.current_h + 135))
         self.gravity = 0
+        self.is_running = False
+        self.direction = 0  # 0 = idle, 1 = right, -1 = left
+        self.speed = 2.5
+        self.is_attacking = False  # To prevent movement during attacks
+        self.attack_cooldown = 0
 
-        #import sound
+        # Sound effects
         self.jump_sound = pg.mixer.Sound("Resources/audio/jump.mp3")
-        self.jump_sound.set_volume(1)
+        self.jump_sound.set_volume(0)
+        self.thrust_sound = pg.mixer.Sound("Resources/audio/thrust.mp3")  # Add if available
+        self.smash_sound = pg.mixer.Sound("Resources/audio/smash.mp3")   # Add if available
 
     def player_input(self):
         keys = pg.key.get_pressed()
-        if keys[pg.K_SPACE] or (joystick and (joystick.get_button(1) or  # PS4 Cross button (usually button 1)
-                        joystick.get_button(0))) and self.rect.bottom >= 300:  # PS4 Square button (usually button 0)
+        
+        # Skip movement if attacking
+        if self.is_attacking:
+            return
+        
+        # Horizontal movement
+        if keys[pg.K_LEFT] or (joystick and joystick.get_axis(0) < -0.5):
+            self.direction = -1
+            self.is_running = True
+        elif keys[pg.K_RIGHT] or (joystick and joystick.get_axis(0) > 0.5):
+            self.direction = 1
+            self.is_running = True
+        else:
+            self.direction = 0
+            self.is_running = False
+            
+        # Jump
+        if (keys[pg.K_SPACE] or (joystick and joystick.get_button(0))) and self.rect.bottom >= 300:
             self.gravity = -20
             self.jump_sound.play()
-    
+            
         # Alternative jump with joystick up motion
-        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= 300:  # Left stick up
+        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= 300:
             self.gravity = -20
             self.jump_sound.play()
-    
+        
+        # Thrust (Square button / Q key)
+        if (keys[pg.K_q] or (joystick and joystick.get_button(2))) and not self.is_attacking:
+            self.is_attacking = True
+            self.current_frames = self.thrust_frames
+            self.animation_index = 0
+            self.thrust_sound.play()
+        
+        # Smash (Circle button / E key)
+        if (keys[pg.K_e] or (joystick and joystick.get_button(1))) and not self.is_attacking:
+            self.is_attacking = True
+            self.current_frames = self.smash_frames
+            self.animation_index = 0
+            self.smash_sound.play()
+
     def apply_gravity(self):
         self.gravity += 1
         self.rect.y += self.gravity
-        if self.rect.bottom >= 300:
-            self.rect.bottom = 300
-    
-    def animation_state(self):
-        if self.rect.bottom < 300:
-            self.image = self.player_jump
-        else:
-            self.player_index += 0.1
-            if self.player_index >= len(self.player_walk):
-                self.player_index = 0
-            self.image = self.player_walk[int(self.player_index)]
-            
+        if self.rect.bottom >= info.current_h + 130:
+            self.rect.bottom = info.current_h + 130
+
     def apply_movement(self):
         # Horizontal movement
         if self.direction != 0:
@@ -71,10 +128,48 @@ class Player(pg.sprite.Sprite):
                 self.rect.left = 0
             if self.rect.right > 800:  # Screen width
                 self.rect.right = 800
+    
+
+    def animation_state(self):
+        # First determine which animation set should be active
+        if self.is_attacking:
+            # Keep current attack animation (don't change frames yet)
+            pass
+        elif self.is_running:
+            self.current_frames = self.run_frames
+        else:
+            self.current_frames = self.idle_frames
+
+        # Then handle the animation progression
+        if self.is_attacking:
+            self.animation_index += 0.55  # Attack animation speed
+            
+            # Check if attack animation is complete
+            if self.animation_index >= len(self.current_frames):
+                self.animation_index = 0
+                self.is_attacking = False
+                # Automatically return to appropriate animation
+                if self.is_running:
+                    self.current_frames = self.run_frames
+                else:
+                    self.current_frames = self.idle_frames
+        else:
+            # Normal animation progression
+            self.animation_index += 0.11  # Walk/run speed
+            if self.animation_index >= len(self.current_frames):
+                self.animation_index = 0
+        
+        # Apply the current frame
+        self.image = self.current_frames[int(self.animation_index)]
+        
+        # Flip image based on direction (if not attacking)
+        if not self.is_attacking and self.direction < 0:
+            self.image = pg.transform.flip(self.image, True, False)
 
     def update(self):
         self.player_input()
         self.apply_gravity()
+        self.apply_movement()
         self.animation_state()
 
 # Object class
@@ -176,6 +271,13 @@ info = pg.display.Info()
 width = info.current_w  # or 1600, or 1920
 height = info.current_h # or 900, or 1080
 screen = pg.display.set_mode((width, height))
+
+# Add these variables near your other initialization code
+bg_x1 = 0
+bg_x2 = width  # Second copy of the background starts at the right edge
+bg_scroll_speed = 0
+max_bg_scroll_speed = 5
+
 #Setting title of the game
 game_title = "Runner"
 pg.display.set_caption(game_title)
@@ -200,7 +302,7 @@ score = 0
 # import background music
 bg_music = pg.mixer.Sound("Resources/audio/music.wav")
 bg_music.play(loops = -1)# loops = [how many times you want to loop the music] (-1 means forever)
-bg_music.set_volume(0.1)
+bg_music.set_volume(0)
 # Create instance of Player class
 player = pg.sprite.GroupSingle()
 player.add(Player())
@@ -209,7 +311,7 @@ player.add(Player())
 obstacle_group = pg.sprite.Group()
 
 # Load and resize background images
-bg_image_1 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/1.png").convert()
+bg_image_1 = pg.image.load("Resources/graphics/background images/new_bg_images/bg_image.png").convert()
 bg_image_1 = pg.transform.scale(bg_image_1, (width, height))
 
 bg_image_2 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/2.png").convert()
@@ -386,13 +488,37 @@ while True:
 
     if game_active:
 
+
         # Stack images by blitting in order (bottom to top)
-        #screen.blit(bg_image_1, (0, 0))  # Bottom layer
-        screen.blit(bg_image_1, (0, 0))  # Bottom laye
-        screen.blit(bg_image_2, (0, 0))
-        screen.blit(bg_image_3, (0, 0)) 
-        screen.blit(bg_image_4, (0, 0)) 
-        screen.blit(bg_image_5, (0, 0))
+        # Get the player sprite
+        player_sprite = player.sprite
+        
+        # Update background scroll speed based on player movement
+        if player_sprite.is_running:
+            bg_scroll_speed = max_bg_scroll_speed * player_sprite.direction
+        else:
+            bg_scroll_speed = 0
+        
+        # Update background positions
+        bg_x1 -= bg_scroll_speed
+        bg_x2 -= bg_scroll_speed
+
+        # When a background goes completely off-screen, reset it
+        if bg_scroll_speed > 0:  # Moving right (background moves left)
+            if bg_x1 <= -width:
+                bg_x1 = width
+            if bg_x2 <= -width:
+                bg_x2 = width
+        elif bg_scroll_speed < 0:  # Moving left (background moves right)
+            if bg_x1 >= width:
+                bg_x1 = -width
+            if bg_x2 >= width:
+                bg_x2 = -width
+            
+        # Draw both copies of the background
+        screen.blit(bg_image_1, (bg_x1, 0))
+        screen.blit(bg_image_1, (bg_x2, 0))
+    
         """
         # Use draw object to draw a rectangl = .rect()
         pg.draw.rect(screen, '#c0e8ec', score_rect)
@@ -409,8 +535,8 @@ while True:
 
         # Display the player
         #Using the player object to display the sprite instead of using blit
-        #player.draw(screen)
-        #player.update()#class function that will handle the updates of the sprite in the game
+        player.draw(screen)
+        player.update()#class function that will handle the updates of the sprite in the game
         #obstacle_group.draw(screen)# Draw the obstacles onto the screen
         #nobstacle_group.update()
 
