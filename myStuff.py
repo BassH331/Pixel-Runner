@@ -170,9 +170,11 @@ pg.init()
 
 print("Joystick initialized!")
 
-#We create a display surface
-width = 800 
-height = 400
+#Initialize information about the screen
+info = pg.display.Info()
+
+width = info.current_w  # or 1600, or 1920
+height = info.current_h # or 900, or 1080
 screen = pg.display.set_mode((width, height))
 #Setting title of the game
 game_title = "Runner"
@@ -206,9 +208,33 @@ player.add(Player())
 # Create instance of objects fly/snail
 obstacle_group = pg.sprite.Group()
 
-#Making the surfaces
-sky_surface = pg.image.load("Resources/graphics/Sky.png").convert()# convert the image to file format pygame can work with more easier
-ground_surface = pg.image.load("Resources/graphics/ground.png").convert()
+# Load and resize background images
+bg_image_1 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/1.png").convert()
+bg_image_1 = pg.transform.scale(bg_image_1, (width, height))
+
+bg_image_2 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/2.png").convert()
+bg_image_2 = pg.transform.scale(bg_image_2, (width, height))
+bg_image_2.set_alpha(30)
+
+bg_image_3 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/3.png").convert()
+bg_image_3 = pg.transform.scale(bg_image_3, (width, height))
+bg_image_3.set_alpha(30)
+
+bg_image_4 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/4.png").convert()
+bg_image_4 = pg.transform.scale(bg_image_4, (width, height))
+bg_image_4.set_alpha(30)
+
+bg_image_5 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/5.png").convert()
+bg_image_5 = pg.transform.scale(bg_image_5, (width, height))
+bg_image_5.set_alpha(30)
+
+bg_image_6 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/6.png").convert()
+bg_image_6 = pg.transform.scale(bg_image_6, (width, height))
+bg_image_6.set_alpha(30)
+
+bg_image_7 = pg.image.load("Resources/graphics/background images/Free Pixel Art Winter Forest/PNG/7.png").convert()
+bg_image_7 = pg.transform.scale(bg_image_7, (width, height))
+bg_image_7.set_alpha(30)
 
 # Defining the images for the welcome screen
 play_btn = pg.image.load("Resources/graphics/ui/PlayBtn.png").convert()
@@ -360,9 +386,13 @@ while True:
 
     if game_active:
 
-        #call display surface
-        screen.blit(ground_surface, (0, 300))
-        screen.blit(sky_surface, (0,0))#argueements = (surface=value, position=(x=value, y=value))
+        # Stack images by blitting in order (bottom to top)
+        #screen.blit(bg_image_1, (0, 0))  # Bottom layer
+        screen.blit(bg_image_1, (0, 0))  # Bottom laye
+        screen.blit(bg_image_2, (0, 0))
+        screen.blit(bg_image_3, (0, 0)) 
+        screen.blit(bg_image_4, (0, 0)) 
+        screen.blit(bg_image_5, (0, 0))
         """
         # Use draw object to draw a rectangl = .rect()
         pg.draw.rect(screen, '#c0e8ec', score_rect)
@@ -378,13 +408,11 @@ while True:
         game_active = collision_sprites()# Which will return true or false if there are any collisions
 
         # Display the player
-        #player_animation()
-        #screen.blit(player_surface, player_rect)
         #Using the player object to display the sprite instead of using blit
-        player.draw(screen)
-        player.update()#class function that will handle the updates of the sprite in the game
-        obstacle_group.draw(screen)# Draw the obstacles onto the screen
-        obstacle_group.update()
+        #player.draw(screen)
+        #player.update()#class function that will handle the updates of the sprite in the game
+        #obstacle_group.draw(screen)# Draw the obstacles onto the screen
+        #nobstacle_group.update()
 
         # Stop the game once the player collides with the snail
     
