@@ -1,6 +1,7 @@
 import pygame as pg
 from sys import exit
-from random import randint
+from random import randint, random
+import os
 
 pg.joystick.init()
 
@@ -156,6 +157,47 @@ class Player(pg.sprite.Sprite):
         self.apply_movement()
         self.animation_state()
 
+class Enemy(pg.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        # Load bat flying animations
+        self.fly_frames = []
+        try:
+            for i in range(7):
+                frame = pg.image.load(f"Resources/graphics/bat/running/bat_running_{i}.png").convert_alpha()
+                original_size = frame.get_size()
+                # Random size variation (1.5x to 2.5x original size)
+                size_multiplier = 1.5 + random()
+                scaled_size = (int(original_size[0] * size_multiplier), int(original_size[1] * size_multiplier))
+                scaled_frame = pg.transform.scale(frame, scaled_size)
+                # Flip each frame immediately when loading to face left
+                flipped_frame = pg.transform.flip(scaled_frame, False, False)
+                self.fly_frames.append(flipped_frame)
+        except FileNotFoundError as e:
+            print(f"Error loading bat animation: {e}")
+            # Fallback to a blank surface to prevent crash
+            self.fly_frames = [pg.Surface((50, 50), pg.SRCALPHA) for _ in range(7)]
+        
+        self.current_frames = self.fly_frames
+        self.animation_index = 0
+        self.image = self.current_frames[self.animation_index]
+        # Random speed between -3 and -5
+        self.speed = -3 - random() * 2
+        # Spawn position will be set when added to group
+        self.rect = self.image.get_rect()
+
+    def update(self):
+        # Move left
+        self.rect.x += self.speed
+        # Animate
+        self.animation_index += 0.3
+        if self.animation_index >= len(self.current_frames):
+            self.animation_index = 0
+        self.image = self.current_frames[int(self.animation_index)]
+        # Remove bat if it moves off-screen
+        if self.rect.right < 0:
+            self.kill()
+
 def display_score():
     current_time = int(pg.time.get_ticks() / 1000) - start_time
     score_surface = test_font.render(f'Score: {current_time}', False, (64, 64, 64))
@@ -163,7 +205,7 @@ def display_score():
     screen.blit(score_surface, score_rect)
     return current_time
 
-# RUN BEFORE ANY PYGAME CODE
+# Initialize pygame
 pg.init()
 
 # Initialize screen
@@ -191,6 +233,11 @@ game_active = False
 start_time = 0
 score = 0
 
+# Bat spawning variables
+next_bat_group_time = 0  # When the next group should spawn
+bat_group_min_delay = 5000  # 5 seconds minimum
+bat_group_max_delay = 15000  # 15 seconds maximum
+
 # Background music
 bg_music = pg.mixer.Sound("Resources/audio/music.wav")
 bg_music.play(loops = -1)
@@ -201,8 +248,7 @@ player = pg.sprite.GroupSingle()
 player.add(Player())
 
 # Obstacle group
-#This was commented out because Im refactoring the enemy object class -> So use this after fixing it [26/05/2025]
-# obstacle_group = pg.sprite.Group()
+obstacle_group = pg.sprite.Group()
 
 # Load and resize background images
 bg_image_1 = pg.image.load("Resources/graphics/background images/new_bg_images/bg_image.png").convert()
@@ -233,14 +279,6 @@ game_name_rect = game_name.get_rect(center = (400, 80))
 player_stand = pg.image.load("Resources/graphics/player/player_stand.png").convert_alpha()
 player_stand = pg.transform.rotozoom(player_stand, 0, 2)
 player_stand_rect = player_stand.get_rect(center = (400, 200))
-
-# Timer for spawning snakes
-obstacle_timer = pg.USEREVENT + 1
-pg.time.set_timer(obstacle_timer, 1200)
-
-# Timer for snake animation
-snake_animation_timer = pg.USEREVENT + 2
-pg.time.set_timer(snake_animation_timer, 100)
 
 # Main game loop
 while True:
@@ -279,10 +317,26 @@ while True:
                 game_active = True
                 start_time = int(pg.time.get_ticks() / 1000)
         
-        #if game_active and event.type == obstacle_timer:
-            #obstacle_group.add(Obstacle('snake', player.sprite.rect.centerx))
-
     if game_active:
+        current_time = pg.time.get_ticks()
+        
+        # Spawn a new bat group when it's time
+        if current_time > next_bat_group_time:
+            # Determine how many bats in this group (3-5)
+            bat_count = randint(3, 5)
+            
+            # Spawn the bats with vertical variation
+            for i in range(bat_count):
+                # Add some randomness to their y positions and spacing
+                y_pos = randint(100, info.current_h - 100)
+                x_offset = randint(0, 200)  # Stagger their x positions slightly
+                bat = Enemy()
+                bat.rect.midleft = (info.current_w + x_offset, y_pos)
+                obstacle_group.add(bat)
+            
+            # Set next spawn time (random delay between 5-15 seconds)
+            next_bat_group_time = current_time + randint(bat_group_min_delay, bat_group_max_delay)
+
         player_sprite = player.sprite
         if player_sprite.is_running:
             bg_scroll_speed = max_bg_scroll_speed * player_sprite.direction
@@ -310,7 +364,15 @@ while True:
         
         player.draw(screen)
         player.update()
+        obstacle_group.draw(screen)
+        obstacle_group.update()
         
+        # Check for collisions
+        """
+        if pg.sprite.spritecollide(player.sprite, obstacle_group, False):
+            game_active = False
+            obstacle_group.empty()  # Clear enemies on collision
+        """
     
     else:
         screen.fill((94, 129, 162))
