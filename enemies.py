@@ -204,12 +204,13 @@ class Goblin(pg.sprite.Sprite):
         if self.state == "attack":
             if int(self.animation_index) == self.attack_frame and not self.attack_applied:
                 if abs(self.player.rect.centerx - self.rect.centerx) < self.attack_range:
-                    self.player.player_ui.update_health(-self.attack_damage)
+                    # Apply damage to player [below line commented out ,as player code is not provided]
+                    # self.player.player_ui.update_health(-self.attack_damage)
                     self.attack_applied = True
                 self.attack_scale = 1.1  # Scale pulse on hit
             else:
                 self.attack_scale = 1.0
-            self.attack_shake = random(-2, 2) if int(self.animation_index) < self.attack_frame else 0
+            self.attack_shake = random.uniform(-2, 2) if int(self.animation_index) < self.attack_frame else 0
             self.rect.x += self.attack_shake
         
         # Apply scale
