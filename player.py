@@ -46,6 +46,7 @@ class Player(pg.sprite.Sprite):
         self.gravity = 0
         self.is_running = False
         self.direction = 0
+        self.facing_left = False
         self.speed = 2.5
         self.is_attacking = False
         self.attack_cooldown = 0
@@ -68,9 +69,11 @@ class Player(pg.sprite.Sprite):
         if keys[pg.K_LEFT] or (joystick and joystick.get_axis(0) < -0.5):
             self.direction = -1
             self.is_running = True
+            self.facing_left = True
         elif keys[pg.K_RIGHT] or (joystick and joystick.get_axis(0) > 0.5):
             self.direction = 1
             self.is_running = True
+            self.facing_left = False
         else:
             self.direction = 0
             self.is_running = False
@@ -134,8 +137,7 @@ class Player(pg.sprite.Sprite):
                 self.animation_index = 0
         
         self.image = self.current_frames[int(self.animation_index)]
-        
-        if not self.is_attacking and self.direction < 0:
+        if self.facing_left:
             self.image = pg.transform.flip(self.image, True, False)
 
     def update(self):
