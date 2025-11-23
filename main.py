@@ -91,7 +91,7 @@ def spawn_enemies(current_time):
     if current_time > next_bat_group_time:
         bat_count = randint(3, 5)
         for i in range(bat_count):
-            y_pos = randint(100, height - 200) # Dynamic height
+            y_pos = randint(50, height // 2) # Dynamic height, keeps bats in upper half of screen
             x_offset = randint(0, 175)
             bat = Enemy()
             bat.rect.midleft = (width + x_offset, y_pos)
