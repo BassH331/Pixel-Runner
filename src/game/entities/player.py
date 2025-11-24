@@ -17,6 +17,11 @@ class Player(Entity):
         self.animation_index = 0
         self.image = self.current_frames[self.animation_index]
         self.rect = self.image.get_rect(midbottom=(x, y))
+        # Adjust hitbox sides independently:
+        # Left/Right: 105px each (total 210px width reduction)
+        # Top: 150px (height reduction)
+        # Bottom: 10px (raise bottom edge)
+        self.adjust_hitbox_sides(left=120, right=120, top=150, bottom=100)
         
         self.gravity = 0
         self.is_running = False
@@ -59,11 +64,11 @@ class Player(Entity):
             self.is_running = False
             
         # Jump
-        if (keys[pg.K_SPACE] or (joystick and joystick.get_button(0))) and self.rect.bottom >= pg.display.Info().current_h + 130:
+        if (keys[pg.K_SPACE] or (joystick and joystick.get_button(0))) and self.rect.bottom >= pg.display.Info().current_h + 50:
             self.gravity = -20
             self.audio_manager.play_sound("jump")
             
-        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= pg.display.Info().current_h + 130:
+        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= pg.display.Info().current_h + 50:
             self.gravity = -20
             self.audio_manager.play_sound("jump")
         
@@ -83,8 +88,8 @@ class Player(Entity):
     def apply_gravity(self):
         self.gravity += 1
         self.rect.y += self.gravity
-        if self.rect.bottom >= pg.display.Info().current_h + 130:
-            self.rect.bottom = pg.display.Info().current_h + 130
+        if self.rect.bottom >= pg.display.Info().current_h + 50:
+            self.rect.bottom = pg.display.Info().current_h + 50
 
     def apply_movement(self):
         if self.direction != 0:

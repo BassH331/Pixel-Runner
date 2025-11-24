@@ -50,6 +50,8 @@ class GameState(State):
         else:
             self.BAT_GROUP_MIN_DELAY = 5000
             self.BAT_GROUP_MAX_DELAY = 15000
+            
+        self.debug_mode = False
         
     def on_enter(self):
         if self.bg_music_channel:
@@ -60,6 +62,11 @@ class GameState(State):
         
     def on_exit(self):
         self.audio_manager.stop_all_sounds() # Or just music?
+        
+    def handle_event(self, event):
+        if event.type == pg.KEYDOWN:
+            if event.key == pg.K_d:
+                self.debug_mode = not self.debug_mode
         
     def spawn_enemies(self, current_time):
         if current_time > self.next_bat_group_time:
@@ -120,5 +127,18 @@ class GameState(State):
         surface.blit(self.bg_image, (self.bg_x1, 0))
         surface.blit(self.bg_image, (self.bg_x2, 0))
         self.player_ui.draw(surface)
-        self.player.draw(surface)
-        self.obstacle_group.draw(surface)
+        self.player_ui.draw(surface)
+        
+        # Draw player
+        self.player.sprite.draw(surface)
+        
+        # Draw enemies
+        for enemy in self.obstacle_group:
+            enemy.draw(surface)
+        
+        if self.debug_mode:
+            # Draw player rect (Red)
+            pg.draw.rect(surface, (255, 0, 0), self.player.sprite.rect, 2)
+            # Draw enemy rects (Green)
+            for sprite in self.obstacle_group:
+                pg.draw.rect(surface, (0, 255, 0), sprite.rect, 2)
