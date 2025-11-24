@@ -1,0 +1,20 @@
+{
+    "map_file": "forest_map.tmx",
+    "music": "forest_theme.ogg",
+    "spawn_rate_min": 5000,
+    "spawn_rate_max": 15000,
+    "entities": [
+        {
+            "type": "player",
+            "x": 200,
+            "y": 600
+        }
+    ],
+    "checkpoints": [
+        {
+            "id": 1,
+            "x": 1200,
+            "y": 200
+        }
+    ]
+}
