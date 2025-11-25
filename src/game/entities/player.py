@@ -16,12 +16,15 @@ class Player(Entity):
         self.current_frames = self.idle_frames
         self.animation_index = 0
         self.image = self.current_frames[self.animation_index]
-        self.rect = self.image.get_rect(midbottom=(x, y))
+        self.rect = self.image.get_rect(midtop=(x, y))
         # Adjust hitbox sides independently:
         # Left/Right: 105px each (total 210px width reduction)
         # Top: 150px (height reduction)
-        # Bottom: 10px (raise bottom edge)
-        self.adjust_hitbox_sides(left=120, right=120, top=150, bottom=100)
+        # Bottom: 100px (raise bottom edge)
+        self.adjust_hitbox_sides(left=170, right=160, top=160, bottom=185)
+        
+        # Manually adjust image offset if needed to fix visual sinking/shifting
+        # self.set_image_offset(120, 150) # Example: Match top/left shrink values
         
         self.gravity = 0
         self.is_running = False
@@ -88,8 +91,8 @@ class Player(Entity):
     def apply_gravity(self):
         self.gravity += 1
         self.rect.y += self.gravity
-        if self.rect.bottom >= pg.display.Info().current_h + 50:
-            self.rect.bottom = pg.display.Info().current_h + 50
+        if self.rect.bottom >= pg.display.Info().current_h + -15:
+            self.rect.bottom = pg.display.Info().current_h + -15
 
     def apply_movement(self):
         if self.direction != 0:

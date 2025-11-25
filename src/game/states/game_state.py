@@ -54,8 +54,7 @@ class GameState(State):
         self.debug_mode = False
         
     def on_enter(self):
-        if self.bg_music_channel:
-            self.audio_manager.stop_sound(self.bg_music_channel)
+        self.audio_manager.stop_all_sounds()
         
         self.audio_manager.play_sound("forest", loop=True, volume=0.8)
         self.player_ui.start_timer()

@@ -85,6 +85,16 @@ class Entity(pygame.sprite.Sprite):
         self.image_offset.x += left
         self.image_offset.y += top
 
+    def set_image_offset(self, x, y):
+        """
+        Manually sets the image offset relative to the hitbox top-left corner.
+        
+        Args:
+            x (int): Horizontal offset. Positive moves image LEFT relative to hitbox.
+            y (int): Vertical offset. Positive moves image UP relative to hitbox.
+        """
+        self.image_offset = pygame.math.Vector2(x, y)
+
 class Component:
     def __init__(self):
         self.name = "base_component"
