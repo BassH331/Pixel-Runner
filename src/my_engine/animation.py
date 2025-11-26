@@ -50,6 +50,7 @@ class Animator:
         self.animations = {}
         self.current_animation = None
         self.current_name = ""
+        self.flip_x = False
         
     def add(self, name, animation):
         self.animations[name] = animation
@@ -68,5 +69,8 @@ class Animator:
             
     def get_frame(self):
         if self.current_animation:
-            return self.current_animation.get_frame()
+            frame = self.current_animation.get_frame()
+            if frame and self.flip_x:
+                return pg.transform.flip(frame, True, False)
+            return frame
         return None

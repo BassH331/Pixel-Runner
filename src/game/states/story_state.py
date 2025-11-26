@@ -2,6 +2,9 @@ import pygame as pg
 from src.my_engine.state_machine import State
 from src.my_engine.asset_manager import AssetManager
 from src.my_engine.ui import Button
+from src.game.entities.green_monster import GreenMonster
+from src.game.entities.goblin import Goblin
+from src.game.entities.bat import Bat
 
 class StoryState(State):
     def __init__(self, manager):
@@ -35,6 +38,11 @@ class StoryState(State):
         self.scroll_y = -len(self.text_lines) * 60 # Start above the screen
         self.scroll_speed = 30 # Pixels per second
         
+        # Monsters
+        self.monster = GreenMonster(-100, self.height - 150, self.width, scale=3.0)
+        self.bat = Bat(-100, self.height - 350, self.width, scale=3.0, start_delay=2.0)
+        self.goblin = Goblin(-100, self.height - 50, self.width, scale=3.0, start_delay=4.0)
+        
         # Continue Button
         # Using PlayBtn as placeholder for Continue
         btn_img = AssetManager.get_texture("assets/graphics/ui/PlayBtn.png")
@@ -60,6 +68,9 @@ class StoryState(State):
         
     def update(self, dt):
         self.continue_btn.update(dt)
+        self.monster.update(dt)
+        self.bat.update(dt)
+        self.goblin.update(dt)
         
         # Scroll Text
         dt_sec = dt / 1000.0
@@ -83,4 +94,7 @@ class StoryState(State):
                 surface.blit(text_surf, text_rect)
             y += 60
             
+        self.monster.draw(surface)
+        self.bat.draw(surface)
+        self.goblin.draw(surface)
         self.continue_btn.draw(surface)

@@ -42,6 +42,24 @@ class AssetManager:
         return cls._fonts[key]
 
     @classmethod
+    def get_animation_frames(cls, directory):
+        frames = []
+        if not os.path.exists(directory):
+            print(f"Error: Directory not found {directory}")
+            return frames
+            
+        try:
+            # Sort files to ensure correct animation order
+            files = sorted([f for f in os.listdir(directory) if f.endswith('.png') or f.endswith('.jpg')])
+            for f in files:
+                path = os.path.join(directory, f)
+                frames.append(cls.get_texture(path))
+        except Exception as e:
+            print(f"Error loading animation frames from {directory}: {e}")
+            
+        return frames
+
+    @classmethod
     def clear(cls):
         cls._textures.clear()
         cls._sounds.clear()
