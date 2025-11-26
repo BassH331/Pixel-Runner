@@ -1,118 +1,80 @@
-# Pixel Runner 🎮
+# Guardian Runner ⚔️🔥
 
-**Pixel Runner** is a fun 2D endless runner game made with Pygame. Run, jump over snails 🐌 and flies 🪰, and try to get the highest score! The game gets faster as you play, with cool pixel-art graphics and sounds to keep you engaged.
+**Guardian Runner** is an epic 2D endless runner set in the mystical realm of **Aethelgard**. You are the last of the **Star-Fire Guardians**, sworn to protect the light against a creeping Shadow Curse. Armed with the legendary **Fire Sword**, you must dash through a pixelated world, battling the encroaching darkness to save your home from eternal night.
 
-## Table of Contents 📑
+## 📜 The Story
 
-- [What’s This Game?](#whats-this-game-🌟)
-- [Cool Features](#cool-features-✨)
-- [How to Install](#how-to-install-🛠️)
-- [How to Play](#how-to-play-🎲)
-- [Screenshots](#screenshots-📸)
-- [Game Files](#game-files-🖼️)
-- [Want to Help?](#want-to-help-🤝)
-- [License](#license-📜)
+In the heart of Aethelgard, the **Star-Fire** once balanced light and shadow, bringing prosperity to the land. But a malevolent force has cast a **Shadow Curse**, threatening to extinguish the flame forever.
 
-## What’s This Game? 🌟
+Ancient prophecies spoke of a hero—a Guardian who would wield the lost Fire Sword and run against the dying light. That hero is **YOU**.
 
-In Pixel Runner, you control a character running through a pixel-art world. Dodge obstacles like snails and flies to keep going and increase your score. The game gets harder the longer you survive, challenging your reflexes!
+Guided by the whispers of a forgotten wizard, you have reclaimed the blade that sings with the Star-Fire's hymn. Now, your trial begins. You must run, jump, and fight through the cursed lands, dodging corrupted creatures.
 
-## Cool Features ✨
+**Will you purge the shadows, or will Aethelgard fall into darkness? Your destiny awaits!**
 
-- **Pixel Art Style 🖼️**: Awesome retro graphics for the player, obstacles, and backgrounds.
-- **Gets Harder ⚡**: The game speeds up (60 to 120 FPS) as your score grows.
-- **Smooth Moves 🎞️**: Animated walking, jumping, and obstacle movements.
-- **Sounds 🔊**: Hear a jump sound and enjoy background music.
-- **Score Tracking 🏆**: See your score live as you play.
-- **Game Over Screen 📊**: Check your final score and restart with one key.
+## 🚀 Getting Started
 
-## How to Install 🛠️
+Join the fight! Follow these steps to start your journey.
 
-Follow these steps to play Pixel Runner on your computer:
+### Prerequisites
 
-### What You Need ✅
+-   **Python 3.10+**: The magic that powers the game.
+-   **Terminal**: Your command center.
 
-- **Python 3.6+**: Download from [python.org](https://www.python.org/).
-- **Pygame**: A Python library for games.
+### Installation
 
-### Steps 🚶
+1.  **Clone the Repository**
+    ```bash
+    git clone <your-repo-url>
+    cd Pixel-Runner
+    ```
 
-1. **Get the Game Files**:
-   - Clone the repository (replace `<repository-url>` with your GitHub link, e.g., `https://github.com/your-username/pixel-runner.git`):
-     ```bash
-     git clone <repository-url>
-     cd pixel-runner
-     ```
-   - Or download the ZIP from GitHub and unzip it.
+2.  **Summon a Virtual Environment**
+    Keep your mana pool clean by using a virtual environment.
+    ```bash
+    # Create the virtual environment
+    python3 -m venv venv
 
-2. **Install Pygame**:
-   - In the VS Code terminal (`Ctrl + ~`), run:
-     ```bash
-     pip install pygame
-     ```
-   - If that doesn’t work, try:
-     ```bash
-     pip3 install pygame
-     ```
+    # Activate it (Linux/macOS)
+    source venv/bin/activate
 
-3. **Check Game Files 📂**:
-   - Make sure the `Resources` folder is in the same folder as `myStuff.py`.
-   - It should have:
-     - `graphics/Sky.png`
-     - `graphics/ground.png`
-     - `graphics/player/player_walk_1.png`, `player_walk_2.png`, `jump.png`, `player_stand.png`
-     - `graphics/snail/snail1.png`, `snail2.png`
-     - `graphics/fly/fly1.png`, `fly2.png`
-     - `audio/jump.mp3`, `audio/music.wav`
-     - `font/Pixeltype.ttf`
+    # Activate it (Windows)
+    # venv\Scripts\activate
+    ```
 
-4. **Run the Game 🎮**:
-   - In the terminal, run:
-     ```bash
-     python myStuff.py
-     ```
-   - Or:
-     ```bash
-     python3 myStuff.py
-     ```
+3.  **Install Dependencies**
+    Equip the necessary libraries (Pygame).
+    ```bash
+    pip install pygame
+    ```
 
-## How to Play 🎲
+4.  **Begin Your Quest**
+    Launch the game and start running!
+    ```bash
+    python3 main.py
+    ```
 
-- **Start**: Press **SPACE** to begin.
-- **Jump**: Press **SPACE** to jump over snails and flies.
-- **Dodge**: Avoid snails (on ground) and flies (in air).
-- **Score**: Survive longer to increase your score (shown on screen).
-- **Game Over**: Hit an obstacle, and the game ends. Press **SPACE** to try again.
-- **Quit**: Close the window to exit.
+## 📂 Realm Structure
 
-## Screenshots 📸
+Here's how the world of Aethelgard is constructed:
 
-See Pixel Runner in action!
+-   **`main.py`**: The portal to the game. Run this to start.
+-   **`assets/`**: The treasury containing graphics 🎨, audio 🎵, and ancient fonts ✍️.
+-   **`src/`**: The scrolls of knowledge (source code).
+    -   **`game/`**: The laws of the world (states, entities, levels).
+    -   **`my_engine/`**: The core engine powering the reality (State Machine, Asset Manager, ECS).
 
-- **Start Screen**: Welcomes you to the game!
-  ![Welcome Screen](https://github.com/user-attachments/assets/d3cbc437-c1c9-46d5-953d-4e7faf9e5121)
-- **Gameplay**: Jump and dodge to score high!
-  ![Gameplay 1](https://github.com/user-attachments/assets/850c621d-2fa1-4eeb-bc00-4e9f5e711c7d)
-  ![Gameplay 2](https://github.com/user-attachments/assets/4c195f9f-cdd7-48fb-863f-26a31435b6e7)
+## 📚 Ancient Scrolls (Documentation)
 
-## Game Files 🖼️
+For those who wish to understand the magic behind the game:
 
-The `Resources` folder contains:
+-   **[Pygame Documentation](https://www.pygame.org/docs/)**: The spellbook for the library used.
+-   **[Python Documentation](https://docs.python.org/3/)**: The language of the gods.
+-   **[Pygame Community](https://www.pygame.org/wiki/GettingStarted)**: A gathering of fellow wizards.
 
-- **Graphics 🎨**: Pixel-art for sky, ground, player, and obstacles.
-- **Audio 🎵**: `jump.mp3` (jump sound) and `music.wav` (background music).
-- **Font ✍️**: `Pixeltype.ttf` for text.
+## 🎮 Controls
 
-## Want to Help? 🤝
+-   **SPACE**: Jump / Start Game / Wield Sword
+-   **ESCAPE**: Retreat to Menu
 
-Love the game? Help make it better! Suggest:
-
-- New features (like new obstacles or skins) 💡
-- Bug fixes 🐞
-- More graphics or sounds 🎨
-
-Submit ideas or code changes on GitHub. Keep code clear and commented. Join [Discussions](<repository-url>/discussions) to share ideas or high scores!
-
-## License 📜
-
-This game uses the MIT License. Check the [LICENSE](LICENSE) file for details.
+**Run, Guardian! The fate of Aethelgard rests in your hands!** 🏃💨
