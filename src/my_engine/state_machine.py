@@ -22,6 +22,7 @@ class StateManager:
         self.stack = []
         
     def push(self, state):
+        print(f"[DEBUG] StateManager: Pushing state {state.__class__.__name__}")
         if self.stack:
             self.stack[-1].on_exit()
         self.stack.append(state)
@@ -29,13 +30,16 @@ class StateManager:
         
     def pop(self):
         if self.stack:
+            print(f"[DEBUG] StateManager: Popping state {self.stack[-1].__class__.__name__}")
             self.stack[-1].on_exit()
             self.stack.pop()
         if self.stack:
+            print(f"[DEBUG] StateManager: Resuming state {self.stack[-1].__class__.__name__}")
             self.stack[-1].on_enter()
             
     def set(self, state):
         """Replaces the entire stack with a single state"""
+        print(f"[DEBUG] StateManager: Setting state to {state.__class__.__name__}")
         while self.stack:
             self.stack[-1].on_exit()
             self.stack.pop()

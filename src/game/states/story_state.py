@@ -25,11 +25,12 @@ class StoryState(State):
         btn_hover = AssetManager.get_texture("assets/graphics/ui/PlayClick.png")
         
         self.continue_btn = Button(
-            x=self.width - 150,
-            y=self.height - 100,
+            x=self.width - 870,
+            y=self.height - 120,
             image=btn_img,
             hover_image=btn_hover,
             scale=1.0,
+            size=(140, 70),
             on_click=self.start_game
         )
         
