@@ -10,14 +10,30 @@ class StoryState(State):
         self.height = pg.display.get_surface().get_height()
         self.font = AssetManager.get_font('assets/font/Pixeltype.ttf', 50)
         
-        # Placeholder Text
+        # Story Text
         self.text_lines = [
-            "Long ago, the world was full of light...",
-            "But darkness has returned.",
-            "You must run to save us all!",
+            "In the beginning, the Star-Fire illuminated the cosmos,",
+            "bringing life and harmony to all worlds.",
             "",
-            "(UI to be added by user)"
+            "But the Shadow King, envious of its brilliance,",
+            "stole the Star-Fire and shattered it into fragments,",
+            "casting the universe into eternal twilight.",
+            "",
+            "Darkness spread like a plague, consuming planets",
+            "and corrupting the hearts of the innocent.",
+            "",
+            "You are the last Guardian.",
+            "Chosen by the fading light,",
+            "you must run through the corrupted lands,",
+            "reclaim the Star-Fire fragments,",
+            "and restore light to the galaxy.",
+            "",
+            "Run, Guardian. Run before the light is lost forever."
         ]
+        
+        # Scrolling
+        self.scroll_y = -len(self.text_lines) * 60 # Start above the screen
+        self.scroll_speed = 30 # Pixels per second
         
         # Continue Button
         # Using PlayBtn as placeholder for Continue
@@ -25,12 +41,13 @@ class StoryState(State):
         btn_hover = AssetManager.get_texture("assets/graphics/ui/PlayClick.png")
         
         self.continue_btn = Button(
-            x=self.width - 870,
-            y=self.height - 120,
+            x=self.width - 150,
+            y=self.height - 100,
             image=btn_img,
             hover_image=btn_hover,
             scale=1.0,
             size=(140, 70),
+            anchor='center',
             on_click=self.start_game
         )
         
@@ -44,15 +61,26 @@ class StoryState(State):
     def update(self, dt):
         self.continue_btn.update(dt)
         
+        # Scroll Text
+        dt_sec = dt / 1000.0
+        self.scroll_y += self.scroll_speed * dt_sec
+        
+        # Reset if it goes too far (optional, or just stop)
+        # if self.scroll_y > self.height:
+        #     self.scroll_y = -len(self.text_lines) * 60
+        
     def draw(self, surface):
         surface.fill((20, 20, 30)) # Dark background
         
         # Draw Text
-        y = 100
+        y = self.scroll_y
         for line in self.text_lines:
             text_surf = self.font.render(line, False, (200, 200, 200))
             text_rect = text_surf.get_rect(center=(self.width // 2, y))
-            surface.blit(text_surf, text_rect)
+            
+            # Only draw if visible
+            if -50 < y < self.height + 50:
+                surface.blit(text_surf, text_rect)
             y += 60
             
         self.continue_btn.draw(surface)
