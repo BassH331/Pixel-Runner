@@ -17,6 +17,7 @@ class MainMenuState(State):
         self.loading_thread = None
         
         # Start loading in background
+        self.loading_progress = 0.0
         import threading
         self.loading_thread = threading.Thread(target=self.load_frames, daemon=True)
         self.loading_thread.start()
@@ -44,9 +45,10 @@ class MainMenuState(State):
         try:
             import os
             frame_files = sorted([f for f in os.listdir(bg_dir) if f.endswith(".gif") or f.endswith(".png")])
+            total_frames = len(frame_files)
             
             loaded_frames = []
-            for f in frame_files:
+            for i, f in enumerate(frame_files):
                 # Note: Pygame image loading must happen on main thread usually, 
                 # but loading into surface is often thread-safe if not drawing.
                 # However, to be safe and simple, we load here.
@@ -58,6 +60,9 @@ class MainMenuState(State):
                     loaded_frames.append(img)
                 except Exception as e:
                     print(f"Error loading frame {f}: {e}")
+                
+                # Update progress
+                self.loading_progress = (i + 1) / total_frames
             
             self.frames = loaded_frames
             print(f"Loaded {len(self.frames)} frames in background.")

@@ -56,8 +56,8 @@ def main():
     state_manager.audio_manager = audio_manager # Attach audio manager
     
     # Start with Main Menu
-    from src.game.states.main_menu_state import MainMenuState
-    state_manager.push(MainMenuState(state_manager))
+    from src.game.states.splash_state import SplashState
+    state_manager.push(SplashState(state_manager))
     
     # Play initial music
     audio_manager.play_sound(
