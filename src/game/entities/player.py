@@ -91,8 +91,8 @@ class Player(Entity):
     def apply_gravity(self):
         self.gravity += 1
         self.rect.y += self.gravity
-        if self.rect.bottom >= pg.display.Info().current_h + -15:
-            self.rect.bottom = pg.display.Info().current_h + -15
+        if self.rect.bottom >= pg.display.Info().current_h + -30:
+            self.rect.bottom = pg.display.Info().current_h + -30
 
     def apply_movement(self):
         if self.direction != 0:

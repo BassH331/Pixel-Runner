@@ -25,8 +25,7 @@ def setup_display():
     
     width_scale = display_width / BASE_WIDTH
     height_scale = display_height / BASE_HEIGHT
-    scale_factor = min(width_scale, height_scale) * 0.9
-    
+    scale_factor = min(width_scale, height_scale) * 0.999
     width = int(BASE_WIDTH * scale_factor)
     height = int(BASE_HEIGHT * scale_factor)
     
@@ -56,8 +55,9 @@ def main():
     state_manager = StateManager()
     state_manager.audio_manager = audio_manager # Attach audio manager
     
-    # Start with Intro
-    state_manager.push(IntroState(state_manager))
+    # Start with Main Menu
+    from src.game.states.main_menu_state import MainMenuState
+    state_manager.push(MainMenuState(state_manager))
     
     # Play initial music
     audio_manager.play_sound(

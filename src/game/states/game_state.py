@@ -117,9 +117,9 @@ class GameState(State):
                  self.score += 10 # Example score
              else:
                  # Game Over
-                 from .menu_state import MenuState
-                 menu = MenuState(self.manager)
-                 menu.score = self.score # Pass score
+                 from .main_menu_state import MainMenuState
+                 menu = MainMenuState(self.manager)
+                 # menu.score = self.score # Pass score if MainMenu supports it, for now just go back
                  self.manager.set(menu)
 
     def draw(self, surface):
