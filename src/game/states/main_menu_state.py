@@ -39,6 +39,18 @@ class MainMenuState(State):
         # Buttons
         self.buttons = []
         self.create_buttons()
+        
+        # Start Prompt Font
+        self.prompt_font = AssetManager.get_font('assets/font/Pixeltype.ttf', 70)
+        
+        # Space Key Prompt
+        try:
+            self.space_key = AssetManager.get_texture("assets/graphics/ui/KEYS/SPACE.png")
+            self.space_key = pg.transform.scale_by(self.space_key, 4.0)
+            self.space_key_rect = self.space_key.get_rect(midbottom=(self.width // 2, self.height - 30))
+        except:
+            print("Failed to load SPACE.png")
+            self.space_key = None
 
     def load_frames(self):
         bg_dir = "assets/graphics/background images/intro_bg"
@@ -85,12 +97,13 @@ class MainMenuState(State):
         pg.quit()
         sys.exit()
         
-
-        
     # Redefining handle_event to pass to buttons
     def handle_event(self, event):
         for btn in self.buttons:
             btn.handle_event(event)
+            
+        if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+            self.start_game()
             
     def update(self, dt):
         # Update Background Animation
@@ -115,3 +128,34 @@ class MainMenuState(State):
         
         for btn in self.buttons:
             btn.draw(surface)
+            
+        # Draw 3-Layer Start Prompt
+        import math
+        alpha = (math.sin(pg.time.get_ticks() * 0.005) + 1) / 2 * 255
+        
+        text = "START"
+        # Move text up to make room for space key
+        center_pos = (self.width // 2, self.height - 100)
+        
+        # Layer 1: Shadow (Black)
+        surf1 = self.prompt_font.render(text, False, (0, 0, 0))
+        surf1.set_alpha(int(alpha))
+        rect1 = surf1.get_rect(midbottom=(center_pos[0] + 4, center_pos[1] + 4))
+        surface.blit(surf1, rect1)
+        
+        # Layer 2: Middle (Dark Gray/Red) - Let's use a dark red for style or just gray
+        surf2 = self.prompt_font.render(text, False, (111, 196, 169)) # Using theme color
+        surf2.set_alpha(int(alpha))
+        rect2 = surf2.get_rect(midbottom=(center_pos[0] + 2, center_pos[1] + 2))
+        surface.blit(surf2, rect2)
+        
+        # Layer 3: Top (White)
+        surf3 = self.prompt_font.render(text, False, (255, 255, 255))
+        surf3.set_alpha(int(alpha))
+        rect3 = surf3.get_rect(midbottom=center_pos)
+        surface.blit(surf3, rect3)
+        
+        # Draw Space Key Prompt
+        if self.space_key:
+            self.space_key.set_alpha(int(alpha))
+            surface.blit(self.space_key, self.space_key_rect)

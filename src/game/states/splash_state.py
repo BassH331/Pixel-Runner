@@ -22,6 +22,15 @@ class SplashState(State):
             print("Failed to load Game Logo.png")
             self.logo = None
             
+        # Load Space Key Prompt
+        try:
+            self.space_key = AssetManager.get_texture("assets/graphics/ui/KEYS/SPACE.png")
+            self.space_key = pg.transform.scale_by(self.space_key, 4.0) # Scale up a bit
+            self.space_key_rect = self.space_key.get_rect(midbottom=(self.width // 2, self.height - 50))
+        except:
+            print("Failed to load SPACE.png")
+            self.space_key = None
+
         # Animation
         self.alpha = 0
         self.fade_speed = 255 # Full fade in 1 second (approx)
