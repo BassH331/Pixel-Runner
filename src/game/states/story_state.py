@@ -2,6 +2,7 @@ import pygame as pg
 from src.my_engine.state_machine import State
 from src.my_engine.asset_manager import AssetManager
 from src.my_engine.ui import Button
+from src.my_engine.tts_manager import TTSManager
 from src.game.entities.green_monster import GreenMonster
 from src.game.entities.goblin import Goblin
 from src.game.entities.bat import Bat
@@ -34,8 +35,14 @@ class StoryState(State):
             "Run, Guardian. Run before the light is lost forever."
         ]
         
+        # Generate Audio
+        full_text = " ".join(self.text_lines)
+        self.audio_path = "assets/audio/story_narration.mp3"
+        TTSManager.generate_audio(full_text, self.audio_path)
+        self.narration_channel = None
+        
         # Scrolling
-        self.scroll_y = -len(self.text_lines) * 60 # Start above the screen
+        self.scroll_y = self.height # Start at the bottom
         self.scroll_speed = 30 # Pixels per second
         
         # Monsters
@@ -59,6 +66,17 @@ class StoryState(State):
             on_click=self.start_game
         )
         
+    def on_enter(self):
+        # Play narration
+        sound = AssetManager.get_sound(self.audio_path)
+        if sound:
+            self.narration_channel = sound.play()
+            
+    def on_exit(self):
+        # Stop narration
+        if self.narration_channel:
+            self.narration_channel.stop()
+        
     def start_game(self):
         from .game_state import GameState
         self.manager.set(GameState(self.manager))
@@ -74,7 +92,7 @@ class StoryState(State):
         
         # Scroll Text
         dt_sec = dt / 1000.0
-        self.scroll_y += self.scroll_speed * dt_sec
+        self.scroll_y -= self.scroll_speed * dt_sec # Move up
         
         # Reset if it goes too far (optional, or just stop)
         # if self.scroll_y > self.height:
