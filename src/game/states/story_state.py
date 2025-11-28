@@ -7,6 +7,7 @@ from src.game.entities.green_monster import GreenMonster
 from src.game.entities.goblin import Goblin
 from src.game.entities.bat import Bat
 from src.game.entities.wizard import Wizard
+from src.game.entities.sky import Sky
 
 class StoryState(State):
     def __init__(self, manager):
@@ -14,6 +15,9 @@ class StoryState(State):
         self.width = pg.display.get_surface().get_width()
         self.height = pg.display.get_surface().get_height()
         self.font = AssetManager.get_font('assets/font/Pixeltype.ttf', 50)
+        
+        # Sky
+        self.sky = Sky(self.width, self.height)
         
         # Story Text
         self.text_lines = [
@@ -41,7 +45,7 @@ class StoryState(State):
         self.audio_path = "assets/audio/story_narration.mp3"
         
         tts_manager = TTSManager()
-        tts_manager.configure(voice='en-US-ChristopherNeural', rate='+0%', pitch='-5Hz')
+        tts_manager.configure(voice='en-GB-RyanNeural', rate='+20%', pitch='+0Hz', volume='+0%')
         tts_manager.generate_audio(full_text, self.audio_path)
         
         self.narration_channel = None
@@ -92,6 +96,7 @@ class StoryState(State):
         self.continue_btn.handle_event(event)
         
     def update(self, dt):
+        self.sky.update(dt)
         self.continue_btn.update(dt)
         self.wizard.update(dt)
         self.monster.update(dt)
@@ -107,7 +112,8 @@ class StoryState(State):
         #     self.scroll_y = -len(self.text_lines) * 60
         
     def draw(self, surface):
-        surface.fill((20, 20, 30)) # Dark background
+        # Draw Sky first (background)
+        self.sky.draw(surface)
         
         # Draw Text
         y = self.scroll_y
