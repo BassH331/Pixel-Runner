@@ -3,11 +3,12 @@ from src.my_engine.animation import Animation, Animator
 from src.my_engine.asset_manager import AssetManager
 
 class GreenMonster(pg.sprite.Sprite):
-    def __init__(self, x, y, screen_width, scale=1.0):
+    def __init__(self, x, y, screen_width, scale=1.0, start_delay=0.0):
         super().__init__()
         self.animator = Animator()
         self.scale = scale
         self.screen_width = screen_width
+        self.start_delay = start_delay
         self.load_animations()
         
         self.image = self.animator.get_frame()
@@ -15,7 +16,7 @@ class GreenMonster(pg.sprite.Sprite):
         
         # Movement & State
         self.speed = 200
-        self.state = "ENTER" # ENTER, IDLE_1, ATTACK_1, IDLE_2, ATTACK_2, EXIT
+        self.state = "WAITING" if start_delay > 0 else "ENTER" # WAITING, ENTER, IDLE_1, ATTACK_1, IDLE_2, ATTACK_2, EXIT
         self.state_timer = 0
         
     def set_scale(self, scale):
@@ -60,7 +61,13 @@ class GreenMonster(pg.sprite.Sprite):
     def update(self, dt):
         dt_sec = dt / 1000.0
         
-        if self.state == "ENTER":
+        if self.state == "WAITING":
+            self.state_timer += dt_sec
+            if self.state_timer >= self.start_delay:
+                self.state = "ENTER"
+                self.state_timer = 0
+        
+        elif self.state == "ENTER":
             # Run to center
             self.rect.x += self.speed * dt_sec
             self.animator.set("walk")
@@ -76,7 +83,7 @@ class GreenMonster(pg.sprite.Sprite):
             if self.state_timer >= 0.5: # Wait 0.5s
                 self.state = "ATTACK_1"
                 self.animator.set("attack_1")
-
+    
         elif self.state == "ATTACK_1":
             if self.animator.current_animation.finished:
                 self.state = "IDLE_2"

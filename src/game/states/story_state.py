@@ -6,6 +6,7 @@ from src.my_engine.tts_manager import TTSManager
 from src.game.entities.green_monster import GreenMonster
 from src.game.entities.goblin import Goblin
 from src.game.entities.bat import Bat
+from src.game.entities.wizard import Wizard
 
 class StoryState(State):
     def __init__(self, manager):
@@ -38,7 +39,11 @@ class StoryState(State):
         # Generate Audio
         full_text = " ".join(self.text_lines)
         self.audio_path = "assets/audio/story_narration.mp3"
-        TTSManager.generate_audio(full_text, self.audio_path)
+        
+        tts_manager = TTSManager()
+        tts_manager.configure(voice='en-US-ChristopherNeural', rate='+0%', pitch='-5Hz')
+        tts_manager.generate_audio(full_text, self.audio_path)
+        
         self.narration_channel = None
         
         # Scrolling
@@ -46,9 +51,11 @@ class StoryState(State):
         self.scroll_speed = 30 # Pixels per second
         
         # Monsters
-        self.monster = GreenMonster(-100, self.height - 150, self.width, scale=3.0)
-        self.bat = Bat(-100, self.height - 350, self.width, scale=3.0, start_delay=2.0)
-        self.goblin = Goblin(-100, self.height - 50, self.width, scale=3.0, start_delay=4.0)
+        # Wizard leads (0s) -> Green Monster (2s) -> Bat (4s) -> Goblin (6s)
+        self.wizard = Wizard(-100, self.height - 150, self.width, scale=3.0, start_delay=0.0)
+        self.monster = GreenMonster(-100, self.height - 150, self.width, scale=3.0, start_delay=2.0)
+        self.bat = Bat(-100, self.height - 350, self.width, scale=3.0, start_delay=4.0)
+        self.goblin = Goblin(-100, self.height - 50, self.width, scale=3.0, start_delay=6.0)
         
         # Continue Button
         # Using PlayBtn as placeholder for Continue
@@ -86,6 +93,7 @@ class StoryState(State):
         
     def update(self, dt):
         self.continue_btn.update(dt)
+        self.wizard.update(dt)
         self.monster.update(dt)
         self.bat.update(dt)
         self.goblin.update(dt)
@@ -112,6 +120,7 @@ class StoryState(State):
                 surface.blit(text_surf, text_rect)
             y += 60
             
+        self.wizard.draw(surface)
         self.monster.draw(surface)
         self.bat.draw(surface)
         self.goblin.draw(surface)
