@@ -51,6 +51,10 @@ class MainMenuState(State):
         except:
             print("Failed to load SPACE.png")
             self.space_key = None
+        
+        # Input Cooldown to prevent accidental restarts
+        self.input_cooldown = 0.5 # 500ms
+        self.time_entered = 0
 
     def load_frames(self):
         bg_dir = "assets/graphics/background images/intro_bg"
@@ -97,13 +101,19 @@ class MainMenuState(State):
         pg.quit()
         sys.exit()
         
+    def on_enter(self):
+        self.time_entered = pg.time.get_ticks() / 1000.0
+
     # Redefining handle_event to pass to buttons
     def handle_event(self, event):
         for btn in self.buttons:
             btn.handle_event(event)
             
         if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-            self.start_game()
+            # Check cooldown
+            current_time = pg.time.get_ticks() / 1000.0
+            if current_time - self.time_entered > self.input_cooldown:
+                self.start_game()
             
     def update(self, dt):
         # Update Background Animation

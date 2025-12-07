@@ -11,6 +11,8 @@ class Player(Entity):
         # Shadow Warrior assets use 1-based indexing
         self.idle_frames = self._load_frames("assets/shadow_warrior/idle/idle_{}.png", 12, start_index=1)
         self.run_frames = self._load_frames("assets/shadow_warrior/run/run_{}.png", 10, start_index=1)
+        self.jump_up_frames = self._load_frames("assets/shadow_warrior/jump_up_loop/jump_up_loop_{}.png", 3, start_index=1)
+        self.jump_down_frames = self._load_frames("assets/shadow_warrior/jump_down_loop/jump_down_loop_{}.png", 3, start_index=1)
         self.thrust_frames = self._load_frames("assets/shadow_warrior/1_atk/1_atk_{}.png", 9, start_index=1)
         self.smash_frames = self._load_frames("assets/shadow_warrior/2_atk/2_atk_{}.png", 17, start_index=1)
 
@@ -68,11 +70,11 @@ class Player(Entity):
             self.is_running = False
             
         # Jump
-        if (keys[pg.K_SPACE] or (joystick and joystick.get_button(0))) and self.rect.bottom >= pg.display.Info().current_h - 30:
+        if (keys[pg.K_SPACE] or (joystick and joystick.get_button(0))) and self.rect.bottom >= pg.display.Info().current_h - 230:
             self.gravity = -20
             self.audio_manager.play_sound("jump")
             
-        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= pg.display.Info().current_h - 30:
+        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= pg.display.Info().current_h - 230:
             self.gravity = -20
             self.audio_manager.play_sound("jump")
         
@@ -92,8 +94,8 @@ class Player(Entity):
     def apply_gravity(self):
         self.gravity += 1
         self.rect.y += self.gravity
-        if self.rect.bottom >= pg.display.Info().current_h + -30:
-            self.rect.bottom = pg.display.Info().current_h + -30
+        if self.rect.bottom >= pg.display.Info().current_h - 230:
+            self.rect.bottom = pg.display.Info().current_h - 230
 
     def apply_movement(self):
         if self.direction != 0:
@@ -107,6 +109,11 @@ class Player(Entity):
     def animation_state(self):
         if self.is_attacking:
             pass
+        elif self.rect.bottom < pg.display.Info().current_h - 230: # In air
+            if self.gravity < 0:
+                self.current_frames = self.jump_up_frames
+            else:
+                self.current_frames = self.jump_down_frames
         elif self.is_running:
             self.current_frames = self.run_frames
         else:

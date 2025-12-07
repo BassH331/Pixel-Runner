@@ -32,8 +32,8 @@ class Enemy(Entity):
         self.y_frequency = 0.05
         self.time = 0
         self.rect = self.image.get_rect()
-        # Reduce hitbox size: 100px narrower, 100px shorter than the image
-        self.reduce_hitbox(100, 100)
+        # Reduce hitbox size: Safer reduction to avoid negative size
+        self.reduce_hitbox(20, 20)
 
     def update(self, dt=None):
         self.rect.x += self.speed
