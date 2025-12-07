@@ -71,8 +71,9 @@ class MainMenuState(State):
                 # If this crashes, we might need to load bytes and decode on main thread,
                 # but standard pygame.image.load often works in threads for simple cases.
                 try:
-                    img = pg.image.load(os.path.join(bg_dir, f)).convert_alpha()
+                    img = pg.image.load(os.path.join(bg_dir, f))
                     img = pg.transform.scale(img, (self.width, self.height)) # Faster than smoothscale
+                    # Note: We defer .convert() to the main thread or skip it to avoid threading issues
                     loaded_frames.append(img)
                 except Exception as e:
                     print(f"Error loading frame {f}: {e}")
