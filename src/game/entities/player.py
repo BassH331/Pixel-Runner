@@ -120,7 +120,7 @@ class Player(Entity):
             self.current_frames = self.idle_frames
 
         if self.is_attacking:
-            self.animation_index += 0.55
+            self.animation_index += 0.33
             
             if self.animation_index >= len(self.current_frames):
                 self.animation_index = 0
@@ -130,7 +130,7 @@ class Player(Entity):
                 else:
                     self.current_frames = self.idle_frames
         else:
-            self.animation_index += 0.3
+            self.animation_index += 0.27
             if self.animation_index >= len(self.current_frames):
                 self.animation_index = 0
         
