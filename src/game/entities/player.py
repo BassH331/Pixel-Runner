@@ -8,10 +8,11 @@ class Player(Entity):
         self.audio_manager = audio_manager
         
         # Load animations
-        self.idle_frames = self._load_frames("assets/Moon_knight/idle/moon_knight_{}.png", 8)
-        self.run_frames = self._load_frames("assets/Moon_knight/run/m_knight_run{}.png", 8)
-        self.thrust_frames = self._load_frames("assets/Moon_knight/thrust/thrust_{:02d}.png", 13)
-        self.smash_frames = self._load_frames("assets/Moon_knight/smash/smash_{:02d}.png", 17)
+        # Shadow Warrior assets use 1-based indexing
+        self.idle_frames = self._load_frames("assets/shadow_warrior/idle/idle_{}.png", 12, start_index=1)
+        self.run_frames = self._load_frames("assets/shadow_warrior/run/run_{}.png", 10, start_index=1)
+        self.thrust_frames = self._load_frames("assets/shadow_warrior/1_atk/1_atk_{}.png", 9, start_index=1)
+        self.smash_frames = self._load_frames("assets/shadow_warrior/2_atk/2_atk_{}.png", 17, start_index=1)
 
         self.current_frames = self.idle_frames
         self.animation_index = 0
@@ -34,9 +35,9 @@ class Player(Entity):
         self.is_attacking = False
         self.attack_cooldown = 0
         
-    def _load_frames(self, path_pattern, count):
+    def _load_frames(self, path_pattern, count, start_index=0):
         frames = []
-        for i in range(count):
+        for i in range(start_index, start_index + count):
             path = path_pattern.format(i)
             frame = AssetManager.get_texture(path)
             original_size = frame.get_size()
