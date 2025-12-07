@@ -20,6 +20,7 @@ class GameState(State):
         self.player = pg.sprite.GroupSingle()
         self.player.add(Player(200, self.height + 135, self.audio_manager)) # y pos will be fixed by gravity/ground check
         self.obstacle_group = pg.sprite.Group()
+        self.ambient_group = pg.sprite.Group()
         self.player_ui = PlayerUI()
         
         # Background
@@ -79,7 +80,7 @@ class GameState(State):
                 # I'll set it here.
                 bat.rect.midleft = (self.width + x_offset, y_pos)
                 bat.y_base = y_pos
-                self.obstacle_group.add(bat)
+                self.ambient_group.add(bat)
             self.audio_manager.play_sound("bats")
             self.next_bat_group_time = current_time + randint(self.BAT_GROUP_MIN_DELAY, self.BAT_GROUP_MAX_DELAY)
 
@@ -108,6 +109,7 @@ class GameState(State):
         self.player_ui.update()
         self.player.update()
         self.obstacle_group.update()
+        self.ambient_group.update()
         
         # Collision detection
         if pg.sprite.spritecollide(player_sprite, self.obstacle_group, False):
@@ -134,6 +136,10 @@ class GameState(State):
         # Draw enemies
         for enemy in self.obstacle_group:
             enemy.draw(surface)
+            
+        # Draw ambient creatures
+        for ambient in self.ambient_group:
+            ambient.draw(surface)
         
         if self.debug_mode:
             # Draw player rect (Red)
