@@ -67,11 +67,11 @@ class Player(Entity):
             self.is_running = False
             
         # Jump
-        if (keys[pg.K_SPACE] or (joystick and joystick.get_button(0))) and self.rect.bottom >= pg.display.Info().current_h + 50:
+        if (keys[pg.K_SPACE] or (joystick and joystick.get_button(0))) and self.rect.bottom >= pg.display.Info().current_h - 30:
             self.gravity = -20
             self.audio_manager.play_sound("jump")
             
-        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= pg.display.Info().current_h + 50:
+        if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= pg.display.Info().current_h - 30:
             self.gravity = -20
             self.audio_manager.play_sound("jump")
         
