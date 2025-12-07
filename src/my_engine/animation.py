@@ -1,7 +1,7 @@
 import pygame as pg
 
 class Animation:
-    def __init__(self, frames, frame_duration=0.1, loop=True):
+    def __init__(self, frames, frame_duration=0.2, loop=True):
         """
         Args:
             frames (list): List of pygame.Surface images.

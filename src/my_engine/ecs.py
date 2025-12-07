@@ -65,7 +65,7 @@ class Entity(pygame.sprite.Sprite):
             self.rect.bottom = original_bottom - offset_y
             self.image_offset = pygame.math.Vector2(reduce_w // 2, reduce_h - offset_y)
 
-    def adjust_hitbox_sides(self, top=0, bottom=100, left=0, right=100):
+    def adjust_hitbox_sides(self, top=0, bottom=0, left=0, right=0):
         """
         Shrinks the hitbox by the specified amount from each side.
         Positive values shrink the box, negative values expand it.
