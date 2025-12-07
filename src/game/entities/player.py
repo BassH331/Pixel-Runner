@@ -24,7 +24,7 @@ class Player(Entity):
         # Left/Right: 105px each (total 210px width reduction)
         # Top: 150px (height reduction)
         # Bottom: 100px (raise bottom edge)
-        self.adjust_hitbox_sides(left=170, right=160, top=160, bottom=185)
+        self.adjust_hitbox_sides(left=315, right=315, top=150, bottom=0)
         
         # Manually adjust image offset if needed to fix visual sinking/shifting
         # self.set_image_offset(120, 150) # Example: Match top/left shrink values
@@ -71,11 +71,11 @@ class Player(Entity):
             
         # Jump
         if (keys[pg.K_SPACE] or (joystick and joystick.get_button(0))) and self.rect.bottom >= pg.display.Info().current_h - 230:
-            self.gravity = -20
+            self.gravity = -29
             self.audio_manager.play_sound("jump")
             
         if joystick and abs(joystick.get_axis(1)) > 0.5 and self.rect.bottom >= pg.display.Info().current_h - 230:
-            self.gravity = -20
+            self.gravity = -29
             self.audio_manager.play_sound("jump")
         
         # Attacks
