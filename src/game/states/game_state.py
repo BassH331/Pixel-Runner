@@ -117,6 +117,9 @@ class GameState(State):
         self.obstacle_group.update(dt, self.bg_scroll_speed) # This updates the skeleton too since it's in the group
         self.ambient_group.update(dt, self.bg_scroll_speed)
         
+        # Sync UI
+        self.player_ui.current_health = self.player.sprite.health
+        
         # Collision detection
         collided_obstacles = pg.sprite.spritecollide(player_sprite, self.obstacle_group, False)
         if collided_obstacles:
@@ -128,12 +131,20 @@ class GameState(State):
                          self.score += 10
                      else:
                          obstacle.kill()
-             else:
-                 # Game Over
-                 from .main_menu_state import MainMenuState
-                 menu = MainMenuState(self.manager)
-                 # menu.score = self.score # Pass score if MainMenu supports it, for now just go back
-                 self.manager.set(menu)
+             elif not player_sprite.is_dead:
+                 # Player takes damage
+                 player_sprite.take_damage(10) # 10 damage per hit
+                 # Push back or invulnerability could be added here
+                 
+        # Game Over Logic
+        if player_sprite.is_dead:
+            if not hasattr(self, 'game_over_start_time'):
+                self.game_over_start_time = pg.time.get_ticks()
+            
+            if pg.time.get_ticks() - self.game_over_start_time > 3000: # 3 seconds delay
+                from .main_menu_state import MainMenuState
+                menu = MainMenuState(self.manager)
+                self.manager.set(menu)
 
     def draw(self, surface):
         surface.blit(self.bg_image, (self.bg_x1, 0))

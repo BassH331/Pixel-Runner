@@ -37,6 +37,22 @@ class Player(Entity):
         self.is_attacking = False
         self.attack_cooldown = 0
         
+        self.death_frames = self._load_frames("assets/shadow_warrior/death/death_{}.png", 12, start_index=1)
+        self.max_health = 100
+        self.health = 100
+        self.is_dead = False
+
+    def take_damage(self, amount):
+        if self.is_dead:
+            return
+            
+        self.health -= amount
+        if self.health <= 0:
+            self.health = 0
+            self.is_dead = True
+            self.animation_index = 0
+            self.current_frames = self.death_frames
+        
     def _load_frames(self, path_pattern, count, start_index=0):
         frames = []
         for i in range(start_index, start_index + count):
@@ -98,6 +114,8 @@ class Player(Entity):
             self.rect.bottom = pg.display.Info().current_h - 34
 
     def apply_movement(self):
+        if self.is_dead: return # No movement if dead
+        
         if self.direction != 0:
             self.rect.x += self.direction * self.speed 
             
@@ -107,17 +125,13 @@ class Player(Entity):
                 self.rect.right = 1100
     
     def animation_state(self):
-        if self.is_attacking:
-            pass
-        elif self.rect.bottom < pg.display.Info().current_h - 230: # In air
-            if self.gravity < 0:
-                self.current_frames = self.jump_up_frames
-            else:
-                self.current_frames = self.jump_down_frames
-        elif self.is_running:
-            self.current_frames = self.run_frames
-        else:
-            self.current_frames = self.idle_frames
+        if self.is_dead:
+            self.animation_index += 0.15
+            if self.animation_index >= len(self.current_frames):
+                self.animation_index = len(self.current_frames) - 1 # Stay on last frame
+            
+            self.image = self.current_frames[int(self.animation_index)]
+            return
 
         if self.is_attacking:
             self.animation_index += 0.33
@@ -129,7 +143,17 @@ class Player(Entity):
                     self.current_frames = self.run_frames
                 else:
                     self.current_frames = self.idle_frames
+        elif self.rect.bottom < pg.display.Info().current_h - 230: # In air
+            if self.gravity < 0:
+                self.current_frames = self.jump_up_frames
+            else:
+                self.current_frames = self.jump_down_frames
+        elif self.is_running:
+            self.current_frames = self.run_frames
         else:
+            self.current_frames = self.idle_frames
+
+        if not self.is_attacking: # Only advance non-attack animations if not attacking
             self.animation_index += 0.27
             if self.animation_index >= len(self.current_frames):
                 self.animation_index = 0
@@ -139,7 +163,8 @@ class Player(Entity):
             self.image = pg.transform.flip(self.image, True, False)
 
     def update(self, dt=None): # Added dt to match Entity signature
-        self.player_input()
+        if not self.is_dead:
+            self.player_input()
         self.apply_gravity()
         self.apply_movement()
         self.animation_state()

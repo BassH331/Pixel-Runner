@@ -144,3 +144,18 @@ class Skeleton(Entity):
             self.image = self.current_frames[int(self.animation_index)]
             if self.facing_left:
                 self.image = pg.transform.flip(self.image, True, False)
+
+    def draw(self, surface):
+        super().draw(surface)
+        # Draw Health Bar
+        if self.health < 2 and self.state != "DEATH": # Only show if damaged and not dead
+            bar_width = 40
+            bar_height = 5
+            bar_x = self.rect.centerx - bar_width // 2
+            bar_y = self.rect.top - 10
+            
+            # Background
+            pg.draw.rect(surface, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height))
+            # Health
+            health_ratio = self.health / 2
+            pg.draw.rect(surface, (255, 0, 0), (bar_x, bar_y, bar_width * health_ratio, bar_height))
