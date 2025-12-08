@@ -4,6 +4,7 @@ from src.my_engine.state_machine import State
 from src.my_engine.asset_manager import AssetManager
 from src.game.entities.player import Player
 from src.game.entities.enemy import Enemy
+from src.game.entities.skeleton import Skeleton
 from src.game.ui import PlayerUI
 
 class GameState(State):
@@ -20,6 +21,11 @@ class GameState(State):
         self.player = pg.sprite.GroupSingle()
         self.player.add(Player(200, self.height + 135, self.audio_manager)) # y pos will be fixed by gravity/ground check
         self.obstacle_group = pg.sprite.Group()
+        
+        # Spawn a Skeleton for testing
+        self.skeleton = Skeleton(self.width - 200, self.height - 50, self.player)
+        self.obstacle_group.add(self.skeleton)
+        
         self.ambient_group = pg.sprite.Group()
         self.player_ui = PlayerUI()
         
@@ -108,15 +114,20 @@ class GameState(State):
         self.update_background(self.bg_scroll_speed)
         self.player_ui.update()
         self.player.update()
-        self.obstacle_group.update()
-        self.ambient_group.update()
+        self.obstacle_group.update(dt, self.bg_scroll_speed) # This updates the skeleton too since it's in the group
+        self.ambient_group.update(dt, self.bg_scroll_speed)
         
         # Collision detection
-        if pg.sprite.spritecollide(player_sprite, self.obstacle_group, False):
+        collided_obstacles = pg.sprite.spritecollide(player_sprite, self.obstacle_group, False)
+        if collided_obstacles:
              if player_sprite.is_attacking:
-                 pg.sprite.spritecollide(player_sprite, self.obstacle_group, True)
-                 self.audio_manager.play_sound("smash") # Or some hit sound
-                 self.score += 10 # Example score
+                 for obstacle in collided_obstacles:
+                     if hasattr(obstacle, 'take_damage'):
+                         obstacle.take_damage()
+                         self.audio_manager.play_sound("smash")
+                         self.score += 10
+                     else:
+                         obstacle.kill()
              else:
                  # Game Over
                  from .main_menu_state import MainMenuState

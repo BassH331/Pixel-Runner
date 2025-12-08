@@ -35,7 +35,8 @@ class Enemy(Entity):
         # Reduce hitbox size: Safer reduction to avoid negative size
         self.reduce_hitbox(20, 20)
 
-    def update(self, dt=None):
+    def update(self, dt=None, scroll_speed=0):
+        self.rect.x -= scroll_speed
         self.rect.x += self.speed
         self.time += 1
         self.rect.y = self.y_base + self.y_amplitude * math.sin(self.y_frequency * self.time)
