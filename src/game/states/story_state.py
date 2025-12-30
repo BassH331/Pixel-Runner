@@ -98,10 +98,10 @@ class StoryState(State):
     def update(self, dt):
         self.sky.update(dt)
         self.continue_btn.update(dt)
-        self.wizard.update(dt)
-        self.monster.update(dt)
-        self.bat.update(dt)
-        self.goblin.update(dt)
+        #self.wizard.update(dt)
+        #self.monster.update(dt)
+        #self.bat.update(dt)
+        #self.goblin.update(dt)
         
         # Scroll Text
         dt_sec = dt / 1000.0
@@ -126,8 +126,8 @@ class StoryState(State):
                 surface.blit(text_surf, text_rect)
             y += 60
             
-        self.wizard.draw(surface)
-        self.monster.draw(surface)
-        self.bat.draw(surface)
-        self.goblin.draw(surface)
+        #self.wizard.draw(surface)
+        #self.monster.draw(surface)
+        #self.bat.draw(surface)
+        #self.goblin.draw(surface)
         self.continue_btn.draw(surface)

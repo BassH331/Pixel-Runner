@@ -1,171 +1,676 @@
-import pygame as pg
+"""
+Game state module implementing the main gameplay loop.
+
+This module manages the core game session including entity updates,
+collision detection with frame-accurate hit detection, and state transitions.
+"""
+
+from __future__ import annotations
+
 from random import randint
-from src.my_engine.state_machine import State
-from src.my_engine.asset_manager import AssetManager
-from src.game.entities.player import Player
+from typing import TYPE_CHECKING, Final, Optional
+
+import pygame as pg
+
 from src.game.entities.enemy import Enemy
-from src.game.entities.skeleton import Skeleton
+from src.game.entities.player import Player
+from src.game.entities.skeleton import Skeleton, SkeletonState
 from src.game.ui import PlayerUI
+from src.my_engine.asset_manager import AssetManager
+from src.my_engine.state_machine import State
+
+if TYPE_CHECKING:
+    from src.my_engine.state_machine import StateManager
+
 
 class GameState(State):
-    def __init__(self, manager):
+    """
+    Primary gameplay state managing entities, physics, and game logic.
+    
+    Handles player and enemy updates, collision detection with
+    frame-precise combat resolution, and win/lose conditions.
+    
+    Combat System:
+        Both player and enemy attacks use frame-based hit detection.
+        Damage is only applied during specific animation frames,
+        with duplicate hit prevention per attack.
+    """
+    
+    # Score rewards
+    _SCORE_PER_HIT: Final[int] = 10
+    
+    # Game over delay in milliseconds
+    _GAME_OVER_DELAY_MS: Final[int] = 3000
+    
+    def __init__(self, manager: StateManager) -> None:
+        """
+        Initialize the game state.
+        
+        Args:
+            manager: State machine manager for state transitions.
+        """
         super().__init__(manager)
-        self.width = pg.display.get_surface().get_width()
-        self.height = pg.display.get_surface().get_height()
         
-        # Audio
+        display_surface = pg.display.get_surface()
+        self.width: int = display_surface.get_width()
+        self.height: int = display_surface.get_height()
+        
+        # Audio system
         self.audio_manager = self.manager.audio_manager
-        self.bg_music_channel = None
+        self.bg_music_channel: Optional[pg.mixer.Channel] = None
         
-        # Entities
+        # Entity groups
         self.player = pg.sprite.GroupSingle()
-        self.player.add(Player(200, self.height + 135, self.audio_manager)) # y pos will be fixed by gravity/ground check
-        self.obstacle_group = pg.sprite.Group()
+        self.player.add(
+            Player(200, self.height + 135, self.audio_manager)
+        )
+        self.obstacle_group: pg.sprite.Group = pg.sprite.Group()
+        self.ambient_group: pg.sprite.Group = pg.sprite.Group()
         
-        # Spawn a Skeleton for testing
-        self.skeleton = Skeleton(self.width - 200, self.height - 50, self.player)
+        # Spawn skeleton enemy
+        self.skeleton = Skeleton(
+            x=self.width - 200,
+            y=self.height - 50,
+            player=self.player,
+        )
         self.obstacle_group.add(self.skeleton)
         
-        self.ambient_group = pg.sprite.Group()
+        # UI
         self.player_ui = PlayerUI()
         
-        # Background
-        self.bg_image = AssetManager.get_texture("assets/graphics/background images/new_bg_images/bg_image.png")
-        self.bg_image = pg.transform.smoothscale(self.bg_image, (self.width, self.height))
-        self.bg_x1 = 0
-        self.bg_x2 = self.width
-        self.bg_scroll_speed = 0
-        self.max_bg_scroll_speed = 5
+        # Background parallax
+        self.bg_image = AssetManager.get_texture(
+            "assets/graphics/background images/new_bg_images/bg_image.png"
+        )
+        self.bg_image = pg.transform.smoothscale(
+            self.bg_image, (self.width, self.height)
+        )
+        self.bg_x1: int = 0
+        self.bg_x2: int = self.width
+        self.bg_scroll_speed: int = 0
+        self.max_bg_scroll_speed: int = 5
         
-        # Game Logic
-        self.score = 0
-        self.start_time = int(pg.time.get_ticks() / 1000)
-        self.next_bat_group_time = pg.time.get_ticks()
+        # Game state
+        self.score: int = 0
+        self.start_time: int = int(pg.time.get_ticks() / 1000)
+        self.next_bat_group_time: int = pg.time.get_ticks()
+        self._game_over_start_time: Optional[int] = None
         
-        # Load Level Data
+        # Load level configuration
+        self._load_level_config()
+        
+        # Debug visualization
+        self.debug_mode: bool = False
+        
+    def _load_level_config(self) -> None:
+        """Load level data and configure spawn rates."""
         from src.game.levels.level_loader import LevelLoader
+        
         self.level_loader = LevelLoader()
         self.level_data = self.level_loader.load_level("level_1.json")
         
         if self.level_data:
             self.BAT_GROUP_MIN_DELAY = self.level_data.get("spawn_rate_min", 5000)
             self.BAT_GROUP_MAX_DELAY = self.level_data.get("spawn_rate_max", 15000)
-            # Set player pos if available
-            player_data = next((e for e in self.level_data.get("entities", []) if e["type"] == "player"), None)
+            
+            # Apply player position from level data
+            player_data = next(
+                (e for e in self.level_data.get("entities", [])
+                 if e["type"] == "player"),
+                None
+            )
             if player_data:
-                self.player.sprite.rect.midbottom = (player_data["x"], player_data["y"])
+                self.player.sprite.rect.midbottom = (
+                    player_data["x"],
+                    player_data["y"],
+                )
         else:
             self.BAT_GROUP_MIN_DELAY = 5000
             self.BAT_GROUP_MAX_DELAY = 15000
-            
-        self.debug_mode = False
-        
-    def on_enter(self):
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # State Lifecycle
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    def on_enter(self) -> None:
+        """Initialize state when entering gameplay."""
         self.audio_manager.stop_all_sounds()
-        
         self.audio_manager.play_sound("forest", loop=True, volume=0.8)
         self.player_ui.start_timer()
         
-    def on_exit(self):
-        self.audio_manager.stop_all_sounds() # Or just music?
+    def on_exit(self) -> None:
+        """Cleanup when leaving gameplay state."""
+        self.audio_manager.stop_all_sounds()
         
-    def handle_event(self, event):
+    def handle_event(self, event: pg.event.Event) -> None:
+        """
+        Process input events.
+        
+        Args:
+            event: Pygame event to process.
+        """
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_d:
                 self.debug_mode = not self.debug_mode
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Entity Spawning
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    def spawn_enemies(self, current_time: int) -> None:
+        """
+        Spawn bat enemy groups on timer.
         
-    def spawn_enemies(self, current_time):
-        if current_time > self.next_bat_group_time:
-            bat_count = randint(3, 5)
-            for i in range(bat_count):
-                y_pos = randint(50, self.height // 2)
-                x_offset = randint(0, 175)
-                bat = Enemy()
-                # Manually set rect as Enemy init doesn't take x,y yet (my bad, I should have fixed Enemy init)
-                # But Enemy update uses rect.x/y.
-                # I'll set it here.
-                bat.rect.midleft = (self.width + x_offset, y_pos)
-                bat.y_base = y_pos
-                self.ambient_group.add(bat)
-            self.audio_manager.play_sound("bats")
-            self.next_bat_group_time = current_time + randint(self.BAT_GROUP_MIN_DELAY, self.BAT_GROUP_MAX_DELAY)
-
-    def update_background(self, dt_scroll):
-        self.bg_x1 -= dt_scroll
-        self.bg_x2 -= dt_scroll
-
-        if dt_scroll > 0:
-            if self.bg_x1 <= -self.width: self.bg_x1 = self.width
-            if self.bg_x2 <= -self.width: self.bg_x2 = self.width
-        elif dt_scroll < 0:
-            if self.bg_x1 >= self.width: self.bg_x1 = -self.width
-            if self.bg_x2 >= self.width: self.bg_x2 = -self.width
-
-    def update(self, dt):
+        Args:
+            current_time: Current game time in milliseconds.
+        """
+        if current_time <= self.next_bat_group_time:
+            return
+            
+        bat_count = randint(3, 5)
+        for _ in range(bat_count):
+            y_pos = randint(50, self.height // 2)
+            x_offset = randint(0, 175)
+            
+            bat = Enemy()
+            bat.rect.midleft = (self.width + x_offset, y_pos)
+            bat.y_base = y_pos
+            self.ambient_group.add(bat)
+            
+        self.audio_manager.play_sound("bats")
+        self.next_bat_group_time = current_time + randint(
+            self.BAT_GROUP_MIN_DELAY,
+            self.BAT_GROUP_MAX_DELAY,
+        )
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Background Parallax
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    def update_background(self, scroll_delta: int) -> None:
+        """
+        Update parallax background positions.
+        
+        Args:
+            scroll_delta: Horizontal scroll amount this frame.
+        """
+        self.bg_x1 -= scroll_delta
+        self.bg_x2 -= scroll_delta
+        
+        # Wrap background images for infinite scroll
+        if scroll_delta > 0:
+            if self.bg_x1 <= -self.width:
+                self.bg_x1 = self.width
+            if self.bg_x2 <= -self.width:
+                self.bg_x2 = self.width
+        elif scroll_delta < 0:
+            if self.bg_x1 >= self.width:
+                self.bg_x1 = -self.width
+            if self.bg_x2 >= self.width:
+                self.bg_x2 = -self.width
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Combat Collision Detection
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    def _handle_combat_collisions(self) -> None:
+        """
+        Process combat interactions between player and enemies.
+        
+        Uses frame-accurate hit detection for both player and enemy attacks,
+        ensuring damage is only applied during configured hit frames with
+        duplicate hit prevention.
+        """
+        player_sprite = self.player.sprite
+        
+        if player_sprite.is_dead:
+            return
+        
+        # Process player attacks against all enemies
+        self._process_player_attacks(player_sprite)
+        
+        # Process enemy attacks against player
+        self._process_enemy_attacks(player_sprite)
+    
+    def _process_player_attacks(self, player: Player) -> None:
+        """
+        Process player attacks against all enemies using frame-based detection.
+        
+        Damage is only applied when:
+        1. Player is on an active hit frame
+        2. Attack hitbox collides with enemy hitbox
+        3. Enemy has not already been hit this attack
+        
+        Args:
+            player: Player sprite instance.
+        """
+        # Gate 1: Player must be on an active hit frame
+        if not player.should_deal_damage():
+            return
+        
+        # Get the attack hitbox for precise collision
+        attack_hitbox = player.get_attack_hitbox()
+        if attack_hitbox is None:
+            return
+        
+        # Check against all obstacles
+        for obstacle in self.obstacle_group:
+            # Skip dead enemies
+            if hasattr(obstacle, 'is_dead') and obstacle.is_dead:
+                continue
+            
+            # Skip invincible enemies
+            if hasattr(obstacle, 'is_invincible') and obstacle.is_invincible:
+                continue
+            
+            # Get enemy hitbox (prefer .hitbox, fallback to .rect)
+            target_hitbox = (
+                obstacle.hitbox
+                if hasattr(obstacle, 'hitbox')
+                else obstacle.rect
+            )
+            
+            # Gate 2: Check hitbox collision
+            if not attack_hitbox.colliderect(target_hitbox):
+                continue
+            
+            # Gate 3: Check if already hit this attack (prevent duplicates)
+            target_id = (
+                obstacle.entity_id
+                if hasattr(obstacle, 'entity_id')
+                else id(obstacle)
+            )
+            
+            if not player.try_register_hit(target_id):
+                continue
+            
+            # ─────────────────────────────────────────────────────────────────
+            # HIT CONFIRMED - Apply damage and effects
+            # ─────────────────────────────────────────────────────────────────
+            
+            self._apply_player_damage_to_enemy(player, obstacle)
+    
+    def _apply_player_damage_to_enemy(
+        self,
+        player: Player,
+        enemy: pg.sprite.Sprite,
+    ) -> None:
+        """
+        Apply player attack damage and effects to an enemy.
+        
+        Retrieves frame-specific damage and knockback from the player's
+        active attack configuration.
+        
+        Args:
+            player: Player sprite instance.
+            enemy: Enemy sprite that was hit.
+        """
+        # Get frame-specific damage from attack state
+        damage = player.get_current_attack_damage()
+        
+        # Calculate knockback vector toward enemy
+        knockback = player.get_attack_knockback(enemy.rect.center)
+        
+        # Apply damage to enemy
+        if hasattr(enemy, 'take_damage'):
+            # Check if enemy's take_damage accepts knockback parameter
+            try:
+                enemy.take_damage(damage, knockback)
+            except TypeError:
+                # Fallback: take_damage only accepts damage
+                enemy.take_damage(damage)
+        else:
+            # Non-damageable obstacle - just destroy it
+            enemy.kill()
+        
+        # Audio feedback based on attack type
+        from src.game.entities.player import PlayerState
+        if player.state == PlayerState.ATTACK_SMASH:
+            self.audio_manager.play_sound("smash")
+        else:
+            self.audio_manager.play_sound("thrust")
+        
+        # Score reward
+        self.score += self._SCORE_PER_HIT
+    
+    def _process_enemy_attacks(self, player: Player) -> None:
+        """
+        Process all enemy attacks against the player.
+        
+        Iterates through all obstacles and delegates to type-specific
+        attack handlers.
+        
+        Args:
+            player: Player sprite instance.
+        """
+        # Skip if player is invincible
+        if player.is_invincible:
+            return
+        
+        for obstacle in self.obstacle_group:
+            if isinstance(obstacle, Skeleton):
+                self._handle_skeleton_attack(player, obstacle)
+    
+    def _handle_skeleton_attack(
+        self,
+        player: Player,
+        skeleton: Skeleton,
+    ) -> None:
+        """
+        Handle skeleton attack collision with frame-precise damage.
+        
+        Damage is only applied when:
+        1. Skeleton is in ATTACK state
+        2. Current frame is a configured hit frame
+        3. Hit has not already been registered this attack
+        4. Player is not invincible (no active i-frames)
+        
+        The skeleton's hit is registered regardless of whether damage was
+        blocked by invincibility, preventing rapid-fire attacks from
+        immediately hitting when i-frames expire.
+        
+        Args:
+            player: Player sprite instance.
+            skeleton: Attacking skeleton instance.
+        """
+        # Gate 1: Skeleton must be in attack state
+        if skeleton.state != SkeletonState.ATTACK:
+            return
+        
+        # Gate 2: Must be on a hit frame and not already registered
+        if not skeleton.should_deal_damage():
+            return
+        
+        # Gate 3: Check hitbox collision (use skeleton's attack hitbox if available)
+        skeleton_hitbox = (
+            skeleton.get_attack_hitbox()
+            if hasattr(skeleton, 'get_attack_hitbox')
+            else skeleton.rect
+        )
+        
+        player_hitbox = (
+            player.hitbox
+            if hasattr(player, 'hitbox')
+            else player.rect
+        )
+        
+        if skeleton_hitbox and not skeleton_hitbox.colliderect(player_hitbox):
+            return
+        
+        # Always register the hit attempt to prevent multi-hit exploitation.
+        # This ensures the skeleton can't "save" its hit for when i-frames end.
+        skeleton.register_hit()
+        
+        # Gate 4: Player invincibility check (handled inside take_damage)
+        damage = skeleton.get_current_attack_damage()
+        damage_applied = player.take_damage(damage)
+        
+        # Only apply secondary effects if damage went through
+        if not damage_applied:
+            return
+        
+        # Apply knockback
+        knockback = skeleton.get_current_attack_knockback()
+        if knockback > 0:
+            knockback_direction = (
+                -1 if skeleton.rect.centerx > player.rect.centerx else 1
+            )
+            self._apply_knockback_to_player(
+                player,
+                knockback * knockback_direction,
+            )
+        
+        # Audio feedback for successful hit
+        self.audio_manager.play_sound("player_hurt")
+    
+    def _apply_knockback_to_player(
+        self,
+        player: Player,
+        force: float,
+    ) -> None:
+        """
+        Apply horizontal knockback force to the player.
+        
+        Delegates to player's knockback method if available, otherwise
+        applies a simple position offset as fallback.
+        
+        Args:
+            player: Player sprite instance.
+            force: Horizontal knockback force (negative = left, positive = right).
+        """
+        if hasattr(player, 'apply_knockback'):
+            player.apply_knockback(force)
+        else:
+            # Fallback: Direct position offset with screen bounds clamping
+            player.rect.x += int(force)
+            player.rect.left = max(player.rect.left, 0)
+            
+            screen_width = pg.display.get_surface().get_width()
+            player.rect.right = min(player.rect.right, screen_width)
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Game Over Logic
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    def _check_game_over(self) -> None:
+        """Check and handle game over conditions."""
+        player_sprite = self.player.sprite
+        
+        if not player_sprite.is_dead:
+            self._game_over_start_time = None
+            return
+            
+        # Initialize game over timer
+        if self._game_over_start_time is None:
+            self._game_over_start_time = pg.time.get_ticks()
+            return
+            
+        # Transition after delay
+        elapsed = pg.time.get_ticks() - self._game_over_start_time
+        if elapsed > self._GAME_OVER_DELAY_MS:
+            from .main_menu_state import MainMenuState
+            menu = MainMenuState(self.manager)
+            self.manager.set(menu)
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Main Update Loop
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    def update(self, dt: float) -> None:
+        """
+        Main game update tick.
+        
+        Args:
+            dt: Delta time since last update in seconds.
+        """
         current_time = pg.time.get_ticks()
+        
+        # Enemy spawning
         self.spawn_enemies(current_time)
         
+        # Calculate scroll speed based on player movement
         player_sprite = self.player.sprite
         if player_sprite.is_running:
             self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
         else:
             self.bg_scroll_speed = 0
-            
+        
+        # Update systems
         self.update_background(self.bg_scroll_speed)
         self.player_ui.update()
         self.player.update()
-        self.obstacle_group.update(dt, self.bg_scroll_speed) # This updates the skeleton too since it's in the group
+        self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         
-        # Sync UI
-        self.player_ui.current_health = self.player.sprite.health
+        # Sync UI with player state
+        self.player_ui.current_health = player_sprite.health
         
-        # Collision detection
-        collided_obstacles = pg.sprite.spritecollide(player_sprite, self.obstacle_group, False)
-        if collided_obstacles:
-             if player_sprite.is_attacking:
-                 for obstacle in collided_obstacles:
-                     if hasattr(obstacle, 'take_damage'):
-                         obstacle.take_damage()
-                         self.audio_manager.play_sound("smash")
-                         self.score += 10
-                     else:
-                         obstacle.kill()
-             elif not player_sprite.is_dead:
-                 # Player takes damage
-                 player_sprite.take_damage(10) # 10 damage per hit
-                 # Push back or invulnerability could be added here
-                 
-        # Game Over Logic
-        if player_sprite.is_dead:
-            if not hasattr(self, 'game_over_start_time'):
-                self.game_over_start_time = pg.time.get_ticks()
-            
-            if pg.time.get_ticks() - self.game_over_start_time > 3000: # 3 seconds delay
-                from .main_menu_state import MainMenuState
-                menu = MainMenuState(self.manager)
-                self.manager.set(menu)
-
-    def draw(self, surface):
+        # Combat resolution
+        self._handle_combat_collisions()
+        
+        # State transitions
+        self._check_game_over()
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Rendering
+    # ─────────────────────────────────────────────────────────────────────────
+    
+    def draw(self, surface: pg.Surface) -> None:
+        """
+        Render the game state.
+        
+        Args:
+            surface: Target surface for rendering.
+        """
+        # Background
         surface.blit(self.bg_image, (self.bg_x1, 0))
         surface.blit(self.bg_image, (self.bg_x2, 0))
-        self.player_ui.draw(surface)
+        
+        # UI layer
         self.player_ui.draw(surface)
         
-        # Draw player
+        # Player
         self.player.sprite.draw(surface)
         
-        # Draw enemies
+        # Enemies
         for enemy in self.obstacle_group:
             enemy.draw(surface)
             
-        # Draw ambient creatures
+        # Ambient creatures
         for ambient in self.ambient_group:
             ambient.draw(surface)
         
+        # Debug visualization
         if self.debug_mode:
-            # Draw player rect (Red)
-            pg.draw.rect(surface, (255, 0, 0), self.player.sprite.rect, 2)
-            # Draw enemy rects (Green)
-            for sprite in self.obstacle_group:
-                pg.draw.rect(surface, (0, 255, 0), sprite.rect, 2)
+            self._draw_debug_info(surface)
+    
+    def _draw_debug_info(self, surface: pg.Surface) -> None:
+        """
+        Render debug visualization overlays.
+        
+        Args:
+            surface: Target surface for debug rendering.
+        """
+        player_sprite = self.player.sprite
+        
+        # Player bounding rect (blue)
+        pg.draw.rect(surface, (0, 100, 255), player_sprite.rect, 2)
+        
+        # Player attack hitbox (red, when active)
+        if player_sprite.should_deal_damage():
+            attack_hitbox = player_sprite.get_attack_hitbox()
+            if attack_hitbox:
+                # Semi-transparent fill
+                hitbox_surface = pg.Surface(
+                    (attack_hitbox.width, attack_hitbox.height),
+                    pg.SRCALPHA,
+                )
+                hitbox_surface.fill((255, 0, 0, 80))
+                surface.blit(hitbox_surface, attack_hitbox.topleft)
+                
+                # Solid outline
+                pg.draw.rect(surface, (255, 0, 0), attack_hitbox, 2)
+        
+        # Player state info
+        self._draw_player_debug(surface, player_sprite)
+        
+        # Enemy hitboxes and state info
+        for sprite in self.obstacle_group:
+            # Hitbox (green)
+            pg.draw.rect(surface, (0, 255, 0), sprite.rect, 2)
+            
+            # Skeleton-specific debug info
+            if isinstance(sprite, Skeleton):
+                self._draw_skeleton_debug(surface, sprite)
+    
+    def _draw_player_debug(
+        self,
+        surface: pg.Surface,
+        player: Player,
+    ) -> None:
+        """
+        Render player-specific debug information.
+        
+        Displays current state, animation frame, and attack info.
+        
+        Args:
+            surface: Target surface for debug rendering.
+            player: Player instance to debug.
+        """
+        font = pg.font.Font(None, 24)
+        
+        # State and frame info
+        state_text = f"State: {player.state.name}"
+        frame_text = f"Frame: {player.current_frame_index}"
+        
+        # Color based on attack phase
+        if player.is_attacking:
+            from src.game.entities.player import PlayerState
+            from src.game.entities.combat_system import AttackPhase
+            
+            phase = player.attack_phase
+            color = {
+                AttackPhase.STARTUP: (100, 100, 255),   # Blue
+                AttackPhase.ACTIVE: (255, 50, 50),       # Red
+                AttackPhase.RECOVERY: (255, 200, 50),    # Yellow
+                AttackPhase.COMPLETE: (128, 128, 128),   # Gray
+            }.get(phase, (255, 255, 255))
+            
+            phase_text = f"Phase: {phase.name}"
+            phase_surface = font.render(phase_text, True, color)
+            surface.blit(
+                phase_surface,
+                (player.rect.x, player.rect.top - 55),
+            )
+        else:
+            color = (255, 255, 255)
+        
+        state_surface = font.render(state_text, True, color)
+        frame_surface = font.render(frame_text, True, (200, 200, 200))
+        
+        surface.blit(state_surface, (player.rect.x, player.rect.top - 40))
+        surface.blit(frame_surface, (player.rect.x, player.rect.top - 25))
+        
+        # Hit frame indicator
+        if player.should_deal_damage():
+            hit_text = font.render("ACTIVE HIT FRAME!", True, (255, 50, 50))
+            surface.blit(
+                hit_text,
+                (player.rect.centerx - 60, player.rect.top - 70),
+            )
+    
+    def _draw_skeleton_debug(
+        self,
+        surface: pg.Surface,
+        skeleton: Skeleton,
+    ) -> None:
+        """
+        Render skeleton-specific debug information.
+        
+        Displays current state, animation frame, and hit frame indicators.
+        
+        Args:
+            surface: Target surface for debug rendering.
+            skeleton: Skeleton instance to debug.
+        """
+        font = pg.font.Font(None, 24)
+        
+        # State and frame info
+        state_text = f"State: {skeleton.state.name}"
+        frame_text = f"Frame: {skeleton.current_frame_index}"
+        
+        state_surface = font.render(state_text, True, (255, 255, 255))
+        frame_surface = font.render(frame_text, True, (255, 255, 255))
+        
+        surface.blit(state_surface, (skeleton.rect.x, skeleton.rect.top - 40))
+        surface.blit(frame_surface, (skeleton.rect.x, skeleton.rect.top - 25))
+        
+        # Hit frame indicator (yellow border when in hit frame)
+        if skeleton.is_in_hit_frame():
+            pg.draw.rect(surface, (255, 255, 0), skeleton.rect, 3)
+            
+            hit_text = font.render("HIT FRAME!", True, (255, 255, 0))
+            surface.blit(
+                hit_text,
+                (skeleton.rect.centerx - 40, skeleton.rect.top - 55),
+            )
