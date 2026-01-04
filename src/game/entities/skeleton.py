@@ -407,7 +407,7 @@ class Skeleton(Entity):
             return
             
         # Calculate distances to player
-        player_rect = self._player.sprite.rect
+        player_rect = self._player.rect
         dist_x = abs(self.rect.centerx - player_rect.centerx)
         dist_y = abs(self.rect.centery - player_rect.centery)
         

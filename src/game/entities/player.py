@@ -599,7 +599,13 @@ class Player(Entity):
             Damage value for the current frame, or 0 if not attacking.
         """
         return self._attack_state.get_current_damage()
-    
+
+    def get_current_attack_frame(self) -> Optional[int]:
+        """Return the current animation frame index for the active attack."""
+        if not self._attack_state.is_active:
+            return None
+        return self._attack_state.current_frame
+
     def get_attack_knockback(
         self,
         target_position: tuple[float, float],
@@ -850,7 +856,6 @@ class Player(Entity):
         # Initialize attack state with thrust configuration
         self._attack_state.begin(self.THRUST_ATTACK_CONFIG)
         self._current_attack_config = self.THRUST_ATTACK_CONFIG
-        
         self._audio_manager.play_sound("thrust")
         return True
     
@@ -873,7 +878,6 @@ class Player(Entity):
         # Initialize attack state with smash configuration
         self._attack_state.begin(self.SMASH_ATTACK_CONFIG)
         self._current_attack_config = self.SMASH_ATTACK_CONFIG
-        
         self._audio_manager.play_sound("smash")
         return True
     

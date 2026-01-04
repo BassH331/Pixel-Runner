@@ -41,6 +41,13 @@ class GameState(State):
     
     # Game over delay in milliseconds
     _GAME_OVER_DELAY_MS: Final[int] = 3000
+
+    # Attack-two (smash) sound variants mapped by active frame index
+    _SMASH_SOUND_MAP: Final[dict[int, str]] = {
+        3: "smash_phase_1",
+        7: "smash_phase_2",
+        11: "smash_phase_3",
+    }
     
     def __init__(self, manager: StateManager) -> None:
         """
@@ -67,13 +74,7 @@ class GameState(State):
         self.obstacle_group: pg.sprite.Group = pg.sprite.Group()
         self.ambient_group: pg.sprite.Group = pg.sprite.Group()
         
-        # Spawn skeleton enemy
-        self.skeleton = Skeleton(
-            x=self.width - 200,
-            y=self.height - 50,
-            player=self.player,
-        )
-        self.obstacle_group.add(self.skeleton)
+        # Initialize skeleton spawning
         
         # UI
         self.player_ui = PlayerUI()
@@ -94,7 +95,10 @@ class GameState(State):
         self.score: int = 0
         self.start_time: int = int(pg.time.get_ticks() / 1000)
         self.next_bat_group_time: int = pg.time.get_ticks()
+        self.next_skeleton_spawn_time: int = pg.time.get_ticks()
         self._game_over_start_time: Optional[int] = None
+        self.max_skeletons: int = 3  # Maximum number of skeletons allowed at once
+        self.skeleton_respawn_delay: int = 5000  # 5 seconds between skeleton spawns
         
         # Load level configuration
         self._load_level_config()
@@ -159,29 +163,58 @@ class GameState(State):
     
     def spawn_enemies(self, current_time: int) -> None:
         """
-        Spawn bat enemy groups on timer.
+        Spawn enemy groups on timer.
         
         Args:
             current_time: Current game time in milliseconds.
         """
-        if current_time <= self.next_bat_group_time:
-            return
+        # Spawn bats
+        if current_time >= self.next_bat_group_time:
+            bat_count = randint(3, 5)
+            for _ in range(bat_count):
+                y_pos = randint(50, self.height // 2)
+                x_offset = randint(0, 175)
+                
+                bat = Enemy()
+                bat.rect.midleft = (self.width + x_offset, y_pos)
+                bat.y_base = y_pos
+                self.ambient_group.add(bat)
+                
+            self.audio_manager.play_sound("bats")
+            self.next_bat_group_time = current_time + randint(
+                self.BAT_GROUP_MIN_DELAY,
+                self.BAT_GROUP_MAX_DELAY,
+            )
+        
+        # Spawn skeletons
+        if current_time >= self.next_skeleton_spawn_time:
+            # Count current skeletons
+            current_skeletons = sum(1 for sprite in self.obstacle_group 
+                                 if isinstance(sprite, Skeleton))
             
-        bat_count = randint(3, 5)
-        for _ in range(bat_count):
-            y_pos = randint(50, self.height // 2)
-            x_offset = randint(0, 175)
+            if current_skeletons < self.max_skeletons:
+                self.spawn_skeleton()
+                self.next_skeleton_spawn_time = current_time + self.skeleton_respawn_delay
+    
+    def spawn_skeleton(self) -> None:
+        """Spawn a new skeleton at a random position on the right side of the screen."""
+        # Calculate spawn position (off-screen right, but not too far)
+        spawn_x = self.width + randint(100, 300)
+        spawn_y = self.height - 50  # Same as initial spawn height
+        
+        # Get player sprite from GroupSingle
+        player_sprite = self.player.sprite
+        if player_sprite is None:
+            return  # Can't spawn skeleton without player
             
-            bat = Enemy()
-            bat.rect.midleft = (self.width + x_offset, y_pos)
-            bat.y_base = y_pos
-            self.ambient_group.add(bat)
-            
-        self.audio_manager.play_sound("bats")
-        self.next_bat_group_time = current_time + randint(
-            self.BAT_GROUP_MIN_DELAY,
-            self.BAT_GROUP_MAX_DELAY,
+        # Create and add new skeleton
+        skeleton = Skeleton(
+            x=spawn_x,
+            y=spawn_y,
+            player=player_sprite  # Pass the actual Player instance
         )
+        self.obstacle_group.add(skeleton)
+        self.audio_manager.play_sound("skeleton_spawn")
     
     # ─────────────────────────────────────────────────────────────────────────
     # Background Parallax
@@ -231,6 +264,11 @@ class GameState(State):
         
         # Process enemy attacks against player
         self._process_enemy_attacks(player_sprite)
+        
+        # Clean up dead skeletons and spawn new ones if needed
+        current_time = pg.time.get_ticks()
+        if current_time >= self.next_skeleton_spawn_time:
+            self._manage_skeleton_spawns()
     
     def _process_player_attacks(self, player: Player) -> None:
         """
@@ -326,13 +364,34 @@ class GameState(State):
         # Audio feedback based on attack type
         from src.game.entities.player import PlayerState
         if player.state == PlayerState.ATTACK_SMASH:
-            self.audio_manager.play_sound("smash")
+            sound_name = self._select_smash_sound(player)
+            self.audio_manager.play_sound(sound_name)
+        elif player.state == PlayerState.ATTACK_THRUST:
+            self.audio_manager.play_sound("attack_one")
         else:
             self.audio_manager.play_sound("thrust")
         
         # Score reward
         self.score += self._SCORE_PER_HIT
-    
+
+    def _select_smash_sound(self, player: Player) -> str:
+        """Choose smash attack sound variant based on current hit frame."""
+        frame = player.get_current_attack_frame()
+        if frame is None:
+            return "smash"
+        return self._SMASH_SOUND_MAP.get(frame, "smash")
+
+    def _manage_skeleton_spawns(self) -> None:
+        """Maintain skeleton population within configured limits."""
+        current_skeletons = sum(
+            1 for sprite in self.obstacle_group if isinstance(sprite, Skeleton)
+        )
+        if current_skeletons < self.max_skeletons:
+            self.spawn_skeleton()
+            self.next_skeleton_spawn_time = (
+                pg.time.get_ticks() + self.skeleton_respawn_delay
+            )
+
     def _process_enemy_attacks(self, player: Player) -> None:
         """
         Process all enemy attacks against the player.
@@ -346,28 +405,15 @@ class GameState(State):
         # Skip if player is invincible
         if player.is_invincible:
             return
-        
+            
+        # Process attacks from all obstacles that can attack
         for obstacle in self.obstacle_group:
             if isinstance(obstacle, Skeleton):
                 self._handle_skeleton_attack(player, obstacle)
-    
-    def _handle_skeleton_attack(
-        self,
-        player: Player,
-        skeleton: Skeleton,
-    ) -> None:
+                
+    def _handle_skeleton_attack(self, player: Player, skeleton: Skeleton) -> None:
         """
         Handle skeleton attack collision with frame-precise damage.
-        
-        Damage is only applied when:
-        1. Skeleton is in ATTACK state
-        2. Current frame is a configured hit frame
-        3. Hit has not already been registered this attack
-        4. Player is not invincible (no active i-frames)
-        
-        The skeleton's hit is registered regardless of whether damage was
-        blocked by invincibility, preventing rapid-fire attacks from
-        immediately hitting when i-frames expire.
         
         Args:
             player: Player sprite instance.
@@ -421,6 +467,20 @@ class GameState(State):
             )
         
         # Audio feedback for successful hit
+        self.audio_manager.play_sound("player_hit")
+        
+        # Visual feedback
+        if hasattr(player, 'trigger_hit_flash'):
+            player.trigger_hit_flash()
+            
+        # Update score if needed (e.g., for tracking hits taken)
+        if hasattr(self, 'score'):
+            # Optional: Deduct points for getting hit
+            self.score = max(0, self.score - 5)
+            
+        # Debug output if in debug mode
+        if hasattr(self, 'debug_mode') and self.debug_mode:
+            print(f"Player hit by skeleton! Health: {player.health}")
         self.audio_manager.play_sound("player_hurt")
     
     def _apply_knockback_to_player(
@@ -447,30 +507,6 @@ class GameState(State):
             
             screen_width = pg.display.get_surface().get_width()
             player.rect.right = min(player.rect.right, screen_width)
-    
-    # ─────────────────────────────────────────────────────────────────────────
-    # Game Over Logic
-    # ─────────────────────────────────────────────────────────────────────────
-    
-    def _check_game_over(self) -> None:
-        """Check and handle game over conditions."""
-        player_sprite = self.player.sprite
-        
-        if not player_sprite.is_dead:
-            self._game_over_start_time = None
-            return
-            
-        # Initialize game over timer
-        if self._game_over_start_time is None:
-            self._game_over_start_time = pg.time.get_ticks()
-            return
-            
-        # Transition after delay
-        elapsed = pg.time.get_ticks() - self._game_over_start_time
-        if elapsed > self._GAME_OVER_DELAY_MS:
-            from .main_menu_state import MainMenuState
-            menu = MainMenuState(self.manager)
-            self.manager.set(menu)
     
     # ─────────────────────────────────────────────────────────────────────────
     # Main Update Loop
@@ -514,6 +550,21 @@ class GameState(State):
     # ─────────────────────────────────────────────────────────────────────────
     # Rendering
     # ─────────────────────────────────────────────────────────────────────────
+    
+    def _check_game_over(self) -> None:
+        """Check if game over conditions are met and handle transition."""
+        player = self.player.sprite
+        if player.is_dead and self._game_over_start_time is None:
+            self._game_over_start_time = pg.time.get_ticks()
+        
+        # Wait for the game over delay before transitioning
+        if (self._game_over_start_time is not None and 
+            pg.time.get_ticks() - self._game_over_start_time >= self._GAME_OVER_DELAY_MS):
+            # TODO: Add game over state transition
+            print("Game Over!")
+            # Reset game over state
+            self._game_over_start_time = None
+            player.reset()
     
     def draw(self, surface: pg.Surface) -> None:
         """

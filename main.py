@@ -45,9 +45,20 @@ def main():
     # Initialize Managers
     audio_manager = AudioManager()
     # Load sounds
-    audio_manager.load_sound("background_music", "assets/audio/music.ogg")
+    audio_manager.load_sound(
+        "background_music",
+        "assets/audio/mixkit-fright-night-871.mp3",
+    )
     audio_manager.load_sound("jump", "assets/audio/jump.wav")
-    audio_manager.load_sound("smash", "assets/audio/smash.wav")
+    smash_sound_path = "assets/audio/smash.wav"
+    audio_manager.load_sound("smash", smash_sound_path)
+    # Placeholder variants for smash attack phases
+    for variant in ("smash_phase_1", "smash_phase_2", "smash_phase_3"):
+        audio_manager.load_sound(variant, smash_sound_path)
+    audio_manager.load_sound(
+        "attack_one",
+        "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3",
+    )
     audio_manager.load_sound("thrust", "assets/audio/thrust.wav")
     audio_manager.load_sound("forest", "assets/audio/dark-forest.ogg")
     audio_manager.load_sound("bats", "assets/audio/bats.wav")
