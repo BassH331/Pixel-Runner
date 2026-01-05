@@ -1,85 +1,94 @@
-# Guardian Runner ⚔️🔥 - Aethelgard's Last Hope
+# Guardian Runner ⚔️🔥
 
-**Guardian Runner** is an epic 2D endless runner set in the mystical realm of **Aethelgard**. As the last of the **Star-Fire Guardians**, you are sworn to protect the light against a creeping Shadow Curse. Armed with the legendary **Fire Sword**, your destiny is to dash through a pixelated world, battling the encroaching darkness to save your home from eternal night.
+Guardian Runner is a 2D action runner built with Pygame. Guide the last Star-Fire Guardian through story, menu, and gameplay states, unleash two melee attacks with frame-accurate hit windows, and enjoy the fully voiced/sampled audio set that now covers jumps, footsteps, attack cues, and enemy events.
 
-## 📜 The Prophecy & Your Quest
+## ✨ Current Feature Set
 
-The ancient prophecies of Aethelgard foretold a time when the delicate balance between light and shadow would shatter. A malevolent **Shadow Curse** has descended upon the land, threatening to extinguish the eternal **Star-Fire** and plunge all into unending darkness.
+- **State-driven flow** – Splash ➜ Story slideshow ➜ Animated Menu ➜ In-game StateMachine with pause/resume hooks.
+- **Responsive presentation** – Resizable window that rescales parallax backgrounds, UI, and buttons to the active monitor.
+- **Frame-precise combat** – Two attack types (Thrust/Smash) with per-frame hitboxes, hit-stop, and collision gating to prevent duplicate hits.
+- **Audio pass** – Unique sounds for jump grunt, landing, smash phases, thrusts, skeleton spawn/death, player hurt/hit, footsteps, and ambient forest loop. Attack Two now layers both animation cues and impact slices even without collisions.
+- **Input options** – Keyboard by default plus detected gamepads (tested with DualShock/Sony Wireless Controller) for movement, combat, and jump actions.
+- **Utilities** – Player reset flow, skeleton spawn manager, adaptive bat spawns, and debug toggles.
 
-You are the hero whispered about in legends—the Guardian destined to wield the lost **Fire Sword**, a blade imbued with the Star-Fire's essence. Guided by the ethereal whispers of a forgotten wizard, you have reclaimed this legendary weapon. Now, your trial begins.
+## 🧰 Requirements
 
-Run, jump, and fight through treacherous, cursed lands, dodging corrupted creatures and fiery obstacles. Each step brings you closer to either salvation or oblivion.
+- Python 3.10+ (project currently runs on Python 3.12.3)
+- Pygame 2.6+
+- Optional: A connected gamepad/joystick for analog control
 
-**Will you fulfill the prophecy and purge the shadows, or will Aethelgard fall into eternal darkness? The fate of your world rests solely on your blade and your speed!**
+## 🚀 Setup & Launch
 
-## 🚀 Embark on Your Journey: Getting Started
+1. **Clone the repo**
+   ```bash
+   git clone <repo-url>
+   cd Pixel-Runner
+   ```
 
-Join the fight for Aethelgard! Follow these steps to prepare for your heroic quest.
+2. **(Optional) Create a virtual environment**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate      # Linux/macOS
+   # .venv\Scripts\activate      # Windows PowerShell
+   ```
 
-### Prerequisites
+3. **Install dependencies**
+   ```bash
+   pip install pygame
+   ```
 
-To channel the magic of Guardian Runner, ensure you have:
+4. **Start the game**
+   ```bash
+   python main.py
+   ```
 
--   **Python 3.10+**: The arcane language powering your adventure.
--   **A Terminal/Command Prompt**: Your window to the mystical world.
+Expect the console to log state transitions (Splash ➜ MainMenu ➜ Story ➜ Game). Audio initialization and joystick detection messages also appear here.
 
-### Installation & Setup
+## 🎮 Controls
 
-1.  **Clone the Ancient Repository**
-    Summon the game files to your local realm:
-    ```bash
-    git clone <your-repo-url> # Replace with the actual repository URL
-    cd Pixel-Runner
-    ```
+| Action | Keyboard | Gamepad |
+| --- | --- | --- |
+| Move | ← / → arrows | Left stick (horizontal axis)
+| Jump | Space | Button 0 (Cross / A) or pushing the left stick vertically
+| Attack One – Thrust | Q | Button 2 (Square / X)
+| Attack Two – Smash | E | Button 1 (Circle / B)
+| Advance Story / Confirm Menu | Space | Button 0
+| Toggle Debug Info (GameState) | D | —
+| Story Skip | Esc | Start / equivalent (mapped by OS)
 
-2.  **Forge a Virtual Environment**
-    Create a pristine environment for your game's dependencies:
-    ```bash
-    # Create the virtual environment
-    python3 -m venv venv
+Controls are read every frame in `Player.player_input()`, so holding inputs is supported. Story slides advance on Space, while menu buttons also react to mouse hover/click.
 
-    # Activate it (Linux/macOS)
-    source venv/bin/activate
+## 🔊 Audio Reference
 
-    # Activate it (Windows)
-    # venv\Scripts\activate
-    ```
+Key sound hooks (see `main.py` for exact asset paths):
 
-3.  **Equip Essential Libraries**
-    Install the mighty Pygame and other necessary components:
-    ```bash
-    pip install pygame
-    ```
+- `background_music` → `assets/audio/game_loop.mp3`
+- Jump grunt / landing → `angry-grunt-103204.mp3`, `land2-43790.mp3`
+- Attack sounds → `smash.wav`, `sword-slash-and-swing-185432.mp3`, `sword-slice-2-393845.mp3`, plus the base impact slice `mixkit-quick-knife-slice-cutting-2152.mp3`
+- Player hurt/hit → `mixkit-fighting-man-voice-of-pain-2173.wav` and `mixkit-quick-knife-slice-cutting-2152.mp3`
+- Skeleton spawn/death/idle → `whoosh-cinematic-sound-effect-376889.mp3`, `skeletom scream.mp3`, `zombie-noise.mp3`
+- Ambient forest loop & bats → `dark-forest.ogg`, `bats.wav`
 
-4.  **Launch Your Quest!**
-    Unleash the game and begin your endless run:
-    ```bash
-    python3 main.py
-    ```
+Gameplay state switches stop currently playing tracks before starting new ambience; modify `GameState.on_enter()` if you prefer uninterrupted background music.
 
-## 📂 The Fabric of Aethelgard: Project Structure
+## 📂 Project Structure
 
-The realm of Guardian Runner is meticulously crafted:
+- `main.py` – Entry point (display setup, audio loading, StateManager loop)
+- `assets/` – Graphics, fonts, and all audio listed above
+- `src/`
+  - `game/entities/` – Player, skeletons, combat system
+  - `game/states/` – Splash, Story, Menu, Game, Intro, etc.
+  - `game/audio/` – Footstep controller helper
+  - `my_engine/` – Lightweight engine (StateMachine, AssetManager, AudioManager)
 
--   **`main.py`**: The primary portal to launch the game.
--   **`assets/`**: A treasure trove of visual enchantments 🎨, auditory spells 🎵, and ancient glyphs (fonts) ✍️.
--   **`src/`**: The very essence of the game's magic (source code).
-    -   **`game/`**: Defines the laws and entities of Aethelgard (game states, character entities, level designs).
-    -   **`my_engine/`**: The foundational magic powering the realm (State Machine, Asset Manager, Entity-Component-System).
+## 🧪 Troubleshooting
 
-## 📚 Ancient Lore & Spellbooks (Documentation)
+- **No music after entering gameplay** – `GameState.on_enter()` intentionally fades out menu music and loops `forest`. Remove the `stop_all_sounds()` call or replay `background_music` there if desired.
+- **No sound output** – Verify that `pygame.mixer` initialized successfully (console warning otherwise) and that your OS audio device is not muted. The game logs “Sound not found” if an asset fails to load.
+- **Controller not detected** – Ensure your controller is connected before launching the game so `pygame.joystick` can initialize it. Otherwise keyboard controls remain available.
 
-For those who seek deeper understanding of the game's mystical workings:
+## 🤝 Contributing & Next Steps
 
--   **[Pygame Documentation](https://www.pygame.org/docs/)**: The sacred texts for the Pygame library.
--   **[Python Documentation](https://docs.python.org/3/)**: The foundational language of the gods.
--   **[Pygame Community](https://www.pygame.org/wiki/GettingStarted)**: A gathering place for fellow mages and developers.
+Pull requests are welcome! Good first issues include new enemy archetypes, additional attack combos, improved UI scaling, or porting the new audio hooks to other states (e.g., boss fights). Please keep feature switches configurable and respect the existing footstep cadence controller.
 
-## 🎮 Arcane Controls
-
-Master these ancient gestures to guide your Guardian:
-
--   **SPACE**: Command your Guardian to Jump, Initiate the Game, or Wield the Fire Sword.
--   **ESCAPE**: Retreat to the Main Menu (Pause / Exit).
-
-**Run, Guardian! The fate of Aethelgard and the Star-Fire rests in your swift steps and mighty blade!** 🏃💨🛡️
+Run fast, strike true, and keep the Star-Fire burning! 🏃‍♂️🔥
