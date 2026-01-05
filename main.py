@@ -47,7 +47,7 @@ def main():
     # Load sounds
     audio_manager.load_sound(
         "background_music",
-        "assets/audio/mixkit-fright-night-871.mp3",
+        "assets/audio/game_loop.mp3",
     )
     audio_manager.load_sound(
         "jump_grunt",
@@ -57,13 +57,25 @@ def main():
         "jump",
         "assets/audio/land2-43790.mp3",
     )
-    smash_sound_path = "assets/audio/smash.wav"
-    audio_manager.load_sound("smash", smash_sound_path)
-    # Placeholder variants for smash attack phases
-    for variant in ("smash_phase_1", "smash_phase_2", "smash_phase_3"):
-        audio_manager.load_sound(variant, smash_sound_path)
+    audio_manager.load_sound("smash", "assets/audio/smash.wav")
+    audio_manager.load_sound(
+        "smash_phase_1",
+        "assets/audio/smash.wav",
+    )
+    audio_manager.load_sound(
+        "smash_phase_2",
+        "assets/audio/sword-slash-and-swing-185432.mp3",
+    )
+    audio_manager.load_sound(
+        "smash_phase_3",
+        "assets/audio/sword-slice-2-393845.mp3",
+    )
     audio_manager.load_sound(
         "attack_one",
+        "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3",
+    )
+    audio_manager.load_sound(
+        "player_hit",
         "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3",
     )
     audio_manager.load_sound("thrust", "assets/audio/thrust.wav")
@@ -74,6 +86,18 @@ def main():
     audio_manager.load_sound(
         "skeleton_death",
         "assets/audio/skeletom scream.mp3",
+    )
+    audio_manager.load_sound(
+        "player_hurt",
+        "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav",
+    )
+    audio_manager.load_sound(
+        "skeleton_spawn",
+        "assets/audio/whoosh-cinematic-sound-effect-376889.mp3",
+    )
+    audio_manager.load_sound(
+        "skeleton_alive",
+        "assets/audio/zombie-noise.mp3",
     )
     audio_manager.load_sound("forest", "assets/audio/dark-forest.ogg")
     audio_manager.load_sound("bats", "assets/audio/bats.wav")
@@ -89,7 +113,7 @@ def main():
     audio_manager.play_sound(
         "background_music",
         priority=SoundPriority.LOW,
-        volume=0.3,
+        volume=0.6,
         loop=True
     )
     

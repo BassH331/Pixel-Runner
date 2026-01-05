@@ -366,6 +366,7 @@ class GameState(State):
         if player.state == PlayerState.ATTACK_SMASH:
             sound_name = self._select_smash_sound(player)
             self.audio_manager.play_sound(sound_name)
+            self.audio_manager.play_sound("attack_one")
         elif player.state == PlayerState.ATTACK_THRUST:
             self.audio_manager.play_sound("attack_one")
         else:

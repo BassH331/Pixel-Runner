@@ -303,6 +303,12 @@ class Player(Entity):
     _SCREEN_BOUND_LEFT: Final[int] = 0
     _SCREEN_BOUND_RIGHT: Final[int] = 1600
     
+    _SMASH_AUDIO_FRAME_SOUNDS: Final[dict[int, str]] = {
+        3: "smash_phase_1",
+        7: "smash_phase_2",
+        11: "smash_phase_3",
+    }
+    
     def __init__(self, x: int, y: int, audio_manager: AudioManager) -> None:
         """
         Initialize the player entity.
@@ -327,6 +333,7 @@ class Player(Entity):
         # Combat state - frame-based attack system
         self._attack_state: AttackState = AttackState()
         self._current_attack_config: Optional[AttackConfig] = None
+        self._attack_audio_frames_played: set[int] = set()
         
         # Invincibility tracking (extends beyond HURT state if needed)
         self._invincibility_timer: float = 0.0
@@ -869,6 +876,7 @@ class Player(Entity):
         # Initialize attack state with thrust configuration
         self._attack_state.begin(self.THRUST_ATTACK_CONFIG)
         self._current_attack_config = self.THRUST_ATTACK_CONFIG
+        self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("thrust")
         return True
     
@@ -891,6 +899,7 @@ class Player(Entity):
         # Initialize attack state with smash configuration
         self._attack_state.begin(self.SMASH_ATTACK_CONFIG)
         self._current_attack_config = self.SMASH_ATTACK_CONFIG
+        self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("smash")
         return True
 
@@ -1098,10 +1107,24 @@ class Player(Entity):
     def _animate_attack_smash(self) -> None:
         """Handle ATTACK_SMASH state animation."""
         completed = self._advance_animation()
+        self._trigger_attack_audio_cues()
         
         if completed:
             self._attack_state.end()
             self._transition_to_movement_state()
+
+    def _trigger_attack_audio_cues(self) -> None:
+        """Play smash attack sound cues tied to animation frames."""
+        if self._state != PlayerState.ATTACK_SMASH:
+            return
+        frame = self.current_frame_index
+        if frame in self._attack_audio_frames_played:
+            return
+        sound_name = self._SMASH_AUDIO_FRAME_SOUNDS.get(frame)
+        if sound_name is None:
+            return
+        self._audio_manager.play_sound(sound_name)
+        self._attack_audio_frames_played.add(frame)
     
     def _animate_jump_up(self) -> None:
         """Handle JUMP_UP state animation."""
