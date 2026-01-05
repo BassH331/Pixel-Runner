@@ -371,6 +371,12 @@ class GameState(State):
         else:
             self.audio_manager.play_sound("thrust")
         
+        if isinstance(enemy, Skeleton):
+            if (enemy.state == SkeletonState.DEATH and
+                    not getattr(enemy, "_death_sound_played", False)):
+                self.audio_manager.play_sound("skeleton_death")
+                setattr(enemy, "_death_sound_played", True)
+        
         # Score reward
         self.score += self._SCORE_PER_HIT
 

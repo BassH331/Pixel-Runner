@@ -52,6 +52,7 @@ import pygame as pg
 
 from src.my_engine.asset_manager import AssetManager
 from src.my_engine.ecs import Entity
+from src.game.audio.footsteps import FootstepController
 from .combat_system import (
     AttackConfig,
     AttackState,
@@ -330,10 +331,19 @@ class Player(Entity):
         # Invincibility tracking (extends beyond HURT state if needed)
         self._invincibility_timer: float = 0.0
         self._invincibility_duration: float = 0.0
+
+        # Footstep audio controller for run state
+        self._footsteps = FootstepController(
+            audio_manager=self._audio_manager,
+            sound_name="footstep",
+            interval_ms=170,
+            volume=0.85,
+        )
         
         # Sprite setup
         self.image: pg.Surface = self._current_frames[0]
         self.rect: pg.Rect = self.image.get_rect(midtop=(x, y))
+        self._spawn_midtop: tuple[int, int] = self.rect.midtop
         self.adjust_hitbox_sides(left=315, right=315, top=150, bottom=0)
         
         # Physics state
@@ -743,7 +753,10 @@ class Player(Entity):
         ):
             self._attack_state.end()
             self._current_attack_config = None
-        
+
+        if new_state != PlayerState.RUN:
+            self._footsteps.reset()
+
         self._state = new_state
         self._animation_index = 0.0
         
@@ -880,6 +893,14 @@ class Player(Entity):
         self._current_attack_config = self.SMASH_ATTACK_CONFIG
         self._audio_manager.play_sound("smash")
         return True
+
+    def set_footstep_volume(self, volume: float) -> None:
+        """Set absolute footstep volume for future customization."""
+        self._footsteps.set_volume(volume)
+
+    def increase_footstep_volume(self, delta: float) -> None:
+        """Adjust current footstep volume relatively."""
+        self._footsteps.increase_volume(delta)
     
     def jump(self) -> bool:
         """
@@ -897,6 +918,7 @@ class Player(Entity):
             
         self._gravity = self._JUMP_VELOCITY
         self._transition_to(PlayerState.JUMP_UP)
+        self._audio_manager.play_sound("jump_grunt")
         self._audio_manager.play_sound("jump")
         return True
     
@@ -908,6 +930,35 @@ class Player(Entity):
             duration: Invincibility duration in seconds.
         """
         self._invincibility_timer = max(self._invincibility_timer, duration)
+
+    def set_spawn_point(
+        self,
+        *,
+        midtop: Optional[tuple[int, int]] = None,
+        midbottom: Optional[tuple[int, int]] = None,
+    ) -> None:
+        """Update spawn location and reposition player accordingly."""
+        if midtop is not None:
+            self.rect.midtop = midtop
+        elif midbottom is not None:
+            self.rect.midbottom = midbottom
+        self._spawn_midtop = self.rect.midtop
+
+    def reset(self) -> None:
+        """Restore player to initial spawn state for retries/game over."""
+        self._health = self._max_health
+        self._state = PlayerState.IDLE
+        self._current_frames = self._idle_frames
+        self._animation_index = 0.0
+        self._attack_state = AttackState()
+        self._current_attack_config = None
+        self._invincibility_timer = 0.0
+        self._invincibility_duration = 0.0
+        self._direction = 0
+        self._facing_left = False
+        self._gravity = 0.0
+        self.rect.midtop = self._spawn_midtop
+        self._footsteps.reset()
     
     # ─────────────────────────────────────────────────────────────────────────
     # Input Handling
@@ -1069,7 +1120,14 @@ class Player(Entity):
     def _animate_run(self) -> None:
         """Handle RUN state animation."""
         self._advance_animation()
-        
+
+        grounded = self.rect.bottom >= self._ground_y - 1
+        active = grounded and self._direction != 0
+        self._footsteps.try_play(
+            active=active,
+            current_time_ms=pg.time.get_ticks(),
+        )
+
         if self._direction == 0:
             self._transition_to(PlayerState.IDLE)
         

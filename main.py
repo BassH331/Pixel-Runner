@@ -49,7 +49,14 @@ def main():
         "background_music",
         "assets/audio/mixkit-fright-night-871.mp3",
     )
-    audio_manager.load_sound("jump", "assets/audio/jump.wav")
+    audio_manager.load_sound(
+        "jump_grunt",
+        "assets/audio/angry-grunt-103204.mp3",
+    )
+    audio_manager.load_sound(
+        "jump",
+        "assets/audio/land2-43790.mp3",
+    )
     smash_sound_path = "assets/audio/smash.wav"
     audio_manager.load_sound("smash", smash_sound_path)
     # Placeholder variants for smash attack phases
@@ -60,6 +67,14 @@ def main():
         "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3",
     )
     audio_manager.load_sound("thrust", "assets/audio/thrust.wav")
+    audio_manager.load_sound(
+        "footstep",
+        "assets/audio/st3-footstep-sfx-323056.mp3",
+    )
+    audio_manager.load_sound(
+        "skeleton_death",
+        "assets/audio/skeletom scream.mp3",
+    )
     audio_manager.load_sound("forest", "assets/audio/dark-forest.ogg")
     audio_manager.load_sound("bats", "assets/audio/bats.wav")
     
