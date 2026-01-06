@@ -90,6 +90,7 @@ class PlayerState(Enum):
     # Action states
     ATTACK_THRUST = 20
     ATTACK_SMASH = 21
+    ATTACK_POWER = 22
     
     # Aerial states
     JUMP_UP = 30
@@ -199,6 +200,15 @@ class Player(Entity):
             locks_movement=True,
             locks_input=False,
         ),
+        PlayerState.ATTACK_POWER: StateConfig(
+            animation_speed=0.24,
+            loops=False,
+            next_state=PlayerState.IDLE,
+            interruptible=False,
+            grants_invincibility=False,
+            locks_movement=True,
+            locks_input=False,
+        ),
         PlayerState.JUMP_UP: StateConfig(
             animation_speed=0.27,
             loops=True,
@@ -268,6 +278,33 @@ class Player(Entity):
     # Slow multi-hit attack with high damage
     # Active frames: 5-7 (first hit), 10-12 (second hit)
     SMASH_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
+        hit_frames=frozenset({3, 7, 11,}),
+        base_damage=25.0,
+        knockback_force=15.0,
+        knockback_angle=45.0,  # Strong upward knockback
+        hit_stop_frames=5,
+        can_hit_multiple=True,
+        max_hits_per_target=2,  # Can hit twice (two swing phases)
+        frame_damage_modifiers={
+            3: 0.3,   # First swing start
+            7: 0.5,   # First swing end
+            11: 0.2,  # Second swing peak - bonus damage!
+        },
+        hitbox_data={
+            # First swing - overhead arc
+            3: HitboxData(offset_x=40, offset_y=-30, width=80, height=70),
+            7: HitboxData(offset_x=50, offset_y=10, width=90, height=70),
+            # Second swing - horizontal sweep
+            11: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
+        },
+        startup_frames=frozenset({0, 1, 2, 3, 4}),
+        recovery_frames=frozenset({13, 14, 15, 16}),
+    )
+
+    # Power attack (23 frames total)
+    # Slow multi-hit attack with high damage
+    # Active frames: 5-7 (first hit), 10-12 (second hit)
+    POWER_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
         hit_frames=frozenset({3, 7, 11,}),
         base_damage=25.0,
         knockback_force=15.0,
@@ -397,6 +434,9 @@ class Player(Entity):
         )
         self._smash_frames = self._load_frames(
             "assets/shadow_warrior/2_atk/2_atk_{}.png", 17, start_index=1
+        )
+        self._power_frames = self._load_frames(
+            "assets/shadow_warrior/3_atk/3_atk_{}.png", 23, start_index=1
         )
         
         # Reactive animations

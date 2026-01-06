@@ -47,6 +47,10 @@ def main():
     # Load sounds
     audio_manager.load_sound(
         "background_music",
+        "assets/audio/mixkit-fright-night-871.mp3",
+    )
+    audio_manager.load_sound(
+        "game_loop",
         "assets/audio/game_loop.mp3",
     )
     audio_manager.load_sound(

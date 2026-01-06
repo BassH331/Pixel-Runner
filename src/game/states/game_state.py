@@ -64,7 +64,7 @@ class GameState(State):
         
         # Audio system
         self.audio_manager = self.manager.audio_manager
-        self.bg_music_channel: Optional[pg.mixer.Channel] = None
+        self.bg_music_channel_id: Optional[int] = None
         
         # Entity groups
         self.player = pg.sprite.GroupSingle()
@@ -139,12 +139,18 @@ class GameState(State):
     def on_enter(self) -> None:
         """Initialize state when entering gameplay."""
         self.audio_manager.stop_all_sounds()
-        self.audio_manager.play_sound("forest", loop=True, volume=0.8)
+        self.bg_music_channel_id = self.audio_manager.play_sound(
+            "game_loop",
+            loop=True,
+            volume=0.8,
+        )
         self.player_ui.start_timer()
         
     def on_exit(self) -> None:
         """Cleanup when leaving gameplay state."""
-        self.audio_manager.stop_all_sounds()
+        if self.bg_music_channel_id is not None:
+            self.audio_manager.stop_sound(self.bg_music_channel_id)
+            self.bg_music_channel_id = None
         
     def handle_event(self, event: pg.event.Event) -> None:
         """

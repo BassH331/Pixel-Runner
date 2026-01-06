@@ -62,7 +62,8 @@ Controls are read every frame in `Player.player_input()`, so holding inputs is s
 
 Key sound hooks (see `main.py` for exact asset paths):
 
-- `background_music` → `assets/audio/game_loop.mp3`
+- `background_music` → `assets/audio/mixkit-fright-night-871.mp3`
+- `game_loop` → `assets/audio/game_loop.mp3`
 - Jump grunt / landing → `angry-grunt-103204.mp3`, `land2-43790.mp3`
 - Attack sounds → `smash.wav`, `sword-slash-and-swing-185432.mp3`, `sword-slice-2-393845.mp3`, plus the base impact slice `mixkit-quick-knife-slice-cutting-2152.mp3`
 - Player hurt/hit → `mixkit-fighting-man-voice-of-pain-2173.wav` and `mixkit-quick-knife-slice-cutting-2152.mp3`
