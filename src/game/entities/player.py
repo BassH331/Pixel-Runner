@@ -83,6 +83,7 @@ class PlayerState(Enum):
     
     # Terminal states (highest priority)
     DEATH = 0
+    DEFEND = 8
     
     # Reactive states
     HURT = 10
@@ -168,6 +169,15 @@ class Player(Entity):
             animation_speed=0.15,
             loops=False,
             next_state=None,
+            interruptible=False,
+            grants_invincibility=True,
+            locks_movement=True,
+            locks_input=True,
+        ),
+        PlayerState.DEFEND: StateConfig(
+            animation_speed=0.15,
+            loops=False,
+            next_state=PlayerState.IDLE,
             interruptible=False,
             grants_invincibility=True,
             locks_movement=True,
@@ -446,6 +456,9 @@ class Player(Entity):
         self._death_frames = self._load_frames(
             "assets/shadow_warrior/death/death_{}.png", 12, start_index=1
         )
+        self._defend_frames = self._load_frames(
+            "assets/shadow_warrior/defend/defend_{}.png", 7, start_index=1
+        )
     
     def _load_frames(
         self,
@@ -521,7 +534,7 @@ class Player(Entity):
     @property
     def is_attacking(self) -> bool:
         """Whether the player is in an attack state."""
-        return self._state in (PlayerState.ATTACK_THRUST, PlayerState.ATTACK_SMASH)
+        return self._state in (PlayerState.ATTACK_THRUST, PlayerState.ATTACK_SMASH, PlayerState.ATTACK_POWER)
     
     @property
     def is_running(self) -> bool:
@@ -534,7 +547,7 @@ class Player(Entity):
         Whether the player is immune to damage.
         
         Returns True if:
-        - Current state grants invincibility (e.g., HURT, DEATH)
+        - Current state grants invincibility (e.g., HURT, DEATH, DEFEND)
         - Invincibility timer is active (extended i-frames)
         """
         config = self._STATE_CONFIGS.get(self._state)
@@ -797,6 +810,7 @@ class Player(Entity):
         if self.is_attacking and new_state not in (
             PlayerState.ATTACK_THRUST,
             PlayerState.ATTACK_SMASH,
+            PlayerState.ATTACK_POWER,
         ):
             self._attack_state.end()
             self._current_attack_config = None
@@ -815,8 +829,10 @@ class Player(Entity):
             PlayerState.JUMP_DOWN: self._jump_down_frames,
             PlayerState.ATTACK_THRUST: self._thrust_frames,
             PlayerState.ATTACK_SMASH: self._smash_frames,
+            PlayerState.ATTACK_POWER: self._power_frames,
             PlayerState.HURT: self._hurt_frames,
             PlayerState.DEATH: self._death_frames,
+            PlayerState.DEFEND: self._defend_frames,
         }
         
         self._current_frames = frame_mapping.get(new_state, self._idle_frames)
@@ -943,6 +959,29 @@ class Player(Entity):
         self._audio_manager.play_sound("smash")
         return True
 
+    def attack_power(self) -> bool:
+        """
+        Initiate power attack.
+        
+        Begins the power attack animation and initializes the
+        attack state with the power configuration. Damage will
+        only be dealt on the configured hit frames.
+        
+        Returns:
+            True if attack started, False if blocked by current state.
+        """
+        if not self._can_transition_to(PlayerState.ATTACK_POWER):
+            return False
+            
+        self._transition_to(PlayerState.ATTACK_POWER)
+        
+        # Initialize attack state with thrust configuration
+        self._attack_state.begin(self.POWER_ATTACK_CONFIG)
+        self._current_attack_config = self.POWER_ATTACK_CONFIG
+        self._attack_audio_frames_played.clear()
+        self._audio_manager.play_sound("thrust")
+        return True
+
     def set_footstep_volume(self, volume: float) -> None:
         """Set absolute footstep volume for future customization."""
         self._footsteps.set_volume(volume)
@@ -1063,10 +1102,11 @@ class Player(Entity):
     ) -> None:
         """Process action button input (jump, attacks)."""
         # Jump
+        stick_y = joystick.get_axis(1)
         jump_pressed = (
             keys[pg.K_SPACE] or
             (joystick and joystick.get_button(0)) or
-            (joystick and abs(joystick.get_axis(1)) > 0.5)
+            stick_y < -0.9
         )
         if jump_pressed:
             self.jump()
@@ -1078,6 +1118,10 @@ class Player(Entity):
         # Smash attack (E or gamepad button 1)
         if keys[pg.K_e] or (joystick and joystick.get_button(1)):
             self.attack_smash()
+
+        # Power attack (W or gamepad button 3)
+        if keys[pg.K_w] or (joystick and joystick.get_button(3)):
+            self.attack_power()
     
     # ─────────────────────────────────────────────────────────────────────────
     # Physics
@@ -1146,6 +1190,15 @@ class Player(Entity):
     
     def _animate_attack_smash(self) -> None:
         """Handle ATTACK_SMASH state animation."""
+        completed = self._advance_animation()
+        self._trigger_attack_audio_cues()
+        
+        if completed:
+            self._attack_state.end()
+            self._transition_to_movement_state()
+
+    def _animate_attack_power(self) -> None:
+        """Handle ATTACK_POWER state animation."""
         completed = self._advance_animation()
         self._trigger_attack_audio_cues()
         
@@ -1224,12 +1277,16 @@ class Player(Entity):
         match self._state:
             case PlayerState.DEATH:
                 self._animate_death()
+            case PlayerState.DEFEND:
+                self._animate_defend()
             case PlayerState.HURT:
                 self._animate_hurt()
             case PlayerState.ATTACK_THRUST:
                 self._animate_attack_thrust()
             case PlayerState.ATTACK_SMASH:
                 self._animate_attack_smash()
+            case PlayerState.ATTACK_POWER:
+                self._animate_attack_power()
             case PlayerState.JUMP_UP:
                 self._animate_jump_up()
             case PlayerState.JUMP_DOWN:
