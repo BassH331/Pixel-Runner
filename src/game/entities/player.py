@@ -181,7 +181,7 @@ class Player(Entity):
             interruptible=False,
             grants_invincibility=True,
             locks_movement=True,
-            locks_input=True,
+            locks_input=False,
         ),
         PlayerState.HURT: StateConfig(
             animation_speed=0.20,
@@ -278,7 +278,7 @@ class Player(Entity):
             3: 0.5,   # Early hit - 80% damage
         },
         hitbox_data={
-            3: HitboxData(offset_x=60, offset_y=0, width=70, height=50),
+            3: HitboxData(offset_x=180, offset_y=30, width=250, height=100),
         },
         startup_frames=frozenset({0, 1, 2}),
         recovery_frames=frozenset({5, 6, 7, 8}),
@@ -294,7 +294,7 @@ class Player(Entity):
         knockback_angle=45.0,  # Strong upward knockback
         hit_stop_frames=5,
         can_hit_multiple=True,
-        max_hits_per_target=2,  # Can hit twice (two swing phases)
+        max_hits_per_target=3,  # Can hit twice (two swing phases)
         frame_damage_modifiers={
             3: 0.3,   # First swing start
             7: 0.5,   # First swing end
@@ -302,12 +302,12 @@ class Player(Entity):
         },
         hitbox_data={
             # First swing - overhead arc
-            3: HitboxData(offset_x=40, offset_y=-30, width=80, height=70),
-            7: HitboxData(offset_x=50, offset_y=10, width=90, height=70),
+            3: HitboxData(offset_x=180, offset_y=30, width=250, height=100),
+            7: HitboxData(offset_x=180, offset_y=20, width=270, height=200),
             # Second swing - horizontal sweep
-            11: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
+            11: HitboxData(offset_x=180, offset_y=20, width=240, height=200),
         },
-        startup_frames=frozenset({0, 1, 2, 3, 4}),
+        startup_frames=frozenset({0, 1, 2, 3}),
         recovery_frames=frozenset({13, 14, 15, 16}),
     )
 
@@ -326,6 +326,11 @@ class Player(Entity):
             3: 0.3,   # First swing start
             7: 0.5,   # First swing end
             11: 0.2,  # Second swing peak - bonus damage!
+            16: 0.2,
+            17: 0.1,
+            18: 0.1,
+            19: 0.1,
+            20: 0.8,
         },
         hitbox_data={
             # First swing - overhead arc
@@ -333,6 +338,11 @@ class Player(Entity):
             7: HitboxData(offset_x=50, offset_y=10, width=90, height=70),
             # Second swing - horizontal sweep
             11: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
+            16: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
+            17: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
+            18: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
+            19: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
+            20: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
         },
         startup_frames=frozenset({0, 1, 2, 3, 4}),
         recovery_frames=frozenset({13, 14, 15, 16}),
@@ -350,10 +360,22 @@ class Player(Entity):
     _SCREEN_BOUND_LEFT: Final[int] = 0
     _SCREEN_BOUND_RIGHT: Final[int] = 1600
     
-    _SMASH_AUDIO_FRAME_SOUNDS: Final[dict[int, str]] = {
-        3: "smash_phase_1",
-        7: "smash_phase_2",
-        11: "smash_phase_3",
+    _ATTACK_AUDIO_FRAME_SOUNDS: Final[dict[int, str]] = {
+        PlayerState.ATTACK_SMASH: {
+            3: "smash_phase_1",
+            7: "smash_phase_2",
+            11: "smash_phase_3",
+        },
+        PlayerState.ATTACK_POWER: {
+            3: "smash_phase_1",
+            7: "smash_phase_2",
+            11: "smash_phase_3",
+            16: "power_release_1",
+            17: "power_release_2",
+            18: "power_release_3",
+            19: "power_release_4",
+            20: "power_release_5",
+        }
     }
     
     def __init__(self, x: int, y: int, audio_manager: AudioManager) -> None:
@@ -414,6 +436,9 @@ class Player(Entity):
         
         # Entity ID for combat system (used by hit registration)
         self._entity_id: int = id(self)
+
+        # Add this line with other state variables
+        self._defend_handled = False  
         
     def _load_all_animations(self) -> None:
         """
@@ -897,17 +922,23 @@ class Player(Entity):
         if self.is_invincible:
             return False
             
+        # Check if defending
+        if self._state == PlayerState.DEFEND:
+            # Reduce damage by 70% when defending
+            amount = int(amount * 0.3)
+            self._audio_manager.play_sound("defend_hit")
+        else:
+            self._audio_manager.play_sound("player_hurt")
+        
         # Apply damage
         self._health = max(0, self._health - int(amount))
         
         # Determine resulting state
         if self._health <= 0:
             self._transition_to(PlayerState.DEATH)
-            self._audio_manager.play_sound("death")
-        else:
+            self._audio_manager.play_sound("player_death")
+        elif self._state != PlayerState.DEFEND:  # Only go to HURT state if not defending
             self._transition_to(PlayerState.HURT)
-            self._audio_manager.play_sound("player_hurt")
-            
             # Grant extended i-frames after hurt animation
             self._invincibility_duration = 0.3
             
@@ -980,6 +1011,20 @@ class Player(Entity):
         self._current_attack_config = self.POWER_ATTACK_CONFIG
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("thrust")
+        return True
+
+    def defend(self) -> bool:
+        """
+        Initiate defend action.
+        
+        Returns:
+            True if defend started, False if not allowed in current state.
+        """
+        if not self._can_transition_to(PlayerState.DEFEND):
+            return False
+            
+        self._transition_to(PlayerState.DEFEND)
+        self._audio_manager.play_sound("defend")
         return True
 
     def set_footstep_volume(self, volume: float) -> None:
@@ -1122,6 +1167,16 @@ class Player(Entity):
         # Power attack (W or gamepad button 3)
         if keys[pg.K_w] or (joystick and joystick.get_button(3)):
             self.attack_power()
+
+        # Defend (R or gamepad R2 trigger)
+        r2_trigger = (joystick and joystick.get_axis(5) > 0.5)  # R2 is axis 5
+        defend_pressed = keys[pg.K_r] or r2_trigger
+        
+        if defend_pressed:
+            # Only trigger defend if we're not already defending
+            if self._state != PlayerState.DEFEND:
+                self.defend()
+        # Note: Button release is now handled in _animate_defend()
     
     # ─────────────────────────────────────────────────────────────────────────
     # Physics
@@ -1205,17 +1260,40 @@ class Player(Entity):
         if completed:
             self._attack_state.end()
             self._transition_to_movement_state()
+    
+    def _animate_defend(self) -> None:
+        """Handle DEFEND state animation."""
+        # Check if button is still pressed
+        keys = pg.key.get_pressed()
+        joystick = self._get_joystick()
+        r2_trigger = joystick and joystick.get_axis(5) > 0.5
+        defend_pressed = keys[pg.K_r] or r2_trigger
+        
+        if defend_pressed:
+            # Only advance animation if not on last frame yet
+            if int(self._animation_index) < len(self._defend_frames) - 1:
+                self._advance_animation()
+            else:
+                # Hold on last frame
+                self._animation_index = len(self._defend_frames) - 1
+        else:
+            # Button released - transition to idle
+            self._transition_to(PlayerState.IDLE)
 
     def _trigger_attack_audio_cues(self) -> None:
-        """Play smash attack sound cues tied to animation frames."""
-        if self._state != PlayerState.ATTACK_SMASH:
+        """Play attack sound cues tied to animation frames."""
+        frame_sounds = self._ATTACK_AUDIO_FRAME_SOUNDS.get(self._state)
+        if not frame_sounds:
             return
+
         frame = self.current_frame_index
         if frame in self._attack_audio_frames_played:
             return
-        sound_name = self._SMASH_AUDIO_FRAME_SOUNDS.get(frame)
+
+        sound_name = frame_sounds.get(frame)
         if sound_name is None:
             return
+
         self._audio_manager.play_sound(sound_name)
         self._attack_audio_frames_played.add(frame)
     

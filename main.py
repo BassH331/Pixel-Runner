@@ -35,7 +35,7 @@ def setup_display():
 
 def main():
     # Initialize Pygame and display
-    pg.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=512)
+    pg.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=2048)
     pg.init()
     pg.mixer.set_num_channels(32)
     joystick = init_joystick()
@@ -85,7 +85,7 @@ def main():
     audio_manager.load_sound("thrust", "assets/audio/thrust.wav")
     audio_manager.load_sound(
         "footstep",
-        "assets/audio/st3-footstep-sfx-323056.mp3",
+        "assets/audio/Dirt Run 3.wav",
     )
     audio_manager.load_sound(
         "skeleton_death",
@@ -105,6 +105,8 @@ def main():
     )
     audio_manager.load_sound("forest", "assets/audio/dark-forest.ogg")
     audio_manager.load_sound("bats", "assets/audio/bats.wav")
+    audio_manager.load_sound("defend_hit", "assets/audio/Sword Blocked 2.wav")
+    audio_manager.load_sound("defend", "assets/audio/Sword Unsheath 2.wav")
     
     state_manager = StateManager()
     state_manager.audio_manager = audio_manager # Attach audio manager

@@ -105,6 +105,8 @@ class GameState(State):
         
         # Debug visualization
         self.debug_mode: bool = False
+        self._last_log_time = pg.time.get_ticks()
+        self._frame_count = 0
         
     def _load_level_config(self) -> None:
         """Load level data and configure spawn rates."""

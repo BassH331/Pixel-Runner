@@ -9,49 +9,46 @@ class Enemy(Entity):
     Base class for all enemy entities in the game.
     Handles common enemy behaviors like movement, animation, and collision.
     """
+    _fly_frames_cache: list[pg.Surface] | None = None
+
     def __init__(self):
-        # Initialize without image first, we'll set it manually
         super().__init__(0, 0)
         
-        # Animation frames for the enemy
-        self.fly_frames = []
+        # Load frames only once if not already cached
+        if Enemy._fly_frames_cache is None:
+            Enemy._fly_frames_cache = []
+            try:
+                for i in range(7):
+                    path = f"assets/graphics/bat/running/bat_running_{i}.png"
+                    frame = AssetManager.get_texture(path)
+                    
+                    # Use a fixed scale for performance (caching pre-scaled frames)
+                    # Optimization: Pre-scale once to a standard size (e.g. 2.0x)
+                    original_size = frame.get_size()
+                    scaled_size = (int(original_size[0] * 2.0), int(original_size[1] * 2.0))
+                    
+                    scaled_frame = pg.transform.scale(frame, scaled_size)
+                    flipped_frame = pg.transform.flip(scaled_frame, False, False)
+                    Enemy._fly_frames_cache.append(flipped_frame)
+            except Exception as e:
+                print(f"Error loading bat animation: {e}")
+                Enemy._fly_frames_cache = [pg.Surface((50, 50), pg.SRCALPHA) for _ in range(7)]
         
-        try:
-            # Load and prepare animation frames for the enemy
-            for i in range(7):
-                path = f"assets/graphics/bat/running/bat_running_{i}.png"
-                frame = AssetManager.get_texture(path)
-                original_size = frame.get_size()
-                
-                # Randomize size for variety
-                size_multiplier = 1.5 + random.random()
-                scaled_size = (int(original_size[0] * size_multiplier), 
-                             int(original_size[1] * size_multiplier))
-                
-                # Scale and prepare the frame
-                scaled_frame = pg.transform.scale(frame, scaled_size)
-                flipped_frame = pg.transform.flip(scaled_frame, False, False)
-                self.fly_frames.append(flipped_frame)
-        except Exception as e:
-            print(f"Error loading bat animation: {e}")
-            # Fallback to a simple surface if loading fails
-            self.fly_frames = [pg.Surface((50, 50), pg.SRCALPHA) for _ in range(7)]
-        
-        # Animation state
-        self.current_frames = self.fly_frames
+        # Use cached frames
+        self.current_frames = Enemy._fly_frames_cache
         self.animation_index = 0
-        self.image = self.current_frames[self.animation_index]
+        self.image = self.current_frames[0]
         
         # Movement properties
-        self.speed = -2 - random.random() * 2  # Random speed between -2 and -4
-        self.y_base = 0                        # Base Y position for sine wave movement
-        self.y_amplitude = 20                  # Height of the sine wave
-        self.y_frequency = 0.05               # Speed of the sine wave
-        self.time = 0                          # Timer for sine wave calculation
+        self.speed = -2 - random.random() * 2
+        self.y_base = 0
+        self.y_amplitude = 20
+        self.y_frequency = 0.05
+        self.time = 0
         
-        # Setup rectangle and collision
+        # Setup rectangle
         self.rect = self.image.get_rect()
-        self.reduce_hitbox(20, 20)  # Make hitbox smaller than sprite for better gameplay
+        self.reduce_hitbox(20, 20)
 
     def update(self, dt=None, scroll_speed=0):
         """
