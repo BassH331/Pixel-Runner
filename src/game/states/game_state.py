@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from random import randint
 from typing import TYPE_CHECKING, Final, Optional
+from dataclasses import dataclass
 
 import pygame as pg
 
@@ -109,8 +110,32 @@ class GameState(State):
         self.next_bat_group_time: int = pg.time.get_ticks()
         self.next_skeleton_spawn_time: int = pg.time.get_ticks()
         self._game_over_start_time: Optional[int] = None
-        self.max_skeletons: int = 3  # Maximum number of skeletons allowed at once
-        self.skeleton_respawn_delay: int = 5000  # 5 seconds between skeleton spawns
+
+        # Travel distance tracking
+        self.world_distance: float = 0.0
+        self.max_distance_reached: float = 0.0
+        self._level_end_distance: float = 8000.0
+        self._level_complete: bool = False
+        self._spawned_entity_ids: set[int] = set()
+
+        # Distance-based world entities (spawned when player reaches distance)
+        self._world_entities = [
+            {"id": 1, "distance": 500, "title": "Old Warrior",
+             "text": "The path ahead grows darker, traveler. "
+                     "Beware the skeletal warriors — they strike "
+                     "in groups and show no mercy.",
+             "radius": 160},
+            {"id": 2, "distance": 2500, "title": "Wandering Merchant",
+             "text": "I've seen many come this way, but few return. "
+                     "The undead grow stronger the further you venture. "
+                     "Steel your resolve!",
+             "radius": 160},
+            {"id": 3, "distance": 5000, "title": "Fallen Knight",
+             "text": "You've come far, warrior. The end is near, "
+                     "but the final guardians will not fall easily. "
+                     "Prepare yourself for the fiercest battle yet.",
+             "radius": 160},
+        ]
         
         # Load level configuration
         self._load_level_config()
@@ -166,19 +191,39 @@ class GameState(State):
         )
 
     def _setup_interaction_points(self) -> None:
-        """Place interaction points in the world."""
-        ground_y = self.height - 100  # Approximate ground level
+        """Initial interaction points (none — they spawn by distance now)."""
+        pass  # Entities are spawned dynamically in _spawn_world_entities()
 
-        # Example: an old warrior NPC further into the level
-        self.interaction_group.add(InteractionPoint(
-            x=2000,
-            y=ground_y,
-            text="The path ahead grows darker, traveler. "
-                 "Beware the skeletal warriors — they strike "
-                 "in groups and show no mercy.",
-            title="Old Warrior",
-            proximity_radius=160,
-        ))
+    def _get_spawn_zone(self) -> dict:
+        """Get the current spawn zone based on max distance reached."""
+        zones = [
+            {"min_dist": 0,    "max_dist": 1000,  "max_skeletons": 2, "delay": 6000},
+            {"min_dist": 1000, "max_dist": 3000,  "max_skeletons": 3, "delay": 4000},
+            {"min_dist": 3000, "max_dist": 6000,  "max_skeletons": 5, "delay": 3000},
+            {"min_dist": 6000, "max_dist": float("inf"), "max_skeletons": 6, "delay": 2000},
+        ]
+        for zone in reversed(zones):
+            if self.max_distance_reached >= zone["min_dist"]:
+                return zone
+        return zones[0]
+
+    def _spawn_world_entities(self) -> None:
+        """Spawn interaction points when the player reaches their distance."""
+        ground_y = self.height - 100
+        for entity in self._world_entities:
+            eid = entity["id"]
+            if eid in self._spawned_entity_ids:
+                continue
+            if self.world_distance >= entity["distance"]:
+                self._spawned_entity_ids.add(eid)
+                # Place at right edge of screen so player walks into it
+                self.interaction_group.add(InteractionPoint(
+                    x=self.width + 50,
+                    y=ground_y,
+                    text=entity["text"],
+                    title=entity["title"],
+                    proximity_radius=entity["radius"],
+                ))
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Lifecycle
@@ -246,11 +291,13 @@ class GameState(State):
     
     def spawn_enemies(self, current_time: int) -> None:
         """
-        Spawn enemy groups on timer.
+        Spawn enemy groups based on time and distance-scaled difficulty.
         
         Args:
             current_time: Current game time in milliseconds.
         """
+        zone = self._get_spawn_zone()
+
         # Spawn bats
         if current_time >= self.next_bat_group_time:
             bat_count = randint(3, 5)
@@ -269,15 +316,14 @@ class GameState(State):
                 self.BAT_GROUP_MAX_DELAY,
             )
         
-        # Spawn skeletons
+        # Spawn skeletons (distance-scaled)
         if current_time >= self.next_skeleton_spawn_time:
-            # Count current skeletons
             current_skeletons = sum(1 for sprite in self.obstacle_group 
                                  if isinstance(sprite, Skeleton))
             
-            if current_skeletons < self.max_skeletons:
+            if current_skeletons < zone["max_skeletons"]:
                 self.spawn_skeleton()
-                self.next_skeleton_spawn_time = current_time + self.skeleton_respawn_delay
+                self.next_skeleton_spawn_time = current_time + zone["delay"]
     
     def spawn_skeleton(self) -> None:
         """Spawn a new skeleton at a random position on the right side of the screen."""
@@ -475,13 +521,14 @@ class GameState(State):
 
     def _manage_skeleton_spawns(self) -> None:
         """Maintain skeleton population within configured limits."""
+        zone = self._get_spawn_zone()
         current_skeletons = sum(
             1 for sprite in self.obstacle_group if isinstance(sprite, Skeleton)
         )
-        if current_skeletons < self.max_skeletons:
+        if current_skeletons < zone["max_skeletons"]:
             self.spawn_skeleton()
             self.next_skeleton_spawn_time = (
-                pg.time.get_ticks() + self.skeleton_respawn_delay
+                pg.time.get_ticks() + zone["delay"]
             )
 
     def _process_enemy_attacks(self, player: Player) -> None:
@@ -626,6 +673,24 @@ class GameState(State):
             self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
         else:
             self.bg_scroll_speed = 0
+
+        # Track travel distance
+        self.world_distance += self.bg_scroll_speed
+        if self.world_distance > self.max_distance_reached:
+            self.max_distance_reached = self.world_distance
+
+        # Spawn distance-based world entities
+        self._spawn_world_entities()
+
+        # Check level endpoint
+        if not self._level_complete and self.world_distance >= self._level_end_distance:
+            self._level_complete = True
+            self.objective_display.show(
+                "You have reached the end of this land. "
+                "The undead have been pushed back... for now. "
+                "Well fought, warrior!",
+                "Level Complete",
+            )
         
         # Update systems
         self.update_background(self.bg_scroll_speed)
@@ -748,6 +813,18 @@ class GameState(State):
             # Skeleton-specific debug info
             if isinstance(sprite, Skeleton):
                 self._draw_skeleton_debug(surface, sprite)
+
+        # Distance debug info (top-right)
+        zone = self._get_spawn_zone()
+        dist_font = pg.font.SysFont("monospace", 18)
+        dist_lines = [
+            f"Distance: {int(self.world_distance)} / {int(self._level_end_distance)}",
+            f"Max reached: {int(self.max_distance_reached)}",
+            f"Zone: max_skel={zone['max_skeletons']} delay={zone['delay']}ms",
+        ]
+        for i, line in enumerate(dist_lines):
+            surf = dist_font.render(line, True, (255, 255, 100))
+            surface.blit(surf, (surface.get_width() - surf.get_width() - 10, 10 + i * 22))
     
     def _draw_player_debug(
         self,
