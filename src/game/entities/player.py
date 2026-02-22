@@ -175,7 +175,7 @@ class Player(Entity):
             locks_input=True,
         ),
         PlayerState.DEFEND: StateConfig(
-            animation_speed=0.15,
+            animation_speed=0.24,
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -403,6 +403,9 @@ class Player(Entity):
         self._attack_state: AttackState = AttackState()
         self._current_attack_config: Optional[AttackConfig] = None
         self._attack_audio_frames_played: set[int] = set()
+
+        # Defend animation phase tracking
+        self._defend_releasing: bool = False
         
         # Invincibility tracking (extends beyond HURT state if needed)
         self._invincibility_timer: float = 0.0
@@ -484,6 +487,9 @@ class Player(Entity):
         self._defend_frames = self._load_frames(
             "assets/shadow_warrior/defend/defend_{}.png", 7, start_index=1
         )
+        # Frame index to freeze on while defend button is held (0-indexed).
+        # Frames before this play as the "raise" intro; frames after play on release.
+        self._DEFEND_HOLD_FRAME: Final[int] = 3
     
     def _load_frames(
         self,
@@ -843,6 +849,10 @@ class Player(Entity):
         if new_state != PlayerState.RUN:
             self._footsteps.reset()
 
+        # Reset defend phase tracking when leaving defend
+        if self._state == PlayerState.DEFEND and new_state != PlayerState.DEFEND:
+            self._defend_releasing = False
+
         self._state = new_state
         self._animation_index = 0.0
         
@@ -1092,6 +1102,7 @@ class Player(Entity):
         self._gravity = 0.0
         self.rect.midtop = self._spawn_midtop
         self._footsteps.reset()
+        self._defend_releasing = False
     
     # ─────────────────────────────────────────────────────────────────────────
     # Input Handling
@@ -1147,7 +1158,7 @@ class Player(Entity):
     ) -> None:
         """Process action button input (jump, attacks)."""
         # Jump
-        stick_y = joystick.get_axis(1)
+        stick_y = joystick.get_axis(1) if joystick else 0
         jump_pressed = (
             keys[pg.K_SPACE] or
             (joystick and joystick.get_button(0)) or
@@ -1262,23 +1273,35 @@ class Player(Entity):
             self._transition_to_movement_state()
     
     def _animate_defend(self) -> None:
-        """Handle DEFEND state animation."""
-        # Check if button is still pressed
+        """Handle DEFEND state animation with 3 phases.
+
+        Phase 1 – Raise:   Play frames 0 → _DEFEND_HOLD_FRAME.
+        Phase 2 – Hold:    Freeze on _DEFEND_HOLD_FRAME while button is held.
+        Phase 3 – Release: Play remaining frames after button is released,
+                           then transition to idle.
+        """
         keys = pg.key.get_pressed()
         joystick = self._get_joystick()
         r2_trigger = joystick and joystick.get_axis(5) > 0.5
         defend_pressed = keys[pg.K_r] or r2_trigger
-        
-        if defend_pressed:
-            # Only advance animation if not on last frame yet
-            if int(self._animation_index) < len(self._defend_frames) - 1:
+
+        if self._defend_releasing:
+            # Phase 3 – Release: play remaining frames until the end
+            completed = self._advance_animation()
+            if completed:
+                self._defend_releasing = False
+                self._transition_to(PlayerState.IDLE)
+        elif defend_pressed:
+            # Phase 1 / 2 – Raise then Hold
+            if int(self._animation_index) < self._DEFEND_HOLD_FRAME:
+                # Still raising – advance towards the hold frame
                 self._advance_animation()
             else:
-                # Hold on last frame
-                self._animation_index = len(self._defend_frames) - 1
+                # Reached hold frame – freeze here
+                self._animation_index = float(self._DEFEND_HOLD_FRAME)
         else:
-            # Button released - transition to idle
-            self._transition_to(PlayerState.IDLE)
+            # Button released while in raise/hold – begin release phase
+            self._defend_releasing = True
 
     def _trigger_attack_audio_cues(self) -> None:
         """Play attack sound cues tied to animation frames."""
@@ -1387,8 +1410,8 @@ class Player(Entity):
         if self._facing_left:
             self.image = pg.transform.flip(self.image, True, False)
         
-        # Visual feedback for invincibility
-        if self.is_invincible and self._state != PlayerState.HURT:
+        # Visual feedback for invincibility (skip flicker during HURT/DEFEND)
+        if self.is_invincible and self._state not in (PlayerState.HURT, PlayerState.DEFEND):
             if int(self._animation_index * 10) % 2 == 0:
                 self.image.set_alpha(128)
             else:

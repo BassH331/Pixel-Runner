@@ -13,9 +13,10 @@ from typing import TYPE_CHECKING, Final, Optional
 import pygame as pg
 
 from src.game.entities.enemy import Enemy
+from src.game.entities.interaction_point import InteractionPoint
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
-from src.game.ui import PlayerUI
+from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager
 from src.my_engine.asset_manager import AssetManager
 from src.my_engine.state_machine import State
 
@@ -76,8 +77,19 @@ class GameState(State):
         
         # Initialize skeleton spawning
         
+        # Interaction points (world-positioned proximity triggers)
+        self.interaction_group: pg.sprite.Group = pg.sprite.Group()
+        self._setup_interaction_points()
+
         # UI
         self.player_ui = PlayerUI()
+        self.objective_display = ObjectiveDisplay()
+        self._show_objective_on_start: bool = True
+
+        # Objective trigger manager (time & flag based)
+        self.trigger_manager = ObjectiveTriggerManager()
+        self._setup_triggers()
+        self._game_start_ticks: int = pg.time.get_ticks()
         
         # Background parallax
         self.bg_image = AssetManager.get_texture(
@@ -134,6 +146,40 @@ class GameState(State):
             self.BAT_GROUP_MIN_DELAY = 5000
             self.BAT_GROUP_MAX_DELAY = 15000
     
+    def _setup_triggers(self) -> None:
+        """Configure time-based and flag-based objective triggers."""
+        # Combat tip after 15 seconds
+        self.trigger_manager.add_trigger(
+            text="Use Q, E, and W for different attack combos. "
+                 "Press R or R2 to raise your shield and defend!",
+            title="Combat Tip",
+            trigger_type="time",
+            delay_seconds=15.0,
+        )
+        # Congratulations on first skeleton kill
+        self.trigger_manager.add_trigger(
+            text="Well done, warrior! The undead fall before your blade. "
+                 "Keep moving and stay vigilant for more threats ahead.",
+            title="Progress",
+            trigger_type="flag",
+            flag_name="first_kill",
+        )
+
+    def _setup_interaction_points(self) -> None:
+        """Place interaction points in the world."""
+        ground_y = self.height - 100  # Approximate ground level
+
+        # Example: an old warrior NPC further into the level
+        self.interaction_group.add(InteractionPoint(
+            x=2000,
+            y=ground_y,
+            text="The path ahead grows darker, traveler. "
+                 "Beware the skeletal warriors — they strike "
+                 "in groups and show no mercy.",
+            title="Old Warrior",
+            proximity_radius=160,
+        ))
+
     # ─────────────────────────────────────────────────────────────────────────
     # State Lifecycle
     # ─────────────────────────────────────────────────────────────────────────
@@ -147,6 +193,15 @@ class GameState(State):
             volume=0.8,
         )
         self.player_ui.start_timer()
+
+        # Show level objective on first entry
+        if self._show_objective_on_start:
+            self.objective_display.show(
+                "Journey through the land and defeat the undead "
+                "skeletons blocking your path. Stay alert and use "
+                "your attacks wisely!"
+            )
+            self._show_objective_on_start = False
         
     def on_exit(self) -> None:
         """Cleanup when leaving gameplay state."""
@@ -161,6 +216,26 @@ class GameState(State):
         Args:
             event: Pygame event to process.
         """
+        # While objective overlay is active, only listen for dismiss input
+        if self.objective_display.is_active:
+            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                self.objective_display.dismiss()
+            elif event.type == pg.JOYBUTTONDOWN and event.button == 0:
+                self.objective_display.dismiss()
+            return
+
+        # Check for interaction input (ENTER / gamepad X)
+        interact_pressed = (
+            (event.type == pg.KEYDOWN and event.key == pg.K_RETURN) or
+            (event.type == pg.JOYBUTTONDOWN and event.button == 2)
+        )
+        if interact_pressed:
+            for point in self.interaction_group:
+                if point.can_interact:
+                    self.objective_display.show(point.text, point.title)
+                    point.mark_interacted()
+                    break
+
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_d:
                 self.debug_mode = not self.debug_mode
@@ -385,6 +460,8 @@ class GameState(State):
                     not getattr(enemy, "_death_sound_played", False)):
                 self.audio_manager.play_sound("skeleton_death")
                 setattr(enemy, "_death_sound_played", True)
+                # Fire "first_kill" flag for objective triggers
+                self.trigger_manager.set_flag("first_kill")
         
         # Score reward
         self.score += self._SCORE_PER_HIT
@@ -534,6 +611,10 @@ class GameState(State):
         Args:
             dt: Delta time since last update in seconds.
         """
+        # Freeze gameplay while objective overlay is active
+        if self.objective_display.is_active:
+            return
+
         current_time = pg.time.get_ticks()
         
         # Enemy spawning
@@ -552,6 +633,18 @@ class GameState(State):
         self.player.update()
         self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
+        self.interaction_group.update(dt, self.bg_scroll_speed)
+
+        # Check proximity for interaction points
+        for point in self.interaction_group:
+            point.check_proximity(player_sprite.rect)
+
+        # Check time/flag triggers
+        elapsed = (current_time - self._game_start_ticks) / 1000.0
+        self.trigger_manager.update(elapsed)
+        pending = self.trigger_manager.get_pending()
+        if pending:
+            self.objective_display.show(pending.text, pending.title)
         
         # Sync UI with player state
         self.player_ui.current_health = player_sprite.health
@@ -605,10 +698,17 @@ class GameState(State):
         # Ambient creatures
         for ambient in self.ambient_group:
             ambient.draw(surface)
+
+        # Interaction point prompts ("Talk" indicators)
+        for point in self.interaction_group:
+            point.draw(surface)
         
         # Debug visualization
         if self.debug_mode:
             self._draw_debug_info(surface)
+
+        # Objective overlay (drawn on top of everything)
+        self.objective_display.draw(surface)
     
     def _draw_debug_info(self, surface: pg.Surface) -> None:
         """
