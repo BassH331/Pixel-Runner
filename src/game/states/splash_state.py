@@ -89,7 +89,7 @@ class SplashState(State):
             
             # Draw Percentage Text
             percent = int(self.main_menu.loading_progress * 100)
-            font = AssetManager.get_font('assets/font/Pixeltype.ttf', 30)
+            font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf', 30)
             text_surf = font.render(f"{percent}%", False, (255, 255, 255))
             text_rect = text_surf.get_rect(midbottom=(self.width // 2, bar_y - 10))
             surface.blit(text_surf, text_rect)

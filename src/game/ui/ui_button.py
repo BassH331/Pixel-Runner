@@ -49,7 +49,7 @@ _BTN_ASSETS = {
 }
 
 # Defaults
-_FONT_PATH = "assets/font/Pixeltype.ttf"
+_FONT_PATH = "assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf"
 _FONT_SIZE = 36
 _TEXT_COLOR = (240, 230, 210)       # Light parchment text
 _TEXT_COLOR_HOVER = (255, 245, 225)  # Slightly brighter on hover

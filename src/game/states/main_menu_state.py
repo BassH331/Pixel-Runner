@@ -41,7 +41,7 @@ class MainMenuState(State):
         self.create_buttons()
         
         # Start Prompt Font
-        self.prompt_font = AssetManager.get_font('assets/font/Pixeltype.ttf', 70)
+        self.prompt_font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf', 70)
         
         # Space Key Prompt
         try:

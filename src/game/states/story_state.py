@@ -9,7 +9,7 @@ class StoryState(State):
         super().__init__(manager)
         self.width = pg.display.get_surface().get_width()
         self.height = pg.display.get_surface().get_height()
-        self.font = AssetManager.get_font('assets/font/Pixeltype.ttf', 50)
+        self.font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf', 50)
         
         # Load intro scene panel
         self.scene_image = pg.image.load('assets/scenes/intro_scene.jpg').convert()
@@ -85,8 +85,12 @@ class StoryState(State):
             self.narration_channel.stop()
         
     def start_game(self):
+        from .transformation_cutscene import TransformationCutscene
         from .game_state import GameState
-        self.manager.set(GameState(self.manager))
+        self.manager.set(TransformationCutscene(
+            self.manager,
+            next_state_factory=lambda: GameState(self.manager),
+        ))
         
     def handle_event(self, event):
         self.continue_btn.handle_event(event)

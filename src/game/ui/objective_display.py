@@ -42,7 +42,8 @@ class ObjectiveDisplay:
     _TEXT_COLOR = (60, 40, 20)
     _PROMPT_COLOR = (100, 75, 50)
     _TITLE_COLOR = (45, 25, 10)
-    _FONT_PATH = "assets/font/Pixeltype.ttf"
+    _TITLE_FONT_PATH = "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf"
+    _BODY_FONT_PATH = "assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf"
     _FONT_SIZE = 38
     _TITLE_FONT_SIZE = 48
     _PROMPT_FONT_SIZE = 28
@@ -72,13 +73,13 @@ class ObjectiveDisplay:
             parch_h * (self._PAD_Y_TOP_FRAC + self._PAD_Y_BOTTOM_FRAC)
         )
 
-        # Fonts
-        self._font = AssetManager.get_font(self._FONT_PATH, self._FONT_SIZE)
+        # Fonts – Gothic for title, Papyrus for body & prompt
+        self._font = AssetManager.get_font(self._BODY_FONT_PATH, self._FONT_SIZE)
         self._title_font = AssetManager.get_font(
-            self._FONT_PATH, self._TITLE_FONT_SIZE
+            self._TITLE_FONT_PATH, self._TITLE_FONT_SIZE
         )
         self._prompt_font = AssetManager.get_font(
-            self._FONT_PATH, self._PROMPT_FONT_SIZE
+            self._BODY_FONT_PATH, self._PROMPT_FONT_SIZE
         )
 
         # Dark backdrop surface (created once)

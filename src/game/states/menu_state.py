@@ -8,7 +8,7 @@ class MenuState(State):
         super().__init__(manager)
         self.width = pg.display.get_surface().get_width()
         self.height = pg.display.get_surface().get_height()
-        self.test_font = AssetManager.get_font('assets/font/Pixeltype.ttf', 50)
+        self.test_font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf', 50)
         
         # Buttons
         play_btn_img = AssetManager.get_texture("assets/graphics/ui/PlayBtn.png")

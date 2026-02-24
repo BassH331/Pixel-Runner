@@ -23,7 +23,7 @@ class PlayerUI:
             "invincibility": self.load_icon("assets/graphics/ui/powerup_invincible.png", (30, 30))
         }
         
-        self.font = AssetManager.get_font('assets/font/Pixeltype.ttf', 30)
+        self.font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf', 30)
     
     def load_icon(self, path, size):
         try:

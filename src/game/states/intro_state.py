@@ -18,8 +18,8 @@ class IntroState(State):
         ]
         self.width = pg.display.get_surface().get_width()
         self.height = pg.display.get_surface().get_height()
-        self.story_font = AssetManager.get_font('assets/font/Pixeltype.ttf', 60)
-        self.test_font = AssetManager.get_font('assets/font/Pixeltype.ttf', 50)
+        self.story_font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf', 60)
+        self.test_font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf', 50)
         self.story_images = self._load_story_images()
 
     def _load_story_images(self):
