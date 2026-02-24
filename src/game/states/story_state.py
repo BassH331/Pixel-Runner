@@ -3,11 +3,6 @@ from src.my_engine.state_machine import State
 from src.my_engine.asset_manager import AssetManager
 from src.my_engine.ui import Button
 from src.my_engine.tts_manager import TTSManager
-from src.game.entities.green_monster import GreenMonster
-from src.game.entities.goblin import Goblin
-from src.game.entities.bat import Bat
-from src.game.entities.wizard import Wizard
-from src.game.entities.sky import Sky
 
 class StoryState(State):
     def __init__(self, manager):
@@ -16,53 +11,59 @@ class StoryState(State):
         self.height = pg.display.get_surface().get_height()
         self.font = AssetManager.get_font('assets/font/Pixeltype.ttf', 50)
         
-        # Sky
-        self.sky = Sky(self.width, self.height)
+        # Load intro scene panel
+        self.scene_image = pg.image.load('assets/scenes/intro_scene.jpg').convert()
+        # Scale to fit the screen width while maintaining aspect ratio
+        img_w, img_h = self.scene_image.get_size()
+        scale = self.width / img_w
+        new_h = int(img_h * scale)
+        self.scene_image = pg.transform.smoothscale(self.scene_image, (self.width, new_h))
+        self.scene_rect = self.scene_image.get_rect(center=(self.width // 2, self.height // 2))
         
         # Story Text
-        self.text_lines = [
-            "In the beginning, the Star-Fire illuminated the cosmos,",
-            "bringing life and harmony to all worlds.",
+        self.story_paragraphs = [
+            "They promised us a golden age. Instead, they gave us the Blight. "
+            "In the silence of the burning embers, I realized... prayer was no longer enough.",
             "",
-            "But the Shadow King, envious of its brilliance,",
-            "stole the Star-Fire and shattered it into fragments,",
-            "casting the universe into eternal twilight.",
             "",
-            "Darkness spread like a plague, consuming planets",
-            "and corrupting the hearts of the innocent.",
             "",
-            "You are the last Guardian.",
-            "Chosen by the fading light,",
-            "you must run through the corrupted lands,",
-            "reclaim the Star-Fire fragments,",
-            "and restore light to the galaxy.",
+            "Then, the heavens seemed to open. A voice like silk whispered a solution. "
+            "'A life for a life,' he said. 'A debt to be paid in the currency of darkness.'",
             "",
-            "Run, Guardian. Run before the light is lost forever."
+            "The deal was simple. One thousand Extractions of the Blight. "
+            "One thousand souls harvested. Then, and only then, would my village be restored. "
+            "My soul was the collateral.",
+            "",
+            "When I took the scythe, I didn't feel power. I felt a void. "
+            "The moment I touched the steel, the weight of the world shifted. "
+            "The hunter had become the harvest.",
+            "",
+            "The Fabricator lied. The more I culled, the more I changed. "
+            "I realized I wasn't saving my soul; I was being encased in a living tomb of my own sins.",
+            "",
+            "One down. Nine-hundred and ninety-nine to go. "
+            "But with every swing of the blade, I forget the faces of the people I'm trying to save.",
+            "",
+            "The thousandth soul will be my end. My only hope now lies in the Sanctuary of the All-Knowing. "
+            "I must find the Truth... before the Demon finds me."
         ]
         
-        # Generate Audio
-        full_text = " ".join(self.text_lines)
-        self.audio_path = "assets/audio/story_narration.mp3"
+        # Generate Audio with deep warrior voice
+        full_text = " ".join([p for p in self.story_paragraphs if p])
+        self.audio_path = "assets/audio/story1.mp3"
         
         tts_manager = TTSManager()
-        tts_manager.configure(voice='en-GB-RyanNeural', rate='+20%', pitch='+0Hz', volume='+0%')
+        tts_manager.configure(voice='en-US-JacobNeura', rate='-1%', pitch='-5Hz', volume='+0%')
         tts_manager.generate_audio(full_text, self.audio_path)
         
         self.narration_channel = None
         
-        # Scrolling
-        self.scroll_y = self.height # Start at the bottom
-        self.scroll_speed = 30 # Pixels per second
-        
-        # Monsters
-        # Wizard leads (0s) -> Green Monster (2s) -> Bat (4s) -> Goblin (6s)
-        self.wizard = Wizard(-100, self.height - 150, self.width, scale=3.0, start_delay=0.0)
-        self.monster = GreenMonster(-100, self.height - 150, self.width, scale=3.0, start_delay=2.0)
-        self.bat = Bat(-100, self.height - 350, self.width, scale=3.0, start_delay=4.0)
-        self.goblin = Goblin(-100, self.height - 50, self.width, scale=3.0, start_delay=6.0)
+        # Fade & timing
+        self.alpha = 0  # Image fades in
+        self.fade_speed = 60  # Alpha units per second
+        self.elapsed = 0.0
         
         # Continue Button
-        # Using PlayBtn as placeholder for Continue
         btn_img = AssetManager.get_texture("assets/graphics/ui/PlayBtn.png")
         btn_hover = AssetManager.get_texture("assets/graphics/ui/PlayClick.png")
         
@@ -96,38 +97,26 @@ class StoryState(State):
         self.continue_btn.handle_event(event)
         
     def update(self, dt):
-        self.sky.update(dt)
         self.continue_btn.update(dt)
-        #self.wizard.update(dt)
-        #self.monster.update(dt)
-        #self.bat.update(dt)
-        #self.goblin.update(dt)
         
-        # Scroll Text
         dt_sec = dt / 1000.0
-        self.scroll_y -= self.scroll_speed * dt_sec # Move up
+        self.elapsed += dt_sec
         
-        # Reset if it goes too far (optional, or just stop)
-        # if self.scroll_y > self.height:
-        #     self.scroll_y = -len(self.text_lines) * 60
+        # Fade in the scene image
+        if self.alpha < 255:
+            self.alpha = min(255, self.alpha + self.fade_speed * dt_sec)
         
     def draw(self, surface):
-        # Draw Sky first (background)
-        self.sky.draw(surface)
+        # Black background
+        surface.fill((0, 0, 0))
         
-        # Draw Text
-        y = self.scroll_y
-        for line in self.text_lines:
-            text_surf = self.font.render(line, False, (200, 200, 200))
-            text_rect = text_surf.get_rect(center=(self.width // 2, y))
-            
-            # Only draw if visible
-            if -50 < y < self.height + 50:
-                surface.blit(text_surf, text_rect)
-            y += 60
-            
-        #self.wizard.draw(surface)
-        #self.monster.draw(surface)
-        #self.bat.draw(surface)
-        #self.goblin.draw(surface)
+        # Draw scene panel with fade-in
+        if self.alpha >= 255:
+            surface.blit(self.scene_image, self.scene_rect)
+        else:
+            temp = self.scene_image.copy()
+            temp.set_alpha(int(self.alpha))
+            surface.blit(temp, self.scene_rect)
+        
+        # Draw continue button
         self.continue_btn.draw(surface)
