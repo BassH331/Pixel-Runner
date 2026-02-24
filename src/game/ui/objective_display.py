@@ -30,6 +30,9 @@ class ObjectiveDisplay:
     # Parchment sizing relative to screen
     _PARCHMENT_SCALE = 0.55
 
+    # Stone sizing relative to screen
+    _STONE_SCALE = 0.59
+
     # Text padding inside parchment (fraction of parchment size)
     _PAD_X_FRAC = 0.12
     _PAD_Y_TOP_FRAC = 0.15
@@ -53,6 +56,17 @@ class ObjectiveDisplay:
         display_info = pg.display.Info()
         self._screen_w = display_info.current_w
         self._screen_h = display_info.current_h
+
+        # Load and scale stone
+        raw = AssetManager.get_texture(
+            "assets/graphics/UI/PNG/UI board Medium  stone.png"
+        )
+        stone_w = int(self._screen_w * self._STONE_SCALE)
+        stone_h = int(stone_w * (raw.get_height() / raw.get_width()))
+        self._stone = pg.transform.smoothscale(raw, (stone_w, stone_h))
+        self._stone_rect = self._stone.get_rect(
+            center=(self._screen_w // 2, self._screen_h // 2)
+        )
 
         # Load and scale parchment
         raw = AssetManager.get_texture(
@@ -130,7 +144,10 @@ class ObjectiveDisplay:
         # 1) Dim backdrop
         surface.blit(self._backdrop, (0, 0))
 
-        # 2) Parchment board
+        # 2) Stone board (behind parchment)
+        surface.blit(self._stone, self._stone_rect)
+
+        # 3) Parchment board
         surface.blit(self._parchment, self._parch_rect)
 
         # 3) Title (centered)

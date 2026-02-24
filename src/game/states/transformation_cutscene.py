@@ -73,7 +73,11 @@ class TransformationCutscene(State):
     _ATK_RIGHT_DIR = "assets/shadow_warrior/e_sp_atk"
     _REVERT_DIR = "assets/shadow_warrior/back2human"
     _TITLE_BANNER_PATH = "assets/graphics/UI/PNG/IRONY TITLE  Large.png"
-    _EXCL_ICON_PATH = "assets/graphics/UI/PNG/Exclamation_Gray.png"
+    _NOTIFICATION_ICONS = {
+        "gray": "assets/graphics/UI/PNG/Exclamation_Gray.png",
+        "red": "assets/graphics/UI/PNG/Exclamation_Red.png",
+        "yellow": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
+    }
     _FONT_PATH = "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf"
     _TITLE_FONT_SIZE = 52
     _TITLE_COLOR = (230, 220, 200)
@@ -85,11 +89,13 @@ class TransformationCutscene(State):
         next_state_factory: Optional[Callable] = None,
         on_complete: Optional[Callable] = None,
         level_title: str = "The Blight Begins",
+        notification: str = "gray",
     ) -> None:
         super().__init__(manager)
         self._next_state_factory = next_state_factory
         self._on_complete = on_complete
         self._level_title = level_title
+        self._notification_type = notification
 
         info = pg.display.Info()
         self._sw = info.current_w
@@ -107,7 +113,11 @@ class TransformationCutscene(State):
         banner_h = int(banner_w * (raw_banner.get_height() / raw_banner.get_width()))
         self._banner = pg.transform.smoothscale(raw_banner, (banner_w, banner_h))
 
-        raw_icon = AssetManager.get_texture(self._EXCL_ICON_PATH)
+        icon_path = self._NOTIFICATION_ICONS.get(
+            self._notification_type,
+            self._NOTIFICATION_ICONS["gray"],
+        )
+        raw_icon = AssetManager.get_texture(icon_path)
         icon_size = int(banner_h * 1.1)
         self._excl_icon = pg.transform.smoothscale(raw_icon, (icon_size, icon_size))
 
@@ -415,17 +425,17 @@ class TransformationCutscene(State):
         cx = self._sw // 2
         cy = self._sh // 2 + slide_offset
 
-        # Draw exclamation icon above the banner
-        icon_rect = self._excl_icon.get_rect(centerx=cx, bottom=cy - 10)
-        self._excl_icon.set_alpha(alpha_int)
-        surface.blit(self._excl_icon, icon_rect)
-        self._excl_icon.set_alpha(255)
-
         # Draw banner centered
         banner_rect = self._banner.get_rect(center=(cx, cy))
         self._banner.set_alpha(alpha_int)
         surface.blit(self._banner, banner_rect)
         self._banner.set_alpha(255)
+
+        # Draw exclamation icon above the banner
+        icon_rect = self._excl_icon.get_rect(centerx=cx, bottom=cy - 10)
+        self._excl_icon.set_alpha(alpha_int)
+        surface.blit(self._excl_icon, icon_rect)
+        self._excl_icon.set_alpha(255)
 
         # Render title text with drop shadow, centered on the banner
         shadow = self._title_font.render(self._level_title, True, self._TITLE_SHADOW_COLOR)
