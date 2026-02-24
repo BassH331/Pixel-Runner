@@ -1,7 +1,7 @@
 import pygame as pg
 from src.my_engine.state_machine import State
 from src.my_engine.asset_manager import AssetManager
-from src.my_engine.ui import Button
+from src.game.ui.ui_button import UIButton
 from src.my_engine.tts_manager import TTSManager
 
 class StoryState(State):
@@ -64,18 +64,13 @@ class StoryState(State):
         self.elapsed = 0.0
         
         # Continue Button
-        btn_img = AssetManager.get_texture("assets/graphics/ui/PlayBtn.png")
-        btn_hover = AssetManager.get_texture("assets/graphics/ui/PlayClick.png")
-        
-        self.continue_btn = Button(
+        self.continue_btn = UIButton(
+            "Play",
             x=self.width - 150,
             y=self.height - 100,
-            image=btn_img,
-            hover_image=btn_hover,
-            scale=1.0,
-            size=(140, 70),
-            anchor='center',
-            on_click=self.start_game
+            size="big",
+            scale=0.8,
+            on_click=self.start_game,
         )
         
     def on_enter(self):
@@ -97,7 +92,6 @@ class StoryState(State):
         self.continue_btn.handle_event(event)
         
     def update(self, dt):
-        self.continue_btn.update(dt)
         
         dt_sec = dt / 1000.0
         self.elapsed += dt_sec
