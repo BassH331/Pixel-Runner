@@ -17,7 +17,7 @@ from src.game.entities.enemy import Enemy
 from src.game.entities.interaction_point import InteractionPoint
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
-from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager
+from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner
 from src.my_engine.asset_manager import AssetManager
 from src.my_engine.state_machine import State
 
@@ -85,6 +85,7 @@ class GameState(State):
         # UI
         self.player_ui = PlayerUI()
         self.objective_display = ObjectiveDisplay()
+        self.notification_banner = NotificationBanner(scale=0.4)
         self._show_objective_on_start: bool = True
 
         # Objective trigger manager (time & flag based)
@@ -239,13 +240,9 @@ class GameState(State):
         )
         self.player_ui.start_timer()
 
-        # Show level objective on first entry
+        # Show level notification banner on first entry
         if self._show_objective_on_start:
-            self.objective_display.show(
-                "Journey through the land and defeat the undead "
-                "skeletons blocking your path. Stay alert and use "
-                "your attacks wisely!"
-            )
+            self.notification_banner.show("The Blight Begins", notification="yellow")
             self._show_objective_on_start = False
         
     def on_exit(self) -> None:
@@ -662,6 +659,9 @@ class GameState(State):
         if self.objective_display.is_active:
             return
 
+        # Update notification banner (runs independently of gameplay freeze)
+        self.notification_banner.update(dt)
+
         current_time = pg.time.get_ticks()
         
         # Enemy spawning
@@ -774,6 +774,9 @@ class GameState(State):
 
         # Objective overlay (drawn on top of everything)
         self.objective_display.draw(surface)
+
+        # Notification banner (topmost layer)
+        self.notification_banner.draw(surface)
     
     def _draw_debug_info(self, surface: pg.Surface) -> None:
         """

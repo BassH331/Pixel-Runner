@@ -18,6 +18,7 @@ import pygame as pg
 
 from src.my_engine.asset_manager import AssetManager
 from src.my_engine.state_machine import State
+from src.game.ui.notification_banner import NotificationBanner
 
 
 class _Phase(IntEnum):
@@ -72,16 +73,6 @@ class TransformationCutscene(State):
     _ATK_LEFT_DIR = "assets/shadow_warrior/e_3_atk"
     _ATK_RIGHT_DIR = "assets/shadow_warrior/e_sp_atk"
     _REVERT_DIR = "assets/shadow_warrior/back2human"
-    _TITLE_BANNER_PATH = "assets/graphics/UI/PNG/IRONY TITLE  Large.png"
-    _NOTIFICATION_ICONS = {
-        "gray": "assets/graphics/UI/PNG/Exclamation_Gray.png",
-        "red": "assets/graphics/UI/PNG/Exclamation_Red.png",
-        "yellow": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
-    }
-    _FONT_PATH = "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf"
-    _TITLE_FONT_SIZE = 52
-    _TITLE_COLOR = (230, 220, 200)
-    _TITLE_SHADOW_COLOR = (20, 15, 10)
 
     def __init__(
         self,
@@ -107,21 +98,8 @@ class TransformationCutscene(State):
         self._frames_atk_right = self._load_scaled(self._ATK_RIGHT_DIR, flip=True)
         self._frames_revert = self._load_scaled(self._REVERT_DIR)
 
-        # ── Level intro assets ───────────────────────────────────────────────
-        raw_banner = AssetManager.get_texture(self._TITLE_BANNER_PATH)
-        banner_w = int(self._sw * 0.45)
-        banner_h = int(banner_w * (raw_banner.get_height() / raw_banner.get_width()))
-        self._banner = pg.transform.smoothscale(raw_banner, (banner_w, banner_h))
-
-        icon_path = self._NOTIFICATION_ICONS.get(
-            self._notification_type,
-            self._NOTIFICATION_ICONS["gray"],
-        )
-        raw_icon = AssetManager.get_texture(icon_path)
-        icon_size = int(banner_h * 1.1)
-        self._excl_icon = pg.transform.smoothscale(raw_icon, (icon_size, icon_size))
-
-        self._title_font = AssetManager.get_font(self._FONT_PATH, self._TITLE_FONT_SIZE)
+        # ── Level intro banner (shared component) ────────────────────────────
+        self._banner = NotificationBanner(scale=0.4)
 
         # ── Persistent overlay surfaces ──────────────────────────────────────
         self._overlay = pg.Surface((self._sw, self._sh), pg.SRCALPHA)
@@ -206,7 +184,9 @@ class TransformationCutscene(State):
         elif self._phase == _Phase.REVERT:
             self._update_revert(dt_sec)
         elif self._phase == _Phase.LEVEL_INTRO:
-            self._update_level_intro()
+            self._banner.update(dt)
+            if not self._banner.is_active:
+                self._finish()
 
     def _update_fade_in(self) -> None:
         if self._phase_timer >= self._FADE_IN_DURATION:
@@ -280,6 +260,10 @@ class TransformationCutscene(State):
                 self._post_pause_timer += dt_sec
                 if self._post_pause_timer >= self._POST_REVERT_PAUSE:
                     self._enter_phase(_Phase.LEVEL_INTRO)
+                    self._banner.show(
+                        self._level_title,
+                        notification=self._notification_type,
+                    )
 
     # ─── Phase management ────────────────────────────────────────────────────
 
@@ -312,12 +296,6 @@ class TransformationCutscene(State):
             return self._frames_revert
         return []
 
-    def _update_level_intro(self) -> None:
-        """Fade in banner → hold → fade out → finish."""
-        total = self._INTRO_FADE_IN + self._INTRO_HOLD + self._INTRO_FADE_OUT
-        if self._phase_timer >= total:
-            self._finish()
-
     def _finish(self) -> None:
         if self._phase == _Phase.DONE:
             return
@@ -346,7 +324,7 @@ class TransformationCutscene(State):
             self._draw_phase_sprite(surface, self._frames_revert)
             self._draw_flash(surface)
         elif self._phase == _Phase.LEVEL_INTRO:
-            self._draw_level_intro(surface)
+            self._banner.draw(surface)
 
     def _draw_fade_in(self, surface: pg.Surface) -> None:
         """Fade from black with eased curve, showing first transform frame."""
@@ -403,51 +381,3 @@ class TransformationCutscene(State):
         self._overlay.fill((r, g, b, a))
         surface.blit(self._overlay, (0, 0))
 
-    def _draw_level_intro(self, surface: pg.Surface) -> None:
-        """Draw the level title card: banner + exclamation icon + text."""
-        t = self._phase_timer
-        fade_end = self._INTRO_FADE_IN
-        hold_end = fade_end + self._INTRO_HOLD
-        total = hold_end + self._INTRO_FADE_OUT
-
-        # Compute overall alpha with easing
-        if t < fade_end:
-            alpha = _ease_in_out(t / fade_end)
-        elif t < hold_end:
-            alpha = 1.0
-        else:
-            alpha = 1.0 - _ease_in_out(min(1.0, (t - hold_end) / self._INTRO_FADE_OUT))
-        alpha_int = int(255 * max(0.0, min(1.0, alpha)))
-
-        # Slight upward slide for cinematic feel
-        slide_offset = int(20 * (1.0 - alpha)) if t < fade_end else 0
-
-        cx = self._sw // 2
-        cy = self._sh // 2 + slide_offset
-
-        # Draw banner centered
-        banner_rect = self._banner.get_rect(center=(cx, cy))
-        self._banner.set_alpha(alpha_int)
-        surface.blit(self._banner, banner_rect)
-        self._banner.set_alpha(255)
-
-        # Draw exclamation icon above the banner
-        icon_rect = self._excl_icon.get_rect(centerx=cx, bottom=cy - 10)
-        self._excl_icon.set_alpha(alpha_int)
-        surface.blit(self._excl_icon, icon_rect)
-        self._excl_icon.set_alpha(255)
-
-        # Render title text with drop shadow, centered on the banner
-        shadow = self._title_font.render(self._level_title, True, self._TITLE_SHADOW_COLOR)
-        text = self._title_font.render(self._level_title, True, self._TITLE_COLOR)
-
-        text_rect = text.get_rect(center=(cx, cy))
-        shadow_rect = shadow.get_rect(center=(cx + 2, cy + 2))
-
-        shadow.set_alpha(int(alpha_int * 0.5))
-        surface.blit(shadow, shadow_rect)
-        shadow.set_alpha(255)
-
-        text.set_alpha(alpha_int)
-        surface.blit(text, text_rect)
-        text.set_alpha(255)
