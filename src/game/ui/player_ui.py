@@ -9,11 +9,17 @@ class PlayerUI:
         self.start_time = 0
         self.power_ups = []
         
-        self.health_bar_width = 200
-        self.health_bar_height = 20
-        self.health_bar_pos = (20, 20)
-        self.relic_icon_pos = (20, 50)
-        self.power_up_icon_pos = (20, 80)
+        # Load dragon HP bar sprite frames (0 = full, 7 = empty)
+        self.health_frames = []
+        for i in range(8):
+            frame = AssetManager.get_texture(f"assets/dragonhpbar/health_bar_{i}.png")
+            scaled = pg.transform.scale(frame, (frame.get_width() * 3, frame.get_height() * 3))
+            self.health_frames.append(scaled)
+        
+        self.health_bar_pos = (20, 10)
+        bar_h = self.health_frames[0].get_height()
+        self.relic_icon_pos = (20, self.health_bar_pos[1] + bar_h + 8)
+        self.power_up_icon_pos = (20, self.relic_icon_pos[1] + 35)
         self.time_pos = (pg.display.Info().current_w - 150, 20)
         
         self.relic_icon = self.load_icon("assets/graphics/ui/relic_icon.png", (30, 30))
@@ -64,19 +70,11 @@ class PlayerUI:
                          if current_time - pu["start_time"] < pu["duration"]]
     
     def draw(self, surface):
-        health_ratio = self.current_health / self.max_health
-        health_fill_width = int(self.health_bar_width * health_ratio)
-        
-        pg.draw.rect(surface, (50, 50, 50), 
-                    (*self.health_bar_pos, self.health_bar_width, self.health_bar_height))
-        health_color = (255 * (1 - health_ratio), 255 * health_ratio, 0)
-        pg.draw.rect(surface, health_color, 
-                    (*self.health_bar_pos, health_fill_width, self.health_bar_height))
-        pg.draw.rect(surface, (255, 255, 255), 
-                    (*self.health_bar_pos, self.health_bar_width, self.health_bar_height), 2)
-        
-        health_text = self.font.render(f"HP: {self.current_health}/{self.max_health}", True, (255, 255, 255))
-        surface.blit(health_text, (self.health_bar_pos[0] + self.health_bar_width + 10, self.health_bar_pos[1]))
+        # Select the correct dragon HP bar frame based on health ratio
+        health_ratio = max(0.0, min(1.0, self.current_health / self.max_health))
+        frame_index = round((1.0 - health_ratio) * 7)  # 0 = full, 7 = empty
+        frame_index = max(0, min(7, frame_index))
+        surface.blit(self.health_frames[frame_index], self.health_bar_pos)
         
         surface.blit(self.relic_icon, self.relic_icon_pos)
         relic_text = self.font.render(f"x {self.relics}", True, (255, 255, 255))

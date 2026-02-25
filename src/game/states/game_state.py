@@ -85,7 +85,7 @@ class GameState(State):
         # UI
         self.player_ui = PlayerUI()
         self.objective_display = ObjectiveDisplay()
-        self.notification_banner = NotificationBanner(scale=0.4)
+        self.notification_banner = NotificationBanner(scale=0.6, icon_scale=0.6)
         self._show_objective_on_start: bool = True
 
         # Objective trigger manager (time & flag based)

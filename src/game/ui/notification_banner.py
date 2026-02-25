@@ -16,7 +16,7 @@ Usage:
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import Optional, Tuple
 
 import pygame as pg
 
@@ -31,12 +31,19 @@ def _ease_in_out(t: float) -> float:
 class NotificationBanner:
     """Self-contained notification banner with fade-in / hold / fade-out.
 
+    Every visual aspect is configurable via constructor arguments.
+
     Args:
-        fade_in:          Duration of the fade-in  (seconds).
-        hold:             Duration to stay on screen (seconds).
-        fade_out:         Duration of the fade-out (seconds).
-        scale:            Overall size multiplier (1.0 = default).
-        banner_width_frac: Banner width as fraction of screen width (default 0.45).
+        fade_in:          Fade-in duration (seconds).
+        hold:             On-screen hold duration (seconds).
+        fade_out:         Fade-out duration (seconds).
+        scale:            Overall size multiplier (banner + font).
+        icon_scale:       Extra multiplier for the exclamation icon only.
+        banner_width_frac: Banner width as fraction of screen width.
+        y_frac:           Vertical position (0.0 = top, 0.5 = center, 1.0 = bottom).
+        font_size:        Base font size before ``scale`` is applied.
+        text_color:       RGB tuple for title text.
+        shadow_color:     RGB tuple for drop-shadow text.
     """
 
     # ── Asset paths ──────────────────────────────────────────────────────────
@@ -49,14 +56,14 @@ class NotificationBanner:
     _FONT_PATH = (
         "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf"
     )
-    _FONT_SIZE = 52
-    _TEXT_COLOR = (230, 220, 200)
-    _SHADOW_COLOR = (20, 15, 10)
 
-    # ── Default timing ───────────────────────────────────────────────────────
+    # ── Defaults ─────────────────────────────────────────────────────────────
     _DEFAULT_FADE_IN = 0.8
     _DEFAULT_HOLD = 2.0
     _DEFAULT_FADE_OUT = 0.8
+    _DEFAULT_FONT_SIZE = 52
+    _DEFAULT_TEXT_COLOR = (230, 220, 200)
+    _DEFAULT_SHADOW_COLOR = (20, 15, 10)
 
     def __init__(
         self,
@@ -64,11 +71,24 @@ class NotificationBanner:
         hold: float = _DEFAULT_HOLD,
         fade_out: float = _DEFAULT_FADE_OUT,
         scale: float = 1.0,
+        icon_scale: float = 1.0,
         banner_width_frac: float = 0.45,
+        y_frac: float = 0.5,
+        font_size: int = _DEFAULT_FONT_SIZE,
+        text_color: Tuple[int, int, int] = _DEFAULT_TEXT_COLOR,
+        shadow_color: Tuple[int, int, int] = _DEFAULT_SHADOW_COLOR,
     ) -> None:
+        # Timing
         self._fade_in = fade_in
         self._hold = hold
         self._fade_out = fade_out
+
+        # Colors
+        self._text_color = text_color
+        self._shadow_color = shadow_color
+
+        # Position
+        self._y_frac = y_frac
 
         info = pg.display.Info()
         self._sw = info.current_w
@@ -82,7 +102,7 @@ class NotificationBanner:
         self._banner_h = banner_h
 
         # Pre-scale all icon variants
-        icon_size = int(banner_h * 1.1)
+        icon_size = int(banner_h * 1.1 * icon_scale)
         self._icons: dict[str, pg.Surface] = {}
         for key, path in self._ICONS.items():
             raw = AssetManager.get_texture(path)
@@ -90,7 +110,7 @@ class NotificationBanner:
 
         # Font (scaled)
         self._font = AssetManager.get_font(
-            self._FONT_PATH, int(self._FONT_SIZE * scale)
+            self._FONT_PATH, int(font_size * scale)
         )
 
         # Runtime state
@@ -160,7 +180,7 @@ class NotificationBanner:
         slide = int(20 * (1.0 - alpha)) if t < fade_end else 0
 
         cx = self._sw // 2
-        cy = self._sh // 2 + slide
+        cy = int(self._sh * self._y_frac) + slide
 
         # Banner
         banner_rect = self._banner.get_rect(center=(cx, cy))
@@ -170,14 +190,14 @@ class NotificationBanner:
 
         # Icon (on top of banner)
         icon = self._icons.get(self._icon_key, self._icons["gray"])
-        icon_rect = icon.get_rect(centerx=cx, bottom=cy - 10)
+        icon_rect = icon.get_rect(centerx=cx, bottom=cy - 15)
         icon.set_alpha(alpha_int)
         surface.blit(icon, icon_rect)
         icon.set_alpha(255)
 
         # Text with drop shadow
-        shadow = self._font.render(self._title, True, self._SHADOW_COLOR)
-        text = self._font.render(self._title, True, self._TEXT_COLOR)
+        shadow = self._font.render(self._title, True, self._shadow_color)
+        text = self._font.render(self._title, True, self._text_color)
 
         text_rect = text.get_rect(center=(cx, cy))
         shadow_rect = shadow.get_rect(center=(cx + 2, cy + 2))

@@ -99,7 +99,7 @@ class TransformationCutscene(State):
         self._frames_revert = self._load_scaled(self._REVERT_DIR)
 
         # ── Level intro banner (shared component) ────────────────────────────
-        self._banner = NotificationBanner(scale=0.4)
+        self._banner = NotificationBanner(scale=0.6, icon_scale=0.6)
 
         # ── Persistent overlay surfaces ──────────────────────────────────────
         self._overlay = pg.Surface((self._sw, self._sh), pg.SRCALPHA)
