@@ -2,25 +2,87 @@ import pygame as pg
 from src.my_engine.state_machine import State
 from src.my_engine.asset_manager import AssetManager
 from src.game.ui.ui_button import UIButton
-from src.my_engine.tts_manager import TTSManager
+from src.game.ui.notification_banner import NotificationBanner
+
 
 class StoryState(State):
-    def __init__(self, manager):
+    """Story narration screen with parchment menu.
+
+    Shows the intro scene illustration with a voiceover, then presents
+    a stone+parchment menu with New Game / Continue / Settings.
+
+    Every layout/timing value is a constructor argument so you can tweak
+    the look by changing a single number.
+
+    Args:
+        manager:           State manager reference.
+        voiceover_delay:   Seconds to wait before playing the voiceover.
+        menu_delay:        Seconds to wait (after scene fade-in) before the menu appears.
+        scene_fade_speed:  Alpha units per second for the scene image fade-in.
+        menu_fade_speed:   Alpha units per second for the menu fade-in.
+        menu_x_frac:       Horizontal position of the menu as fraction of screen width
+                           (0.0 = left edge, 1.0 = right edge).
+        menu_y_frac:       Vertical position of the menu as fraction of screen height
+                           (0.0 = top, 1.0 = bottom).
+        menu_x_margin:     Pixel margin from the edge (applied after x_frac).
+        parchment_scale:   Parchment board width as fraction of screen width.
+        stone_scale:       Stone board width as fraction of screen width.
+        btn_scale:         Scale multiplier for all menu buttons.
+        btn_spacing:       Vertical gap (pixels) between each button.
+        btn_y_offset:      Vertical offset (pixels) of the first button relative to menu centre.
+        btn_size:          UIButton asset size (``"big"``, ``"medium"``, etc.).
+    """
+
+    # ── Asset paths (not configurable — they're file locations) ──────────────
+    _VOICEOVER_PATH = "assets/audio/voice_over.mp3"
+    _STONE_PATH = "assets/graphics/UI/PNG/UI board Medium  stone.png"
+    _PARCHMENT_PATH = "assets/graphics/UI/PNG/UI board Medium  parchment.png"
+
+    def __init__(
+        self,
+        manager,
+        *,
+        voiceover_delay: float = 3.0,
+        menu_delay: float = 60.0,
+        scene_fade_speed: float = 60,
+        menu_fade_speed: float = 200,
+        menu_x_frac: float = 0.5,
+        menu_y_frac: float = 0.5,
+        menu_x_margin: int = 0,
+        parchment_scale: float = 0.45,
+        stone_scale: float = 0.49,
+        btn_scale: float = 0.7,
+        btn_spacing: int = 85,
+        btn_y_offset: int = -60,
+        btn_size: str = "medium",
+    ):
         super().__init__(manager)
         self.width = pg.display.get_surface().get_width()
         self.height = pg.display.get_surface().get_height()
-        self.font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf', 50)
-        
-        # Load intro scene panel
-        self.scene_image = pg.image.load('assets/scenes/intro_scene.jpg').convert()
-        # Scale to fit the screen width while maintaining aspect ratio
+
+        # Store configurable timing
+        self._voiceover_delay = voiceover_delay
+        self._menu_delay = menu_delay
+        self._scene_fade_speed = scene_fade_speed
+        self._menu_fade_speed = menu_fade_speed
+
+        self.font = AssetManager.get_font(
+            "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
+            50,
+        )
+
+        # ── Scene image ──────────────────────────────────────────────────────
+        self.scene_image = pg.image.load("assets/scenes/intro_scene.jpg").convert()
         img_w, img_h = self.scene_image.get_size()
         scale = self.width / img_w
-        new_h = int(img_h * scale)
-        self.scene_image = pg.transform.smoothscale(self.scene_image, (self.width, new_h))
-        self.scene_rect = self.scene_image.get_rect(center=(self.width // 2, self.height // 2))
-        
-        # Story Text
+        self.scene_image = pg.transform.smoothscale(
+            self.scene_image, (self.width, int(img_h * scale))
+        )
+        self.scene_rect = self.scene_image.get_rect(
+            center=(self.width // 2, self.height // 2)
+        )
+
+        # ── Story paragraphs (kept for reference / future scroll) ────────────
         self.story_paragraphs = [
             "They promised us a golden age. Instead, they gave us the Blight. "
             "In the silence of the burning embers, I realized... prayer was no longer enough.",
@@ -45,76 +107,179 @@ class StoryState(State):
             "But with every swing of the blade, I forget the faces of the people I'm trying to save.",
             "",
             "The thousandth soul will be my end. My only hope now lies in the Sanctuary of the All-Knowing. "
-            "I must find the Truth... before the Demon finds me."
+            "I must find the Truth... before the Demon finds me.",
         ]
-        
-        # Generate Audio with deep warrior voice
-        full_text = " ".join([p for p in self.story_paragraphs if p])
-        self.audio_path = "assets/audio/story1.mp3"
-        
-        tts_manager = TTSManager()
-        tts_manager.configure(voice='en-US-JacobNeura', rate='-1%', pitch='-5Hz', volume='+0%')
-        tts_manager.generate_audio(full_text, self.audio_path)
-        
+
+        # ── Voiceover state ──────────────────────────────────────────────────
         self.narration_channel = None
-        
-        # Fade & timing
-        self.alpha = 0  # Image fades in
-        self.fade_speed = 60  # Alpha units per second
+        self._vo_timer = 0.0
+        self._vo_started = False
+
+        # ── Fade & timing ────────────────────────────────────────────────────
+        self.alpha = 0
         self.elapsed = 0.0
-        
-        # Continue Button
-        self.continue_btn = UIButton(
-            "Play",
-            x=self.width - 150,
-            y=self.height - 100,
-            size="big",
-            scale=0.8,
-            on_click=self.start_game,
+        self._menu_alpha = 0
+        self._menu_wait_timer = 0.0
+        self._scene_faded_in = False
+        self._menu_ready = False
+
+        # ── Parchment + stone boards ─────────────────────────────────────────
+        raw_stone = AssetManager.get_texture(self._STONE_PATH)
+        stone_w = int(self.width * stone_scale)
+        stone_h = int(stone_w * (raw_stone.get_height() / raw_stone.get_width()))
+        self._stone = pg.transform.smoothscale(raw_stone, (stone_w, stone_h))
+
+        raw_parch = AssetManager.get_texture(self._PARCHMENT_PATH)
+        parch_w = int(self.width * parchment_scale)
+        parch_h = int(parch_w * (raw_parch.get_height() / raw_parch.get_width()))
+        self._parchment = pg.transform.smoothscale(raw_parch, (parch_w, parch_h))
+
+        # Position boards using fractional coordinates
+        board_cx = int(self.width * menu_x_frac) + menu_x_margin
+        board_cy = int(self.height * menu_y_frac)
+        self._stone_rect = self._stone.get_rect(center=(board_cx, board_cy))
+        self._parch_rect = self._parchment.get_rect(center=(board_cx, board_cy))
+
+        # ── Menu buttons (stacked vertically on the parchment) ───────────────
+        btn_x = board_cx
+        btn_start_y = board_cy + btn_y_offset
+
+        self._buttons = [
+            UIButton(
+                "New Game",
+                x=btn_x,
+                y=btn_start_y,
+                size=btn_size,
+                scale=btn_scale,
+                on_click=self._on_new_game,
+            ),
+            UIButton(
+                "Continue",
+                x=btn_x,
+                y=btn_start_y + btn_spacing,
+                size=btn_size,
+                scale=btn_scale,
+                on_click=self._on_continue,
+            ),
+            UIButton(
+                "Settings",
+                x=btn_x,
+                y=btn_start_y + btn_spacing * 2,
+                size=btn_size,
+                scale=btn_scale,
+                on_click=self._on_settings,
+            ),
+        ]
+
+        # ── Settings placeholder banner ──────────────────────────────────────
+        self._settings_banner = NotificationBanner(
+            scale=0.5, icon_scale=0.5, hold=1.5,
         )
-        
+
+    # ── Lifecycle ────────────────────────────────────────────────────────────
+
     def on_enter(self):
-        # Play narration
-        sound = AssetManager.get_sound(self.audio_path)
-        if sound:
-            self.narration_channel = sound.play()
-            
+        self._vo_timer = 0.0
+        self._vo_started = False
+
     def on_exit(self):
-        # Stop narration
         if self.narration_channel:
             self.narration_channel.stop()
-        
-    def start_game(self):
+
+    # ── Button callbacks ─────────────────────────────────────────────────────
+
+    def _on_new_game(self):
         from .transformation_cutscene import TransformationCutscene
         from .game_state import GameState
-        self.manager.set(TransformationCutscene(
-            self.manager,
-            next_state_factory=lambda: GameState(self.manager),
-        ))
-        
+
+        self.manager.set(
+            TransformationCutscene(
+                self.manager,
+                next_state_factory=lambda: GameState(self.manager),
+            )
+        )
+
+    def _on_continue(self):
+        # No checkpoints yet — button is present but does nothing
+        pass
+
+    def _on_settings(self):
+        self._settings_banner.show("Coming Soon", notification="yellow")
+
+    # ── Events ───────────────────────────────────────────────────────────────
+
     def handle_event(self, event):
-        self.continue_btn.handle_event(event)
-        
+        # Only accept button input once the menu is fully visible
+        if self._scene_faded_in:
+            for btn in self._buttons:
+                btn.handle_event(event)
+
+    # ── Update ───────────────────────────────────────────────────────────────
+
     def update(self, dt):
-        
         dt_sec = dt / 1000.0
         self.elapsed += dt_sec
-        
+
         # Fade in the scene image
         if self.alpha < 255:
-            self.alpha = min(255, self.alpha + self.fade_speed * dt_sec)
-        
+            self.alpha = min(255, self.alpha + self._scene_fade_speed * dt_sec)
+        else:
+            self._scene_faded_in = True
+
+        # Wait for menu_delay after scene is visible, then fade in menu
+        if self._scene_faded_in and not self._menu_ready:
+            self._menu_wait_timer += dt_sec
+            if self._menu_wait_timer >= self._menu_delay:
+                self._menu_ready = True
+
+        if self._menu_ready and self._menu_alpha < 255:
+            self._menu_alpha = min(
+                255, self._menu_alpha + self._menu_fade_speed * dt_sec
+            )
+
+        # Delayed voiceover
+        if not self._vo_started:
+            self._vo_timer += dt_sec
+            if self._vo_timer >= self._voiceover_delay:
+                self._vo_started = True
+                sound = AssetManager.get_sound(self._VOICEOVER_PATH)
+                if sound:
+                    self.narration_channel = sound.play()
+
+        # Settings banner
+        self._settings_banner.update(dt)
+
+    # ── Draw ─────────────────────────────────────────────────────────────────
+
     def draw(self, surface):
-        # Black background
         surface.fill((0, 0, 0))
-        
-        # Draw scene panel with fade-in
+
+        # Scene image with fade-in
         if self.alpha >= 255:
             surface.blit(self.scene_image, self.scene_rect)
         else:
             temp = self.scene_image.copy()
             temp.set_alpha(int(self.alpha))
             surface.blit(temp, self.scene_rect)
-        
-        # Draw continue button
-        self.continue_btn.draw(surface)
+
+        # Parchment menu (fades in after delay)
+        if self._menu_ready:
+            alpha = int(self._menu_alpha)
+
+            # Stone (behind parchment)
+            self._stone.set_alpha(alpha)
+            surface.blit(self._stone, self._stone_rect)
+            self._stone.set_alpha(255)
+
+            # Parchment
+            self._parchment.set_alpha(alpha)
+            surface.blit(self._parchment, self._parch_rect)
+            self._parchment.set_alpha(255)
+
+            # Buttons (only draw when menu is mostly visible)
+            if self._menu_alpha > 180:
+                for btn in self._buttons:
+                    btn.draw(surface)
+
+        # Settings banner (topmost)
+        self._settings_banner.draw(surface)
