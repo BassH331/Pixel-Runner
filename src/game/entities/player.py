@@ -51,9 +51,9 @@ from typing import TYPE_CHECKING, Final, Optional
 import pygame as pg
 
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
-from v3x_zulfiqar_gideon.ecs import Entity
-from src.game.audio.footsteps import FootstepController
-from .combat_system import (
+from v3x_zulfiqar_gideon.ecs import Actor
+from v3x_zulfiqar_gideon.audio_manager import FootstepController
+from v3x_zulfiqar_gideon.combat import (
     AttackConfig,
     AttackState,
     AttackPhase,
@@ -126,7 +126,7 @@ class StateConfig:
     locks_input: bool = False
 
 
-class Player(Entity):
+class Player(Actor):
     """
     Player character with state machine-driven animation and frame-based combat.
     
@@ -379,29 +379,19 @@ class Player(Entity):
     }
     
     def __init__(self, x: int, y: int, audio_manager: AudioManager) -> None:
-        """
-        Initialize the player entity.
-        
-        Args:
-            x: Initial x position in world coordinates.
-            y: Initial y position in world coordinates.
-            audio_manager: Audio system for playing sound effects.
-        """
         super().__init__(x, y)
         
         self._audio_manager: AudioManager = audio_manager
         
+        # State machine configuration (from static registry)
+        self.state_configs = self._STATE_CONFIGS
+        
         # Load all animation frame sets
         self._load_all_animations()
         
-        # State machine
-        self._state: PlayerState = PlayerState.IDLE
-        self._current_frames: list[pg.Surface] = self._idle_frames
-        self._animation_index: float = 0.0
+        self.set_state(PlayerState.IDLE)
         
-        # Combat state - frame-based attack system
-        self._attack_state: AttackState = AttackState()
-        self._current_attack_config: Optional[AttackConfig] = None
+        # Combat state
         self._attack_audio_frames_played: set[int] = set()
 
         # Defend animation phase tracking
@@ -431,7 +421,7 @@ class Player(Entity):
         
         # Movement state
         self._direction: int = 0
-        self._facing_left: bool = False
+        self.facing_left: bool = False
         
         # Combat state
         self._max_health: int = 100
@@ -444,47 +434,34 @@ class Player(Entity):
         self._defend_handled = False  
         
     def _load_all_animations(self) -> None:
-        """
-        Load all animation frame sets.
-        
-        Frame sets are stored as private attributes named `_<state>_frames`.
-        Add new animation loads here when implementing new states.
-        """
-        # Base animations
-        self._idle_frames = self._load_frames(
+        self.animations[PlayerState.IDLE] = self._load_frames(
             "assets/shadow_warrior/idle/idle_{}.png", 12, start_index=1
         )
-        self._run_frames = self._load_frames(
+        self.animations[PlayerState.RUN] = self._load_frames(
             "assets/shadow_warrior/run/run_{}.png", 10, start_index=1
         )
-        
-        # Aerial animations
-        self._jump_up_frames = self._load_frames(
+        self.animations[PlayerState.JUMP_UP] = self._load_frames(
             "assets/shadow_warrior/jump_up_loop/jump_up_loop_{}.png", 3, start_index=1
         )
-        self._jump_down_frames = self._load_frames(
+        self.animations[PlayerState.JUMP_DOWN] = self._load_frames(
             "assets/shadow_warrior/jump_down_loop/jump_down_loop_{}.png", 3, start_index=1
         )
-        
-        # Attack animations
-        self._thrust_frames = self._load_frames(
+        self.animations[PlayerState.ATTACK_THRUST] = self._load_frames(
             "assets/shadow_warrior/1_atk/1_atk_{}.png", 9, start_index=1
         )
-        self._smash_frames = self._load_frames(
+        self.animations[PlayerState.ATTACK_SMASH] = self._load_frames(
             "assets/shadow_warrior/2_atk/2_atk_{}.png", 17, start_index=1
         )
-        self._power_frames = self._load_frames(
+        self.animations[PlayerState.ATTACK_POWER] = self._load_frames(
             "assets/shadow_warrior/3_atk/3_atk_{}.png", 23, start_index=1
         )
-        
-        # Reactive animations
-        self._hurt_frames = self._load_frames(
+        self.animations[PlayerState.HURT] = self._load_frames(
             "assets/shadow_warrior/take_hit/take_hit_{}.png", 6, start_index=1
         )
-        self._death_frames = self._load_frames(
+        self.animations[PlayerState.DEATH] = self._load_frames(
             "assets/shadow_warrior/death/death_{}.png", 12, start_index=1
         )
-        self._defend_frames = self._load_frames(
+        self.animations[PlayerState.DEFEND] = self._load_frames(
             "assets/shadow_warrior/defend/defend_{}.png", 7, start_index=1
         )
         # Frame index to freeze on while defend button is held (0-indexed).
@@ -533,78 +510,25 @@ class Player(Entity):
     # ─────────────────────────────────────────────────────────────────────────
     
     @property
-    def entity_id(self) -> int:
-        """Unique identifier for this entity (used by combat system)."""
-        return self._entity_id
-    
-    @property
-    def state(self) -> PlayerState:
-        """Current state of the player state machine."""
-        return self._state
-    
-    @property
-    def current_frame_index(self) -> int:
-        """Current animation frame index (0-based)."""
-        return int(self._animation_index)
-    
-    @property
-    def health(self) -> int:
-        """Current health points."""
-        return self._health
-    
-    @property
-    def max_health(self) -> int:
-        """Maximum health capacity."""
-        return self._max_health
-    
-    @property
-    def is_dead(self) -> bool:
-        """Whether the player has been defeated."""
-        return self._state == PlayerState.DEATH
-    
-    @property
-    def is_attacking(self) -> bool:
-        """Whether the player is in an attack state."""
-        return self._state in (PlayerState.ATTACK_THRUST, PlayerState.ATTACK_SMASH, PlayerState.ATTACK_POWER)
-    
-    @property
-    def is_running(self) -> bool:
-        """Whether the player is moving horizontally."""
-        return self._state == PlayerState.RUN and self._direction != 0
-    
-    @property
     def is_invincible(self) -> bool:
-        """
-        Whether the player is immune to damage.
-        
-        Returns True if:
-        - Current state grants invincibility (e.g., HURT, DEATH, DEFEND)
-        - Invincibility timer is active (extended i-frames)
-        """
-        config = self._STATE_CONFIGS.get(self._state)
-        if config and config.grants_invincibility:
-            return True
-        return self._invincibility_timer > 0
-    
+        return self._invincibility_timer > 0 or (
+            self.state_configs.get(self.state) and self.state_configs[self.state].grants_invincibility
+        )
+
     @property
-    def is_hurt(self) -> bool:
-        """Whether the player is in the hurt/stagger state."""
-        return self._state == PlayerState.HURT
-    
+    def health(self) -> int: return self._health
     @property
-    def direction(self) -> int:
-        """Current horizontal direction (-1=left, 0=none, 1=right)."""
-        return self._direction
-    
+    def max_health(self) -> int: return self._max_health
     @property
-    def facing_left(self) -> bool:
-        """Whether the player sprite is facing left."""
-        return self._facing_left
-    
+    def entity_id(self) -> int: return id(self)
     @property
-    def attack_phase(self) -> AttackPhase:
-        """Current phase of the active attack."""
-        return self._attack_state.get_current_phase()
+    def current_frame_index(self) -> int: return int(self.animation_index)
+    @property
+    def is_dead(self) -> bool: return self.state == PlayerState.DEATH
+    @property
+    def is_running(self) -> bool: return self.state == PlayerState.RUN
+    @property
+    def direction(self) -> int: return self._direction
     
     # ─────────────────────────────────────────────────────────────────────────
     # Combat System Public Interface
@@ -640,7 +564,7 @@ class Player(Entity):
         if not self.is_attacking:
             return False
         
-        return self._attack_state.is_hit_frame_active()
+        return self.attack_state.is_hit_frame_active()
     
     def get_attack_hitbox(self) -> Optional[pg.Rect]:
         """
@@ -663,8 +587,8 @@ class Player(Entity):
         if not self.should_deal_damage():
             return None
         
-        return self._attack_state.get_current_hitbox(
-            self.rect, self._facing_left
+        return self.attack_state.get_current_hitbox(
+            self.rect, self.facing_left
         )
     
     def try_register_hit(self, target_id: int) -> bool:
@@ -687,7 +611,7 @@ class Player(Entity):
             ...     damage = player.get_current_attack_damage()
             ...     enemy.take_damage(damage)
         """
-        return self._attack_state.try_register_hit(target_id)
+        return self.attack_state.try_register_hit(target_id)
     
     def get_current_attack_damage(self) -> float:
         """
@@ -699,13 +623,13 @@ class Player(Entity):
         Returns:
             Damage value for the current frame, or 0 if not attacking.
         """
-        return self._attack_state.get_current_damage()
+        return self.attack_state.get_current_damage()
 
     def get_current_attack_frame(self) -> Optional[int]:
         """Return the current animation frame index for the active attack."""
-        if not self._attack_state.is_active:
+        if not self.attack_state.is_active:
             return None
-        return self._attack_state.current_frame
+        return self.attack_state.current_frame
 
     def get_attack_knockback(
         self,
@@ -724,7 +648,7 @@ class Player(Entity):
         Returns:
             Knockback vector as (x, y) tuple.
         """
-        return self._attack_state.get_knockback_vector(
+        return self.attack_state.get_knockback_vector(
             self.rect.center,
             target_position,
             self._facing_left,
@@ -737,7 +661,7 @@ class Player(Entity):
         Returns:
             Knockback force value, or 0 if not attacking.
         """
-        return self._attack_state.get_knockback_force()
+        return self.attack_state.get_knockback_force()
     
     def has_hit_target(self, target_id: int) -> bool:
         """
@@ -749,7 +673,7 @@ class Player(Entity):
         Returns:
             True if target has been hit at least once.
         """
-        return self._attack_state.has_hit_target(target_id)
+        return self.attack_state.has_hit_target(target_id)
     
     def get_hit_count(self, target_id: int) -> int:
         """
@@ -761,7 +685,7 @@ class Player(Entity):
         Returns:
             Number of registered hits.
         """
-        return self._attack_state.get_hit_count(target_id)
+        return self.attack_state.get_hit_count(target_id)
     
     def process_attack_collisions(
         self,
@@ -789,7 +713,7 @@ class Player(Entity):
             ...     enemy.take_damage(hit.damage, hit.knockback)
         """
         return CombatProcessor.process_attack_against_targets(
-            attack_state=self._attack_state,
+            attack_state=self.attack_state,
             attacker_rect=self.rect,
             attacker_facing_left=self._facing_left,
             targets=targets,
@@ -799,112 +723,6 @@ class Player(Entity):
     # State Machine Core
     # ─────────────────────────────────────────────────────────────────────────
     
-    def _get_current_config(self) -> StateConfig:
-        """Get configuration for the current state."""
-        return self._STATE_CONFIGS.get(self._state, StateConfig())
-    
-    def _can_transition_to(self, target_state: PlayerState) -> bool:
-        """
-        Check if transition to target state is allowed.
-        
-        Transition rules:
-        1. Cannot transition to same state
-        2. Higher priority (lower enum value) always wins
-        3. Current state must be interruptible OR target has higher priority
-        
-        Args:
-            target_state: State to potentially transition to.
-            
-        Returns:
-            True if transition is allowed, False otherwise.
-        """
-        if target_state == self._state:
-            return False
-            
-        current_config = self._get_current_config()
-        
-        # Higher priority states can always interrupt
-        if target_state.value < self._state.value:
-            return True
-            
-        # Otherwise, current state must be interruptible
-        return current_config.interruptible
-    
-    def _transition_to(self, new_state: PlayerState) -> None:
-        """
-        Execute state transition with animation reset.
-        
-        Args:
-            new_state: State to transition to.
-        """
-        # End any active attack when leaving attack states
-        if self.is_attacking and new_state not in (
-            PlayerState.ATTACK_THRUST,
-            PlayerState.ATTACK_SMASH,
-            PlayerState.ATTACK_POWER,
-        ):
-            self._attack_state.end()
-            self._current_attack_config = None
-
-        if new_state != PlayerState.RUN:
-            self._footsteps.reset()
-
-        # Reset defend phase tracking when leaving defend
-        if self._state == PlayerState.DEFEND and new_state != PlayerState.DEFEND:
-            self._defend_releasing = False
-
-        self._state = new_state
-        self._animation_index = 0.0
-        
-        # Map states to their frame sets
-        frame_mapping: dict[PlayerState, list[pg.Surface]] = {
-            PlayerState.IDLE: self._idle_frames,
-            PlayerState.RUN: self._run_frames,
-            PlayerState.JUMP_UP: self._jump_up_frames,
-            PlayerState.JUMP_DOWN: self._jump_down_frames,
-            PlayerState.ATTACK_THRUST: self._thrust_frames,
-            PlayerState.ATTACK_SMASH: self._smash_frames,
-            PlayerState.ATTACK_POWER: self._power_frames,
-            PlayerState.HURT: self._hurt_frames,
-            PlayerState.DEATH: self._death_frames,
-            PlayerState.DEFEND: self._defend_frames,
-        }
-        
-        self._current_frames = frame_mapping.get(new_state, self._idle_frames)
-    
-    def _advance_animation(self) -> bool:
-        """
-        Advance animation frame based on current state's speed.
-        
-        Also updates attack state frame tracking when in attack states.
-        
-        Returns:
-            True if animation completed (reached end of non-looping animation),
-            False otherwise.
-        """
-        config = self._get_current_config()
-        
-        # Check for hit stop pause
-        if self._attack_state.is_in_hit_stop:
-            self._attack_state.update(self.current_frame_index)
-            return False
-        
-        self._animation_index += config.animation_speed
-        
-        # Sync attack state with animation frame
-        if self.is_attacking:
-            self._attack_state.update(self.current_frame_index)
-        
-        if self._animation_index >= len(self._current_frames):
-            if config.loops:
-                self._animation_index = 0.0
-                return False
-            else:
-                # Hold on last frame for non-looping animations
-                self._animation_index = len(self._current_frames) - 1
-                return True
-                
-        return False
     
     # ─────────────────────────────────────────────────────────────────────────
     # Public Actions (Call these to trigger state changes)
@@ -971,7 +789,7 @@ class Player(Entity):
         self._transition_to(PlayerState.ATTACK_THRUST)
         
         # Initialize attack state with thrust configuration
-        self._attack_state.begin(self.THRUST_ATTACK_CONFIG)
+        self.attack_state.begin(self.THRUST_ATTACK_CONFIG)
         self._current_attack_config = self.THRUST_ATTACK_CONFIG
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("thrust")
@@ -994,7 +812,7 @@ class Player(Entity):
         self._transition_to(PlayerState.ATTACK_SMASH)
         
         # Initialize attack state with smash configuration
-        self._attack_state.begin(self.SMASH_ATTACK_CONFIG)
+        self.attack_state.begin(self.SMASH_ATTACK_CONFIG)
         self._current_attack_config = self.SMASH_ATTACK_CONFIG
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("smash")
@@ -1017,7 +835,7 @@ class Player(Entity):
         self._transition_to(PlayerState.ATTACK_POWER)
         
         # Initialize attack state with thrust configuration
-        self._attack_state.begin(self.POWER_ATTACK_CONFIG)
+        self.attack_state.begin(self.POWER_ATTACK_CONFIG)
         self._current_attack_config = self.POWER_ATTACK_CONFIG
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("thrust")
@@ -1093,7 +911,7 @@ class Player(Entity):
         self._state = PlayerState.IDLE
         self._current_frames = self._idle_frames
         self._animation_index = 0.0
-        self._attack_state = AttackState()
+        self.attack_state = AttackState()
         self._current_attack_config = None
         self._invincibility_timer = 0.0
         self._invincibility_duration = 0.0
@@ -1234,170 +1052,6 @@ class Player(Entity):
     # Animation State Handlers
     # ─────────────────────────────────────────────────────────────────────────
     
-    def _animate_death(self) -> None:
-        """Handle DEATH state animation."""
-        self._advance_animation()
-    
-    def _animate_hurt(self) -> None:
-        """Handle HURT state animation."""
-        completed = self._advance_animation()
-        
-        if completed:
-            self._invincibility_timer = self._invincibility_duration
-            self._transition_to(PlayerState.IDLE)
-    
-    def _animate_attack_thrust(self) -> None:
-        """Handle ATTACK_THRUST state animation."""
-        completed = self._advance_animation()
-        
-        if completed:
-            self._attack_state.end()
-            self._transition_to_movement_state()
-    
-    def _animate_attack_smash(self) -> None:
-        """Handle ATTACK_SMASH state animation."""
-        completed = self._advance_animation()
-        self._trigger_attack_audio_cues()
-        
-        if completed:
-            self._attack_state.end()
-            self._transition_to_movement_state()
-
-    def _animate_attack_power(self) -> None:
-        """Handle ATTACK_POWER state animation."""
-        completed = self._advance_animation()
-        self._trigger_attack_audio_cues()
-        
-        if completed:
-            self._attack_state.end()
-            self._transition_to_movement_state()
-    
-    def _animate_defend(self) -> None:
-        """Handle DEFEND state animation with 3 phases.
-
-        Phase 1 – Raise:   Play frames 0 → _DEFEND_HOLD_FRAME.
-        Phase 2 – Hold:    Freeze on _DEFEND_HOLD_FRAME while button is held.
-        Phase 3 – Release: Play remaining frames after button is released,
-                           then transition to idle.
-        """
-        keys = pg.key.get_pressed()
-        joystick = self._get_joystick()
-        r2_trigger = joystick and joystick.get_axis(5) > 0.5
-        defend_pressed = keys[pg.K_r] or r2_trigger
-
-        if self._defend_releasing:
-            # Phase 3 – Release: play remaining frames until the end
-            completed = self._advance_animation()
-            if completed:
-                self._defend_releasing = False
-                self._transition_to(PlayerState.IDLE)
-        elif defend_pressed:
-            # Phase 1 / 2 – Raise then Hold
-            if int(self._animation_index) < self._DEFEND_HOLD_FRAME:
-                # Still raising – advance towards the hold frame
-                self._advance_animation()
-            else:
-                # Reached hold frame – freeze here
-                self._animation_index = float(self._DEFEND_HOLD_FRAME)
-        else:
-            # Button released while in raise/hold – begin release phase
-            self._defend_releasing = True
-
-    def _trigger_attack_audio_cues(self) -> None:
-        """Play attack sound cues tied to animation frames."""
-        frame_sounds = self._ATTACK_AUDIO_FRAME_SOUNDS.get(self._state)
-        if not frame_sounds:
-            return
-
-        frame = self.current_frame_index
-        if frame in self._attack_audio_frames_played:
-            return
-
-        sound_name = frame_sounds.get(frame)
-        if sound_name is None:
-            return
-
-        self._audio_manager.play_sound(sound_name)
-        self._attack_audio_frames_played.add(frame)
-    
-    def _animate_jump_up(self) -> None:
-        """Handle JUMP_UP state animation."""
-        self._advance_animation()
-        
-        if self._gravity >= 0:
-            self._transition_to(PlayerState.JUMP_DOWN)
-    
-    def _animate_jump_down(self) -> None:
-        """Handle JUMP_DOWN state animation."""
-        self._advance_animation()
-        
-        if self.rect.bottom >= self._ground_y:
-            self._transition_to_movement_state()
-    
-    def _animate_run(self) -> None:
-        """Handle RUN state animation."""
-        self._advance_animation()
-
-        grounded = self.rect.bottom >= self._ground_y - 1
-        active = grounded and self._direction != 0
-        self._footsteps.try_play(
-            active=active,
-            current_time_ms=pg.time.get_ticks(),
-        )
-
-        if self._direction == 0:
-            self._transition_to(PlayerState.IDLE)
-        
-        if self.rect.bottom < self._ground_y - self._AIRBORNE_THRESHOLD:
-            self._transition_to(PlayerState.JUMP_DOWN)
-    
-    def _animate_idle(self) -> None:
-        """Handle IDLE state animation."""
-        self._advance_animation()
-        
-        if self._direction != 0:
-            self._transition_to(PlayerState.RUN)
-        
-        if self.rect.bottom < self._ground_y - self._AIRBORNE_THRESHOLD:
-            self._transition_to(PlayerState.JUMP_DOWN)
-    
-    def _transition_to_movement_state(self) -> None:
-        """Transition to appropriate movement state based on current conditions."""
-        if self.rect.bottom < self._ground_y - self._AIRBORNE_THRESHOLD:
-            if self._gravity < 0:
-                self._transition_to(PlayerState.JUMP_UP)
-            else:
-                self._transition_to(PlayerState.JUMP_DOWN)
-        elif self._direction != 0:
-            self._transition_to(PlayerState.RUN)
-        else:
-            self._transition_to(PlayerState.IDLE)
-    
-    def _update_animation(self) -> None:
-        """Update animation based on current state."""
-        match self._state:
-            case PlayerState.DEATH:
-                self._animate_death()
-            case PlayerState.DEFEND:
-                self._animate_defend()
-            case PlayerState.HURT:
-                self._animate_hurt()
-            case PlayerState.ATTACK_THRUST:
-                self._animate_attack_thrust()
-            case PlayerState.ATTACK_SMASH:
-                self._animate_attack_smash()
-            case PlayerState.ATTACK_POWER:
-                self._animate_attack_power()
-            case PlayerState.JUMP_UP:
-                self._animate_jump_up()
-            case PlayerState.JUMP_DOWN:
-                self._animate_jump_down()
-            case PlayerState.RUN:
-                self._animate_run()
-            case PlayerState.IDLE:
-                self._animate_idle()
-        
-        self._apply_frame()
     
     def _apply_frame(self) -> None:
         """Apply current animation frame to sprite image."""
@@ -1439,7 +1093,7 @@ class Player(Entity):
             "position": (self.rect.x, self.rect.y),
             "is_attacking": self.is_attacking,
             "is_invincible": self.is_invincible,
-            "attack_info": self._attack_state.get_debug_info(),
+            "attack_info": self.attack_state.get_debug_info(),
         }
     
     def draw_debug_hitboxes(self, surface: pg.Surface) -> None:
@@ -1461,19 +1115,28 @@ class Player(Entity):
     # ─────────────────────────────────────────────────────────────────────────
     
     def update(self, dt: Optional[float] = None) -> None:
-        """
-        Update player state for the current frame.
+        if dt is None: dt = 1.0 / 60.0
         
-        Args:
-            dt: Delta time in seconds (defaults to 1/60 if not provided).
-        """
-        if dt is None:
-            dt = 1.0 / 60.0
-        
+        if self._invincibility_timer > 0:
+            self._invincibility_timer -= dt
+
         self.player_input()
         self._apply_gravity()
         self._apply_movement()
-        self._update_animation()
-        self._update_invincibility(dt)
+        self._update_state_logic()
+        self._update_defend_logic()
         
         super().update(dt)
+
+        self._update_attack_audio()
+        if self.state == PlayerState.RUN:
+             self._footsteps.update(dt * 1000)
+        
+        # Visual feedback for invincibility (skip during HURT/DEFEND)
+        if self.is_invincible and self.state not in (PlayerState.HURT, PlayerState.DEFEND):
+            if int(pg.time.get_ticks() / 100) % 2 == 0:
+                self.image.set_alpha(128)
+            else:
+                self.image.set_alpha(255)
+        else:
+            self.image.set_alpha(255)

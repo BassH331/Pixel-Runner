@@ -15,7 +15,8 @@ from typing import TYPE_CHECKING, Final, Optional, Sequence
 import pygame as pg
 
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
-from v3x_zulfiqar_gideon.ecs import Entity
+from v3x_zulfiqar_gideon.ecs import Actor
+from v3x_zulfiqar_gideon.combat import AttackConfig
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -24,151 +25,85 @@ if TYPE_CHECKING:
 class SkeletonState(Enum):
     """Enumeration of all possible skeleton behavioral states."""
     
-    IDLE = auto()
-    CHASE = auto()
-    ATTACK = auto()
-    HURT = auto()
-    DEATH = auto()
-
-
-@dataclass(frozen=True, slots=True)
-class AttackConfig:
-    """
-    Configuration for a single attack type's hit detection.
-    
-    Attributes:
-        hit_frames: Sequence of frame indices where damage is applied.
-        damage: Amount of damage dealt on hit.
-        knockback: Horizontal knockback force applied to target.
-    """
-    
-    hit_frames: tuple[int, ...]
-    damage: float = 1.0
-    knockback: float = 5.0
+    DEATH = 0
+    HURT = 10
+    ATTACK = 20
+    CHASE = 30
+    IDLE = 40
 
 
 @dataclass(slots=True)
-class AttackState:
-    """
-    Mutable state tracking for the current attack sequence.
-    
-    Attributes:
-        is_active: Whether an attack is currently in progress.
-        config: Configuration for the current attack type.
-        hit_connected: Whether this attack has already dealt damage.
-        last_frame_checked: Last frame index that was processed.
-    """
-    
-    is_active: bool = False
-    config: Optional[AttackConfig] = None
-    hit_connected: bool = False
-    last_frame_checked: int = -1
-    
-    def reset(self) -> None:
-        """Reset attack state for a new attack or return to idle."""
-        self.is_active = False
-        self.config = None
-        self.hit_connected = False
-        self.last_frame_checked = -1
-        
-    def begin(self, config: AttackConfig) -> None:
-        """Initialize state for a new attack sequence."""
-        self.is_active = True
-        self.config = config
-        self.hit_connected = False
-        self.last_frame_checked = -1
+class StateConfig:
+    animation_speed: float = 0.15
+    loops: bool = True
+    next_state: Optional[SkeletonState] = None
+    interruptible: bool = True
 
 
-class Skeleton(Entity):
+class Skeleton(Actor):
     """
     A skeletal enemy with state-machine AI and frame-precise combat.
-    
-    This enemy tracks the player, engages when in range, and uses a
-    configurable hit-frame system for fair, responsive combat. Damage
-    is only applied during specific animation frames, allowing players
-    to read and react to attack telegraphs.
-    
-    States:
-        IDLE: Standing still, scanning for player.
-        CHASE: Pursuing the player within detection range.
-        ATTACK: Executing an attack sequence with active hit frames.
-        HURT: Staggered after receiving damage.
-        DEATH: Playing death animation before removal.
-    
-    Attributes:
-        ATTACK_1_CONFIG: Hit frame configuration for primary attack.
-        ATTACK_2_CONFIG: Hit frame configuration for secondary attack.
     """
     
     # Class-level attack configurations (immutable)
     ATTACK_1_CONFIG: Final[AttackConfig] = AttackConfig(
-        hit_frames=(6,),
-        damage=1.0,
-        knockback=8.0,
+        hit_frames=frozenset({6}),
+        base_damage=1.0,
+        knockback_force=8.0,
     )
     
     ATTACK_2_CONFIG: Final[AttackConfig] = AttackConfig(
-        hit_frames=(5, 6),  # Secondary attack has slightly different timing
-        damage=0.75,
-        knockback=5.0,
+        hit_frames=frozenset({5, 6}),
+        base_damage=0.75,
+        knockback_force=5.0,
     )
     
-    # Animation speed constants
-    _ANIM_SPEED_IDLE: Final[float] = 0.1
-    _ANIM_SPEED_WALK: Final[float] = 0.15
-    _ANIM_SPEED_ATTACK: Final[float] = 0.15
-    _ANIM_SPEED_HURT: Final[float] = 0.15
-    _ANIM_SPEED_DEATH: Final[float] = 0.15
-    
+    STATE_CONFIGS: Final[dict[SkeletonState, StateConfig]] = {
+        SkeletonState.IDLE: StateConfig(0.1),
+        SkeletonState.CHASE: StateConfig(0.15),
+        SkeletonState.ATTACK: StateConfig(0.15, loops=False, next_state=SkeletonState.IDLE, interruptible=False),
+        SkeletonState.HURT: StateConfig(0.15, loops=False, next_state=SkeletonState.IDLE, interruptible=False),
+        SkeletonState.DEATH: StateConfig(0.15, loops=False, interruptible=False),
+    }
+
     def __init__(self, x: int, y: int, player: Player) -> None:
-        """
-        Initialize a skeleton enemy.
-        
-        Args:
-            x: Initial x position in world coordinates.
-            y: Initial y position in world coordinates.
-            player: Reference to the player entity for AI targeting.
-        """
         super().__init__(x, y)
         
         self._player: Player = player
-        self._state: SkeletonState = SkeletonState.IDLE
-        self._attack_state: AttackState = AttackState()
+        self.state_configs = self.STATE_CONFIGS
         
         # Load animation frame sequences
-        self._idle_frames: list[pg.Surface] = self._load_frames(
+        self.animations[SkeletonState.IDLE] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Idle/skeleton-idle_{}.png", 8
         )
-        self._walk_frames: list[pg.Surface] = self._load_frames(
+        self.animations[SkeletonState.CHASE] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Walk/skeleton-walk_{:02d}.png", 10
         )
-        self._attack_frames: list[pg.Surface] = self._load_frames(
+        self.animations[SkeletonState.ATTACK] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Attack1/skeleton-atk2_{:02d}.png", 10
         )
-        self._attack2_frames: list[pg.Surface] = self._load_frames(
+        # Handle secondary attack animation implicitly or add it to state machine
+        self._attack2_frames = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Attack2/skeleton-atk1_{}.png", 9
         )
-        self._hurt_frames: list[pg.Surface] = self._load_frames(
+        self.animations[SkeletonState.HURT] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Hurt/skeleton-hurt_{}.png", 5
         )
-        self._death_frames: list[pg.Surface] = self._load_frames(
+        self.animations[SkeletonState.DEATH] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Die/skeleton-death_{:02d}.png", 13
         )
         
-        # Animation state
-        self._current_frames: list[pg.Surface] = self._idle_frames
-        self._animation_index: float = 0.0
-        self.image: pg.Surface = self._current_frames[0]
+        # Initial setup
+        self.set_state(SkeletonState.IDLE)
         self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y))
         
-        # Hitbox adjustment for gameplay feel
+        # Hitbox adjustment
         self.reduce_hitbox(40, 20, align='bottom')
         
         # Movement and physics
         self._speed: float = 2.5
         self._gravity: float = 0.0
         self._ground_y: int = pg.display.Info().current_h - 34
-        self._facing_left: bool = True
         
         # AI configuration
         self._detection_range: int = 1000
@@ -176,7 +111,7 @@ class Skeleton(Entity):
         self._vertical_tolerance: int = 100
         
         # Combat state
-        self._max_health: int = 30  # Increased from 4 to 30 to prevent one-shot kills
+        self._max_health: int = 30
         self._health: int = self._max_health
         
     def _load_frames(
@@ -224,232 +159,103 @@ class Skeleton(Entity):
         return frames
     
     # ─────────────────────────────────────────────────────────────────────────
-    # Public API: Frame and State Inspection
+    # Public API: Combat and State Inspection
     # ─────────────────────────────────────────────────────────────────────────
     
     @property
-    def state(self) -> SkeletonState:
-        """Current behavioral state of the skeleton."""
-        return self._state
-    
+    def health(self) -> int: return self._health
     @property
-    def current_frame_index(self) -> int:
-        """
-        Current animation frame index (0-based).
-        
-        Returns:
-            Integer index of the currently displayed frame.
-        """
-        return int(self._animation_index)
-    
+    def max_health(self) -> int: return self._max_health
     @property
-    def is_attacking(self) -> bool:
-        """Whether the skeleton is currently in an attack state."""
-        return self._state == SkeletonState.ATTACK
-    
+    def entity_id(self) -> int: return id(self)
     @property
-    def is_alive(self) -> bool:
-        """Whether the skeleton is alive and can act."""
-        return self._state != SkeletonState.DEATH
-    
-    @property
-    def health(self) -> int:
-        """Current health points."""
-        return self._health
-    
-    @property
-    def max_health(self) -> int:
-        """Maximum health points."""
-        return self._max_health
-    
+    def is_dead(self) -> bool: return self.state == SkeletonState.DEATH
+
     def is_in_hit_frame(self) -> bool:
-        """
-        Check if the skeleton is currently in a damage-dealing frame.
-        
-        This method checks whether the current animation frame is one
-        of the configured hit frames for the active attack. Use this
-        to determine when to apply damage to the player.
-        
-        Returns:
-            True if currently in a hit frame during an active attack,
-            False otherwise.
-            
-        Example:
-            >>> if skeleton.is_in_hit_frame() and player_in_range:
-            ...     player.take_damage(skeleton.get_current_attack_damage())
-        """
-        if not self._attack_state.is_active:
-            return False
-            
-        if self._attack_state.config is None:
-            return False
-            
-        return self.current_frame_index in self._attack_state.config.hit_frames
-    
+        return self.attack_state.is_hit_frame_active()
+
     def should_deal_damage(self) -> bool:
-        """
-        Check if damage should be dealt this frame (one-shot per attack).
-        
-        Unlike `is_in_hit_frame()`, this method returns True only once
-        per attack sequence, preventing multiple damage applications
-        when the hit frame persists across multiple update cycles.
-        
-        Returns:
-            True if damage should be applied this frame, False otherwise.
-            
-        Example:
-            >>> if skeleton.should_deal_damage() and collision_detected:
-            ...     player.take_damage(skeleton.get_current_attack_damage())
-        """
-        if not self.is_in_hit_frame():
-            return False
-            
-        # Already dealt damage this attack
-        if self._attack_state.hit_connected:
-            return False
-            
-        # Prevent re-triggering on same frame across multiple calls
-        current_frame = self.current_frame_index
-        if current_frame == self._attack_state.last_frame_checked:
-            return False
-            
-        self._attack_state.last_frame_checked = current_frame
-        return True
-    
+        return self.attack_state.is_hit_frame_active() and not self.attack_state.hit_connected
+
     def register_hit(self) -> None:
-        """
-        Mark that this attack has successfully dealt damage.
-        
-        Call this after applying damage to prevent the same attack
-        from dealing damage multiple times.
-        """
-        self._attack_state.hit_connected = True
-    
+        self.attack_state.hit_connected = True
+
     def get_current_attack_damage(self) -> float:
-        """
-        Get the damage value for the current attack.
-        
-        Returns:
-            Damage value if attacking, 0.0 otherwise.
-        """
-        if self._attack_state.config is None:
-            return 0.0
-        return self._attack_state.config.damage
-    
+        return self.attack_state.config.damage if self.attack_state.config else 0.0
+
     def get_current_attack_knockback(self) -> float:
-        """
-        Get the knockback value for the current attack.
-        
-        Returns:
-            Knockback force if attacking, 0.0 otherwise.
-        """
-        if self._attack_state.config is None:
-            return 0.0
-        return self._attack_state.config.knockback
-    
-    # ─────────────────────────────────────────────────────────────────────────
-    # Core Update Loop
-    # ─────────────────────────────────────────────────────────────────────────
-    
+        return self.attack_state.config.knockback if self.attack_state.config else 0.0
+
     def update(self, dt: Optional[float] = None, scroll_speed: int = 0) -> None:
-        """
-        Update skeleton state for the current frame.
-        
-        Args:
-            dt: Delta time since last update (seconds). Currently unused
-                but provided for interface compatibility.
-            scroll_speed: World scroll speed for parallax movement.
-        """
-        # Apply world scrolling
+        if dt is None: dt = 1.0 / 60.0
         self.rect.x -= scroll_speed
         
-        # Core update sequence
         self._apply_gravity()
         self._update_ai()
-        self._update_animation()
         
-        # Parent class update
-        super().update(dt)
-    
-    def take_damage(self, amount: int = 0.5) -> None:
-        """
-        Apply damage to the skeleton.
+        super().update(dt) # Handles state machines and animations
         
-        Transitions to HURT state if still alive, or DEATH state if
-        health is depleted. Ignores damage if already hurt or dying.
-        
-        Args:
-            amount: Damage points to apply.
-        """
-        # Invulnerable during hurt/death states
-        if self._state in (SkeletonState.HURT, SkeletonState.DEATH):
+        # Cleanup on death animation completion
+        if self.state == SkeletonState.DEATH and int(self.animation_index) >= len(self.animations[SkeletonState.DEATH]) - 1:
+            self.kill()
+
+    def take_damage(self, amount: float = 0.5) -> None:
+        if self.state in (SkeletonState.HURT, SkeletonState.DEATH):
             return
             
         self._health = max(0, self._health - amount)
-        self._animation_index = 0.0
-        self._attack_state.reset()
+        self.attack_state.end()
         
         if self._health <= 0:
-            self._state = SkeletonState.DEATH
+            self.set_state(SkeletonState.DEATH, force=True)
         else:
-            self._state = SkeletonState.HURT
+            self.set_state(SkeletonState.HURT, force=True)
     
     # ─────────────────────────────────────────────────────────────────────────
     # Private: AI Logic
     # ─────────────────────────────────────────────────────────────────────────
     
     def _update_ai(self) -> None:
-        """Process AI decision-making based on player position."""
-        # No AI processing without valid player or during stagger/death
-        if self._player is None:
-            return
-        if self._state in (SkeletonState.HURT, SkeletonState.DEATH):
+        if self._player is None or self.state in (SkeletonState.HURT, SkeletonState.DEATH):
             return
             
-        # Calculate distances to player
         player_rect = self._player.rect
         dist_x = abs(self.rect.centerx - player_rect.centerx)
         dist_y = abs(self.rect.centery - player_rect.centery)
         
-        # State machine transitions
-        if self._state == SkeletonState.ATTACK:
-            # Attack state handles its own exit in animation update
+        if self.state == SkeletonState.ATTACK:
             return
             
-        # Check for attack initiation
         if dist_x < self._attack_range and dist_y < self._vertical_tolerance:
             self._begin_attack()
-        # Check for chase initiation
         elif dist_x < self._detection_range and dist_y < self._vertical_tolerance:
-            self._state = SkeletonState.CHASE
+            self.set_state(SkeletonState.CHASE)
         else:
-            self._state = SkeletonState.IDLE
+            self.set_state(SkeletonState.IDLE)
             
-        # Execute chase movement
-        if self._state == SkeletonState.CHASE:
+        if self.state == SkeletonState.CHASE:
             self._chase_player(player_rect)
     
     def _begin_attack(self) -> None:
-        """Initialize a new attack sequence with random attack selection."""
-        self._state = SkeletonState.ATTACK
-        self._animation_index = 0.0
-        
-        # Randomly select attack type and configure
         if random.random() < 0.5:
-            self._current_frames = self._attack_frames
-            self._attack_state.begin(self.ATTACK_1_CONFIG)
+            # Primary attack animation
+            self.animations[SkeletonState.ATTACK] = self._load_frames(
+                "assets/skeleton/Skeleton_01_White_Attack1/skeleton-atk2_{:02d}.png", 10
+            )
+            self.current_attack_config = self.ATTACK_1_CONFIG
         else:
-            self._current_frames = self._attack2_frames
-            self._attack_state.begin(self.ATTACK_2_CONFIG)
+            # Secondary attack animation
+            self.animations[SkeletonState.ATTACK] = self._attack2_frames
+            self.current_attack_config = self.ATTACK_2_CONFIG
+        self.set_state(SkeletonState.ATTACK)
     
     def _chase_player(self, player_rect: pg.Rect) -> None:
-        """Move towards the player's position."""
         if self.rect.centerx > player_rect.centerx:
             self.rect.x -= self._speed
-            self._facing_left = True
+            self.facing_left = True
         else:
             self.rect.x += self._speed
-            self._facing_left = False
+            self.facing_left = False
     
     # ─────────────────────────────────────────────────────────────────────────
     # Private: Physics
@@ -466,83 +272,23 @@ class Skeleton(Entity):
             self._gravity = 0.0
     
     # ─────────────────────────────────────────────────────────────────────────
-    # Private: Animation
-    # ─────────────────────────────────────────────────────────────────────────
-    
-    def _update_animation(self) -> None:
-        """Update animation frame based on current state."""
-        match self._state:
-            case SkeletonState.DEATH:
-                self._animate_death()
-            case SkeletonState.HURT:
-                self._animate_hurt()
-            case SkeletonState.ATTACK:
-                self._animate_attack()
-            case SkeletonState.CHASE:
-                self._animate_walk()
-            case SkeletonState.IDLE:
-                self._animate_idle()
-                
-        self._apply_frame()
-    
-    def _animate_death(self) -> None:
-        """Process death animation with removal on completion."""
-        self._current_frames = self._death_frames
-        self._animation_index += self._ANIM_SPEED_DEATH
-        
-        if self._animation_index >= len(self._current_frames):
-            self.kill()
-    
-    def _animate_hurt(self) -> None:
-        """Process hurt animation with return to idle on completion."""
-        self._current_frames = self._hurt_frames
-        self._animation_index += self._ANIM_SPEED_HURT
-        
-        if self._animation_index >= len(self._current_frames):
-            self._state = SkeletonState.IDLE
-            self._animation_index = 0.0
-    
-    def _animate_attack(self) -> None:
-        """Process attack animation with return to idle on completion."""
-        self._animation_index += self._ANIM_SPEED_ATTACK
-        
-        if self._animation_index >= len(self._current_frames):
-            self._state = SkeletonState.IDLE
-            self._animation_index = 0.0
-            self._current_frames = self._idle_frames
-            self._attack_state.reset()
-    
-    def _animate_walk(self) -> None:
-        """Process looping walk animation."""
-        self._current_frames = self._walk_frames
-        self._animation_index += self._ANIM_SPEED_WALK
-        
-        if self._animation_index >= len(self._current_frames):
-            self._animation_index = 0.0
-    
-    def _animate_idle(self) -> None:
-        """Process looping idle animation."""
-        self._current_frames = self._idle_frames
-        self._animation_index += self._ANIM_SPEED_IDLE
-        
-        if self._animation_index >= len(self._current_frames):
-            self._animation_index = 0.0
-    
     def _apply_frame(self) -> None:
-        """Apply the current frame to the sprite image with facing direction."""
-        frame_index = min(
-            int(self._animation_index),
-            len(self._current_frames) - 1
-        )
-        self.image = self._current_frames[frame_index]
-        
-        if self._facing_left:
-            self.image = pg.transform.flip(self.image, True, False)
+        pass # Handle by Actor superclass
     
     # ─────────────────────────────────────────────────────────────────────────
     # Rendering
     # ─────────────────────────────────────────────────────────────────────────
     
+    def _apply_gravity(self) -> None:
+        """Apply gravitational acceleration and ground collision."""
+        self._gravity += 1.0
+        self.rect.y += int(self._gravity)
+        
+        # Ground collision
+        if self.rect.bottom >= self._ground_y:
+            self.rect.bottom = self._ground_y
+            self._gravity = 0.0
+
     def draw(self, surface: pg.Surface) -> None:
         """
         Draw the skeleton and UI elements.

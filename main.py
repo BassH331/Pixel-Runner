@@ -68,6 +68,19 @@ def main():
         text_color=(230, 220, 200),
         shadow_color=(20, 15, 10)
     )
+    UITheme.configure_overlays(
+        stone_path="assets/graphics/UI/PNG/UI board Medium  stone.png",
+        parchment_path="assets/graphics/UI/PNG/UI board Medium  parchment.png",
+        title_font_path="assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
+        body_font_path="assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf",
+        text_color=(60, 40, 20),
+        title_color=(45, 25, 10),
+        prompt_color=(100, 75, 50),
+        font_size=38,
+        title_font_size=48,
+        prompt_font_size=28,
+        backdrop_alpha=140
+    )
     
     # Initialize Managers
     audio_manager = AudioManager()

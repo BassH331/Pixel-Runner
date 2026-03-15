@@ -14,14 +14,13 @@ from dataclasses import dataclass
 import pygame as pg
 
 from src.game.entities.enemy import Enemy
-from src.game.entities.interaction_point import InteractionPoint
+from v3x_zulfiqar_gideon.world import WorldEventManager, InteractionPoint, WorldLoader, Sky
 from src.game.entities.wizard_npc import WizardNPC
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
 from v3x_zulfiqar_gideon.state_machine import State
-from v3x_zulfiqar_gideon.world import WorldEventManager
 
 if TYPE_CHECKING:
     from v3x_zulfiqar_gideon.state_machine import StateManager
@@ -98,6 +97,14 @@ class GameState(State):
         self._setup_triggers()
         self._game_start_ticks: int = pg.time.get_ticks()
         
+        # Sky (parallax background)
+        self.sky = Sky(
+            self.width, 
+            self.height,
+            layer_paths=[f"assets/graphics/Clouds 3/{i}.png" for i in range(1, 5)],
+            speeds=[0, 0, 20, 40]
+        )
+
         # Background parallax
         self.bg_image = AssetManager.get_texture(
             "assets/graphics/background images/new_bg_images/bg_image.png"
@@ -135,12 +142,7 @@ class GameState(State):
         self._last_log_time = pg.time.get_ticks()
         self._frame_count = 0
         
-    def _load_level_config(self) -> None:
-        """Load level data and configure spawn rates."""
-        from src.game.levels.level_loader import LevelLoader
-        
-        self.level_loader = LevelLoader()
-        self.level_data = self.level_loader.load_level("level_1.json")
+        self.level_data = WorldLoader.load_json(os.path.join("game_data", "level_1.json"))
         
         if self.level_data:
             self.BAT_GROUP_MIN_DELAY = self.level_data.get("spawn_rate_min", 5000)
@@ -223,6 +225,7 @@ class GameState(State):
             text=params["text"],
             title=params["title"],
             proximity_radius=params["radius"],
+            font_path="assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf"
         ))
 
     def _handle_npc_spawn(self, params: dict) -> None:

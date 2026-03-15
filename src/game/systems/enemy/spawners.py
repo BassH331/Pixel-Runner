@@ -1,56 +1,15 @@
-"""
-Spawner classes for different enemy types.
-
-This module provides base and specific spawner implementations for creating
-and managing enemy entities in the game world.
-"""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Type, TypeVar, Protocol, Optional, Dict, Any, List
+from typing import Type, TypeVar, Optional, Dict, Any, List
 import random
 import pygame as pg
 
+from v3x_zulfiqar_gideon.systems import Spawner, SpawnConfig
 from src.game.entities.enemy import Enemy
 from src.game.entities.skeleton import Skeleton
 
 # Type variable for spawner subclasses
-T = TypeVar('T', bound='EnemySpawner')
-
-
-@dataclass
-class SpawnConfig:
-    """Configuration for enemy spawning."""
-    max_count: int = 3
-    min_distance: int = 100
-    max_distance: int = 300
-    respawn_delay: int = 5000
-    spawn_y_offset: int = 0
-    spawn_area_padding: int = 50
-    spawn_weights: Dict[str, float] = field(default_factory=dict)
-    spawn_conditions: Dict[str, Any] = field(default_factory=dict)
-
-
-class EnemySpawner(Protocol):
-    """Base protocol for all enemy spawners."""
-    
-    @property
-    def enemy_type(self) -> Type[Enemy]:
-        """Return the type of enemy this spawner creates."""
-        ...
-    
-    @property
-    def config(self) -> SpawnConfig:
-        """Return the spawn configuration."""
-        ...
-    
-    def can_spawn(self, current_count: int, game_time: int) -> bool:
-        """Check if a new enemy can be spawned."""
-        ...
-    
-    def spawn(self, player_pos: pg.math.Vector2, game_time: int) -> Enemy:
-        """Spawn a new enemy instance."""
-        ...
+T = TypeVar('T', bound='Spawner')
 
 
 class SkeletonSpawner:
@@ -72,7 +31,7 @@ class SkeletonSpawner:
         self._last_spawn_time: int = 0
     
     @property
-    def enemy_type(self) -> Type[Skeleton]:
+    def entity_type(self) -> Type[Skeleton]:
         return Skeleton
     
     @property
@@ -87,16 +46,16 @@ class SkeletonSpawner:
         time_since_last_spawn = game_time - self._last_spawn_time
         return time_since_last_spawn >= self.config.respawn_delay
     
-    def spawn(self, player_pos: pg.math.Vector2, game_time: int) -> Skeleton:
+    def spawn(self, center_pos: pg.math.Vector2, game_time: int) -> Skeleton:
         """Spawn a new skeleton."""
         from src.game.entities.player import Player  # Avoid circular import
         
-        # Calculate spawn position (right side of screen, random y)
-        spawn_x = player_pos.x + random.randint(
+        # Calculate spawn position
+        spawn_x = center_pos.x + random.randint(
             self.config.min_distance,
             self.config.max_distance
         )
-        spawn_y = player_pos.y + self.config.spawn_y_offset
+        spawn_y = center_pos.y + self.config.spawn_y_offset
         
         # Create skeleton instance
         skeleton = Skeleton(
@@ -129,8 +88,7 @@ class BatSpawner:
         self._last_spawn_time: int = 0
     
     @property
-    def enemy_type(self) -> Type[Enemy]:
-        from src.game.entities.enemy import Enemy  # Avoid circular import
+    def entity_type(self) -> Type[Enemy]:
         return Enemy
     
     @property
@@ -145,19 +103,17 @@ class BatSpawner:
         time_since_last_spawn = game_time - self._last_spawn_time
         return time_since_last_spawn >= self.config.respawn_delay
     
-    def spawn(self, player_pos: pg.math.Vector2, game_time: int) -> Enemy:
+    def spawn(self, center_pos: pg.math.Vector2, game_time: int) -> Enemy:
         """Spawn a new bat or bat group."""
-        from src.game.entities.enemy import Enemy  # Avoid circular import
-        
-        # Calculate spawn position (random around player)
+        # Calculate spawn position (random around center)
         angle = random.uniform(0, 2 * 3.14159)
         distance = random.randint(
             self.config.min_distance,
             self.config.max_distance
         )
         
-        spawn_x = player_pos.x + distance * pg.math.Vector2(1, 0).rotate(angle).x
-        spawn_y = player_pos.y + distance * pg.math.Vector2(1, 0).rotate(angle).y
+        spawn_x = center_pos.x + distance * pg.math.Vector2(1, 0).rotate(angle).x
+        spawn_y = center_pos.y + distance * pg.math.Vector2(1, 0).rotate(angle).y
         
         # Create bat instance
         bat = Enemy()

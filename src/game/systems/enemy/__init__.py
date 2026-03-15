@@ -5,12 +5,10 @@ This package provides a flexible system for spawning and managing different
 types of enemies with various behaviors and spawn patterns.
 """
 
-from .enemy_manager import EnemyManager
+from v3x_zulfiqar_gideon.systems import EntityManager as EnemyManager, Spawner as EnemySpawner, SpawnConfig
 from .spawners import (
-    EnemySpawner,
     SkeletonSpawner,
     BatSpawner,
-    SpawnConfig
 )
 
 __all__ = [

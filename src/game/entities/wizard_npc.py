@@ -1,36 +1,26 @@
-"""
-Wizard NPC entity — an animated, non-hostile character placed in the game world.
-
-Loads the 6 idle-animation frames from ``assets/graphics/Wizard_NPC/``,
-scrolls with the background, and displays a proximity-based "Talk" prompt
-using the same UX pattern as :class:`InteractionPoint`.
-"""
-
 from __future__ import annotations
 
 from typing import Optional
+from enum import Enum
 
 import pygame as pg
 
-from v3x_zulfiqar_gideon.animation import Animation, Animator
+from v3x_zulfiqar_gideon.ecs import Actor
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
 
 
-class WizardNPC(pg.sprite.Sprite):
-    """Animated Wizard NPC with proximity-based dialogue support.
+class NPCState(Enum):
+    IDLE = 0
 
-    Args:
-        x: Initial world X position.
-        y: Screen Y position (foot anchor).
-        text: Dialogue text shown in the parchment overlay.
-        title: Header for the parchment overlay (default ``"Wizard"``).
-        scale: Sprite scale factor (default ``2.0``).
-        proximity_radius: Pixel distance to activate the talk prompt.
+
+class WizardNPC(Actor):
+    """
+    Animated Wizard NPC with proximity-based dialogue support.
     """
 
     _SPRITE_DIR = "assets/graphics/Wizard_NPC"
     _FRAME_COUNT = 6
-    _FRAME_DURATION = 0.18  # seconds per frame
+    _FRAME_DURATION = 0.18
 
     # Prompt styling (mirrors InteractionPoint)
     _FONT_PATH = "assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf"
@@ -51,29 +41,24 @@ class WizardNPC(pg.sprite.Sprite):
         scale: float = 2.0,
         proximity_radius: int = 160,
     ) -> None:
-        super().__init__()
+        super().__init__(x, y)
 
         self.text = text
         self.title = title
         self.proximity_radius = proximity_radius
         self._interacted: bool = False
         self._in_range: bool = False
+        self.scale = scale
 
         # --- Animation ---
-        self.scale = scale
-        self.animator = Animator()
         self._load_animations()
+        self.set_state(NPCState.IDLE)
 
-        self.image = self.animator.get_frame()
         self.rect = self.image.get_rect(midbottom=(x, y))
 
         # --- Talk prompt (cached surface) ---
         self._font = AssetManager.get_font(self._FONT_PATH, self._FONT_SIZE)
         self._prompt_surface = self._build_prompt()
-
-    # ------------------------------------------------------------------
-    # Animation helpers
-    # ------------------------------------------------------------------
 
     def _load_animations(self) -> None:
         frames: list[pg.Surface] = []
@@ -86,12 +71,7 @@ class WizardNPC(pg.sprite.Sprite):
                 frame = pg.transform.scale(frame, (new_w, new_h))
             frames.append(frame)
 
-        self.animator.add("idle", Animation(frames, self._FRAME_DURATION, loop=True))
-        self.animator.set("idle")
-
-    # ------------------------------------------------------------------
-    # Talk prompt
-    # ------------------------------------------------------------------
+        self.animations[NPCState.IDLE] = frames
 
     def _build_prompt(self) -> pg.Surface:
         """Create the cached "Talk [X / ENTER]" prompt surface."""
@@ -118,10 +98,6 @@ class WizardNPC(pg.sprite.Sprite):
         bg.blit(text_surf, (self._PROMPT_PADDING_X, self._PROMPT_PADDING_Y))
         return bg
 
-    # ------------------------------------------------------------------
-    # Interaction API (same interface as InteractionPoint)
-    # ------------------------------------------------------------------
-
     @property
     def can_interact(self) -> bool:
         """True when the player is nearby and hasn't yet interacted."""
@@ -144,10 +120,6 @@ class WizardNPC(pg.sprite.Sprite):
         self._in_range = distance <= self.proximity_radius
         return self._in_range
 
-    # ------------------------------------------------------------------
-    # Sprite update / draw
-    # ------------------------------------------------------------------
-
     def update(
         self,
         dt: Optional[float] = None,
@@ -155,14 +127,11 @@ class WizardNPC(pg.sprite.Sprite):
     ) -> None:
         """Scroll with the world and advance idle animation."""
         self.rect.x -= scroll_speed
-
-        dt_sec = (dt / 1000.0) if dt and dt > 1 else (dt or 0)
-        self.animator.update(dt_sec)
-        self.image = self.animator.get_frame()
+        super().update(dt)
 
     def draw(self, surface: pg.Surface) -> None:
         """Render the NPC sprite and, if applicable, the talk prompt."""
-        surface.blit(self.image, self.rect)
+        super().draw(surface)
 
         if not self.can_interact:
             return
