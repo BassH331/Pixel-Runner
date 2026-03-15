@@ -2,8 +2,8 @@ import pygame as pg
 from v3x_zulfiqar_gideon.state_machine import State
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
 from v3x_zulfiqar_gideon.effects import SceneHighlighter
-from src.game.ui.ui_button import UIButton
-from src.game.ui.notification_banner import NotificationBanner
+from v3x_zulfiqar_gideon.ui import UIButton
+from v3x_zulfiqar_gideon.ui import NotificationBanner
 
 
 class StoryState(State):
@@ -184,12 +184,12 @@ class StoryState(State):
         self._highlight_schedule = [
             (0.0, 0),   # Section 1
             (10.0, 1),   # Section 2
-            (20.0, 2),  # Section 3
-            (30.0, 3),  # Section 4
-            (40.0, 4),  # Section 5
-            (50.0, 5),  # Section 6
-            (60.0, 6),  # Section 7
-            (25.0, -1), # End highlight
+            (22.0, 2),  # Section 3
+            (33.0, 3),  # Section 4
+            (43.0, 4),  # Section 5
+            (53.0, 5),  # Section 6
+            (63.0, 6),  # Section 7
+            (73.0, -1), # End highlight
         ]
 
     # ── Lifecycle ────────────────────────────────────────────────────────────

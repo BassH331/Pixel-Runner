@@ -18,7 +18,7 @@ import pygame as pg
 
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
 from v3x_zulfiqar_gideon.state_machine import State
-from src.game.ui.notification_banner import NotificationBanner
+from v3x_zulfiqar_gideon.ui import NotificationBanner
 
 
 class _Phase(IntEnum):

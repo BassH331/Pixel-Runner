@@ -4,6 +4,7 @@ from v3x_zulfiqar_gideon.state_machine import StateManager
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
 from v3x_zulfiqar_gideon.audio_manager import AudioManager, SoundPriority
 from src.game.states.intro_state import IntroState
+from v3x_zulfiqar_gideon.ui import UITheme
 
 # --- GLOBAL CONSTANTS ---
 BASE_WIDTH, BASE_HEIGHT = 1280, 720
@@ -41,6 +42,32 @@ def main():
     joystick = init_joystick()
     screen, width, height = setup_display()
     clock = pg.time.Clock()
+
+    # Configure Engine UI Theme
+    UITheme.configure_buttons(
+        assets={
+            "big": ("assets/graphics/UI/PNG/TextBTN_Big.png", "assets/graphics/UI/PNG/TextBTN_Big_Pressed.png"),
+            "medium": ("assets/graphics/UI/PNG/TextBTN_Medium.png", "assets/graphics/UI/PNG/TextBTN_Medium_Pressed.png"),
+            "cancel": ("assets/graphics/UI/PNG/TextBTN_Cancel.png", "assets/graphics/UI/PNG/TextBTN_Cancel_Pressed.png"),
+            "new_start": ("assets/graphics/UI/PNG/TextBTN_New-Start.png", "assets/graphics/UI/PNG/TextBTN_New-Start_Pressed.png"),
+        },
+        font_path="assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf",
+        text_color=(240, 230, 210),
+        hover_color=(255, 245, 225),
+        pressed_color=(200, 190, 170),
+        shadow_color=(30, 20, 10)
+    )
+    UITheme.configure_notifications(
+        banner_path="assets/graphics/UI/PNG/IRONY TITLE  Large.png",
+        icons={
+            "gray": "assets/graphics/UI/PNG/Exclamation_Gray.png",
+            "red": "assets/graphics/UI/PNG/Exclamation_Red.png",
+            "yellow": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
+        },
+        font_path="assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
+        text_color=(230, 220, 200),
+        shadow_color=(20, 15, 10)
+    )
     
     # Initialize Managers
     audio_manager = AudioManager()
