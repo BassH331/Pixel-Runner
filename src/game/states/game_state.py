@@ -15,11 +15,13 @@ import pygame as pg
 
 from src.game.entities.enemy import Enemy
 from src.game.entities.interaction_point import InteractionPoint
+from src.game.entities.wizard_npc import WizardNPC
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner
 from src.my_engine.asset_manager import AssetManager
 from src.my_engine.state_machine import State
+from src.my_engine.world import WorldEventManager
 
 if TYPE_CHECKING:
     from src.my_engine.state_machine import StateManager
@@ -82,6 +84,9 @@ class GameState(State):
         self.interaction_group: pg.sprite.Group = pg.sprite.Group()
         self._setup_interaction_points()
 
+        # NPC group (animated world NPCs with dialogue)
+        self.npc_group: pg.sprite.Group = pg.sprite.Group()
+
         # UI
         self.player_ui = PlayerUI()
         self.objective_display = ObjectiveDisplay()
@@ -117,26 +122,10 @@ class GameState(State):
         self.max_distance_reached: float = 0.0
         self._level_end_distance: float = 8000.0
         self._level_complete: bool = False
-        self._spawned_entity_ids: set[int] = set()
 
-        # Distance-based world entities (spawned when player reaches distance)
-        self._world_entities = [
-            {"id": 1, "distance": 500, "title": "Old Warrior",
-             "text": "The path ahead grows darker, traveler. "
-                     "Beware the skeletal warriors — they strike "
-                     "in groups and show no mercy.",
-             "radius": 160},
-            {"id": 2, "distance": 2500, "title": "Wandering Merchant",
-             "text": "I've seen many come this way, but few return. "
-                     "The undead grow stronger the further you venture. "
-                     "Steel your resolve!",
-             "radius": 160},
-            {"id": 3, "distance": 5000, "title": "Fallen Knight",
-             "text": "You've come far, warrior. The end is near, "
-                     "but the final guardians will not fall easily. "
-                     "Prepare yourself for the fiercest battle yet.",
-             "radius": 160},
-        ]
+        # World Event System (distance-based triggers)
+        self.world_manager = WorldEventManager()
+        self._setup_world_events()
         
         # Load level configuration
         self._load_level_config()
@@ -168,6 +157,18 @@ class GameState(State):
                     player_data["x"],
                     player_data["y"],
                 )
+            
+            # Load World Events from JSON
+            world_events = self.level_data.get("world_events", [])
+            for event in world_events:
+                self.world_manager.add_event(
+                    id=event["id"],
+                    distance=event["distance"],
+                    event_type=event["type"],
+                    **event.get("params", {})
+                )
+            # Optimize the list after loading
+            self.world_manager.finalize()
         else:
             self.BAT_GROUP_MIN_DELAY = 5000
             self.BAT_GROUP_MAX_DELAY = 15000
@@ -208,23 +209,51 @@ class GameState(State):
                 return zone
         return zones[0]
 
-    def _spawn_world_entities(self) -> None:
-        """Spawn interaction points when the player reaches their distance."""
-        ground_y = self.height - 100
-        for entity in self._world_entities:
-            eid = entity["id"]
-            if eid in self._spawned_entity_ids:
-                continue
-            if self.world_distance >= entity["distance"]:
-                self._spawned_entity_ids.add(eid)
-                # Place at right edge of screen so player walks into it
-                self.interaction_group.add(InteractionPoint(
-                    x=self.width + 50,
-                    y=ground_y,
-                    text=entity["text"],
-                    title=entity["title"],
-                    proximity_radius=entity["radius"],
-                ))
+    def _setup_world_events(self) -> None:
+        """Register handlers for world events. Scheduling is handled via JSON config."""
+        self.world_manager.register_handler("interaction", self._handle_interaction_spawn)
+        self.world_manager.register_handler("npc", self._handle_npc_spawn)
+        self.world_manager.register_handler("enemy_wave", self._handle_enemy_wave)
+
+    def _handle_interaction_spawn(self, params: dict) -> None:
+        """Handler for 'interaction' events."""
+        self.interaction_group.add(InteractionPoint(
+            x=self.width + 50,
+            y=self.height - 100,
+            text=params["text"],
+            title=params["title"],
+            proximity_radius=params["radius"],
+        ))
+
+    def _handle_npc_spawn(self, params: dict) -> None:
+        """Handler for 'npc' events."""
+        if params.get("npc_type") == "wizard":
+            self.npc_group.add(WizardNPC(
+                x=self.width + 50,
+                y=self.height - 100,
+                text=params["text"],
+                title=params["title"],
+                scale=2.0,
+                proximity_radius=params.get("radius", 160),
+            ))
+
+    def _handle_enemy_wave(self, params: dict) -> None:
+        """Handler for 'enemy_wave' events."""
+        count = params.get("count", 3)
+        enemy_type = params.get("type", "bat")
+        
+        if enemy_type == "bat":
+            for _ in range(count):
+                y_pos = randint(50, self.height // 2)
+                x_offset = randint(0, 175)
+                bat = Enemy()
+                bat.rect.midleft = (self.width + x_offset, y_pos)
+                bat.y_base = y_pos
+                self.ambient_group.add(bat)
+            self.audio_manager.play_sound("bats")
+        elif enemy_type == "skeleton":
+            for _ in range(count):
+                self.spawn_skeleton()
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Lifecycle
@@ -277,6 +306,13 @@ class GameState(State):
                     self.objective_display.show(point.text, point.title)
                     point.mark_interacted()
                     break
+            else:
+                # Check NPC group if no interaction point was triggered
+                for npc in self.npc_group:
+                    if npc.can_interact:
+                        self.objective_display.show(npc.text, npc.title)
+                        npc.mark_interacted()
+                        break
 
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_d:
@@ -679,8 +715,8 @@ class GameState(State):
         if self.world_distance > self.max_distance_reached:
             self.max_distance_reached = self.world_distance
 
-        # Spawn distance-based world entities
-        self._spawn_world_entities()
+        # Update world events (distance-triggered)
+        self.world_manager.update(self.world_distance)
 
         # Check level endpoint
         if not self._level_complete and self.world_distance >= self._level_end_distance:
@@ -699,10 +735,15 @@ class GameState(State):
         self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
+        self.npc_group.update(dt, self.bg_scroll_speed)
 
         # Check proximity for interaction points
         for point in self.interaction_group:
             point.check_proximity(player_sprite.rect)
+
+        # Check proximity for NPCs
+        for npc in self.npc_group:
+            npc.check_proximity(player_sprite.rect)
 
         # Check time/flag triggers
         elapsed = (current_time - self._game_start_ticks) / 1000.0
@@ -763,6 +804,10 @@ class GameState(State):
         # Ambient creatures
         for ambient in self.ambient_group:
             ambient.draw(surface)
+
+        # NPCs
+        for npc in self.npc_group:
+            npc.draw(surface)
 
         # Interaction point prompts ("Talk" indicators)
         for point in self.interaction_group:

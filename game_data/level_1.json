@@ -16,5 +16,57 @@
             "x": 1200,
             "y": 200
         }
+    ],
+    "world_events": [
+        {
+            "id": 1,
+            "distance": 400,
+            "type": "interaction",
+            "params": {
+                "title": "Old Warrior",
+                "radius": 160,
+                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors — they strike in groups and show no mercy."
+            }
+        },
+        {
+            "id": 4,
+            "distance": 1200,
+            "type": "npc",
+            "params": {
+                "npc_type": "wizard",
+                "title": "Wizard",
+                "radius": 180,
+                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde — without my barrier they would overrun these lands. Press on, and may my magic shield your path."
+            }
+        },
+        {
+            "id": 2,
+            "distance": 2200,
+            "type": "interaction",
+            "params": {
+                "title": "Wandering Merchant",
+                "radius": 160,
+                "text": "I've seen many come this way, but few return. The undead grow stronger the further you venture. Steel your resolve!"
+            }
+        },
+        {
+            "id": 5,
+            "distance": 3500,
+            "type": "enemy_wave",
+            "params": {
+                "count": 6,
+                "type": "bat"
+            }
+        },
+        {
+            "id": 3,
+            "distance": 4500,
+            "type": "interaction",
+            "params": {
+                "title": "Fallen Knight",
+                "radius": 160,
+                "text": "You've come far, warrior. The end is near, but the final guardians will not fall easily. Prepare yourself for the fiercest battle yet."
+            }
+        }
     ]
 }
