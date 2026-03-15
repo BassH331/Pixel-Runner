@@ -3,7 +3,6 @@ from sys import exit
 from v3x_zulfiqar_gideon.state_machine import StateManager
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
 from v3x_zulfiqar_gideon.audio_manager import AudioManager, SoundPriority
-from src.game.states.intro_state import IntroState
 from v3x_zulfiqar_gideon.ui import UITheme
 
 # --- GLOBAL CONSTANTS ---
