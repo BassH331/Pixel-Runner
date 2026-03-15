@@ -25,7 +25,7 @@ from typing import Callable, Optional
 
 import pygame as pg
 
-from src.my_engine.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
 
 
 # Available button sizes and their asset paths

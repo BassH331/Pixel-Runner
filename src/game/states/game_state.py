@@ -19,12 +19,12 @@ from src.game.entities.wizard_npc import WizardNPC
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner
-from src.my_engine.asset_manager import AssetManager
-from src.my_engine.state_machine import State
-from src.my_engine.world import WorldEventManager
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.state_machine import State
+from v3x_zulfiqar_gideon.world import WorldEventManager
 
 if TYPE_CHECKING:
-    from src.my_engine.state_machine import StateManager
+    from v3x_zulfiqar_gideon.state_machine import StateManager
 
 
 class GameState(State):

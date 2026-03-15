@@ -1,6 +1,6 @@
 import pygame as pg
-from src.my_engine.state_machine import State
-from src.my_engine.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.state_machine import State
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
 from src.game.states.main_menu_state import MainMenuState
 
 class SplashState(State):

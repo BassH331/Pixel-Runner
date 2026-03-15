@@ -1,6 +1,7 @@
 import pygame as pg
-from src.my_engine.state_machine import State
-from src.my_engine.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.state_machine import State
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.effects import SceneHighlighter
 from src.game.ui.ui_button import UIButton
 from src.game.ui.notification_banner import NotificationBanner
 
@@ -176,6 +177,21 @@ class StoryState(State):
             scale=0.5, icon_scale=0.5, hold=1.5,
         )
 
+        # ── Scene Highlighter ────────────────────────────────────────────────
+        self._highlighter = SceneHighlighter(self.scene_rect)
+        # Schedule: (time_in_seconds, section_index)
+        # We start highlighting after voiceover_delay
+        self._highlight_schedule = [
+            (0.0, 0),   # Section 1
+            (10.0, 1),   # Section 2
+            (20.0, 2),  # Section 3
+            (30.0, 3),  # Section 4
+            (40.0, 4),  # Section 5
+            (50.0, 5),  # Section 6
+            (60.0, 6),  # Section 7
+            (25.0, -1), # End highlight
+        ]
+
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     def on_enter(self):
@@ -237,14 +253,25 @@ class StoryState(State):
                 255, self._menu_alpha + self._menu_fade_speed * dt_sec
             )
 
-        # Delayed voiceover
+        # Delayed voiceover and highlight timer
+        self._vo_timer += dt_sec
         if not self._vo_started:
-            self._vo_timer += dt_sec
             if self._vo_timer >= self._voiceover_delay:
                 self._vo_started = True
                 sound = AssetManager.get_sound(self._VOICEOVER_PATH)
                 if sound:
                     self.narration_channel = sound.play()
+
+        # Update highlighted section based on voiceover progress
+        if self._vo_started:
+            vo_elapsed = self._vo_timer - self._voiceover_delay
+            active_idx = -1
+            for t, idx in self._highlight_schedule:
+                if vo_elapsed >= t:
+                    active_idx = idx
+                else:
+                    break
+            self._highlighter.set_active_section(active_idx)
 
         # Settings banner
         self._settings_banner.update(dt)
@@ -261,6 +288,10 @@ class StoryState(State):
             temp = self.scene_image.copy()
             temp.set_alpha(int(self.alpha))
             surface.blit(temp, self.scene_rect)
+
+        # Spotlight highlight
+        if self._scene_faded_in:
+            self._highlighter.draw(surface)
 
         # Parchment menu (fades in after delay)
         if self._menu_ready:

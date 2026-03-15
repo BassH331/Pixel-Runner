@@ -1,7 +1,7 @@
 import pygame as pg
-from src.my_engine.state_machine import State
-from src.my_engine.asset_manager import AssetManager
-from src.my_engine.ui import Button
+from v3x_zulfiqar_gideon.state_machine import State
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.ui import Button
 import sys
 
 class MainMenuState(State):

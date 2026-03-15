@@ -1,8 +1,8 @@
 import pygame as pg
 import random
 import math
-from src.my_engine.ecs import Entity
-from src.my_engine.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.ecs import Entity
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
 
 class Enemy(Entity):
     """

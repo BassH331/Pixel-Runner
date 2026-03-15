@@ -20,7 +20,7 @@ from typing import Optional, Tuple
 
 import pygame as pg
 
-from src.my_engine.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
 
 
 def _ease_in_out(t: float) -> float:

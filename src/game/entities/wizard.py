@@ -1,6 +1,6 @@
 import pygame as pg
-from src.my_engine.animation import Animation, Animator
-from src.my_engine.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.animation import Animation, Animator
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
 
 class Wizard(pg.sprite.Sprite):
     def __init__(self, x, y, screen_width, scale=1.0, start_delay=0.0):

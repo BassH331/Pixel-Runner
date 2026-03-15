@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.my_engine.audio_manager import AudioManager
+    from v3x_zulfiqar_gideon.audio_manager import AudioManager
 
 
 class FootstepController:

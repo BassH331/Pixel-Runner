@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Final, Optional, Sequence
 
 import pygame as pg
 
-from src.my_engine.asset_manager import AssetManager
-from src.my_engine.ecs import Entity
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.ecs import Entity
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player

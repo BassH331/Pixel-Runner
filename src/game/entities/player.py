@@ -50,8 +50,8 @@ from typing import TYPE_CHECKING, Final, Optional
 
 import pygame as pg
 
-from src.my_engine.asset_manager import AssetManager
-from src.my_engine.ecs import Entity
+from v3x_zulfiqar_gideon.asset_manager import AssetManager
+from v3x_zulfiqar_gideon.ecs import Entity
 from src.game.audio.footsteps import FootstepController
 from .combat_system import (
     AttackConfig,
@@ -63,7 +63,7 @@ from .combat_system import (
 )
 
 if TYPE_CHECKING:
-    from src.my_engine.audio_manager import AudioManager
+    from v3x_zulfiqar_gideon.audio_manager import AudioManager
 
 
 class PlayerState(Enum):
