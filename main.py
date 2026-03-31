@@ -18,6 +18,41 @@ def init_joystick():
         return joystick
     return None
 
+def get_story_panels(width, height):
+    """
+    Define spotlight sections using percentages (0.0 to 1.0) of the screen.
+    This separates the exact layout math from the state logic.
+    For example, 0.33 means 33% of the screen.
+    """
+    panels = [
+        # (X_Start, Y_Start, Width, Height)
+        # ─ Top Row (Sections 1-3) ──────────────
+        (0.00,  0.00,  0.42,  0.58),  # Section 1 - e.g. change 0.33 to 0.40 to make it 40% wide
+        (0.42,  0.00,  0.41,  0.58),  # Section 2
+        (0.66,  0.00,  0.42,  0.58),  # Section 3
+        
+        # ─ Bottom Row (Sections 4-7) ───────────
+        (0.00,  0.50,  0.25,  0.50),  # Section 4
+        (0.25,  0.50,  0.25,  0.50),  # Section 5
+        (0.50,  0.50,  0.25,  0.50),  # Section 6
+        (0.75,  0.50,  0.25,  0.50),  # Section 7
+    ]
+    # This automatically converts your percentages into precise screen pixels
+    return [(int(x * width), int(y * height), int(w * width), int(h * height)) for x, y, w, h in panels]
+
+
+STORY_HIGHLIGHT_TIMING = [
+    (0.0,  0),   # Section 1
+    (10.0, 1),   # Section 2
+    (22.0, 2),   # Section 3
+    (33.0, 3),   # Section 4
+    (43.0, 4),   # Section 5 
+    (53.0, 5),   # Section 6 
+    (63.0, 6),   # Section 7
+    (73.0, -1),  # End highlight
+]
+
+
 def main():
     # ── 1. Ignition Manifest ────────────────────────────────────────────────
     # This is the "Blueprint" of your game. 
@@ -31,33 +66,13 @@ def main():
         # Game Flow Map (State Routing)
         routes={
             SplashState: MainMenuState,
-            MainMenuState: {"PLAY": lambda mgr: StoryState(mgr,
+            MainMenuState: {"PLAY": lambda mgr: StoryState(
+                mgr,
                 voiceover_delay=1.0,
                 spotlight_delay=0.0,
                 menu_delay=78,
-                highlight_schedule=[
-                    (0.0,  0),   # Section 1
-                    (10.0, 1),   # Section 2
-                    (22.0, 2),   # Section 3
-                    (33.0, 3),   # Section 4
-                    (43.0, 4),   # Section 5  ← adjust timing here
-                    (53.0, 5),   # Section 6  ← adjust timing here
-                    (63.0, 6),   # Section 7
-                    (73.0, -1),  # End highlight
-                ],
-                # You can tweak the X, Y, WIDTH, HEIGHT of each spotlight panel here
-                spotlight_sections=[
-                    # Top Row (3 panels)
-                    (0, 0, BASE_WIDTH // 3, BASE_HEIGHT // 2),
-                    (BASE_WIDTH // 3, 0, BASE_WIDTH // 3, BASE_HEIGHT // 2),
-                    (2 * BASE_WIDTH // 3, 0, BASE_WIDTH // 3, BASE_HEIGHT // 2),
-                    
-                    # Bottom Row (4 panels)
-                    (0, BASE_HEIGHT // 2, BASE_WIDTH // 4, BASE_HEIGHT // 2),
-                    (BASE_WIDTH // 4, BASE_HEIGHT // 2, BASE_WIDTH // 4, BASE_HEIGHT // 2),          # Section 5 (adjust location/size)
-                    (2 * BASE_WIDTH // 4, BASE_HEIGHT // 2, BASE_WIDTH // 4, BASE_HEIGHT // 2),      # Section 6 (adjust location/size)
-                    (3 * BASE_WIDTH // 4, BASE_HEIGHT // 2, BASE_WIDTH // 4, BASE_HEIGHT // 2),
-                ]
+                highlight_schedule=STORY_HIGHLIGHT_TIMING,
+                spotlight_sections=get_story_panels(BASE_WIDTH, BASE_HEIGHT)
             )},
             StoryState: {"NEW_GAME": TransformationCutscene},
             TransformationCutscene: GameState,
