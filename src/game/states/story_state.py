@@ -44,8 +44,8 @@ class StoryState(State):
         manager,
         *,
         voiceover_delay: float = 3.0,
-        menu_delay: float = 60.0,
-        scene_fade_speed: float = 60,
+        menu_delay: float = 1.5,
+        scene_fade_speed: float = 200,
         menu_fade_speed: float = 200,
         menu_x_frac: float = 0.5,
         menu_y_frac: float = 0.5,
@@ -197,6 +197,9 @@ class StoryState(State):
     def on_enter(self):
         self._vo_timer = 0.0
         self._vo_started = False
+        # Start background music
+        if hasattr(self.manager, 'audio_manager') and self.manager.audio_manager:
+            self.manager.audio_manager.play_music("background_music", volume=0.5)
 
     def on_exit(self):
         if self.narration_channel:
@@ -205,15 +208,8 @@ class StoryState(State):
     # ── Button callbacks ─────────────────────────────────────────────────────
 
     def _on_new_game(self):
-        from .transformation_cutscene import TransformationCutscene
-        from .game_state import GameState
-
-        self.manager.set(
-            TransformationCutscene(
-                self.manager,
-                next_state_factory=lambda: GameState(self.manager),
-            )
-        )
+        # DECOUPLED BATON PASS
+        self.finish("NEW_GAME")
 
     def _on_continue(self):
         # No checkpoints yet — button is present but does nothing
@@ -273,6 +269,10 @@ class StoryState(State):
                     break
             self._highlighter.set_active_section(active_idx)
 
+        # Update menu buttons
+        for btn in self._buttons:
+            btn.update(dt)
+
         # Settings banner
         self._settings_banner.update(dt)
 
@@ -285,9 +285,10 @@ class StoryState(State):
         if self.alpha >= 255:
             surface.blit(self.scene_image, self.scene_rect)
         else:
-            temp = self.scene_image.copy()
-            temp.set_alpha(int(self.alpha))
-            surface.blit(temp, self.scene_rect)
+            # Set alpha on original (very fast)
+            self.scene_image.set_alpha(int(self.alpha))
+            surface.blit(self.scene_image, self.scene_rect)
+            self.scene_image.set_alpha(255) # Reset for next frame
 
         # Spotlight highlight
         if self._scene_faded_in:

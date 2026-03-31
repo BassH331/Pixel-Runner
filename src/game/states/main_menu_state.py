@@ -95,15 +95,19 @@ class MainMenuState(State):
         pass
 
     def start_game(self):
-        from .story_state import StoryState
-        self.manager.set(StoryState(self.manager))
+        # DECOUPLED BATON PASS
+        self.finish("PLAY")
         
     def exit_game(self):
+        self.manager.set_router(None) # Signal quit or similar
         pg.quit()
         sys.exit()
         
     def on_enter(self):
         self.time_entered = pg.time.get_ticks() / 1000.0
+        # Start background music
+        if hasattr(self.manager, 'audio_manager') and self.manager.audio_manager:
+            self.manager.audio_manager.play_music("background_music", volume=0.5)
 
     # Redefining handle_event to pass to buttons
     def handle_event(self, event):

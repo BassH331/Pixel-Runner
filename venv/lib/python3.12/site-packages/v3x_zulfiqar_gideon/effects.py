@@ -1,0 +1,73 @@
+import pygame as pg
+
+class SceneHighlighter:
+    """
+    Creates a spotlight effect by darkening most of a scene and highlighting specific sections.
+    The highlighting is based on vertical strips.
+    """
+    def __init__(self, rect, overlay_alpha=180):
+        """
+        Args:
+            rect (pg.Rect): The rectangular area to cover (usually the scene image rect).
+            overlay_alpha (int): The transparency of the dark overlay (0-255).
+        """
+        self.rect = pg.Rect(rect)
+        self.overlay_alpha = overlay_alpha
+        self.sections = []
+        self.active_section_index = -1
+        
+        # Calculate sections: 2 rows (top half has 3 panels, bottom half has 4 panels)
+        half_height = self.rect.height // 2
+        
+        # Row 1 (Top Half - 3 panels)
+        for i in range(3):
+            start_x = i * self.rect.width // 3
+            end_x = (i + 1) * self.rect.width // 3
+            self.sections.append(pg.Rect(
+                self.rect.left + start_x,
+                self.rect.top,
+                end_x - start_x,
+                half_height
+            ))
+            
+        # Row 2 (Bottom Half - 4 panels)
+        for i in range(4):
+            start_x = i * self.rect.width // 4
+            end_x = (i + 1) * self.rect.width // 4
+            self.sections.append(pg.Rect(
+                self.rect.left + start_x,
+                self.rect.top + half_height,
+                end_x - start_x,
+                self.rect.height - half_height
+            ))
+            
+        # Create the overlay surface
+        self.overlay = pg.Surface((self.rect.width, self.rect.height), pg.SRCALPHA)
+        self.rebuild_overlay()
+
+    def set_active_section(self, index):
+        """Sets the currently highlighted section (0-6). -1 for none."""
+        if self.active_section_index != index:
+            self.active_section_index = index
+            self.rebuild_overlay()
+
+    def rebuild_overlay(self):
+        """Re-draws the dark overlay with the transparent hole."""
+        self.overlay.fill((0, 0, 0, self.overlay_alpha))
+        
+        if 0 <= self.active_section_index < len(self.sections):
+            active_rect = self.sections[self.active_section_index]
+            # Convert to local coordinates (relative to self.rect)
+            local_rect = pg.Rect(
+                active_rect.x - self.rect.x,
+                active_rect.y - self.rect.y,
+                active_rect.width,
+                active_rect.height
+            )
+            # Clear the active section area to make it transparent
+            pg.draw.rect(self.overlay, (0, 0, 0, 0), local_rect)
+
+    def draw(self, surface):
+        """Renders the highlighter overlay onto the destination surface."""
+        if self.active_section_index != -1:
+            surface.blit(self.overlay, self.rect)

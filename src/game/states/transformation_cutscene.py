@@ -77,14 +77,10 @@ class TransformationCutscene(State):
     def __init__(
         self,
         manager,
-        next_state_factory: Optional[Callable] = None,
-        on_complete: Optional[Callable] = None,
         level_title: str = "The Blight Begins",
         notification: str = "gray",
     ) -> None:
         super().__init__(manager)
-        self._next_state_factory = next_state_factory
-        self._on_complete = on_complete
         self._level_title = level_title
         self._notification_type = notification
 
