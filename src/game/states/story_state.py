@@ -57,6 +57,8 @@ class StoryState(State):
         btn_spacing: int = 85,
         btn_y_offset: int = -60,
         btn_size: str = "medium",
+        highlight_schedule: list = None,
+        spotlight_sections: list = None,
     ):
         super().__init__(manager)
         self.width = pg.display.get_surface().get_width()
@@ -183,19 +185,20 @@ class StoryState(State):
             scale=0.5, icon_scale=0.5, hold=1.5,
         )
 
-        # ── Scene Highlighter ────────────────────────────────────────────────
-        self._highlighter = SceneHighlighter(self.scene_rect)
+        # ── Scene Highlighter ──────────────────────────────────────────────────
+        self._highlighter = SceneHighlighter(self.scene_rect, custom_sections=spotlight_sections)
         # Schedule: (time_in_seconds, section_index)
-        # We start highlighting after voiceover_delay
-        self._highlight_schedule = [
-            (0.0, 0),   # Section 1
+        # Sections 0-6 map to image panels; -1 ends the spotlight.
+        # Pass highlight_schedule from main.py to override any entries.
+        self._highlight_schedule = highlight_schedule if highlight_schedule is not None else [
+            (0.0,  0),   # Section 1
             (10.0, 1),   # Section 2
-            (22.0, 2),  # Section 3
-            (33.0, 3),  # Section 4
-            (43.0, 4),  # Section 5
-            (53.0, 5),  # Section 6
-            (63.0, 6),  # Section 7
-            (73.0, -1), # End highlight
+            (22.0, 2),   # Section 3
+            (33.0, 3),   # Section 4
+            (43.0, 4),   # Section 5
+            (53.0, 5),   # Section 6
+            (63.0, 6),   # Section 7
+            (73.0, -1),  # End highlight
         ]
 
     # ── Lifecycle ────────────────────────────────────────────────────────────

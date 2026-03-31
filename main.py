@@ -31,7 +31,34 @@ def main():
         # Game Flow Map (State Routing)
         routes={
             SplashState: MainMenuState,
-            MainMenuState: {"PLAY": lambda mgr: StoryState(mgr, voiceover_delay=1.0, spotlight_delay=-2.0, menu_delay=78)},
+            MainMenuState: {"PLAY": lambda mgr: StoryState(mgr,
+                voiceover_delay=1.0,
+                spotlight_delay=0.0,
+                menu_delay=78,
+                highlight_schedule=[
+                    (0.0,  0),   # Section 1
+                    (10.0, 1),   # Section 2
+                    (22.0, 2),   # Section 3
+                    (33.0, 3),   # Section 4
+                    (43.0, 4),   # Section 5  ← adjust timing here
+                    (53.0, 5),   # Section 6  ← adjust timing here
+                    (63.0, 6),   # Section 7
+                    (73.0, -1),  # End highlight
+                ],
+                # You can tweak the X, Y, WIDTH, HEIGHT of each spotlight panel here
+                spotlight_sections=[
+                    # Top Row (3 panels)
+                    (0, 0, BASE_WIDTH // 3, BASE_HEIGHT // 2),
+                    (BASE_WIDTH // 3, 0, BASE_WIDTH // 3, BASE_HEIGHT // 2),
+                    (2 * BASE_WIDTH // 3, 0, BASE_WIDTH // 3, BASE_HEIGHT // 2),
+                    
+                    # Bottom Row (4 panels)
+                    (0, BASE_HEIGHT // 2, BASE_WIDTH // 4, BASE_HEIGHT // 2),
+                    (BASE_WIDTH // 4, BASE_HEIGHT // 2, BASE_WIDTH // 4, BASE_HEIGHT // 2),          # Section 5 (adjust location/size)
+                    (2 * BASE_WIDTH // 4, BASE_HEIGHT // 2, BASE_WIDTH // 4, BASE_HEIGHT // 2),      # Section 6 (adjust location/size)
+                    (3 * BASE_WIDTH // 4, BASE_HEIGHT // 2, BASE_WIDTH // 4, BASE_HEIGHT // 2),
+                ]
+            )},
             StoryState: {"NEW_GAME": TransformationCutscene},
             TransformationCutscene: GameState,
         },
