@@ -31,7 +31,7 @@ def main():
         # Game Flow Map (State Routing)
         routes={
             SplashState: MainMenuState,
-            MainMenuState: {"PLAY": StoryState},
+            MainMenuState: {"PLAY": lambda mgr: StoryState(mgr, voiceover_delay=1.0, spotlight_delay=-2.0, menu_delay=78)},
             StoryState: {"NEW_GAME": TransformationCutscene},
             TransformationCutscene: GameState,
         },

@@ -44,6 +44,7 @@ class StoryState(State):
         manager,
         *,
         voiceover_delay: float = 3.0,
+        spotlight_delay: float = 3.0,
         menu_delay: float = 1.5,
         scene_fade_speed: float = 200,
         menu_fade_speed: float = 200,
@@ -63,6 +64,7 @@ class StoryState(State):
 
         # Store configurable timing
         self._voiceover_delay = voiceover_delay
+        self._spotlight_delay = spotlight_delay
         self._menu_delay = menu_delay
         self._scene_fade_speed = scene_fade_speed
         self._menu_fade_speed = menu_fade_speed
@@ -115,6 +117,10 @@ class StoryState(State):
         self.narration_channel = None
         self._vo_timer = 0.0
         self._vo_started = False
+
+        # ── Spotlight state ───────────────────────────────────────────────────
+        self._spot_timer = 0.0
+        self._spot_started = False
 
         # ── Fade & timing ────────────────────────────────────────────────────
         self.alpha = 0
@@ -249,7 +255,7 @@ class StoryState(State):
                 255, self._menu_alpha + self._menu_fade_speed * dt_sec
             )
 
-        # Delayed voiceover and highlight timer
+        # Delayed voiceover (independent timer)
         self._vo_timer += dt_sec
         if not self._vo_started:
             if self._vo_timer >= self._voiceover_delay:
@@ -258,12 +264,18 @@ class StoryState(State):
                 if sound:
                     self.narration_channel = sound.play()
 
-        # Update highlighted section based on voiceover progress
-        if self._vo_started:
-            vo_elapsed = self._vo_timer - self._voiceover_delay
+        # Delayed spotlight (independent timer)
+        self._spot_timer += dt_sec
+        if not self._spot_started:
+            if self._spot_timer >= self._spotlight_delay:
+                self._spot_started = True
+
+        # Update highlighted section based on spotlight's own elapsed time
+        if self._spot_started:
+            spot_elapsed = self._spot_timer - self._spotlight_delay
             active_idx = -1
             for t, idx in self._highlight_schedule:
-                if vo_elapsed >= t:
+                if spot_elapsed >= t:
                     active_idx = idx
                 else:
                     break
