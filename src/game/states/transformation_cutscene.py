@@ -79,10 +79,14 @@ class TransformationCutscene(State):
         manager,
         level_title: str = "The Blight Begins",
         notification: str = "gray",
+        on_complete: Optional[Callable[[], None]] = None,
+        next_state_factory: Optional[Callable[[], State]] = None,
     ) -> None:
         super().__init__(manager)
         self._level_title = level_title
         self._notification_type = notification
+        self._on_complete = on_complete
+        self._next_state_factory = next_state_factory
 
         info = pg.display.Info()
         self._sw = info.current_w
@@ -301,6 +305,10 @@ class TransformationCutscene(State):
             self._on_complete()
         elif self._next_state_factory:
             self.manager.set(self._next_state_factory())
+        elif hasattr(self.manager, 'router') and self.manager.router:
+            next_class = self.manager.router.get_next(self)
+            if next_class:
+                self.manager.set(next_class(self.manager))
 
     # ─── Draw ────────────────────────────────────────────────────────────────
 

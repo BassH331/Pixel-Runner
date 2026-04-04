@@ -70,6 +70,24 @@ Key sound hooks (see `main.py` for exact asset paths):
 - Skeleton spawn/death/idle → `whoosh-cinematic-sound-effect-376889.mp3`, `skeletom scream.mp3`, `zombie-noise.mp3`
 - Ambient forest loop & bats → `dark-forest.ogg`, `bats.wav`
 
+### Story Spotlight Audio (`SpotlightSFXManager`)
+The `SpotlightSFXManager` allows you to trigger sound effects precisely synced to the visual spotlight transitions in the story screen.
+- Configured directly inside `main.py` via the `STORY_SFX_TIMING` dictionary.
+- **Variables & Randomness:** You can use tuples `(min, max)` to introduce randomized timing!
+  - `"delay": 2.5` - Starts exactly at 2.5s.
+  - `"delay": (1.0, 5.0)` - Starts randomly anywhere between 1s and 5s.
+  - `"loop": True` - Uses Pygame's native infinite loop (great for long ambient tracks).
+  - `"repeat": (0.5, 3.0)` - Re-triggers the sound over and over, waiting a random amount of time between 0.5s and 3.0s between each trigger (perfect for sporadic fire crackles or random lightning).
+
+```python
+2: [
+    {"name": "wind", "volume": 0.5, "loop": True},                      # Continuous ambient background
+    {"name": "smash", "volume": 1.0, "delay": (1.0, 3.0)},              # Plays ONCE at a random time
+    {"name": "crackle", "volume": 0.4, "repeat": (0.5, 2.0)},           # Re-triggers randomly forever
+]
+```
+- *Note:* Ensure any sounds referenced in the schedule are pre-registered in the `manifest.audio` dictionary.
+
 Gameplay state switches stop currently playing tracks before starting new ambience; modify `GameState.on_enter()` if you prefer uninterrupted background music.
 
 ## 📂 Project Structure

@@ -4,6 +4,7 @@ from v3x_zulfiqar_gideon.asset_manager import AssetManager
 from v3x_zulfiqar_gideon.effects import SceneHighlighter
 from v3x_zulfiqar_gideon.ui import UIButton
 from v3x_zulfiqar_gideon.ui import NotificationBanner
+from ..audio.spotlight_sfx import SpotlightSFXManager
 
 
 class StoryState(State):
@@ -59,6 +60,7 @@ class StoryState(State):
         btn_size: str = "medium",
         highlight_schedule: list = None,
         spotlight_sections: list = None,
+        spotlight_sfx: dict = None,
     ):
         super().__init__(manager)
         self.width = pg.display.get_surface().get_width()
@@ -120,9 +122,11 @@ class StoryState(State):
         self._vo_timer = 0.0
         self._vo_started = False
 
-        # ── Spotlight state ───────────────────────────────────────────────────
+        # ── Spotlight & SFX state ─────────────────────────────────────────────
         self._spot_timer = 0.0
         self._spot_started = False
+        from src.game.audio.spotlight_sfx import SpotlightSFXManager
+        self.sfx_manager = SpotlightSFXManager(audio_manager=manager.audio_manager, schedule=spotlight_sfx)
 
         # ── Fade & timing ────────────────────────────────────────────────────
         self.alpha = 0
@@ -201,6 +205,10 @@ class StoryState(State):
             (73.0, -1),  # End highlight
         ]
 
+        # ── Spotlight Sound Effects ──────────────────────────────────────────
+        audio_mgr = getattr(manager, 'audio_manager', None)
+        self._sfx_manager = SpotlightSFXManager(audio_manager=audio_mgr)
+
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     def on_enter(self):
@@ -213,6 +221,7 @@ class StoryState(State):
     def on_exit(self):
         if self.narration_channel:
             self.narration_channel.stop()
+        self._sfx_manager.stop_all()
 
     # ── Button callbacks ─────────────────────────────────────────────────────
 
@@ -283,6 +292,7 @@ class StoryState(State):
                 else:
                     break
             self._highlighter.set_active_section(active_idx)
+            self.sfx_manager.update(dt_sec, active_idx)
 
         # Update menu buttons
         for btn in self._buttons:

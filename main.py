@@ -29,15 +29,15 @@ def get_story_panels(width, height):
         # ─ Top Row (Sections 1-3) ──────────────
         (0.00,  0.00,  0.42,  0.58),  # Section 1 - e.g. change 0.33 to 0.40 to make it 40% wide
         (0.42,  0.00,  0.41,  0.58),  # Section 2
-        (0.66,  0.00,  0.42,  0.58),  # Section 3
+        (0.83,  0.00,  0.42,  0.58),  # Section 3
         
         # ─ Bottom Row (Sections 4-7) ───────────
-        (0.00,  0.50,  0.25,  0.50),  # Section 4
-        (0.25,  0.50,  0.25,  0.50),  # Section 5
-        (0.50,  0.50,  0.25,  0.50),  # Section 6
-        (0.75,  0.50,  0.25,  0.50),  # Section 7
+        (0.00,  0.57,  0.27,  0.60),  # Section 4
+        (0.27,  0.57,  0.26,  0.60),  # Section 5
+        (0.53,  0.57,  0.35,  0.60),  # Section 6
+        (0.88,  0.57,  0.36,  0.60),  # Section 7
     ]
-    # This automatically converts your percentages into precise screen pixels
+    # This automatica lly converts your percentages into precise screen pixels
     return [(int(x * width), int(y * height), int(w * width), int(h * height)) for x, y, w, h in panels]
 
 
@@ -52,6 +52,32 @@ STORY_HIGHLIGHT_TIMING = [
     (73.0, -1),  # End highlight
 ]
 
+STORY_SFX_TIMING = {
+    # Section Index -> List of sounds
+    # You can trigger sounds individually or build organic soundscapes using ranges:
+    # 0: [
+    #     {"name": "wind", "volume": 0.5, "loop": True},                      # Continuous ambient background
+    #     {"name": "smash", "volume": 1.0, "delay": (1.0, 3.0)},              # Plays ONCE randomly between 1s and 3s
+    #     {"name": "crackle", "volume": 0.4, "repeat": (0.5, 2.0)},           # Re-triggers repeatedly, random gaps
+    # ],
+    0: [
+        {"name": "burning village", "volume": 0.2, "loop": True, "delay": 0.2}
+       ],
+    1: [
+        {"name": "burning village", "volume": 0.1, "delay": 0.2},
+        {"name": "reveal", "volume": 0.2, "loop": False, "delay": 0.2}
+        ],
+    2: [
+        {"name": "aura_effect", "volume": 0.2, "delay": 0.7}
+        ],
+    3: [{"name": "lightning", "volume": 0.7, "loop": True},
+        {"name": "bells", "volume": 0.2, "delay": 0.0}],
+    4: [{"name": "evil_laugh", "volume": 0.2, "delay": 0.0}],
+    5: [{"name": "fight_sfx", "volume": 0.2, "delay": 0.0},
+        {"name": "wendigo_screams", "volume": 0.2, "delay": 0.0}],
+    6: [{"name": "night_sounds", "volume": 0.2, "delay": 0.0},
+        {"name": "magic_sfx", "volume": 0.2, "delay": (0.9, 1.1)}],
+}
 
 def main():
     # ── 1. Ignition Manifest ────────────────────────────────────────────────
@@ -72,7 +98,8 @@ def main():
                 spotlight_delay=0.0,
                 menu_delay=78,
                 highlight_schedule=STORY_HIGHLIGHT_TIMING,
-                spotlight_sections=get_story_panels(BASE_WIDTH, BASE_HEIGHT)
+                spotlight_sections=get_story_panels(BASE_WIDTH, BASE_HEIGHT),
+                spotlight_sfx=STORY_SFX_TIMING
             )},
             StoryState: {"NEW_GAME": TransformationCutscene},
             TransformationCutscene: GameState,
@@ -80,17 +107,27 @@ def main():
         
         # Audio Jukebox
         audio={
-            "background_music": "assets/audio/05  MashBeatz- LIFESTYLE INSTRUMENTAL (Visualizer).mp3",
+            "background_music": "assets/audio/1 Exploration TomMusic.ogg",
             "game_loop": "assets/audio/game_loop.mp3",
+            "burning village" : "assets/audio/Burning Fire.mp3",
             "jump_grunt": "assets/audio/angry-grunt-103204.mp3",
             "jump": "assets/audio/land2-43790.mp3",
+            "reveal": "assets/audio/Reveal Sound Effect.mp3",
             "smash": "assets/audio/smash.wav",
+            "magic_sfx": "assets/audio/magic sound effect.mp3",
+            "wendigo_screams": "assets/audio/Wendigo sounds.mp3",
+            "lightning": "assets/audio/Lighting.mp3",
+            "aura_effect": "assets/audio/Magical Light Aura Sound Effect.mp3",
             "smash_phase_1": "assets/audio/smash.wav",
             "smash_phase_2": "assets/audio/sword-slash-and-swing-185432.mp3",
             "smash_phase_3": "assets/audio/sword-slice-2-393845.mp3",
             "attack_one": "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3",
             "player_hit": "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3",
             "thrust": "assets/audio/thrust.wav",
+            "night_sounds": "assets/audio/night sounds.mp3",
+            "fight_sfx": "assets/audio/Fight Sfx.mp3",
+            "evil_laugh": "assets/audio/Evil laugh.mp3",
+            "bells": "assets/audio/Ominous Bells of Doom.mp3",
             "footstep": "assets/audio/Dirt Run 3.wav",
             "skeleton_death": "assets/audio/skeletom scream.mp3",
             "player_hurt": "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav",
