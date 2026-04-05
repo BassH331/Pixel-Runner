@@ -103,7 +103,7 @@ class Skeleton(Actor):
         # Movement and physics
         self._speed: float = 2.5
         self._gravity: float = 0.0
-        self._ground_y: int = pg.display.Info().current_h - 34
+        self._ground_y: int = pg.display.Info().current_h - 127
         
         # AI configuration
         self._detection_range: int = 1000
@@ -170,21 +170,39 @@ class Skeleton(Actor):
     def entity_id(self) -> int: return id(self)
     @property
     def is_dead(self) -> bool: return self.state == SkeletonState.DEATH
+    @property
+    def current_frame_index(self) -> int: return int(self.animation_index)
 
     def is_in_hit_frame(self) -> bool:
         return self.attack_state.is_hit_frame_active()
 
     def should_deal_damage(self) -> bool:
-        return self.attack_state.is_hit_frame_active() and not self.attack_state.hit_connected
+        return self.attack_state.is_hit_frame_active()
 
-    def register_hit(self) -> None:
-        self.attack_state.hit_connected = True
+    def register_hit(self, target_id: int = 0) -> bool:
+        return self.attack_state.try_register_hit(target_id)
+
+    def try_register_hit(self, target_id: int) -> bool:
+        return self.attack_state.try_register_hit(target_id)
 
     def get_current_attack_damage(self) -> float:
-        return self.attack_state.config.damage if self.attack_state.config else 0.0
+        return self.attack_state.get_current_damage()
 
     def get_current_attack_knockback(self) -> float:
-        return self.attack_state.config.knockback if self.attack_state.config else 0.0
+        return self.attack_state.config.knockback_force if self.attack_state.config else 0.0
+
+    def get_attack_hitbox(self) -> Optional[pg.Rect]:
+        """Return the attack hitbox based on skeleton facing and position."""
+        if not self.should_deal_damage():
+            return None
+        # Simple forward hitbox in front of the skeleton
+        hitbox_w, hitbox_h = 60, 80
+        if self.facing_left:
+            hitbox_x = self.rect.left - hitbox_w
+        else:
+            hitbox_x = self.rect.right
+        hitbox_y = self.rect.centery - hitbox_h // 2
+        return pg.Rect(hitbox_x, hitbox_y, hitbox_w, hitbox_h)
 
     def update(self, dt: Optional[float] = None, scroll_speed: int = 0) -> None:
         if dt is None: dt = 1.0 / 60.0
@@ -299,7 +317,7 @@ class Skeleton(Actor):
         super().draw(surface)
         
         # Draw health bar when damaged and alive
-        if self._health < self._max_health and self._state != SkeletonState.DEATH:
+        if self._health < self._max_health and self.state != SkeletonState.DEATH:
             self._draw_health_bar(surface)
     
     def _draw_health_bar(self, surface: pg.Surface) -> None:

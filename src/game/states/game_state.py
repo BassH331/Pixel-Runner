@@ -6,6 +6,7 @@ collision detection with frame-accurate hit detection, and state transitions.
 """
 
 from __future__ import annotations
+import os
 
 from random import randint
 from typing import TYPE_CHECKING, Final, Optional
@@ -129,13 +130,11 @@ class GameState(State):
         self.max_distance_reached: float = 0.0
         self._level_end_distance: float = 8000.0
         self._level_complete: bool = False
+        self._level_name: str = "The Blight Begins"
 
         # World Event System (distance-based triggers)
         self.world_manager = WorldEventManager()
         self._setup_world_events()
-        
-        # Load level configuration
-        self._load_level_config()
         
         # Debug visualization
         self.debug_mode: bool = False
@@ -147,6 +146,25 @@ class GameState(State):
         if self.level_data:
             self.BAT_GROUP_MIN_DELAY = self.level_data.get("spawn_rate_min", 5000)
             self.BAT_GROUP_MAX_DELAY = self.level_data.get("spawn_rate_max", 15000)
+
+            # Level metadata
+            self._level_name = self.level_data.get("level_name", self._level_name)
+            self._level_end_distance = float(self.level_data.get("level_end_distance", self._level_end_distance))
+
+            # Spawn zones (distance-based difficulty scaling)
+            self._spawn_zones = self.level_data.get("spawn_zones", None)
+            if self._spawn_zones:
+                # Convert max_dist sentinel values for runtime comparisons
+                for zone in self._spawn_zones:
+                    if zone["max_dist"] >= 99999:
+                        zone["max_dist"] = float("inf")
+            else:
+                self._spawn_zones = None  # Will use defaults in _get_spawn_zone
+
+            # Bat spawn config
+            bat_cfg = self.level_data.get("bat_spawn", {})
+            self._bat_min_count: int = bat_cfg.get("min_count", 3)
+            self._bat_max_count: int = bat_cfg.get("max_count", 5)
             
             # Apply player position from level data
             player_data = next(
@@ -174,6 +192,9 @@ class GameState(State):
         else:
             self.BAT_GROUP_MIN_DELAY = 5000
             self.BAT_GROUP_MAX_DELAY = 15000
+            self._spawn_zones = None
+            self._bat_min_count = 3
+            self._bat_max_count = 5
     
     def _setup_triggers(self) -> None:
         """Configure time-based and flag-based objective triggers."""
@@ -200,7 +221,7 @@ class GameState(State):
 
     def _get_spawn_zone(self) -> dict:
         """Get the current spawn zone based on max distance reached."""
-        zones = [
+        zones = self._spawn_zones if self._spawn_zones else [
             {"min_dist": 0,    "max_dist": 1000,  "max_skeletons": 2, "delay": 6000},
             {"min_dist": 1000, "max_dist": 3000,  "max_skeletons": 3, "delay": 4000},
             {"min_dist": 3000, "max_dist": 6000,  "max_skeletons": 5, "delay": 3000},
@@ -274,7 +295,7 @@ class GameState(State):
 
         # Show level notification banner on first entry
         if self._show_objective_on_start:
-            self.notification_banner.show("The Blight Begins", notification="yellow")
+            self.notification_banner.show(self._level_name, notification="yellow")
             self._show_objective_on_start = False
         
     def on_exit(self) -> None:
@@ -336,7 +357,7 @@ class GameState(State):
 
         # Spawn bats
         if current_time >= self.next_bat_group_time:
-            bat_count = randint(3, 5)
+            bat_count = randint(self._bat_min_count, self._bat_max_count)
             for _ in range(bat_count):
                 y_pos = randint(50, self.height // 2)
                 x_offset = randint(0, 175)
@@ -365,7 +386,7 @@ class GameState(State):
         """Spawn a new skeleton at a random position on the right side of the screen."""
         # Calculate spawn position (off-screen right, but not too far)
         spawn_x = self.width + randint(100, 300)
-        spawn_y = self.height - 50  # Same as initial spawn height
+        spawn_y = self.height - 70  # Same as initial spawn height
         
         # Get player sprite from GroupSingle
         player_sprite = self.player.sprite
@@ -620,7 +641,7 @@ class GameState(State):
         
         # Always register the hit attempt to prevent multi-hit exploitation.
         # This ensures the skeleton can't "save" its hit for when i-frames end.
-        skeleton.register_hit()
+        skeleton.register_hit(id(player))
         
         # Gate 4: Player invincibility check (handled inside take_damage)
         damage = skeleton.get_current_attack_damage()

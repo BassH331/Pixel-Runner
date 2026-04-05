@@ -410,7 +410,7 @@ class Player(Actor):
         )
         
         # Sprite setup
-        self.image: pg.Surface = self._current_frames[0]
+        self.image: pg.Surface = self.animations[self.state][0]
         self.rect: pg.Rect = self.image.get_rect(midtop=(x, y))
         self._spawn_midtop: tuple[int, int] = self.rect.midtop
         self.adjust_hitbox_sides(left=315, right=315, top=150, bottom=0)
@@ -529,6 +529,13 @@ class Player(Actor):
     def is_running(self) -> bool: return self.state == PlayerState.RUN
     @property
     def direction(self) -> int: return self._direction
+    @property
+    def is_attacking(self) -> bool:
+        return self.state in (
+            PlayerState.ATTACK_THRUST,
+            PlayerState.ATTACK_SMASH,
+            PlayerState.ATTACK_POWER,
+        )
     
     # ─────────────────────────────────────────────────────────────────────────
     # Combat System Public Interface
@@ -651,7 +658,7 @@ class Player(Actor):
         return self.attack_state.get_knockback_vector(
             self.rect.center,
             target_position,
-            self._facing_left,
+            self.facing_left,
         )
     
     def get_attack_knockback_force(self) -> float:
@@ -715,7 +722,7 @@ class Player(Actor):
         return CombatProcessor.process_attack_against_targets(
             attack_state=self.attack_state,
             attacker_rect=self.rect,
-            attacker_facing_left=self._facing_left,
+            attacker_facing_left=self.facing_left,
             targets=targets,
         )
     
@@ -751,7 +758,7 @@ class Player(Actor):
             return False
             
         # Check if defending
-        if self._state == PlayerState.DEFEND:
+        if self.state == PlayerState.DEFEND:
             # Reduce damage by 70% when defending
             amount = int(amount * 0.3)
             self._audio_manager.play_sound("defend_hit")
@@ -765,7 +772,7 @@ class Player(Actor):
         if self._health <= 0:
             self._transition_to(PlayerState.DEATH)
             self._audio_manager.play_sound("player_death")
-        elif self._state != PlayerState.DEFEND:  # Only go to HURT state if not defending
+        elif self.state != PlayerState.DEFEND:  # Only go to HURT state if not defending
             self._transition_to(PlayerState.HURT)
             # Grant extended i-frames after hurt animation
             self._invincibility_duration = 0.3
@@ -908,15 +915,14 @@ class Player(Actor):
     def reset(self) -> None:
         """Restore player to initial spawn state for retries/game over."""
         self._health = self._max_health
-        self._state = PlayerState.IDLE
-        self._current_frames = self._idle_frames
-        self._animation_index = 0.0
+        self.set_state(PlayerState.IDLE, force=True)
+        self.animation_index = 0.0
         self.attack_state = AttackState()
         self._current_attack_config = None
         self._invincibility_timer = 0.0
         self._invincibility_duration = 0.0
         self._direction = 0
-        self._facing_left = False
+        self.facing_left = False
         self._gravity = 0.0
         self.rect.midtop = self._spawn_midtop
         self._footsteps.reset()
@@ -926,6 +932,10 @@ class Player(Actor):
     # Input Handling
     # ─────────────────────────────────────────────────────────────────────────
     
+    def _get_current_config(self) -> StateConfig:
+        """Return the StateConfig for the current state, or a safe default."""
+        return self.state_configs.get(self.state, StateConfig())
+
     def player_input(self) -> None:
         """Process player input and update movement/action state."""
         config = self._get_current_config()
@@ -962,10 +972,10 @@ class Player(Actor):
         
         if move_left:
             self._direction = -1
-            self._facing_left = True
+            self.facing_left = True
         elif move_right:
             self._direction = 1
-            self._facing_left = False
+            self.facing_left = False
         else:
             self._direction = 0
     
@@ -1003,113 +1013,130 @@ class Player(Actor):
         
         if defend_pressed:
             # Only trigger defend if we're not already defending
-            if self._state != PlayerState.DEFEND:
+            if self.state != PlayerState.DEFEND:
                 self.defend()
         # Note: Button release is now handled in _animate_defend()
     
     # ─────────────────────────────────────────────────────────────────────────
     # Physics
     # ─────────────────────────────────────────────────────────────────────────
-    
+
     def _apply_gravity(self) -> None:
         """Apply gravitational acceleration and ground collision."""
         self._gravity += self._GRAVITY_ACCELERATION
         self.rect.y += int(self._gravity)
-        
+
         # Ground collision
         if self.rect.bottom >= self._ground_y:
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
-    
+
     def _apply_movement(self) -> None:
         """Apply horizontal movement with screen boundary clamping."""
         if self._direction == 0:
             return
-            
+
         # Use different speeds for ground and air movement
         if self.rect.bottom >= self._ground_y - 1:  # On ground
             move_speed = self._MOVE_SPEED
         else:  # In air
             move_speed = self._AIR_MOVE_SPEED
-            
+
         self.rect.x += int(self._direction * move_speed)
-        
+
         # Clamp to screen bounds
         self.rect.left = max(self.rect.left, self._SCREEN_BOUND_LEFT)
         self.rect.right = min(self.rect.right, self._SCREEN_BOUND_RIGHT)
-    
-    def _update_invincibility(self, dt: float) -> None:
-        """
-        Update invincibility timer.
-        
-        Args:
-            dt: Delta time in seconds.
-        """
-        if self._invincibility_timer > 0:
-            self._invincibility_timer = max(0, self._invincibility_timer - dt)
-    
+
     # ─────────────────────────────────────────────────────────────────────────
-    # Animation State Handlers
+    # State Transition Helpers
     # ─────────────────────────────────────────────────────────────────────────
-    
-    
-    def _apply_frame(self) -> None:
-        """Apply current animation frame to sprite image."""
-        frame_index = min(
-            int(self._animation_index),
-            len(self._current_frames) - 1,
-        )
-        self.image = self._current_frames[frame_index]
-        
-        if self._facing_left:
-            self.image = pg.transform.flip(self.image, True, False)
-        
-        # Visual feedback for invincibility (skip flicker during HURT/DEFEND)
-        if self.is_invincible and self._state not in (PlayerState.HURT, PlayerState.DEFEND):
-            if int(self._animation_index * 10) % 2 == 0:
-                self.image.set_alpha(128)
+
+    def _can_transition_to(self, new_state: PlayerState) -> bool:
+        """Check if a transition to new_state is allowed from the current state."""
+        if self.state == new_state:
+            return False
+        if self.state is None:
+            return True
+        # Higher priority state (lower value) cannot be interrupted by lower priority
+        current_cfg = self.state_configs.get(self.state)
+        if current_cfg and not current_cfg.interruptible:
+            # Only allow transition to equal or higher priority (lower value)
+            if new_state.value > self.state.value:
+                return False
+        return True
+
+    def _transition_to(self, new_state: PlayerState) -> None:
+        """Force a state transition using the Actor's set_state."""
+        self.set_state(new_state, force=True)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Per-Frame Logic Updates
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _update_state_logic(self) -> None:
+        """Auto-manage state transitions based on physics (grounded, airborne, etc.)."""
+        on_ground = self.rect.bottom >= self._ground_y - 1
+
+        # Airborne state management
+        if not on_ground:
+            if self._gravity < 0 and self._can_transition_to(PlayerState.JUMP_UP):
+                self._transition_to(PlayerState.JUMP_UP)
+            elif self._gravity >= 0 and self._can_transition_to(PlayerState.JUMP_DOWN):
+                self._transition_to(PlayerState.JUMP_DOWN)
+            return
+
+        # Grounded state management (only for interruptible states)
+        cfg = self.state_configs.get(self.state)
+        if cfg and not cfg.interruptible:
+            return
+
+        if self.state in (PlayerState.JUMP_UP, PlayerState.JUMP_DOWN):
+            # Just landed
+            if self._direction != 0:
+                self._transition_to(PlayerState.RUN)
             else:
-                self.image.set_alpha(255)
+                self._transition_to(PlayerState.IDLE)
+        elif self._direction != 0:
+            if self.state != PlayerState.RUN:
+                self._transition_to(PlayerState.RUN)
         else:
-            self.image.set_alpha(255)
-    
-    # ─────────────────────────────────────────────────────────────────────────
-    # Debug Support
-    # ─────────────────────────────────────────────────────────────────────────
-    
-    def get_debug_info(self) -> dict:
-        """
-        Get debug information about player state.
-        
-        Useful for development debugging and state visualization.
-        
-        Returns:
-            Dictionary containing player state details.
-        """
-        return {
-            "state": self._state.name,
-            "frame": self.current_frame_index,
-            "health": f"{self._health}/{self._max_health}",
-            "position": (self.rect.x, self.rect.y),
-            "is_attacking": self.is_attacking,
-            "is_invincible": self.is_invincible,
-            "attack_info": self.attack_state.get_debug_info(),
-        }
-    
-    def draw_debug_hitboxes(self, surface: pg.Surface) -> None:
-        """
-        Draw debug visualization of attack hitboxes.
-        
-        Draws the current attack hitbox in red if active.
-        
-        Args:
-            surface: Surface to draw on.
-        """
-        if self.should_deal_damage():
-            hitbox = self.get_attack_hitbox()
-            if hitbox:
-                pg.draw.rect(surface, (255, 0, 0), hitbox, 2)
-    
+            if self.state != PlayerState.IDLE:
+                self._transition_to(PlayerState.IDLE)
+
+    def _update_defend_logic(self) -> None:
+        """Handle defend animation hold/release behavior."""
+        if self.state != PlayerState.DEFEND:
+            self._defend_releasing = False
+            return
+
+        # Check if defend button is still held
+        keys = pg.key.get_pressed()
+        joystick = self._get_joystick()
+        r2_trigger = joystick and joystick.get_axis(5) > 0.5 if joystick else False
+        defend_held = keys[pg.K_r] or r2_trigger
+
+        current_frame = int(self.animation_index)
+
+        if defend_held and not self._defend_releasing:
+            # Freeze on hold frame while button is held
+            if current_frame >= self._DEFEND_HOLD_FRAME:
+                self.animation_index = float(self._DEFEND_HOLD_FRAME)
+        else:
+            # Button released — let animation finish from hold frame onward
+            self._defend_releasing = True
+
+    def _update_attack_audio(self) -> None:
+        """Play frame-synced audio for multi-hit attacks."""
+        sound_map = self._ATTACK_AUDIO_FRAME_SOUNDS.get(self.state)
+        if not sound_map:
+            return
+
+        current_frame = int(self.animation_index)
+        if current_frame in sound_map and current_frame not in self._attack_audio_frames_played:
+            self._attack_audio_frames_played.add(current_frame)
+            self._audio_manager.play_sound(sound_map[current_frame])
+
     # ─────────────────────────────────────────────────────────────────────────
     # Main Update Loop
     # ─────────────────────────────────────────────────────────────────────────
@@ -1130,7 +1157,9 @@ class Player(Actor):
 
         self._update_attack_audio()
         if self.state == PlayerState.RUN:
-             self._footsteps.update(dt * 1000)
+             self._footsteps.try_play(active=True, current_time_ms=pg.time.get_ticks())
+        else:
+             self._footsteps.try_play(active=False, current_time_ms=pg.time.get_ticks())
         
         # Visual feedback for invincibility (skip during HURT/DEFEND)
         if self.is_invincible and self.state not in (PlayerState.HURT, PlayerState.DEFEND):

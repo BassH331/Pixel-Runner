@@ -96,7 +96,7 @@ def main():
                 mgr,
                 voiceover_delay=1.0,
                 spotlight_delay=0.0,
-                menu_delay=78,
+                menu_delay=72,
                 highlight_schedule=STORY_HIGHLIGHT_TIMING,
                 spotlight_sections=get_story_panels(BASE_WIDTH, BASE_HEIGHT),
                 spotlight_sfx=STORY_SFX_TIMING

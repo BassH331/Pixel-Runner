@@ -136,6 +136,9 @@ class StoryState(State):
         self._scene_faded_in = False
         self._menu_ready = False
 
+        self._black_overlay = pg.Surface((self.width, self.height))
+        self._black_overlay.fill((0, 0, 0))
+
         # ── Parchment + stone boards ─────────────────────────────────────────
         raw_stone = AssetManager.get_texture(self._STONE_PATH)
         stone_w = int(self.width * stone_scale)
@@ -318,6 +321,11 @@ class StoryState(State):
         # Spotlight highlight
         if self._scene_faded_in:
             self._highlighter.draw(surface)
+
+        # Fade scene out to black as menu fades in
+        if self._menu_ready and self._menu_alpha > 0:
+            self._black_overlay.set_alpha(int(self._menu_alpha))
+            surface.blit(self._black_overlay, (0, 0))
 
         # Parchment menu (fades in after delay)
         if self._menu_ready:
