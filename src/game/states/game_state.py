@@ -19,7 +19,7 @@ from v3x_zulfiqar_gideon.world import WorldEventManager, InteractionPoint, World
 from src.game.entities.wizard_npc import WizardNPC
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
-from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner
+from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
 from v3x_zulfiqar_gideon.asset_manager import AssetManager
 from v3x_zulfiqar_gideon.state_machine import State
 
@@ -91,7 +91,9 @@ class GameState(State):
         self.player_ui = PlayerUI()
         self.objective_display = ObjectiveDisplay()
         self.notification_banner = NotificationBanner(scale=0.6, icon_scale=0.6)
+        self.tutorial_overlay = TutorialOverlay()
         self._show_objective_on_start: bool = True
+        self._show_tutorial_on_start: bool = True
 
         # Objective trigger manager (time & flag based)
         self.trigger_manager = ObjectiveTriggerManager()
@@ -297,6 +299,11 @@ class GameState(State):
         if self._show_objective_on_start:
             self.notification_banner.show(self._level_name, notification="yellow")
             self._show_objective_on_start = False
+
+        # Start tutorial on first entry
+        if self._show_tutorial_on_start:
+            self.tutorial_overlay.start()
+            self._show_tutorial_on_start = False
         
     def on_exit(self) -> None:
         """Cleanup when leaving gameplay state."""
@@ -311,6 +318,11 @@ class GameState(State):
         Args:
             event: Pygame event to process.
         """
+        # While tutorial overlay is active, capture its input
+        if self.tutorial_overlay.is_active:
+            self.tutorial_overlay.handle_event(event)
+            return
+
         # While objective overlay is active, only listen for dismiss input
         if self.objective_display.is_active:
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
@@ -715,7 +727,11 @@ class GameState(State):
         Args:
             dt: Delta time since last update in seconds.
         """
-        # Freeze gameplay while objective overlay is active
+        # Freeze gameplay while tutorial or objective overlay is active
+        if self.tutorial_overlay.is_active:
+            self.tutorial_overlay.update(dt)
+            return
+
         if self.objective_display.is_active:
             return
 
@@ -846,6 +862,9 @@ class GameState(State):
 
         # Notification banner (topmost layer)
         self.notification_banner.draw(surface)
+
+        # Tutorial overlay (above everything)
+        self.tutorial_overlay.draw(surface)
     
     def _draw_debug_info(self, surface: pg.Surface) -> None:
         """
