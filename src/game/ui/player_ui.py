@@ -6,6 +6,7 @@ class PlayerUI:
         self.max_health = 100
         self.current_health = 100
         self.relics = 0
+        self.distance = 0
         self.start_time = 0
         self.power_ups = []
         
@@ -96,3 +97,8 @@ class PlayerUI:
         time_text = self.font.render(f"Time: {self.format_time(elapsed_seconds)}", True, (255, 255, 255))
         time_rect = time_text.get_rect(topright=self.time_pos)
         surface.blit(time_text, time_rect)
+
+        # Distance display (right below time)
+        dist_text = self.font.render(f"Dist: {int(self.distance)}", True, (255, 255, 255))
+        dist_rect = dist_text.get_rect(topright=(self.time_pos[0], time_rect.bottom + 4))
+        surface.blit(dist_text, dist_rect)

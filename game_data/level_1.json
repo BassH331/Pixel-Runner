@@ -7,25 +7,25 @@
         {
             "min_dist": 0,
             "max_dist": 1000,
-            "max_skeletons": 2,
+            "max_skeletons": 3,
             "delay": 6000
         },
         {
             "min_dist": 1000,
             "max_dist": 3000,
-            "max_skeletons": 3,
+            "max_skeletons": 6,
             "delay": 4000
         },
         {
             "min_dist": 3000,
             "max_dist": 6000,
-            "max_skeletons": 5,
+            "max_skeletons": 9,
             "delay": 3000
         },
         {
             "min_dist": 6000,
             "max_dist": 99999,
-            "max_skeletons": 6,
+            "max_skeletons": 12,
             "delay": 2000
         }
     ],

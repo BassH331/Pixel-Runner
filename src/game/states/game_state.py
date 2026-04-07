@@ -27,6 +27,23 @@ if TYPE_CHECKING:
     from v3x_zulfiqar_gideon.state_machine import StateManager
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Default spawn zones — ONLY used when level_1.json has no "spawn_zones" key.
+# In normal gameplay, these are overridden by the JSON config.
+#
+# Each zone says:
+#   min_dist / max_dist  — distance range this zone is active in
+#   max_skeletons        — max alive at once in this zone
+#   delay                — milliseconds between spawns
+# ─────────────────────────────────────────────────────────────────────────────
+_DEFAULT_SPAWN_ZONES: list[dict] = [
+    {"min_dist": 0,    "max_dist": 1000,        "max_skeletons": 2, "delay": 6000},
+    {"min_dist": 1000, "max_dist": 3000,        "max_skeletons": 3, "delay": 4000},
+    {"min_dist": 3000, "max_dist": 6000,        "max_skeletons": 5, "delay": 3000},
+    {"min_dist": 6000, "max_dist": float("inf"), "max_skeletons": 6, "delay": 2000},
+]
+
+
 class GameState(State):
     """
     Primary gameplay state managing entities, physics, and game logic.
@@ -153,15 +170,24 @@ class GameState(State):
             self._level_name = self.level_data.get("level_name", self._level_name)
             self._level_end_distance = float(self.level_data.get("level_end_distance", self._level_end_distance))
 
-            # Spawn zones (distance-based difficulty scaling)
-            self._spawn_zones = self.level_data.get("spawn_zones", None)
-            if self._spawn_zones:
-                # Convert max_dist sentinel values for runtime comparisons
-                for zone in self._spawn_zones:
+            # Spawn zones — loaded from level_1.json "spawn_zones" array.
+            # If the JSON doesn't have spawn_zones, we fall back to
+            # _DEFAULT_SPAWN_ZONES (defined below this class).
+            #
+            # ╔══════════════════════════════════════════════════════╗
+            # ║  TO CHANGE SPAWN BEHAVIOUR → edit level_1.json      ║
+            # ║  The defaults below are ONLY used if the JSON key   ║
+            # ║  "spawn_zones" is missing entirely.                  ║
+            # ╚══════════════════════════════════════════════════════╝
+            json_zones = self.level_data.get("spawn_zones", None)
+            if json_zones:
+                # Convert JSON sentinel (99999) to Python infinity for comparisons
+                for zone in json_zones:
                     if zone["max_dist"] >= 99999:
                         zone["max_dist"] = float("inf")
+                self._spawn_zones = json_zones
             else:
-                self._spawn_zones = None  # Will use defaults in _get_spawn_zone
+                self._spawn_zones = _DEFAULT_SPAWN_ZONES
 
             # Bat spawn config
             bat_cfg = self.level_data.get("bat_spawn", {})
@@ -194,20 +220,13 @@ class GameState(State):
         else:
             self.BAT_GROUP_MIN_DELAY = 5000
             self.BAT_GROUP_MAX_DELAY = 15000
-            self._spawn_zones = None
+            self._spawn_zones = _DEFAULT_SPAWN_ZONES
             self._bat_min_count = 3
             self._bat_max_count = 5
     
     def _setup_triggers(self) -> None:
         """Configure time-based and flag-based objective triggers."""
-        # Combat tip after 15 seconds
-        self.trigger_manager.add_trigger(
-            text="Use Q, E, and W for different attack combos. "
-                 "Press R or R2 to raise your shield and defend!",
-            title="Combat Tip",
-            trigger_type="time",
-            delay_seconds=15.0,
-        )
+
         # Congratulations on first skeleton kill
         self.trigger_manager.add_trigger(
             text="Well done, warrior! The undead fall before your blade. "
@@ -222,17 +241,18 @@ class GameState(State):
         pass  # Entities are spawned dynamically in _spawn_world_entities()
 
     def _get_spawn_zone(self) -> dict:
-        """Get the current spawn zone based on max distance reached."""
-        zones = self._spawn_zones if self._spawn_zones else [
-            {"min_dist": 0,    "max_dist": 1000,  "max_skeletons": 2, "delay": 6000},
-            {"min_dist": 1000, "max_dist": 3000,  "max_skeletons": 3, "delay": 4000},
-            {"min_dist": 3000, "max_dist": 6000,  "max_skeletons": 5, "delay": 3000},
-            {"min_dist": 6000, "max_dist": float("inf"), "max_skeletons": 6, "delay": 2000},
-        ]
-        for zone in reversed(zones):
+        """Get the current spawn zone based on how far the player has traveled.
+
+        Zones come from level_1.json → "spawn_zones".
+        If the JSON didn't have that key, self._spawn_zones was set to
+        _DEFAULT_SPAWN_ZONES during __init__.
+
+        Returns the LAST zone whose min_dist the player has passed.
+        """
+        for zone in reversed(self._spawn_zones):
             if self.max_distance_reached >= zone["min_dist"]:
                 return zone
-        return zones[0]
+        return self._spawn_zones[0]
 
     def _setup_world_events(self) -> None:
         """Register handlers for world events. Scheduling is handled via JSON config."""
@@ -256,7 +276,7 @@ class GameState(State):
         if params.get("npc_type") == "wizard":
             self.npc_group.add(WizardNPC(
                 x=self.width + 50,
-                y=self.height - 100,
+                y=self.height - 140,
                 text=params["text"],
                 title=params["title"],
                 scale=2.0,
@@ -291,7 +311,7 @@ class GameState(State):
         self.bg_music_channel_id = self.audio_manager.play_sound(
             "game_loop",
             loop=True,
-            volume=0.8,
+            volume=0.5,
         )
         self.player_ui.start_timer()
 
@@ -463,10 +483,7 @@ class GameState(State):
         # Process enemy attacks against player
         self._process_enemy_attacks(player_sprite)
         
-        # Clean up dead skeletons and spawn new ones if needed
-        current_time = pg.time.get_ticks()
-        if current_time >= self.next_skeleton_spawn_time:
-            self._manage_skeleton_spawns()
+        # (Skeleton spawning is handled by spawn_enemies() — no duplicate spawn here)
     
     def _process_player_attacks(self, player: Player) -> None:
         """
@@ -794,6 +811,7 @@ class GameState(State):
         
         # Sync UI with player state
         self.player_ui.current_health = player_sprite.health
+        self.player_ui.distance = self.max_distance_reached
         
         # Combat resolution
         self._handle_combat_collisions()
@@ -940,17 +958,16 @@ class GameState(State):
         # Color based on attack phase
         if player.is_attacking:
             from src.game.entities.player import PlayerState
-            from src.game.entities.combat_system import AttackPhase
+
+            # Safe fallback — combat_system module may not exist
+            phase = getattr(player, 'attack_phase', None)
+            if phase is not None:
+                color = (255, 50, 50)    # Red for active attacks
+                phase_text = f"Phase: {getattr(phase, 'name', str(phase))}"
+            else:
+                color = (255, 150, 50)   # Orange fallback
+                phase_text = "Phase: ATTACKING"
             
-            phase = player.attack_phase
-            color = {
-                AttackPhase.STARTUP: (100, 100, 255),   # Blue
-                AttackPhase.ACTIVE: (255, 50, 50),       # Red
-                AttackPhase.RECOVERY: (255, 200, 50),    # Yellow
-                AttackPhase.COMPLETE: (128, 128, 128),   # Gray
-            }.get(phase, (255, 255, 255))
-            
-            phase_text = f"Phase: {phase.name}"
             phase_surface = font.render(phase_text, True, color)
             surface.blit(
                 phase_surface,
