@@ -17,6 +17,7 @@ import pygame as pg
 from src.game.entities.enemy import Enemy
 from v3x_zulfiqar_gideon.world import WorldEventManager, InteractionPoint, WorldLoader, Sky
 from src.game.entities.wizard_npc import WizardNPC
+from src.game.entities.generic_npc import GenericNPC
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
@@ -272,15 +273,50 @@ class GameState(State):
         ))
 
     def _handle_npc_spawn(self, params: dict) -> None:
-        """Handler for 'npc' events."""
-        if params.get("npc_type") == "wizard":
+        """Handler for 'npc' events.
+
+        Supported npc_types (set in level_1.json → params → npc_type):
+        ──────────────────────────────────────────────────────────────
+        "wizard"   → uses the dedicated WizardNPC class.
+        "generic"  → uses GenericNPC with any sprite folder.
+                     Requires "sprite_dir" in params.
+
+        Example JSON for a generic NPC::
+
+            {
+                "id": 6, "distance": 5000, "type": "npc",
+                "params": {
+                    "npc_type": "generic",
+                    "sprite_dir": "assets/graphics/Goblin/Idle",
+                    "title": "Goblin Scout",
+                    "radius": 160,
+                    "scale": 2.0,
+                    "text": "Watch your back out there..."
+                }
+            }
+        """
+        npc_type = params.get("npc_type", "generic")
+
+        if npc_type == "wizard":
             self.npc_group.add(WizardNPC(
                 x=self.width + 50,
-                y=self.height - 140,
+                y=self.height - 180,
                 text=params["text"],
                 title=params["title"],
-                scale=2.0,
+                scale=params.get("scale", 2.0),
                 proximity_radius=params.get("radius", 160),
+            ))
+        else:
+            # Generic NPC — works with any sprite folder
+            self.npc_group.add(GenericNPC(
+                x=self.width + 50,
+                y=self.height - 180,
+                sprite_dir=params["sprite_dir"],
+                text=params["text"],
+                title=params.get("title", "NPC"),
+                scale=params.get("scale", 2.0),
+                proximity_radius=params.get("radius", 160),
+                frame_duration=params.get("frame_duration", 0.15),
             ))
 
     def _handle_enemy_wave(self, params: dict) -> None:
@@ -413,6 +449,10 @@ class GameState(State):
             if current_skeletons < zone["max_skeletons"]:
                 self.spawn_skeleton()
                 self.next_skeleton_spawn_time = current_time + zone["delay"]
+                print(f"[SPAWN] Skeleton spawned! "
+                      f"alive={current_skeletons + 1}/{zone['max_skeletons']} "
+                      f"delay={zone['delay']}ms "
+                      f"dist={int(self.max_distance_reached)}")
     
     def spawn_skeleton(self) -> None:
         """Spawn a new skeleton at a random position on the right side of the screen."""
