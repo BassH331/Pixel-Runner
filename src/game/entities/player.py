@@ -292,7 +292,7 @@ class Player(Actor):
         base_damage=25.0,
         knockback_force=15.0,
         knockback_angle=45.0,  # Strong upward knockback
-        hit_stop_frames=5,
+        hit_stop_frames=11,
         can_hit_multiple=True,
         max_hits_per_target=3,  # Can hit twice (two swing phases)
         frame_damage_modifiers={
@@ -315,17 +315,18 @@ class Player(Actor):
     # Slow multi-hit attack with high damage
     # Active frames: 5-7 (first hit), 10-12 (second hit)
     POWER_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
-        hit_frames=frozenset({3, 7, 11,}),
+        hit_frames=frozenset({3, 7, 11, 19}),
         base_damage=25.0,
         knockback_force=15.0,
         knockback_angle=45.0,  # Strong upward knockback
-        hit_stop_frames=5,
+        hit_stop_frames=19,
         can_hit_multiple=True,
         max_hits_per_target=2,  # Can hit twice (two swing phases)
         frame_damage_modifiers={
             3: 0.3,   # First swing start
             7: 0.5,   # First swing end
             11: 0.2,  # Second swing peak - bonus damage!
+            19: 0.5
         },
         hitbox_data={
             # First swing - overhead arc
@@ -333,9 +334,10 @@ class Player(Actor):
             7: HitboxData(offset_x=180, offset_y=20, width=270, height=200),
             # Second swing - horizontal sweep
             11: HitboxData(offset_x=180, offset_y=20, width=240, height=200),
+            19: HitboxData(offset_x=180, offset_y=20, width=240, height=200),
         },
         startup_frames=frozenset({0, 1, 2, 3}),
-        recovery_frames=frozenset({13, 14, 15, 16}),
+        recovery_frames=frozenset({21, 22}),
     )
     
     # Physics constants
