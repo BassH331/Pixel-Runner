@@ -263,7 +263,7 @@ class Player(Actor):
     # Adjust these values based on your actual sprite animations.
     #
 
-    # Thrust Attack (9 frames total)
+    # Thrust Attack (9 frames total)  |  Button: Q / Gamepad btn 2
     # Fast single-hit attack with forward reach
     # Active frames: 3-4 (wind-up on 0-2, recovery on 5-8)
     THRUST_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
@@ -284,7 +284,7 @@ class Player(Actor):
         recovery_frames=frozenset({5, 6, 7, 8}),
     )
 
-    # Smash Attack (17 frames total)
+    # Smash Attack (17 frames total)  |  Button: E / Gamepad btn 1
     # Slow multi-hit attack with high damage
     # Active frames: 5-7 (first hit), 10-12 (second hit)
     SMASH_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
@@ -311,7 +311,7 @@ class Player(Actor):
         recovery_frames=frozenset({13, 14, 15, 16}),
     )
 
-    # Power attack (23 frames total)
+    # Power Attack (23 frames total)  |  Button: W / Gamepad btn 3
     # Slow multi-hit attack with high damage
     # Active frames: 5-7 (first hit), 10-12 (second hit)
     POWER_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
@@ -326,25 +326,15 @@ class Player(Actor):
             3: 0.3,   # First swing start
             7: 0.5,   # First swing end
             11: 0.2,  # Second swing peak - bonus damage!
-            16: 0.2,
-            17: 0.1,
-            18: 0.1,
-            19: 0.1,
-            20: 0.8,
         },
         hitbox_data={
             # First swing - overhead arc
-            3: HitboxData(offset_x=40, offset_y=-30, width=80, height=70),
-            7: HitboxData(offset_x=50, offset_y=10, width=90, height=70),
+            3: HitboxData(offset_x=180, offset_y=30, width=250, height=100),
+            7: HitboxData(offset_x=180, offset_y=20, width=270, height=200),
             # Second swing - horizontal sweep
-            11: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
-            16: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
-            17: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
-            18: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
-            19: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
-            20: HitboxData(offset_x=70, offset_y=0, width=120, height=70),
+            11: HitboxData(offset_x=180, offset_y=20, width=240, height=200),
         },
-        startup_frames=frozenset({0, 1, 2, 3, 4}),
+        startup_frames=frozenset({0, 1, 2, 3}),
         recovery_frames=frozenset({13, 14, 15, 16}),
     )
     
@@ -782,11 +772,13 @@ class Player(Actor):
     def attack_thrust(self) -> bool:
         """
         Initiate thrust attack.
-        
+
+        Button: ``Q`` (keyboard) / Gamepad button 2
+
         Begins the thrust attack animation and initializes the
         attack state with the thrust configuration. Damage will
         only be dealt on the configured hit frames.
-        
+
         Returns:
             True if attack started, False if blocked by current state.
         """
@@ -805,11 +797,13 @@ class Player(Actor):
     def attack_smash(self) -> bool:
         """
         Initiate smash attack.
-        
+
+        Button: ``E`` (keyboard) / Gamepad button 1
+
         Begins the smash attack animation and initializes the
         attack state with the smash configuration. This is a
         multi-hit attack that can hit targets twice.
-        
+
         Returns:
             True if attack started, False if blocked by current state.
         """
@@ -828,11 +822,13 @@ class Player(Actor):
     def attack_power(self) -> bool:
         """
         Initiate power attack.
-        
+
+        Button: ``W`` (keyboard) / Gamepad button 3
+
         Begins the power attack animation and initializes the
         attack state with the power configuration. Damage will
         only be dealt on the configured hit frames.
-        
+
         Returns:
             True if attack started, False if blocked by current state.
         """
@@ -851,7 +847,9 @@ class Player(Actor):
     def defend(self) -> bool:
         """
         Initiate defend action.
-        
+
+        Button: ``R`` (keyboard) / Gamepad R2 trigger (axis 5 > 0.5)
+
         Returns:
             True if defend started, False if not allowed in current state.
         """
@@ -873,7 +871,9 @@ class Player(Actor):
     def jump(self) -> bool:
         """
         Initiate jump.
-        
+
+        Button: ``SPACE`` (keyboard) / Gamepad button 0 / Left-stick up (axis 1 < -0.9)
+
         Returns:
             True if jump started, False if not grounded or blocked.
         """
@@ -984,8 +984,16 @@ class Player(Actor):
         keys: pg.key.ScancodeWrapper,
         joystick: Optional[pg.joystick.JoystickType],
     ) -> None:
-        """Process action button input (jump, attacks)."""
-        # Jump
+        """Process action button input (jump, attacks, defend).
+
+        Button → Move mapping:
+            SPACE / Gamepad btn 0 / Stick-up  →  jump()
+            Q     / Gamepad btn 2             →  attack_thrust()
+            E     / Gamepad btn 1             →  attack_smash()
+            W     / Gamepad btn 3             →  attack_power()
+            R     / Gamepad R2 (axis 5)       →  defend()
+        """
+        # ── Jump  (SPACE | gamepad btn 0 | left-stick up) ─────────────────────
         stick_y = joystick.get_axis(1) if joystick else 0
         jump_pressed = (
             keys[pg.K_SPACE] or
@@ -994,28 +1002,26 @@ class Player(Actor):
         )
         if jump_pressed:
             self.jump()
-        
-        # Thrust attack (Q or gamepad button 2)
+
+        # ── Thrust attack  (Q | gamepad btn 2) ────────────────────────────────
         if keys[pg.K_q] or (joystick and joystick.get_button(2)):
             self.attack_thrust()
-        
-        # Smash attack (E or gamepad button 1)
+
+        # ── Smash attack   (E | gamepad btn 1) ────────────────────────────────
         if keys[pg.K_e] or (joystick and joystick.get_button(1)):
             self.attack_smash()
 
-        # Power attack (W or gamepad button 3)
+        # ── Power attack   (W | gamepad btn 3) ────────────────────────────────
         if keys[pg.K_w] or (joystick and joystick.get_button(3)):
             self.attack_power()
 
-        # Defend (R or gamepad R2 trigger)
+        # ── Defend         (R | gamepad R2 trigger, axis 5 > 0.5) ─────────────
         r2_trigger = (joystick and joystick.get_axis(5) > 0.5)  # R2 is axis 5
         defend_pressed = keys[pg.K_r] or r2_trigger
-        
         if defend_pressed:
-            # Only trigger defend if we're not already defending
-            if self.state != PlayerState.DEFEND:
+            if self.state != PlayerState.DEFEND:   # don't re-trigger mid-defend
                 self.defend()
-        # Note: Button release is now handled in _animate_defend()
+        # Note: button-release logic is handled inside _update_defend_logic()
     
     # ─────────────────────────────────────────────────────────────────────────
     # Physics
