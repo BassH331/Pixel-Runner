@@ -1,5 +1,5 @@
 {
-    "level_name": "Level 1 - The Mask of the Shepherd",
+    "level_name": "Level 1 - Mask of the Shepherd",
     "level_end_distance": 8000,
     "spawn_rate_min": 5000,
     "spawn_rate_max": 15000,
@@ -51,10 +51,13 @@
         {
             "id": 1,
             "distance": 400,
-            "type": "interaction",
+            "type": "npc",
             "params": {
-                "title": "Old Warrior",
+                "npc_type": "generic",The path ahead grows darker, traveler. Beware the skeletal warriors — they strike in groups and show no mercy.
+                "sprite_dir": "assets/graphics/masked_man",
+                "title": "Masked Stranger",
                 "radius": 160,
+                "scale": 1.5,
                 "text": "The path ahead grows darker, traveler. Beware the skeletal warriors — they strike in groups and show no mercy."
             }
         },

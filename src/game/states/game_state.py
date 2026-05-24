@@ -232,7 +232,7 @@ class GameState(State):
         self.trigger_manager.add_trigger(
             text="Well done, warrior! The undead fall before your blade. "
                  "Keep moving and stay vigilant for more threats ahead.",
-            title="Progress",
+            title="First kill!!",
             trigger_type="flag",
             flag_name="first_kill",
         )
