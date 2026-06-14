@@ -1,1 +1,1 @@
-from v3x_zulfiqar_gideon.systems import ObjectiveTriggerManager, ObjectiveTrigger
+from v3x_zulfiqar_gideon import ObjectiveTriggerManager, ObjectiveTrigger

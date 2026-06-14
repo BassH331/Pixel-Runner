@@ -14,9 +14,7 @@ from typing import TYPE_CHECKING, Final, Optional, Sequence
 
 import pygame as pg
 
-from v3x_zulfiqar_gideon.asset_manager import AssetManager
-from v3x_zulfiqar_gideon.ecs import Actor
-from v3x_zulfiqar_gideon.combat import AttackConfig
+from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -296,16 +294,6 @@ class Skeleton(Actor):
     # ─────────────────────────────────────────────────────────────────────────
     # Rendering
     # ─────────────────────────────────────────────────────────────────────────
-    
-    def _apply_gravity(self) -> None:
-        """Apply gravitational acceleration and ground collision."""
-        self._gravity += 1.0
-        self.rect.y += int(self._gravity)
-        
-        # Ground collision
-        if self.rect.bottom >= self._ground_y:
-            self.rect.bottom = self._ground_y
-            self._gravity = 0.0
 
     def draw(self, surface: pg.Surface) -> None:
         """

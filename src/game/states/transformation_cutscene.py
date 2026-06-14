@@ -16,9 +16,7 @@ from typing import Callable, Optional
 
 import pygame as pg
 
-from v3x_zulfiqar_gideon.asset_manager import AssetManager
-from v3x_zulfiqar_gideon.state_machine import State
-from v3x_zulfiqar_gideon.ui import NotificationBanner
+from v3x_zulfiqar_gideon import AssetManager, State, NotificationBanner
 
 
 class _Phase(IntEnum):

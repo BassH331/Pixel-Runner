@@ -1,10 +1,6 @@
 import pygame as pg
-from v3x_zulfiqar_gideon.state_machine import State
-from v3x_zulfiqar_gideon.asset_manager import AssetManager
-from v3x_zulfiqar_gideon.effects import SceneHighlighter
-from v3x_zulfiqar_gideon.ui import UIButton
-from v3x_zulfiqar_gideon.ui import NotificationBanner
-from ..audio.spotlight_sfx import SpotlightSFXManager
+from v3x_zulfiqar_gideon import State, AssetManager, SceneHighlighter, UIButton, NotificationBanner
+
 
 
 class StoryState(State):
@@ -125,8 +121,6 @@ class StoryState(State):
         # ── Spotlight & SFX state ─────────────────────────────────────────────
         self._spot_timer = 0.0
         self._spot_started = False
-        from src.game.audio.spotlight_sfx import SpotlightSFXManager
-        self.sfx_manager = SpotlightSFXManager(audio_manager=manager.audio_manager, schedule=spotlight_sfx)
 
         # ── Fade & timing ────────────────────────────────────────────────────
         self.alpha = 0
@@ -209,8 +203,11 @@ class StoryState(State):
         ]
 
         # ── Spotlight Sound Effects ──────────────────────────────────────────
-        audio_mgr = getattr(manager, 'audio_manager', None)
-        self._sfx_manager = SpotlightSFXManager(audio_manager=audio_mgr)
+        from src.game.audio.spotlight_sfx import SpotlightSFXManager
+        self._sfx_manager = SpotlightSFXManager(
+            audio_manager=getattr(manager, 'audio_manager', None),
+            schedule=spotlight_sfx,
+        )
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -295,7 +292,7 @@ class StoryState(State):
                 else:
                     break
             self._highlighter.set_active_section(active_idx)
-            self.sfx_manager.update(dt_sec, active_idx)
+            self._sfx_manager.update(dt_sec, active_idx)
 
         # Update menu buttons
         for btn in self._buttons:

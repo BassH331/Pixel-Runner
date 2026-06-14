@@ -1,3 +1,3 @@
-from v3x_zulfiqar_gideon.audio_manager import FootstepController
+from v3x_zulfiqar_gideon import FootstepController
 
 __all__ = ["FootstepController"]

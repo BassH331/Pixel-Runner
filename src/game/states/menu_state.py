@@ -1,7 +1,5 @@
 import pygame as pg
-from v3x_zulfiqar_gideon.state_machine import State
-from v3x_zulfiqar_gideon.asset_manager import AssetManager
-from v3x_zulfiqar_gideon.ui import Button
+from v3x_zulfiqar_gideon import State, AssetManager, Button
 
 class MenuState(State):
     def __init__(self, manager):

@@ -1,1 +1,1 @@
-from v3x_zulfiqar_gideon.world import WorldLoader as LevelLoader
+from v3x_zulfiqar_gideon import WorldLoader as LevelLoader

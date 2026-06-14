@@ -39,8 +39,7 @@ from typing import Optional
 
 import pygame as pg
 
-from v3x_zulfiqar_gideon.asset_manager import AssetManager
-from v3x_zulfiqar_gideon.ui import UITheme
+from v3x_zulfiqar_gideon import AssetManager, UITheme
 
 
 # ─────────────────────────────────────────────────────────────────────────────

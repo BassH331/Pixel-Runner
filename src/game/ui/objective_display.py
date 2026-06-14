@@ -1,4 +1,4 @@
-from v3x_zulfiqar_gideon.ui import ParchmentDisplay
+from v3x_zulfiqar_gideon import ParchmentDisplay
 
 class ObjectiveDisplay(ParchmentDisplay):
     """

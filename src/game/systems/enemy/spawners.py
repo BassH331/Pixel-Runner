@@ -4,12 +4,11 @@ from typing import Type, TypeVar, Optional, Dict, Any, List
 import random
 import pygame as pg
 
-from v3x_zulfiqar_gideon.systems import Spawner, SpawnConfig
+from v3x_zulfiqar_gideon import SpawnConfig
 from src.game.entities.enemy import Enemy
 from src.game.entities.skeleton import Skeleton
 
-# Type variable for spawner subclasses
-T = TypeVar('T', bound='Spawner')
+
 
 
 class SkeletonSpawner:

@@ -1,5 +1,5 @@
 import pygame as pg
-from v3x_zulfiqar_gideon.asset_manager import AssetManager
+from v3x_zulfiqar_gideon import AssetManager
 
 class PlayerUI:
     def __init__(self):

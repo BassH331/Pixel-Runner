@@ -2,8 +2,7 @@ import pygame as pg
 import random
 import math
 from enum import Enum
-from v3x_zulfiqar_gideon.ecs import Actor
-from v3x_zulfiqar_gideon.asset_manager import AssetManager
+from v3x_zulfiqar_gideon import Actor, AssetManager
 
 class EnemyState(Enum):
     FLY = 0

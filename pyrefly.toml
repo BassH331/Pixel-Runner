@@ -1,0 +1,7 @@
+# Pyrefly type checker configuration
+# Resolves both the editable-installed engine and the game's `src.game.*` imports
+
+search_path = [
+    "/home/chosen333/Software/V3X-Zulfiqar-Gideon",
+    "/home/chosen333/Software/Pixel-Runner",
+]

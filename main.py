@@ -1,4 +1,5 @@
 import pygame as pg
+
 from v3x_zulfiqar_gideon import V3XCore, V3XManifest
 from src.game.states.splash_state import SplashState
 from src.game.states.main_menu_state import MainMenuState

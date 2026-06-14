@@ -5,8 +5,7 @@ from enum import Enum
 
 import pygame as pg
 
-from v3x_zulfiqar_gideon.ecs import Actor
-from v3x_zulfiqar_gideon.asset_manager import AssetManager
+from v3x_zulfiqar_gideon import Actor, AssetManager
 
 
 class NPCState(Enum):
