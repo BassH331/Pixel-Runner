@@ -146,7 +146,7 @@ class TutorialOverlay:
         #    How big each element is. Change these to resize things.
         banner_width: float  = 0.60,     # parchment width  (fraction of screen)
         sprite_scale: int    = 3,        # player animation scale multiplier
-        oracle_scale: int    = 0.6,        # oracle tower scale multiplier
+        oracle_scale: float  = 0.6,        # oracle tower scale multiplier
         key_scale: int       = 4,        # key icon scale multiplier
 
         # ── POSITIONS ───────────────────────────────────────────────────────
@@ -318,7 +318,7 @@ class TutorialOverlay:
     # ─── Asset helpers ───────────────────────────────────────────────────────
 
     @staticmethod
-    def _load_scaled_frames(directory: str, scale: int) -> list[pg.Surface]:
+    def _load_scaled_frames(directory: str, scale: float) -> list[pg.Surface]:
         return [
             pg.transform.scale(f, (f.get_width() * scale, f.get_height() * scale))
             for f in AssetManager.get_animation_frames(directory)
