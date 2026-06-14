@@ -1,0 +1,5 @@
+# Pixel-Runner Dependencies
+# Install with: pip install -r requirements.txt
+
+v3x-zulfiqar-gideon>=1.1.0
+pygame>=2.5.0
