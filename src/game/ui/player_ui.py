@@ -6,7 +6,7 @@ class PlayerUI:
         self.max_health = 100
         self.current_health = 100
         self.relics = 0
-        self.distance = 0
+        self.distance: float = 0.0
         self.start_time = 0
         self.power_ups = []
         

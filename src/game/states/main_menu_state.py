@@ -52,7 +52,7 @@ class MainMenuState(State):
         
         # Input Cooldown to prevent accidental restarts
         self.input_cooldown = 0.5 # 500ms
-        self.time_entered = 0
+        self.time_entered: float = 0.0
 
     def load_frames(self):
         bg_dir = "assets/graphics/background images/intro_bg"

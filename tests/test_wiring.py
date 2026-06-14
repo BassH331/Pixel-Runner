@@ -41,6 +41,34 @@ def _make_mock_state_manager(audio_manager=None):
     return mgr
 
 
+def _configure_test_theme():
+    from v3x_zulfiqar_gideon import UITheme
+    UITheme.configure_buttons(
+        assets={
+            "big": ("dummy_big", "dummy_big_p"),
+            "medium": ("dummy_med", "dummy_med_p"),
+            "cancel": ("dummy_cancel", "dummy_cancel_p"),
+            "new_start": ("dummy_new", "dummy_new_p"),
+        },
+        font_path="dummy_font"
+    )
+    UITheme.configure_notifications(
+        banner_path="dummy_banner",
+        icons={
+            "gray": "dummy_gray",
+            "red": "dummy_red",
+            "yellow": "dummy_yellow",
+        },
+        font_path="dummy_font"
+    )
+    UITheme.configure_overlays(
+        stone_path="dummy_stone",
+        parchment_path="dummy_parchment",
+        title_font_path="dummy_font",
+        body_font_path="dummy_font"
+    )
+
+
 class TestPlayerWiring(unittest.TestCase):
     """Verify Player class has all methods/attributes its update() loop needs."""
 
@@ -232,9 +260,11 @@ class TestGameStateWiring(unittest.TestCase):
              patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_sound") as mock_snd:
             mock_tex.return_value = pg.Surface((32, 32))
             mock_snd.return_value = None
+            _configure_test_theme()
             from src.game.states.game_state import GameState
             cls.GameState = GameState
             mgr = _make_mock_state_manager()
+            cls.game_state: GameState | None = None
             try:
                 cls.game_state = GameState(mgr)
                 cls.init_error = None
@@ -297,12 +327,11 @@ class TestStoryStateWiring(unittest.TestCase):
             mock_snd.return_value = None
             mock_font.return_value = pg.font.Font(None, 20)
             mock_img = pg.Surface((1280, 720))
-            mock_img_conv = MagicMock()
-            mock_img_conv.get_size.return_value = (1280, 720)
-            mock_img_conv.convert.return_value = mock_img_conv
-            mock_load.return_value = mock_img_conv
+            mock_load.return_value = mock_img
+            _configure_test_theme()
             from src.game.states.story_state import StoryState
             mgr = _make_mock_state_manager()
+            cls.story_state: StoryState | None = None
             try:
                 cls.story_state = StoryState(mgr)
                 cls.init_error = None

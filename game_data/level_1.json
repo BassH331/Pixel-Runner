@@ -53,7 +53,7 @@
             "distance": 400,
             "type": "npc",
             "params": {
-                "npc_type": "generic",The path ahead grows darker, traveler. Beware the skeletal warriors — they strike in groups and show no mercy.
+                "npc_type": "generic",
                 "sprite_dir": "assets/graphics/masked_man",
                 "title": "Masked Stranger",
                 "radius": 160,

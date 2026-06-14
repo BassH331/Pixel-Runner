@@ -12,7 +12,15 @@ class MenuState(State):
         play_btn_img = AssetManager.get_texture("assets/graphics/ui/PlayBtn.png")
         play_btn_hover = AssetManager.get_texture("assets/graphics/ui/PlayClick.png")
         
-       
+        self.play_button = Button(
+            x=self.width // 2,
+            y=self.height // 2,
+            image=play_btn_img,
+            hover_image=play_btn_hover,
+            size=(120, 60),
+            anchor='center',
+            on_click=self.start_game
+        )
         
         exit_btn_img = AssetManager.get_texture("assets/graphics/ui/ExitIcon.png")
         exit_btn_hover = AssetManager.get_texture("assets/graphics/ui/ExitIconClick.png")

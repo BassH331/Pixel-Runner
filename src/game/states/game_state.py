@@ -585,7 +585,7 @@ class GameState(State):
     def _apply_player_damage_to_enemy(
         self,
         player: Player,
-        enemy: pg.sprite.Sprite,
+        enemy: Enemy,
     ) -> None:
         """
         Apply player attack damage and effects to an enemy.
@@ -698,11 +698,7 @@ class GameState(State):
             else skeleton.rect
         )
         
-        player_hitbox = (
-            player.hitbox
-            if hasattr(player, 'hitbox')
-            else player.rect
-        )
+        player_hitbox = player.rect
         
         if skeleton_hitbox and not skeleton_hitbox.colliderect(player_hitbox):
             return
@@ -733,9 +729,9 @@ class GameState(State):
         # Audio feedback for successful hit
         self.audio_manager.play_sound("player_hit")
         
-        # Visual feedback
-        if hasattr(player, 'trigger_hit_flash'):
-            player.trigger_hit_flash()
+        trigger_flash = getattr(player, 'trigger_hit_flash', None)
+        if trigger_flash:
+            trigger_flash()
             
         # Update score if needed (e.g., for tracking hits taken)
         if hasattr(self, 'score'):
@@ -762,8 +758,9 @@ class GameState(State):
             player: Player sprite instance.
             force: Horizontal knockback force (negative = left, positive = right).
         """
-        if hasattr(player, 'apply_knockback'):
-            player.apply_knockback(force)
+        apply_kb = getattr(player, 'apply_knockback', None)
+        if apply_kb:
+            apply_kb(force)
         else:
             # Fallback: Direct position offset with screen bounds clamping
             player.rect.x += int(force)
@@ -990,8 +987,7 @@ class GameState(State):
         """
         font = pg.font.Font(None, 24)
         
-        # State and frame info
-        state_text = f"State: {player.state.name}"
+        state_text = f"State: {player.state.name if player.state else 'None'}"
         frame_text = f"Frame: {player.current_frame_index}"
         
         # Color based on attack phase
@@ -1045,8 +1041,7 @@ class GameState(State):
         """
         font = pg.font.Font(None, 24)
         
-        # State and frame info
-        state_text = f"State: {skeleton.state.name}"
+        state_text = f"State: {skeleton.state.name if skeleton.state else 'None'}"
         frame_text = f"Frame: {skeleton.current_frame_index}"
         
         state_surface = font.render(state_text, True, (255, 255, 255))

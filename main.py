@@ -138,6 +138,11 @@ def main():
             "bats": "assets/audio/bats.wav",
             "defend_hit": "assets/audio/Sword Blocked 2.wav",
             "defend": "assets/audio/Sword Unsheath 2.wav",
+            "power_release_1": "assets/audio/Magical Light Aura Sound Effect.mp3",
+            "power_release_2": "assets/audio/Magical Light Aura Sound Effect.mp3",
+            "power_release_3": "assets/audio/Magical Light Aura Sound Effect.mp3",
+            "power_release_4": "assets/audio/Magical Light Aura Sound Effect.mp3",
+            "power_release_5": "assets/audio/Magical Light Aura Sound Effect.mp3",
         },
         
         # UI Aesthetics

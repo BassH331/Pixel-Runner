@@ -50,6 +50,10 @@ class Enemy(Actor):
         self.rect = self.image.get_rect()
         self.reduce_hitbox(20, 20)
 
+    def take_damage(self, amount: float, knockback: tuple[float, float] | None = None) -> None:
+        """Apply damage to this enemy. Override in subclasses."""
+        pass
+
     def update(self, dt=None, scroll_speed=0):
         """
         Update enemy state each frame.
