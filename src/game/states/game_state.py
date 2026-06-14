@@ -268,7 +268,7 @@ class GameState(State):
             text=params["text"],
             title=params["title"],
             proximity_radius=params["radius"],
-            font_path="assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf"
+            font_path="assets/graphics/Darinia/Darinia.ttf"
         ))
 
     def _handle_npc_spawn(self, params: dict) -> None:

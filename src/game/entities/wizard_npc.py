@@ -22,7 +22,7 @@ class WizardNPC(Actor):
     _FRAME_DURATION = 0.18
 
     # Prompt styling (mirrors InteractionPoint)
-    _FONT_PATH = "assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf"
+    _FONT_PATH = "assets/graphics/Darinia/Darinia.ttf"
     _FONT_SIZE = 30
     _PROMPT_COLOR = (255, 255, 255)
     _PROMPT_BG_COLOR = (30, 30, 30, 200)

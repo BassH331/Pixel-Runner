@@ -163,7 +163,7 @@ def main():
                     "red": "assets/graphics/UI/PNG/Exclamation_Red.png",
                     "yellow": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
                 },
-                "font_path": "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
+                "font_path": "assets/graphics/Darinia/Darinia.ttf",
             },
             "overlays": {
                 "stone_path": "assets/graphics/UI/PNG/UI board Medium  stone.png",
