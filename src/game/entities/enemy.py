@@ -64,11 +64,11 @@ class Enemy(Actor):
         self.rect.x -= scroll_speed
         
         # Move enemy based on its speed
-        self.rect.x += self.speed
+        self.rect.x += int(self.speed)
         
         # Update sine wave movement for floating effect
         self.time += 1
-        self.rect.y = self.y_base + self.y_amplitude * math.sin(self.y_frequency * self.time)
+        self.rect.y = int(self.y_base + self.y_amplitude * math.sin(self.y_frequency * self.time))
         
         # Remove if off-screen to the left
         if self.rect.right < 0:

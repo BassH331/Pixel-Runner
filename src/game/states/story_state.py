@@ -54,9 +54,9 @@ class StoryState(State):
         btn_spacing: int = 85,
         btn_y_offset: int = -60,
         btn_size: str = "medium",
-        highlight_schedule: list = None,
-        spotlight_sections: list = None,
-        spotlight_sfx: dict = None,
+        highlight_schedule: list | None = None,
+        spotlight_sections: list | None = None,
+        spotlight_sfx: dict | None = None,
     ):
         super().__init__(manager)
         self.width = pg.display.get_surface().get_width()

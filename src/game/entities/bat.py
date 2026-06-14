@@ -24,7 +24,8 @@ class Bat(pg.sprite.Sprite):
         self.load_animations()
         
         # Set initial frame and position
-        self.image = self.animator.get_frame()
+        frame = self.animator.get_frame()
+        self.image = frame if frame is not None else pg.Surface((32, 32), pg.SRCALPHA)
         self.rect = self.image.get_rect(midbottom=(x, y))
         
         # Movement properties
@@ -45,7 +46,8 @@ class Bat(pg.sprite.Sprite):
         self.load_animations()
         # Update rect size while maintaining position
         old_midbottom = self.rect.midbottom
-        self.image = self.animator.get_frame()
+        frame = self.animator.get_frame()
+        self.image = frame if frame is not None else pg.Surface((32, 32), pg.SRCALPHA)
         self.rect = self.image.get_rect(midbottom=old_midbottom)
 
     def load_animations(self):
@@ -120,7 +122,7 @@ class Bat(pg.sprite.Sprite):
 
         elif self.state == "ATTACK":
             # Wait for attack animation to complete
-            if self.animator.current_animation.finished:
+            if self.animator.current_animation and self.animator.current_animation.finished:
                 self.state = "EXIT"
                 self.animator.set("fly")
                 
@@ -137,7 +139,9 @@ class Bat(pg.sprite.Sprite):
         
         # Update animation frame
         self.animator.update(dt_sec)
-        self.image = self.animator.get_frame()
+        frame = self.animator.get_frame()
+        if frame is not None:
+            self.image = frame
         
     def draw(self, surface):
         """

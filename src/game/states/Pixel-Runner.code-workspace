@@ -2,7 +2,12 @@
 	"folders": [
 		{
 			"path": "../../.."
+		},
+		{
+			"path": "../../../../V3X-Zulfiqar-Gideon"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"makefile.configureOnOpen": false
+	}
 }

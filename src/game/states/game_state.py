@@ -295,11 +295,14 @@ class GameState(State):
             }
         """
         npc_type = params.get("npc_type", "generic")
+        
+        # Position all NPCs on the same ground level (aligned with the player's feet)
+        ground_y = self.height - 34
 
         if npc_type == "wizard":
             self.npc_group.add(WizardNPC(
                 x=self.width + 50,
-                y=self.height - 180,
+                y=ground_y,
                 text=params["text"],
                 title=params["title"],
                 scale=params.get("scale", 2.0),
@@ -309,7 +312,7 @@ class GameState(State):
             # Generic NPC — works with any sprite folder
             self.npc_group.add(GenericNPC(
                 x=self.width + 50,
-                y=self.height - 180,
+                y=ground_y,
                 sprite_dir=params["sprite_dir"],
                 text=params["text"],
                 title=params.get("title", "NPC"),
@@ -689,7 +692,7 @@ class GameState(State):
         
         # Gate 2: Must be on a hit frame and not already registered
         if not skeleton.should_deal_damage():
-            return
+            return 
         
         # Gate 3: Check hitbox collision (use skeleton's attack hitbox if available)
         skeleton_hitbox = (

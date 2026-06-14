@@ -26,7 +26,8 @@ class GreenMonster(pg.sprite.Sprite):
         self.load_animations()
         
         # Set initial frame and position
-        self.image = self.animator.get_frame()
+        frame = self.animator.get_frame()
+        self.image = frame if frame is not None else pg.Surface((32, 32), pg.SRCALPHA)
         self.rect = self.image.get_rect(midbottom=(x, y))
         
         # Movement properties
@@ -46,7 +47,8 @@ class GreenMonster(pg.sprite.Sprite):
         self.load_animations()
         # Update rect size while maintaining position
         old_midbottom = self.rect.midbottom
-        self.image = self.animator.get_frame()
+        frame = self.animator.get_frame()
+        self.image = frame if frame is not None else pg.Surface((32, 32), pg.SRCALPHA)
         self.rect = self.image.get_rect(midbottom=old_midbottom)
 
     def load_animations(self):
@@ -125,7 +127,7 @@ class GreenMonster(pg.sprite.Sprite):
     
         elif self.state == "ATTACK_1":
             # Wait for first attack animation to complete
-            if self.animator.current_animation.finished:
+            if self.animator.current_animation and self.animator.current_animation.finished:
                 self.state = "IDLE_2"
                 self.state_timer = 0
                 self.animator.set("idle")
@@ -139,7 +141,7 @@ class GreenMonster(pg.sprite.Sprite):
                 
         elif self.state == "ATTACK_2":
             # Wait for second attack animation to complete
-            if self.animator.current_animation.finished:
+            if self.animator.current_animation and self.animator.current_animation.finished:
                 self.state = "EXIT"
                 self.animator.set("walk")
                 
@@ -155,7 +157,9 @@ class GreenMonster(pg.sprite.Sprite):
         
         # Update animation frame
         self.animator.update(dt_sec)
-        self.image = self.animator.get_frame()
+        frame = self.animator.get_frame()
+        if frame is not None:
+            self.image = frame
         
     def draw(self, surface):
         """

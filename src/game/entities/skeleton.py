@@ -56,7 +56,7 @@ class Skeleton(Actor):
         knockback_force=5.0,
     )
     
-    STATE_CONFIGS: Final[dict[SkeletonState, StateConfig]] = {
+    STATE_CONFIGS: Final[dict[Enum, StateConfig]] = {
         SkeletonState.IDLE: StateConfig(0.1),
         SkeletonState.CHASE: StateConfig(0.15),
         SkeletonState.ATTACK: StateConfig(0.15, loops=False, next_state=SkeletonState.IDLE, interruptible=False),
@@ -109,8 +109,8 @@ class Skeleton(Actor):
         self._vertical_tolerance: int = 100
         
         # Combat state
-        self._max_health: int = 30
-        self._health: int = self._max_health
+        self._max_health: float = 30.0
+        self._health: float = self._max_health
         
     def _load_frames(
         self,
@@ -161,9 +161,9 @@ class Skeleton(Actor):
     # ─────────────────────────────────────────────────────────────────────────
     
     @property
-    def health(self) -> int: return self._health
+    def health(self) -> float: return self._health
     @property
-    def max_health(self) -> int: return self._max_health
+    def max_health(self) -> float: return self._max_health
     @property
     def entity_id(self) -> int: return id(self)
     @property
@@ -267,10 +267,10 @@ class Skeleton(Actor):
     
     def _chase_player(self, player_rect: pg.Rect) -> None:
         if self.rect.centerx > player_rect.centerx:
-            self.rect.x -= self._speed
+            self.rect.x -= int(self._speed)
             self.facing_left = True
         else:
-            self.rect.x += self._speed
+            self.rect.x += int(self._speed)
             self.facing_left = False
     
     # ─────────────────────────────────────────────────────────────────────────

@@ -53,7 +53,14 @@ class WizardNPC(Actor):
         self._load_animations()
         self.set_state(NPCState.IDLE)
 
+        # Calculate bounding rect of first frame to eliminate transparent padding
+        first_frame = self.animations[NPCState.IDLE][0]
+        bounding_rect = first_frame.get_bounding_rect()
+        self.bottom_offset = first_frame.get_height() - bounding_rect.bottom
+        self.visual_height = bounding_rect.height
+
         self.rect = self.image.get_rect(midbottom=(x, y))
+        self.rect.bottom += self.bottom_offset
 
         # --- Talk prompt (cached surface) ---
         self._font = AssetManager.get_font(self._FONT_PATH, self._FONT_SIZE)
@@ -126,7 +133,7 @@ class WizardNPC(Actor):
     ) -> None:
         """Scroll with the world and advance idle animation."""
         self.rect.x -= scroll_speed
-        super().update(dt)
+        super().update(dt if dt is not None else 0.0)
 
     def draw(self, surface: pg.Surface) -> None:
         """Render the NPC sprite and, if applicable, the talk prompt."""
@@ -141,5 +148,10 @@ class WizardNPC(Actor):
         self._prompt_surface.set_alpha(alpha)
 
         px = self.rect.centerx - self._prompt_surface.get_width() // 2
-        py = self.rect.top + self._PROMPT_OFFSET_Y
+        
+        # Position the prompt relative to the actual visual head, not the image rect top
+        feet_y = self.rect.bottom - self.bottom_offset
+        head_y = feet_y - self.visual_height
+        py = head_y - 20
+        
         surface.blit(self._prompt_surface, (px, py))

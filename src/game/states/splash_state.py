@@ -44,7 +44,7 @@ class SplashState(State):
         dt_sec = dt / 1000.0
         
         # Pump next state progress if needed (usually happens in thread)
-        loading_active = self.next_state and hasattr(self.next_state, 'loading_progress')
+        loading_active = self.next_state is not None and hasattr(self.next_state, 'loading_progress')
         if loading_active:
             self.loading_timer += dt_sec
 
@@ -59,9 +59,10 @@ class SplashState(State):
             
             # Decide if we are done
             loading_done = True
-            if loading_active:
+            if self.next_state is not None and hasattr(self.next_state, 'loading_progress'):
                 # Must stay in wait at least as long as min_loading_time if it's actually loading something
-                if self.next_state.loading_progress < 1.0 or self.loading_timer < self.min_loading_time:
+                progress = getattr(self.next_state, 'loading_progress', 0.0)
+                if progress < 1.0 or self.loading_timer < self.min_loading_time:
                     loading_done = False
                 
             if self.timer >= self.wait_time and loading_done:
@@ -83,8 +84,8 @@ class SplashState(State):
             surface.blit(self.logo, self.logo_rect)
             
         # Draw Loading Bar if next state is loading
-        if self.next_state and hasattr(self.next_state, 'loading_progress'):
-            progress = self.next_state.loading_progress
+        if self.next_state is not None and hasattr(self.next_state, 'loading_progress'):
+            progress = getattr(self.next_state, 'loading_progress', 0.0)
             if progress < 1.0:
                 bar_width = self.width * 0.6
                 bar_height = 10

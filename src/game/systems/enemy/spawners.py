@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Type, TypeVar, Optional, Dict, Any, List
+from typing import Type, TypeVar, Optional, Dict, Any, List, cast
 import random
 import pygame as pg
 
-from v3x_zulfiqar_gideon import SpawnConfig
+from v3x_zulfiqar_gideon import SpawnConfig, AudioManager
 from src.game.entities.enemy import Enemy
 from src.game.entities.skeleton import Skeleton
 
@@ -58,9 +58,9 @@ class SkeletonSpawner:
         
         # Create skeleton instance
         skeleton = Skeleton(
-            x=spawn_x,
-            y=spawn_y,
-            player=Player(0, 0, None)  # Dummy player, will be set by game state
+            x=int(spawn_x),
+            y=int(spawn_y),
+            player=Player(0, 0, cast(AudioManager, None))  # Dummy player, will be set by game state
         )
         
         # Update spawn time
@@ -116,7 +116,7 @@ class BatSpawner:
         
         # Create bat instance
         bat = Enemy()
-        bat.rect.midbottom = (spawn_x, spawn_y)
+        bat.rect.midbottom = (int(spawn_x), int(spawn_y))
         
         # Update spawn time
         self._last_spawn_time = game_time

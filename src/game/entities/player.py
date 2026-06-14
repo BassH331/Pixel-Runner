@@ -162,7 +162,7 @@ class Player(Actor):
     # State Configuration Registry
     # ─────────────────────────────────────────────────────────────────────────
     
-    _STATE_CONFIGS: Final[dict[PlayerState, StateConfig]] = {
+    _STATE_CONFIGS: Final[dict[Enum, StateConfig]] = {
         PlayerState.DEATH: StateConfig(
             animation_speed=0.15,
             loops=False,
@@ -350,7 +350,7 @@ class Player(Actor):
     _SCREEN_BOUND_LEFT: Final[int] = 0
     _SCREEN_BOUND_RIGHT: Final[int] = 1600
     
-    _ATTACK_AUDIO_FRAME_SOUNDS: Final[dict[int, str]] = {
+    _ATTACK_AUDIO_FRAME_SOUNDS: Final[dict[Enum, dict[int, str]]] = {
         PlayerState.ATTACK_SMASH: {
             3: "smash_phase_1",
             7: "smash_phase_2",
@@ -382,6 +382,7 @@ class Player(Actor):
         self.set_state(PlayerState.IDLE)
         
         # Combat state
+        self._current_attack_config: Optional[AttackConfig] = None
         self._attack_audio_frames_played: set[int] = set()
 
         # Defend animation phase tracking
@@ -400,7 +401,8 @@ class Player(Actor):
         )
         
         # Sprite setup
-        self.image: pg.Surface = self.animations[self.state][0]
+        if self.state is not None and self.state in self.animations:
+            self.image = self.animations[self.state][0]
         self.rect: pg.Rect = self.image.get_rect(midtop=(x, y))
         self._spawn_midtop: tuple[int, int] = self.rect.midtop
         self.adjust_hitbox_sides(left=315, right=315, top=150, bottom=0)
@@ -456,7 +458,7 @@ class Player(Actor):
         )
         # Frame index to freeze on while defend button is held (0-indexed).
         # Frames before this play as the "raise" intro; frames after play on release.
-        self._DEFEND_HOLD_FRAME: Final[int] = 3
+        self._DEFEND_HOLD_FRAME: int = 3
     
     def _load_frames(
         self,
@@ -501,9 +503,11 @@ class Player(Actor):
     
     @property
     def is_invincible(self) -> bool:
-        return self._invincibility_timer > 0 or (
-            self.state_configs.get(self.state) and self.state_configs[self.state].grants_invincibility
-        )
+        if self.state is None:
+            return self._invincibility_timer > 0
+        cfg = self.state_configs.get(self.state)
+        grants_inv = bool(cfg.grants_invincibility) if cfg else False
+        return self._invincibility_timer > 0 or grants_inv
 
     @property
     def health(self) -> int: return self._health
@@ -934,6 +938,8 @@ class Player(Actor):
     
     def _get_current_config(self) -> StateConfig:
         """Return the StateConfig for the current state, or a safe default."""
+        if self.state is None:
+            return StateConfig()
         return self.state_configs.get(self.state, StateConfig())
 
     def player_input(self) -> None:
@@ -1093,7 +1099,7 @@ class Player(Actor):
             return
 
         # Grounded state management (only for interruptible states)
-        cfg = self.state_configs.get(self.state)
+        cfg = self.state_configs.get(self.state) if self.state is not None else None
         if cfg and not cfg.interruptible:
             return
 
@@ -1134,6 +1140,8 @@ class Player(Actor):
 
     def _update_attack_audio(self) -> None:
         """Play frame-synced audio for multi-hit attacks."""
+        if self.state is None:
+            return
         sound_map = self._ATTACK_AUDIO_FRAME_SOUNDS.get(self.state)
         if not sound_map:
             return
