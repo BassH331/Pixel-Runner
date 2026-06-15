@@ -12,7 +12,7 @@
         "right": 65,
         "top": 20,
         "bottom": 0,
-        "ground_offset": 34,
+        "ground_offset": 35,
         "scale": 2.0
     },
     "enemy": {
