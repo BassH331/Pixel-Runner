@@ -64,11 +64,13 @@ class SFXTracker:
         self.next_play_time = self._resolve_time(config.get("delay", 0.0))
         self.played = False
 
-    def _resolve_time(self, val):
+    def _resolve_time(self, val: float | list[float] | tuple[float, float] | None) -> float:
         """Converts floats to floats, and resolves (min, max) tuples to random floats."""
+        if isinstance(val, (float, int)):
+            return float(val)
         if isinstance(val, (tuple, list)) and len(val) == 2:
             return random.uniform(val[0], val[1])
-        return float(val) if val is not None else 0.0
+        return 0.0
 
     def update(self, current_time: float, audio_manager, active_channels: list):
         if not self.played and current_time >= self.next_play_time:

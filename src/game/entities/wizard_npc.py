@@ -52,6 +52,8 @@ class WizardNPC(Actor):
         # --- Animation ---
         self._load_animations()
         self.set_state(NPCState.IDLE)
+        if self.state in self.animations:
+            self.image = self.animations[self.state][0]
 
         # Calculate bounding rect of first frame to eliminate transparent padding
         first_frame = self.animations[NPCState.IDLE][0]

@@ -916,6 +916,14 @@ class Player(Actor):
             self.rect.midbottom = midbottom
         self._spawn_midtop = self.rect.midtop
 
+    def set_state(self, new_state: Enum, force: bool = False) -> None:
+        """Sets the player state, applying post-damage invincibility upon exiting HURT state."""
+        if self.state == PlayerState.HURT and new_state != PlayerState.HURT:
+            if self._invincibility_duration > 0:
+                self._invincibility_timer = self._invincibility_duration
+                self._invincibility_duration = 0.0
+        super().set_state(new_state, force=force)
+
     def reset(self) -> None:
         """Restore player to initial spawn state for retries/game over."""
         self._health = self._max_health

@@ -47,8 +47,11 @@ class Enemy(Actor):
         self.time = 0
         
         # Setup rectangle
+        if self.state in self.animations:
+            self.image = self.animations[self.state][0]
         self.rect = self.image.get_rect()
-        self.reduce_hitbox(20, 20)
+        # Reduce hitbox to match the actual bat body size (bounding rect is 136x52)
+        self.reduce_hitbox(160, 200)
 
     def take_damage(self, amount: float, knockback: tuple[float, float] | None = None) -> None:
         """Apply damage to this enemy. Override in subclasses."""

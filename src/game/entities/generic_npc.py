@@ -99,6 +99,8 @@ class GenericNPC(Actor):
             "SC", (), {"animation_speed": frame_duration, "loops": True, "interruptible": False}
         )()
         self.set_state(_GenericNPCState.IDLE)
+        if self.state in self.animations:
+            self.image = self.animations[self.state][0]
 
         # Calculate bounding rect of first frame to eliminate transparent padding
         first_frame = self.animations[_GenericNPCState.IDLE][0]

@@ -93,10 +93,12 @@ class Skeleton(Actor):
         
         # Initial setup
         self.set_state(SkeletonState.IDLE)
+        if self.state in self.animations:
+            self.image = self.animations[self.state][0]
         self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y))
         
-        # Hitbox adjustment
-        self.reduce_hitbox(40, 20, align='bottom')
+        # Hitbox adjustment - match skeleton's actual visual body (68x92)
+        self.reduce_hitbox(130, 36, align='bottom')
         
         # Movement and physics
         self._speed: float = 2.5

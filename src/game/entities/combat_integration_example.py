@@ -32,8 +32,8 @@ from typing import TYPE_CHECKING
 import pygame as pg
 
 if TYPE_CHECKING:
-    from player import Player
-    from enemy import Enemy  # Your enemy base class
+    from .player import Player
+    from .enemy import Enemy  # Your enemy base class
 
 
 class CombatManager:
@@ -418,7 +418,7 @@ class CombatDebugRenderer:
             phase_text = f"Phase: {phase.name}"
             
             # Color based on phase
-            from combat_system import AttackPhase
+            from v3x_zulfiqar_gideon import AttackPhase
             color = {
                 AttackPhase.STARTUP: cls.COLORS["startup"],
                 AttackPhase.ACTIVE: cls.COLORS["active"],
