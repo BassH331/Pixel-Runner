@@ -71,6 +71,10 @@ class Skeleton(Actor):
         self._player: Player = player
         self.state_configs = self.STATE_CONFIGS
         
+        # Load margins and scale first
+        margins = HitboxRegistry.get_margins("skeleton")
+        self.scale = margins.scale
+        
         # Load animation frame sequences
         self.animations[SkeletonState.IDLE] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Idle/skeleton-idle_{}.png", 8
@@ -99,14 +103,12 @@ class Skeleton(Actor):
         self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y))
         
         # Hitbox adjustment - loaded dynamically via the central HitboxRegistry
-        margins = HitboxRegistry.get_margins("skeleton")
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
         
         # Movement and physics
         self._speed: float = 2.5
         self._gravity: float = 0.0
         # Load dynamic ground offset from HitboxRegistry
-        margins = HitboxRegistry.get_margins("skeleton")
         self._ground_y: int = pg.display.Info().current_h - margins.ground_offset
         
         # AI configuration
@@ -122,7 +124,7 @@ class Skeleton(Actor):
         self,
         path_pattern: str,
         count: int,
-        scale_factor: int = 2,
+        scale_factor: Optional[float] = None,
     ) -> list[pg.Surface]:
         """
         Load and scale animation frames from a file pattern.
@@ -138,6 +140,9 @@ class Skeleton(Actor):
         Raises:
             RuntimeError: If no frames could be loaded from the pattern.
         """
+        if scale_factor is None:
+            scale_factor = self.scale
+
         frames: list[pg.Surface] = []
         
         for i in range(count):
@@ -146,8 +151,8 @@ class Skeleton(Actor):
                 frame = AssetManager.get_texture(path)
                 original_size = frame.get_size()
                 scaled_size = (
-                    original_size[0] * scale_factor,
-                    original_size[1] * scale_factor,
+                    int(original_size[0] * scale_factor),
+                    int(original_size[1] * scale_factor),
                 )
                 scaled_frame = pg.transform.scale(frame, scaled_size)
                 frames.append(scaled_frame)

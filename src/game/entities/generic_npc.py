@@ -24,6 +24,7 @@ its idle animation.
 
 from __future__ import annotations
 
+import os
 from typing import Optional
 from enum import Enum
 
@@ -68,7 +69,7 @@ class GenericNPC(Actor):
         sprite_dir: str,
         text: str,
         title: str = "NPC",
-        scale: float = 2.0,
+        scale: Optional[float] = None,
         proximity_radius: int = 160,
         frame_duration: float = 0.15,
         prompt_text: str = "Talk  [ X / ENTER ]",
@@ -81,6 +82,16 @@ class GenericNPC(Actor):
         self._interacted: bool = False
         self._in_range: bool = False
 
+        # Resolve registry key and margins early to determine scale
+        folder_name = os.path.basename(sprite_dir.rstrip("/"))
+        if folder_name.lower() == "idle":
+            parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+            folder_name = os.path.basename(parent_dir)
+        sprite_key = f"generic_npc_{folder_name.lower()}"
+        margins = HitboxRegistry.get_margins(sprite_key)
+        
+        final_scale = scale if scale is not None else margins.scale
+
         # ── Load animation frames from the given folder ─────────────────────
         raw_frames = AssetManager.get_animation_frames(sprite_dir)
         if not raw_frames:
@@ -91,8 +102,8 @@ class GenericNPC(Actor):
 
         scaled_frames: list[pg.Surface] = []
         for frame in raw_frames:
-            w = int(frame.get_width() * scale)
-            h = int(frame.get_height() * scale)
+            w = int(frame.get_width() * final_scale)
+            h = int(frame.get_height() * final_scale)
             scaled_frames.append(pg.transform.scale(frame, (w, h)))
 
         self.animations[_GenericNPCState.IDLE] = scaled_frames
@@ -112,8 +123,6 @@ class GenericNPC(Actor):
         self.rect = self.image.get_rect(midbottom=(x, y))
         self.rect.bottom += self.bottom_offset
         
-        # Apply data-driven margins from the HitboxRegistry
-        margins = HitboxRegistry.get_margins("generic_npc")
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
 
         # ── Talk prompt (cached surface) ────────────────────────────────────

@@ -38,17 +38,20 @@ class WizardNPC(Actor):
         y: int,
         text: str,
         title: str = "Wizard",
-        scale: float = 2.0,
+        scale: Optional[float] = None,
         proximity_radius: int = 160,
     ) -> None:
         super().__init__(x, y)
+
+        # Apply data-driven margins from the HitboxRegistry
+        margins = HitboxRegistry.get_margins("wizard_npc")
 
         self.text = text
         self.title = title
         self.proximity_radius = proximity_radius
         self._interacted: bool = False
         self._in_range: bool = False
-        self.scale = scale
+        self.scale = scale if scale is not None else margins.scale
 
         # --- Animation ---
         self._load_animations()
@@ -65,8 +68,6 @@ class WizardNPC(Actor):
         self.rect = self.image.get_rect(midbottom=(x, y))
         self.rect.bottom += self.bottom_offset
         
-        # Apply data-driven margins from the HitboxRegistry
-        margins = HitboxRegistry.get_margins("wizard_npc")
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
 
         # --- Talk prompt (cached surface) ---

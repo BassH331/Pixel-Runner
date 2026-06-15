@@ -11,15 +11,17 @@ class HitboxMargins:
     top: int
     bottom: int
     ground_offset: int = 0
+    scale: float = 1.0
 
 class HitboxRegistry:
     # Standard baseline default margins matching the verified stable hitbox reductions
     DEFAULTS = {
-        "player": HitboxMargins(left=315, right=315, top=150, bottom=0, ground_offset=34),
-        "skeleton": HitboxMargins(left=65, right=65, top=20, bottom=0, ground_offset=127),
-        "enemy": HitboxMargins(left=80, right=80, top=100, bottom=100, ground_offset=0),
-        "wizard_npc": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34),
-        "generic_npc": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34),
+        "player": HitboxMargins(left=315, right=315, top=150, bottom=0, ground_offset=34, scale=3.0),
+        "skeleton": HitboxMargins(left=65, right=65, top=20, bottom=0, ground_offset=127, scale=2.0),
+        "enemy": HitboxMargins(left=80, right=80, top=100, bottom=100, ground_offset=0, scale=2.0),
+        "wizard_npc": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
+        "generic_npc_masked_man": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
+        "generic_npc_goblin": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
     }
 
     _cached_config: dict[str, HitboxMargins] = {}
@@ -38,17 +40,22 @@ class HitboxRegistry:
             
             # Map raw JSON data back to HitboxMargins objects, falling back to defaults if keys are missing
             cls._cached_config = {}
+            for name, item in data.items():
+                default_margins = cls.DEFAULTS.get(name) or (
+                    HitboxMargins(0, 0, 0, 0, 34, scale=2.0) if name.startswith("generic_npc_") else HitboxMargins(0, 0, 0, 0, 0, scale=1.0)
+                )
+                cls._cached_config[name] = HitboxMargins(
+                    left=item.get("left", default_margins.left),
+                    right=item.get("right", default_margins.right),
+                    top=item.get("top", default_margins.top),
+                    bottom=item.get("bottom", default_margins.bottom),
+                    ground_offset=item.get("ground_offset", default_margins.ground_offset),
+                    scale=item.get("scale", default_margins.scale),
+                )
+            
+            # Populate any missing default entries
             for name, default_margins in cls.DEFAULTS.items():
-                if name in data:
-                    item = data[name]
-                    cls._cached_config[name] = HitboxMargins(
-                        left=item.get("left", default_margins.left),
-                        right=item.get("right", default_margins.right),
-                        top=item.get("top", default_margins.top),
-                        bottom=item.get("bottom", default_margins.bottom),
-                        ground_offset=item.get("ground_offset", default_margins.ground_offset),
-                    )
-                else:
+                if name not in cls._cached_config:
                     cls._cached_config[name] = default_margins
         except Exception as e:
             print(f"Error loading {CONFIG_PATH}: {e}. Falling back to default margins.")
@@ -70,7 +77,15 @@ class HitboxRegistry:
         """Retrieves the margins config for a given entity type."""
         if not cls._cached_config:
             cls._load_config()
-        return cls._cached_config.get(entity_name, cls.DEFAULTS.get(entity_name, HitboxMargins(0, 0, 0, 0)))
+        if entity_name in cls._cached_config:
+            return cls._cached_config[entity_name]
+        if entity_name in cls.DEFAULTS:
+            return cls.DEFAULTS[entity_name]
+        
+        # Dynamic fallback for generic NPCs
+        if entity_name.startswith("generic_npc_"):
+            return HitboxMargins(0, 0, 0, 0, 34, scale=2.0)
+        return HitboxMargins(0, 0, 0, 0, 0, scale=1.0)
 
     @classmethod
     def update_margins(cls, entity_name: str, margins: HitboxMargins) -> None:

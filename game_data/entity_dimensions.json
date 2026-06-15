@@ -4,34 +4,55 @@
         "right": 315,
         "top": 150,
         "bottom": 0,
-        "ground_offset": 34
+        "ground_offset": 34,
+        "scale": 3.0
     },
     "skeleton": {
         "left": 65,
         "right": 65,
         "top": 20,
         "bottom": 0,
-        "ground_offset": 34
+        "ground_offset": 34,
+        "scale": 2.0
     },
     "enemy": {
         "left": 80,
         "right": 80,
-        "top": 100,
-        "bottom": 100,
-        "ground_offset": 0
+        "top": 87,
+        "bottom": 66,
+        "ground_offset": 169,
+        "scale": 2.0
     },
     "wizard_npc": {
         "left": 0,
         "right": 0,
         "top": 0,
-        "bottom": 0,
-        "ground_offset": 34
+        "bottom": 77,
+        "ground_offset": 34,
+        "scale": 1.6
     },
     "generic_npc": {
         "left": 0,
         "right": 0,
         "top": 0,
         "bottom": 0,
-        "ground_offset": 34
+        "ground_offset": 34,
+        "scale": 1.0
+    },
+    "generic_npc_masked_man": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 29,
+        "scale": 0.5
+    },
+    "generic_npc_goblin": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 154,
+        "ground_offset": 34,
+        "scale": 3.17
     }
 }

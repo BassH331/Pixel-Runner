@@ -377,6 +377,10 @@ class Player(Actor):
         # State machine configuration (from static registry)
         self.state_configs = self._STATE_CONFIGS
         
+        # Load margins and scale first
+        margins = HitboxRegistry.get_margins("player")
+        self.scale = margins.scale
+        
         # Load all animation frame sets
         self._load_all_animations()
         
@@ -406,7 +410,6 @@ class Player(Actor):
             self.image = self.animations[self.state][0]
         self.rect: pg.Rect = self.image.get_rect(midtop=(x, y))
         self._spawn_midtop: tuple[int, int] = self.rect.midtop
-        margins = HitboxRegistry.get_margins("player")
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
         
         # Physics state
@@ -428,35 +431,36 @@ class Player(Actor):
         self._defend_handled = False  
         
     def _load_all_animations(self) -> None:
+        scale = self.scale
         self.animations[PlayerState.IDLE] = self._load_frames(
-            "assets/shadow_warrior/idle/idle_{}.png", 12, start_index=1
+            "assets/shadow_warrior/idle/idle_{}.png", 12, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.RUN] = self._load_frames(
-            "assets/shadow_warrior/run/run_{}.png", 10, start_index=1
+            "assets/shadow_warrior/run/run_{}.png", 10, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.JUMP_UP] = self._load_frames(
-            "assets/shadow_warrior/jump_up_loop/jump_up_loop_{}.png", 3, start_index=1
+            "assets/shadow_warrior/jump_up_loop/jump_up_loop_{}.png", 3, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.JUMP_DOWN] = self._load_frames(
-            "assets/shadow_warrior/jump_down_loop/jump_down_loop_{}.png", 3, start_index=1
+            "assets/shadow_warrior/jump_down_loop/jump_down_loop_{}.png", 3, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.ATTACK_THRUST] = self._load_frames(
-            "assets/shadow_warrior/1_atk/1_atk_{}.png", 9, start_index=1
+            "assets/shadow_warrior/1_atk/1_atk_{}.png", 9, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.ATTACK_SMASH] = self._load_frames(
-            "assets/shadow_warrior/2_atk/2_atk_{}.png", 17, start_index=1
+            "assets/shadow_warrior/2_atk/2_atk_{}.png", 17, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.ATTACK_POWER] = self._load_frames(
-            "assets/shadow_warrior/3_atk/3_atk_{}.png", 23, start_index=1
+            "assets/shadow_warrior/3_atk/3_atk_{}.png", 23, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.HURT] = self._load_frames(
-            "assets/shadow_warrior/take_hit/take_hit_{}.png", 6, start_index=1
+            "assets/shadow_warrior/take_hit/take_hit_{}.png", 6, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.DEATH] = self._load_frames(
-            "assets/shadow_warrior/death/death_{}.png", 12, start_index=1
+            "assets/shadow_warrior/death/death_{}.png", 12, start_index=1, scale_factor=scale
         )
         self.animations[PlayerState.DEFEND] = self._load_frames(
-            "assets/shadow_warrior/defend/defend_{}.png", 7, start_index=1
+            "assets/shadow_warrior/defend/defend_{}.png", 7, start_index=1, scale_factor=scale
         )
         # Frame index to freeze on while defend button is held (0-indexed).
         # Frames before this play as the "raise" intro; frames after play on release.
@@ -467,7 +471,7 @@ class Player(Actor):
         path_pattern: str,
         count: int,
         start_index: int = 0,
-        scale_factor: int = 3,
+        scale_factor: float = 3.0,
     ) -> list[pg.Surface]:
         """
         Load and scale animation frames from a file pattern.
@@ -489,8 +493,8 @@ class Player(Actor):
                 frame = AssetManager.get_texture(path)
                 original_size = frame.get_size()
                 scaled_size = (
-                    original_size[0] * scale_factor,
-                    original_size[1] * scale_factor,
+                    int(original_size[0] * scale_factor),
+                    int(original_size[1] * scale_factor),
                 )
                 scaled_frame = pg.transform.scale(frame, scaled_size)
                 frames.append(scaled_frame)

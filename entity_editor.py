@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
 import sys
+import glob
+import json
 import pygame as pg
 from unittest.mock import MagicMock
 from typing import Any
@@ -42,7 +44,7 @@ PREVIEW_CENTER_X = 600
 
 
 class Slider:
-    def __init__(self, label, x, y, w, min_val, max_val, current_val):
+    def __init__(self, label, x, y, w, min_val, max_val, current_val, is_float=False):
         self.label = label
         self.rect = pg.Rect(x, y, w, 10)
         self.handle_r = 10
@@ -50,6 +52,7 @@ class Slider:
         self.max_val = max_val
         self.val = current_val
         self.dragging = False
+        self.is_float = is_float
 
     def get_handle_pos(self):
         if self.max_val == self.min_val:
@@ -60,7 +63,8 @@ class Slider:
 
     def draw(self, surface, font):
         # Label and current value
-        txt = font.render(f"{self.label}: {self.val} px", True, (240, 240, 240))
+        val_str = f"{self.val:.2f}x" if self.is_float else f"{self.val} px"
+        txt = font.render(f"{self.label}: {val_str}", True, (240, 240, 240))
         surface.blit(txt, (self.rect.x, self.rect.y - 25))
 
         # Slider track
@@ -99,7 +103,10 @@ class Slider:
         else:
             ratio = (mx - self.rect.x) / self.rect.width
         raw_val = self.min_val + ratio * (self.max_val - self.min_val)
-        self.val = int(round(raw_val))
+        if self.is_float:
+            self.val = round(raw_val, 2)
+        else:
+            self.val = int(round(raw_val))
 
 
 class Button:
@@ -133,10 +140,6 @@ class HitboxEditorApp:
     def __init__(self):
         self.clock = pg.time.Clock()
         self.running = True
-        
-        # Available entities and active index
-        self.entity_keys = ["player", "skeleton", "enemy", "wizard_npc", "generic_npc"]
-        self.entity_labels = ["Player", "Skeleton", "Enemy (Bat)", "Wizard NPC", "Generic NPC"]
         self.active_index = 0
         
         self.entity: Any = None
@@ -149,12 +152,20 @@ class HitboxEditorApp:
         self.dragging_floor = False
         self.dragging_entity = False
 
+        # Dynamically scan for actual game entities
+        self.entity_configs: list[dict[str, Any]] = [
+            {"key": "player", "label": "Player", "type": "player"},
+            {"key": "skeleton", "label": "Skeleton", "type": "skeleton"},
+            {"key": "enemy", "label": "Enemy (Bat)", "type": "enemy"},
+        ]
+        self.scan_level_files()
+
         # Build sidebar buttons
         self.sidebar_buttons = []
-        for idx, label in enumerate(self.entity_labels):
+        for idx, config in enumerate(self.entity_configs):
             btn_y = 100 + idx * 60
             self.sidebar_buttons.append(
-                Button(label, 30, btn_y, 200, 45, lambda idx=idx: self.select_entity(idx))
+                Button(config["label"], 30, btn_y, 200, 45, lambda idx=idx: self.select_entity(idx))
             )
         
         # Right action buttons
@@ -163,43 +174,122 @@ class HitboxEditorApp:
             Button("RESET (R)", 1100, 600, 130, 45, self.reset_current_config),
         ]
 
-        # Five sliders
+        # Six sliders (realigned positions to fit neatly)
         self.sliders = {
-            "left": Slider("Left Margin", 950, 120, 280, 0, 100, 0),
-            "right": Slider("Right Margin", 950, 200, 280, 0, 100, 0),
-            "top": Slider("Top Margin", 950, 280, 280, 0, 100, 0),
-            "bottom": Slider("Bottom Margin", 950, 360, 280, 0, 100, 0),
-            "ground_offset": Slider("Ground Offset", 950, 440, 280, 0, 200, 0),
+            "left": Slider("Left Margin", 950, 100, 280, 0, 100, 0),
+            "right": Slider("Right Margin", 950, 175, 280, 0, 100, 0),
+            "top": Slider("Top Margin", 950, 250, 280, 0, 100, 0),
+            "bottom": Slider("Bottom Margin", 950, 325, 280, 0, 100, 0),
+            "ground_offset": Slider("Ground Offset", 950, 400, 280, 0, 200, 0),
+            "scale": Slider("Scale Factor", 950, 475, 280, 0.5, 6.0, 1.0, is_float=True),
         }
 
         self.select_entity(0)
 
-    def select_entity(self, idx):
-        self.active_index = idx
-        for i, btn in enumerate(self.sidebar_buttons):
-            btn.active = (i == idx)
+    def scan_level_files(self):
+        """Scans all level configuration JSONs in game_data to find actual game NPCs."""
+        added_keys = {"player", "skeleton", "enemy"}
         
-        key = self.entity_keys[idx]
+        level_files = glob.glob("game_data/level_*.json")
+        for filepath in level_files:
+            try:
+                with open(filepath, "r") as f:
+                    level_data = json.load(f)
+                
+                # Scan world_events for NPCs
+                world_events = level_data.get("world_events", [])
+                for event in world_events:
+                    if event.get("type") == "npc":
+                        params = event.get("params", {})
+                        npc_type = params.get("npc_type")
+                        
+                        if npc_type == "wizard":
+                            key = "wizard_npc"
+                            if key not in added_keys:
+                                self.entity_configs.append({
+                                    "key": key,
+                                    "label": params.get("title", "Wizard NPC"),
+                                    "type": "wizard_npc",
+                                    "params": params
+                                })
+                                added_keys.add(key)
+                        
+                        elif npc_type == "generic":
+                            sprite_dir = params.get("sprite_dir")
+                            if sprite_dir:
+                                folder_name = os.path.basename(sprite_dir.rstrip("/"))
+                                if folder_name.lower() == "idle":
+                                    parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                                    folder_name = os.path.basename(parent_dir)
+                                key = f"generic_npc_{folder_name.lower()}"
+                                
+                                if key not in added_keys:
+                                    self.entity_configs.append({
+                                        "key": key,
+                                        "label": params.get("title", "Generic NPC"),
+                                        "type": "generic_npc",
+                                        "params": params
+                                    })
+                                    added_keys.add(key)
+            except Exception as e:
+                print(f"Error scanning level file {filepath}: {e}")
+
+        # Fallbacks to ensure standard options remain present
+        if "wizard_npc" not in added_keys:
+            self.entity_configs.append({
+                "key": "wizard_npc",
+                "label": "Wizard NPC",
+                "type": "wizard_npc",
+                "params": {"title": "Wizard"}
+            })
+        if "generic_npc_goblin" not in added_keys:
+            self.entity_configs.append({
+                "key": "generic_npc_goblin",
+                "label": "Goblin NPC",
+                "type": "generic_npc",
+                "params": {
+                    "sprite_dir": "assets/graphics/Goblin/Idle",
+                    "title": "Goblin",
+                    "scale": 2.0,
+                    "text": "Greetings!"
+                }
+            })
+
+    def reload_entity(self):
+        config = self.entity_configs[self.active_index]
+        key = config["key"]
+        ent_type = config["type"]
+        params = config.get("params", {})
         
-        # Instantiate correct entity
-        if key == "player":
+        # Update scale in memory registry before instantiating
+        margins = HitboxRegistry.get_margins(key)
+        margins.scale = self.sliders["scale"].val
+
+        # Instantiate correct entity with updated scale in registry
+        if ent_type == "player":
             self.entity = Player(640, 480, mock_audio)
-        elif key == "skeleton":
+        elif ent_type == "skeleton":
             dummy_player = Player(640, 480, mock_audio)
             self.entity = Skeleton(640, 480, dummy_player)
-        elif key == "enemy":
+        elif ent_type == "enemy":
             self.entity = Enemy()
             self.entity.rect.midbottom = (640, 480)
-        elif key == "wizard_npc":
-            self.entity = WizardNPC(640, 480, "Hi, I am a wizard.")
-        elif key == "generic_npc":
+        elif ent_type == "wizard_npc":
+            self.entity = WizardNPC(
+                x=640, 
+                y=480, 
+                text=params.get("text", "Halt, traveler!"), 
+                title=params.get("title", "Wizard"), 
+                scale=self.sliders["scale"].val
+            )
+        elif ent_type == "generic_npc":
             self.entity = GenericNPC(
                 x=640, 
                 y=480, 
-                sprite_dir="assets/graphics/Goblin/Idle", 
-                text="Greetings!", 
-                title="Goblin", 
-                scale=2.0
+                sprite_dir=params.get("sprite_dir", "assets/graphics/Goblin/Idle"), 
+                text=params.get("text", "Greetings!"), 
+                title=params.get("title", "NPC"), 
+                scale=self.sliders["scale"].val
             )
 
         # Retrieve base texture dimensions
@@ -209,28 +299,48 @@ class HitboxEditorApp:
         else:
             self.original_image_size = (100, 100)
 
-        # Load currently saved margins and ground offset
-        margins = HitboxRegistry.get_margins(key)
-        
         # Set up sliders dynamically based on base image size
         w, h = self.original_image_size
         self.sliders["left"].max_val = w // 2 - 1
-        self.sliders["left"].val = min(margins.left, w // 2 - 1)
+        self.sliders["left"].val = min(self.sliders["left"].val, w // 2 - 1)
 
         self.sliders["right"].max_val = w // 2 - 1
-        self.sliders["right"].val = min(margins.right, w // 2 - 1)
+        self.sliders["right"].val = min(self.sliders["right"].val, w // 2 - 1)
 
         self.sliders["top"].max_val = h // 2 - 1
-        self.sliders["top"].val = min(margins.top, h // 2 - 1)
+        self.sliders["top"].val = min(self.sliders["top"].val, h // 2 - 1)
 
         self.sliders["bottom"].max_val = h // 2 - 1
-        self.sliders["bottom"].val = min(margins.bottom, h // 2 - 1)
+        self.sliders["bottom"].val = min(self.sliders["bottom"].val, h // 2 - 1)
 
+        self.update_hitbox_preview()
+
+    def select_entity(self, idx):
+        self.active_index = idx
+        for i, btn in enumerate(self.sidebar_buttons):
+            btn.active = (i == idx)
+        
+        config = self.entity_configs[idx]
+        key = config["key"]
+        
+        # Load currently saved margins and ground offset
+        margins = HitboxRegistry.get_margins(key)
+        
+        # Update scale slider from loaded margins
+        self.sliders["scale"].val = margins.scale
+        
+        # Update other sliders from loaded margins
+        self.sliders["left"].val = margins.left
+        self.sliders["right"].val = margins.right
+        self.sliders["top"].val = margins.top
+        self.sliders["bottom"].val = margins.bottom
         self.sliders["ground_offset"].val = margins.ground_offset
 
         self.frame_idx = 0
         self.frame_timer = 0.0
-        self.update_hitbox_preview()
+        
+        # Recreate entity and update slider max values
+        self.reload_entity()
 
     def update_hitbox_preview(self):
         """Re-applies the adjusted slider margins to the entity's hitbox rect."""
@@ -253,8 +363,6 @@ class HitboxEditorApp:
         self.entity.image = first_frame
         
         # Calculate raw rect bottom so that hitbox.bottom aligns perfectly with current floor
-        # floor_y = PREVIEW_SCREEN_BOTTOM - ground_offset
-        # hitbox.bottom = raw_bottom - bottom = floor_y => raw_bottom = floor_y + bottom
         raw_bottom = PREVIEW_SCREEN_BOTTOM - ground_offset + bottom
         self.entity.rect = first_frame.get_rect(midbottom=(PREVIEW_CENTER_X, raw_bottom))
         
@@ -265,28 +373,32 @@ class HitboxEditorApp:
         self.entity.adjust_hitbox_sides(left=left, right=right, top=top, bottom=bottom)
 
     def save_current_config(self):
-        key = self.entity_keys[self.active_index]
+        config = self.entity_configs[self.active_index]
+        key = config["key"]
         margins = HitboxMargins(
             left=self.sliders["left"].val,
             right=self.sliders["right"].val,
             top=self.sliders["top"].val,
             bottom=self.sliders["bottom"].val,
-            ground_offset=self.sliders["ground_offset"].val
+            ground_offset=self.sliders["ground_offset"].val,
+            scale=self.sliders["scale"].val
         )
         HitboxRegistry.update_margins(key, margins)
         print(f"Saved configuration for {key}: {margins}")
 
     def reset_current_config(self):
-        key = self.entity_keys[self.active_index]
-        default_margins = HitboxRegistry.DEFAULTS.get(key, HitboxMargins(0, 0, 0, 0, 0))
+        config = self.entity_configs[self.active_index]
+        key = config["key"]
+        default_margins = HitboxRegistry.DEFAULTS.get(key, HitboxMargins(0, 0, 0, 0, 34, scale=2.0))
         
+        self.sliders["scale"].val = default_margins.scale
         self.sliders["left"].val = default_margins.left
         self.sliders["right"].val = default_margins.right
         self.sliders["top"].val = default_margins.top
         self.sliders["bottom"].val = default_margins.bottom
         self.sliders["ground_offset"].val = default_margins.ground_offset
         
-        self.update_hitbox_preview()
+        self.reload_entity()
         print(f"Reset {key} to defaults.")
 
     def run(self):
@@ -336,10 +448,14 @@ class HitboxEditorApp:
                         if btn.rect.collidepoint(event.pos):
                             btn.handle_event(event)
                             ui_event_handled = True
-                    for slider in self.sliders.values():
+                    for name, slider in self.sliders.items():
                         if slider.rect.collidepoint(event.pos) or (abs(event.pos[0] - slider.get_handle_pos()[0]) <= 15 and abs(event.pos[1] - slider.get_handle_pos()[1]) <= 15):
                             slider.handle_event(event)
                             ui_event_handled = True
+                            if name == "scale":
+                                self.reload_entity()
+                            else:
+                                self.update_hitbox_preview()
 
                     if not ui_event_handled and self.entity:
                         # 2. Check if clicking floor line to drag
@@ -398,10 +514,13 @@ class HitboxEditorApp:
                     self.update_hitbox_preview()
 
                 # Delegate standard mouse motion to sliders
-                for slider in self.sliders.values():
+                for name, slider in self.sliders.items():
                     if slider.dragging:
                         slider.handle_event(event)
-                        self.update_hitbox_preview()
+                        if name == "scale":
+                            self.reload_entity()
+                        else:
+                            self.update_hitbox_preview()
 
     def update(self, dt):
         if self.entity and self.entity.animations:

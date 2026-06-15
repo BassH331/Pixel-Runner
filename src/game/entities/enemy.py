@@ -13,31 +13,35 @@ class Enemy(Actor):
     Base class for all enemy entities in the game.
     Handles common enemy behaviors like movement, animation, and collision.
     """
-    _fly_frames_cache: list[pg.Surface] | None = None
+    _fly_frames_caches: dict[float, list[pg.Surface]] = {}
 
     def __init__(self):
         super().__init__(0, 0)
         
-        # Load frames only once if not already cached
-        if Enemy._fly_frames_cache is None:
-            Enemy._fly_frames_cache = []
+        # Load margins and scale
+        margins = HitboxRegistry.get_margins("enemy")
+        scale = margins.scale
+        
+        # Load frames only once per scale if not already cached
+        if scale not in Enemy._fly_frames_caches:
+            cache = []
             try:
                 for i in range(7):
                     path = f"assets/graphics/bat/running/bat_running_{i}.png"
                     frame = AssetManager.get_texture(path)
                     
-                    # Use a fixed scale for performance (caching pre-scaled frames)
                     original_size = frame.get_size()
-                    scaled_size = (int(original_size[0] * 2.0), int(original_size[1] * 2.0))
+                    scaled_size = (int(original_size[0] * scale), int(original_size[1] * scale))
                     
                     scaled_frame = pg.transform.scale(frame, scaled_size)
-                    Enemy._fly_frames_cache.append(scaled_frame)
+                    cache.append(scaled_frame)
             except Exception as e:
-                print(f"Error loading bat animation: {e}")
-                Enemy._fly_frames_cache = [pg.Surface((50, 50), pg.SRCALPHA) for _ in range(7)]
+                print(f"Error loading bat animation for scale {scale}: {e}")
+                cache = [pg.Surface((int(25 * scale), int(25 * scale)), pg.SRCALPHA) for _ in range(7)]
+            Enemy._fly_frames_caches[scale] = cache
         
         # Use actor system
-        self.animations = {EnemyState.FLY: Enemy._fly_frames_cache}
+        self.animations = {EnemyState.FLY: Enemy._fly_frames_caches[scale]}
         self.set_state(EnemyState.FLY)
         
         # Movement properties
