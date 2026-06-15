@@ -7,7 +7,7 @@
         {
             "min_dist": 0,
             "max_dist": 530,
-            "max_skeletons": 3,
+            "max_skeletons": 10,
             "delay": 6000,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
@@ -68,7 +68,7 @@
                 "title": "Masked Stranger",
                 "radius": 160,
                 "scale": 6.0,
-                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors — they strike in groups and show no mercy."
+                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors \u2014 they strike in groups and show no mercy."
             }
         },
         {
@@ -92,7 +92,7 @@
                 "npc_type": "wizard",
                 "title": "Wizard",
                 "radius": 180,
-                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde — without my barrier they would overrun these lands. Press on, and may my magic shield your path."
+                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde \u2014 without my barrier they would overrun these lands. Press on, and may my magic shield your path."
             }
         },
         {
