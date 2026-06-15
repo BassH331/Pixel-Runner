@@ -58,7 +58,20 @@
                 "title": "Masked Stranger",
                 "radius": 160,
                 "scale": 2.0,
-                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors — they strike in groups and show no mercy."
+                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors \u2014 they strike in groups and show no mercy."
+            }
+        },
+        {
+            "id": 7,
+            "distance": 500,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "New NPC",
+                "text": "The blight has began, go forth brave warrior",
+                "radius": 160,
+                "scale": 2.0,
+                "sprite_dir": "assets/graphics/RedMoonTower"
             }
         },
         {
@@ -69,7 +82,17 @@
                 "npc_type": "wizard",
                 "title": "Wizard",
                 "radius": 180,
-                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde — without my barrier they would overrun these lands. Press on, and may my magic shield your path."
+                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde \u2014 without my barrier they would overrun these lands. Press on, and may my magic shield your path."
+            }
+        },
+        {
+            "id": 6,
+            "distance": 2145,
+            "type": "interaction",
+            "params": {
+                "title": "Tower of Darkness",
+                "text": "Checkpoint - auto save initiated",
+                "radius": 114
             }
         },
         {

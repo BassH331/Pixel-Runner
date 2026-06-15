@@ -903,24 +903,24 @@ class GameState(State):
         # UI layer
         self.player_ui.draw(surface)
         
-        # Player
-        self.player.sprite.draw(surface)
-        
-        # Enemies
-        for enemy in self.obstacle_group:
-            enemy.draw(surface)
-            
-        # Ambient creatures
-        for ambient in self.ambient_group:
-            ambient.draw(surface)
-
-        # NPCs
+        # NPCs (drawn before player so they appear behind)
         for npc in self.npc_group:
             npc.draw(surface)
 
         # Interaction point prompts ("Talk" indicators)
         for point in self.interaction_group:
             point.draw(surface)
+
+        # Ambient creatures
+        for ambient in self.ambient_group:
+            ambient.draw(surface)
+
+        # Player (drawn after NPCs so player appears in front)
+        self.player.sprite.draw(surface)
+        
+        # Enemies
+        for enemy in self.obstacle_group:
+            enemy.draw(surface)
         
         # Debug visualization
         if self.debug_mode:
