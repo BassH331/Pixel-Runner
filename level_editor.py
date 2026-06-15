@@ -590,7 +590,8 @@ class LevelEditorApp:
                     # Dragging node
                     new_dist = self.timeline_offset + (event.pos[0] - self.timeline_x) / self.zoom
                     new_dist = max(0, min(new_dist, self.level_data.get("level_end_distance", 8000)))
-                    self.dragging_event["distance"] = int(round(new_dist))
+                    if isinstance(self.dragging_event, dict):
+                        self.dragging_event["distance"] = int(round(new_dist))
 
     def draw(self):
         self.screen.fill((20, 20, 28))
