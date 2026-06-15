@@ -296,8 +296,11 @@ class GameState(State):
         """
         npc_type = params.get("npc_type", "generic")
         
-        # Position all NPCs on the same ground level (aligned with the player's feet)
-        ground_y = self.height - 34
+        # Position all NPCs on the ground level (aligned with their config feet position)
+        from src.game.entities.hitbox_registry import HitboxRegistry
+        npc_key = "wizard_npc" if npc_type == "wizard" else "generic_npc"
+        margins = HitboxRegistry.get_margins(npc_key)
+        ground_y = self.height - margins.ground_offset
 
         if npc_type == "wizard":
             self.npc_group.add(WizardNPC(

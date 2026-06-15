@@ -3,6 +3,7 @@ import random
 import math
 from enum import Enum
 from v3x_zulfiqar_gideon import Actor, AssetManager
+from .hitbox_registry import HitboxRegistry
 
 class EnemyState(Enum):
     FLY = 0
@@ -50,8 +51,9 @@ class Enemy(Actor):
         if self.state in self.animations:
             self.image = self.animations[self.state][0]
         self.rect = self.image.get_rect()
-        # Reduce hitbox to match the actual bat body size (bounding rect is 136x52)
-        self.reduce_hitbox(160, 200)
+        # Reduce hitbox using the margins loaded from the HitboxRegistry
+        margins = HitboxRegistry.get_margins("enemy")
+        self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
 
     def take_damage(self, amount: float, knockback: tuple[float, float] | None = None) -> None:
         """Apply damage to this enemy. Override in subclasses."""

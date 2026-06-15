@@ -51,6 +51,7 @@ from typing import TYPE_CHECKING, Final, Optional
 import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Actor, FootstepController
+from .hitbox_registry import HitboxRegistry
 from v3x_zulfiqar_gideon import (
     AttackConfig,
     AttackState,
@@ -405,11 +406,12 @@ class Player(Actor):
             self.image = self.animations[self.state][0]
         self.rect: pg.Rect = self.image.get_rect(midtop=(x, y))
         self._spawn_midtop: tuple[int, int] = self.rect.midtop
-        self.adjust_hitbox_sides(left=315, right=315, top=150, bottom=0)
+        margins = HitboxRegistry.get_margins("player")
+        self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
         
         # Physics state
         self._gravity: float = 0.0
-        self._ground_y: int = pg.display.Info().current_h - self._GROUND_OFFSET
+        self._ground_y: int = pg.display.Info().current_h - margins.ground_offset
         
         # Movement state
         self._direction: int = 0

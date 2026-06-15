@@ -1,0 +1,37 @@
+{
+    "player": {
+        "left": 315,
+        "right": 315,
+        "top": 150,
+        "bottom": 0,
+        "ground_offset": 34
+    },
+    "skeleton": {
+        "left": 65,
+        "right": 65,
+        "top": 20,
+        "bottom": 0,
+        "ground_offset": 34
+    },
+    "enemy": {
+        "left": 80,
+        "right": 80,
+        "top": 100,
+        "bottom": 100,
+        "ground_offset": 0
+    },
+    "wizard_npc": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34
+    },
+    "generic_npc": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34
+    }
+}

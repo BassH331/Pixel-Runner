@@ -6,6 +6,7 @@ from enum import Enum
 import pygame as pg
 
 from v3x_zulfiqar_gideon import Actor, AssetManager
+from .hitbox_registry import HitboxRegistry
 
 
 class NPCState(Enum):
@@ -63,6 +64,10 @@ class WizardNPC(Actor):
 
         self.rect = self.image.get_rect(midbottom=(x, y))
         self.rect.bottom += self.bottom_offset
+        
+        # Apply data-driven margins from the HitboxRegistry
+        margins = HitboxRegistry.get_margins("wizard_npc")
+        self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
 
         # --- Talk prompt (cached surface) ---
         self._font = AssetManager.get_font(self._FONT_PATH, self._FONT_SIZE)

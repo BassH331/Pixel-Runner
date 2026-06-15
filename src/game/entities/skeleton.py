@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Final, Optional, Sequence
 import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
+from .hitbox_registry import HitboxRegistry
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -97,13 +98,16 @@ class Skeleton(Actor):
             self.image = self.animations[self.state][0]
         self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y))
         
-        # Hitbox adjustment - match skeleton's actual visual body (68x92)
-        self.reduce_hitbox(130, 36, align='bottom')
+        # Hitbox adjustment - loaded dynamically via the central HitboxRegistry
+        margins = HitboxRegistry.get_margins("skeleton")
+        self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
         
         # Movement and physics
         self._speed: float = 2.5
         self._gravity: float = 0.0
-        self._ground_y: int = pg.display.Info().current_h - 127
+        # Load dynamic ground offset from HitboxRegistry
+        margins = HitboxRegistry.get_margins("skeleton")
+        self._ground_y: int = pg.display.Info().current_h - margins.ground_offset
         
         # AI configuration
         self._detection_range: int = 1000
