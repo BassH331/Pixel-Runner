@@ -73,11 +73,11 @@
         },
         {
             "id": 7,
-            "distance": 500,
+            "distance": 573,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "New NPC",
+                "title": "Moon Tower",
                 "text": "The blight has began, go forth brave warrior",
                 "radius": 160,
                 "scale": 2.0,
@@ -86,26 +86,14 @@
         },
         {
             "id": 4,
-            "distance": 1200,
+            "distance": 757,
             "type": "npc",
             "params": {
                 "npc_type": "wizard",
                 "title": "Wizard",
+                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde \u2014 without my barrier they would overrun these lands. Press on, and may my magic shield your path.",
                 "radius": 180,
-                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde \u2014 without my barrier they would overrun these lands. Press on, and may my magic shield your path."
-            }
-        },
-        {
-            "id": 6,
-            "distance": 2145,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Tower of Darkness",
-                "text": "Checkpoint - auto save initiated",
-                "radius": 114,
-                "scale": 2.0,
-                "sprite_dir": "assets/graphics/RedMoonTower"
+                "scale": 1.6
             }
         },
         {
@@ -116,25 +104,6 @@
                 "title": "Wandering Merchant",
                 "radius": 160,
                 "text": "I've seen many come this way, but few return. The undead grow stronger the further you venture. Steel your resolve!"
-            }
-        },
-        {
-            "id": 5,
-            "distance": 3500,
-            "type": "enemy_wave",
-            "params": {
-                "count": 6,
-                "type": "bat"
-            }
-        },
-        {
-            "id": 3,
-            "distance": 4500,
-            "type": "interaction",
-            "params": {
-                "title": "Fallen Knight",
-                "radius": 160,
-                "text": "You've come far, warrior. The end is near, but the final guardians will not fall easily. Prepare yourself for the fiercest battle yet."
             }
         }
     ]

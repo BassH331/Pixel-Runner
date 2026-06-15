@@ -54,13 +54,5 @@
         "bottom": 154,
         "ground_offset": 34,
         "scale": 3.17
-    },
-    "generic_npc_redmoontower": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 9,
-        "scale": 1.48
     }
 }
