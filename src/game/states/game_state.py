@@ -317,7 +317,7 @@ class GameState(State):
                 y=ground_y,
                 text=params["text"],
                 title=params["title"],
-                scale=None,  # Dynamic fallback to database scale
+                scale=params.get("scale"),  # Respect level configuration scale
                 proximity_radius=params.get("radius", 160),
             ))
         else:
@@ -328,7 +328,7 @@ class GameState(State):
                 sprite_dir=params["sprite_dir"],
                 text=params["text"],
                 title=params.get("title", "NPC"),
-                scale=None,  # Dynamic fallback to database scale
+                scale=params.get("scale"),  # Respect level configuration scale
                 proximity_radius=params.get("radius", 160),
                 frame_duration=params.get("frame_duration", 0.15),
             ))
@@ -461,14 +461,14 @@ class GameState(State):
                                  if isinstance(sprite, Skeleton))
             
             if current_skeletons < zone["max_skeletons"]:
-                self.spawn_skeleton()
+                self.spawn_skeleton(zone)
                 self.next_skeleton_spawn_time = current_time + zone["delay"]
                 print(f"[SPAWN] Skeleton spawned! "
                       f"alive={current_skeletons + 1}/{zone['max_skeletons']} "
                       f"delay={zone['delay']}ms "
                       f"dist={int(self.max_distance_reached)}")
     
-    def spawn_skeleton(self) -> None:
+    def spawn_skeleton(self, zone: Optional[dict] = None) -> None:
         """Spawn a new skeleton at a random position on the right side of the screen."""
         # Calculate spawn position (off-screen right, but not too far)
         spawn_x = self.width + randint(100, 300)
@@ -479,11 +479,22 @@ class GameState(State):
         if player_sprite is None:
             return  # Can't spawn skeleton without player
             
+        sprite_root = None
+        behaviour_map = None
+        tier = "minion"
+        if zone:
+            sprite_root = zone.get("sprite_root")
+            behaviour_map = zone.get("behaviour_map")
+            tier = zone.get("tier", "minion")
+            
         # Create and add new skeleton
         skeleton = Skeleton(
             x=spawn_x,
             y=spawn_y,
-            player=player_sprite  # Pass the actual Player instance
+            player=player_sprite,  # Pass the actual Player instance
+            sprite_root=sprite_root,
+            behaviour_map=behaviour_map,
+            tier=tier
         )
         self.obstacle_group.add(skeleton)
         self.audio_manager.play_sound("skeleton_spawn")

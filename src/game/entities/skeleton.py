@@ -65,26 +65,46 @@ class Skeleton(Actor):
         SkeletonState.DEATH: StateConfig(0.15, loops=False, interruptible=False),
     }
 
-    def __init__(self, x: int, y: int, player: Player) -> None:
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        player: Player,
+        sprite_root: Optional[str] = None,
+        behaviour_map: Optional[dict[str, str]] = None,
+        tier: str = "minion"
+    ) -> None:
         super().__init__(x, y)
         
         self._player: Player = player
         self.state_configs = self.STATE_CONFIGS
+        self.tier = tier
         
         # Load margins and scale first
-        margins = HitboxRegistry.get_margins("skeleton")
+        margins_key = "skeleton"
+        if sprite_root:
+            import os
+            folder_name = os.path.basename(sprite_root.rstrip("/"))
+            margins_key = f"skeleton_{folder_name.lower()}"
+        
+        margins = HitboxRegistry.get_margins(margins_key)
+        # If margins for custom skeleton are missing, fall back to "skeleton" defaults
+        if margins.scale == 1.0 and margins.ground_offset == 0:
+            margins = HitboxRegistry.get_margins("skeleton")
+            
         self.scale = margins.scale
         
-        # Load animation frame sequences
+        # 1. Load default animations
         self.animations[SkeletonState.IDLE] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Idle/skeleton-idle_{}.png", 8
         )
         self.animations[SkeletonState.CHASE] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Walk/skeleton-walk_{:02d}.png", 10
         )
-        self.animations[SkeletonState.ATTACK] = self._load_frames(
+        self._attack1_frames = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Attack1/skeleton-atk2_{:02d}.png", 10
         )
+        self.animations[SkeletonState.ATTACK] = self._attack1_frames
         # Handle secondary attack animation implicitly or add it to state machine
         self._attack2_frames = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Attack2/skeleton-atk1_{}.png", 9
@@ -94,6 +114,104 @@ class Skeleton(Actor):
         )
         self.animations[SkeletonState.DEATH] = self._load_frames(
             "assets/skeleton/Skeleton_01_White_Die/skeleton-death_{:02d}.png", 13
+        )
+        
+        # 2. Overwrite with dynamic sprites if provided
+        if sprite_root and behaviour_map:
+            import os
+            tag_to_folders = {}
+            for sub, tag in behaviour_map.items():
+                tag_to_folders.setdefault(tag, []).append(os.path.join(sprite_root, sub))
+                
+            def load_from_folders(folders: list[str]) -> list[pg.Surface]:
+                frames = []
+                for f in folders:
+                    raw = AssetManager.get_animation_frames(f)
+                    for frame in raw:
+                        w = int(frame.get_width() * self.scale)
+                        h = int(frame.get_height() * self.scale)
+                        frames.append(pg.transform.scale(frame, (w, h)))
+                return frames
+                
+            if "idle" in tag_to_folders:
+                self.animations[SkeletonState.IDLE] = load_from_folders(tag_to_folders["idle"])
+            if "walk" in tag_to_folders or "chase" in tag_to_folders:
+                walk_folders = tag_to_folders.get("walk", []) + tag_to_folders.get("chase", [])
+                self.animations[SkeletonState.CHASE] = load_from_folders(walk_folders)
+            if "attack" in tag_to_folders:
+                attack_folders = tag_to_folders["attack"]
+                if len(attack_folders) >= 2:
+                    self._attack1_frames = load_from_folders([attack_folders[0]])
+                    self._attack2_frames = load_from_folders([attack_folders[1]])
+                    self.animations[SkeletonState.ATTACK] = self._attack1_frames
+                else:
+                    self._attack1_frames = load_from_folders(attack_folders)
+                    self._attack2_frames = self._attack1_frames
+                    self.animations[SkeletonState.ATTACK] = self._attack1_frames
+            if "hurt" in tag_to_folders:
+                self.animations[SkeletonState.HURT] = load_from_folders(tag_to_folders["hurt"])
+            if "death" in tag_to_folders:
+                self.animations[SkeletonState.DEATH] = load_from_folders(tag_to_folders["death"])
+                
+        # 3. Apply Tier Scaling (Health, Speed, Size)
+        damage_scale = 1.0
+        knockback_scale = 1.0
+        
+        if self.tier == "boss":
+            self.scale *= 1.8
+            self._max_health = 150.0
+            self._speed = 1.8
+            damage_scale = 3.0
+            knockback_scale = 1.8
+            # Scale all pre-loaded animation frames to boss scale
+            for state in list(self.animations.keys()):
+                self.animations[state] = [
+                    pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
+                    for img in self.animations[state]
+                ]
+            self._attack1_frames = [
+                pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
+                for img in self._attack1_frames
+            ]
+            self._attack2_frames = [
+                pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
+                for img in self._attack2_frames
+            ]
+        elif self.tier == "elite":
+            self.scale *= 1.3
+            self._max_health = 60.0
+            self._speed = 3.2
+            damage_scale = 1.6
+            knockback_scale = 1.3
+            # Scale all pre-loaded animation frames to elite scale
+            for state in list(self.animations.keys()):
+                self.animations[state] = [
+                    pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
+                    for img in self.animations[state]
+                ]
+            self._attack1_frames = [
+                pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
+                for img in self._attack1_frames
+            ]
+            self._attack2_frames = [
+                pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
+                for img in self._attack2_frames
+            ]
+        else:  # minion
+            self._max_health = 30.0
+            self._speed = 2.5
+            
+        self._health: float = self._max_health
+        
+        self.attack1_config = AttackConfig(
+            hit_frames=self.ATTACK_1_CONFIG.hit_frames,
+            base_damage=self.ATTACK_1_CONFIG.base_damage * damage_scale,
+            knockback_force=self.ATTACK_1_CONFIG.knockback_force * knockback_scale,
+        )
+        self.attack2_config = AttackConfig(
+            hit_frames=self.ATTACK_2_CONFIG.hit_frames,
+            base_damage=self.ATTACK_2_CONFIG.base_damage * damage_scale,
+            knockback_force=self.ATTACK_2_CONFIG.knockback_force * knockback_scale,
         )
         
         # Initial setup
@@ -106,7 +224,6 @@ class Skeleton(Actor):
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
         
         # Movement and physics
-        self._speed: float = 2.5
         self._gravity: float = 0.0
         # Load dynamic ground offset from HitboxRegistry
         self._ground_y: int = pg.display.Info().current_h - margins.ground_offset
@@ -115,10 +232,6 @@ class Skeleton(Actor):
         self._detection_range: int = 1000
         self._attack_range: int = 60
         self._vertical_tolerance: int = 100
-        
-        # Combat state
-        self._max_health: float = 30.0
-        self._health: float = self._max_health
         
     def _load_frames(
         self,
@@ -266,14 +379,12 @@ class Skeleton(Actor):
     def _begin_attack(self) -> None:
         if random.random() < 0.5:
             # Primary attack animation
-            self.animations[SkeletonState.ATTACK] = self._load_frames(
-                "assets/skeleton/Skeleton_01_White_Attack1/skeleton-atk2_{:02d}.png", 10
-            )
-            self.current_attack_config = self.ATTACK_1_CONFIG
+            self.animations[SkeletonState.ATTACK] = self._attack1_frames
+            self.current_attack_config = self.attack1_config
         else:
             # Secondary attack animation
             self.animations[SkeletonState.ATTACK] = self._attack2_frames
-            self.current_attack_config = self.ATTACK_2_CONFIG
+            self.current_attack_config = self.attack2_config
         self.set_state(SkeletonState.ATTACK)
     
     def _chase_player(self, player_rect: pg.Rect) -> None:

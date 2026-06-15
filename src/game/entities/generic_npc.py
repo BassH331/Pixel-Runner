@@ -91,6 +91,7 @@ class GenericNPC(Actor):
         margins = HitboxRegistry.get_margins(sprite_key)
         
         final_scale = scale if scale is not None else margins.scale
+        self.scale = final_scale
 
         # ── Load animation frames from the given folder ─────────────────────
         raw_frames = AssetManager.get_animation_frames(sprite_dir)

@@ -155,8 +155,9 @@ class FolderBrowser:
     ROW_H = 30
     IND   = 18
 
-    def __init__(self, root: str, rect: pg.Rect):
+    def __init__(self, root: str, rect: pg.Rect, allow_parent: bool = False):
         self.root, self.rect = root, rect
+        self.allow_parent = allow_parent
         self.expanded: set[str] = set()
         self.selected: Optional[str] = None
         self.scroll = 0
@@ -217,11 +218,12 @@ class FolderBrowser:
                           (x, y + (self.ROW_H - font.size(arrow)[1]) // 2))
             x += 14
             # Name
-            col = WARN if is_sel else (TXT if item["has_pngs"] else TXT2)
+            is_selectable = item["has_pngs"] or (self.allow_parent and item["has_children"])
+            col = WARN if is_sel else (TXT if is_selectable else TXT2)
             surf.blit(font.render(item["name"], True, col),
                       (x, y + (self.ROW_H - font.size(item["name"])[1]) // 2))
             # SELECT badge
-            if item["has_pngs"]:
+            if is_selectable:
                 badge = font.render("[SELECT]", True, SUCCESS if is_sel else TXT3)
                 surf.blit(badge, (self.rect.right - badge.get_width() - 8,
                                   y + (self.ROW_H - badge.get_height()) // 2))
@@ -246,7 +248,8 @@ class FolderBrowser:
                 y = self.rect.y + i * self.ROW_H - self.scroll
                 row = pg.Rect(self.rect.x, y, self.rect.w, self.ROW_H)
                 if row.collidepoint(m):
-                    if item["has_pngs"]:
+                    is_selectable = item["has_pngs"] or (self.allow_parent and item["has_children"])
+                    if is_selectable:
                         self.selected = item["path"]
                     if item["has_children"]:
                         if item["path"] in self.expanded:
@@ -409,13 +412,27 @@ class App:
         _dist_raw = ev.get("distance", 500)
         dist = float(_dist_raw) if isinstance(_dist_raw, (int, float)) else 500.0
         if etype == "npc":
+            nt = p.get("npc_type", "generic")
+            if nt == "wizard":
+                npc_key = "wizard_npc"
+            else:
+                sprite_dir = p.get("sprite_dir") or ""
+                folder_name = os.path.basename(sprite_dir.rstrip("/"))
+                if folder_name.lower() == "idle":
+                    parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                    folder_name = os.path.basename(parent_dir)
+                npc_key = f"generic_npc_{folder_name.lower()}"
+            from src.game.entities.hitbox_registry import HitboxRegistry
+            margins = HitboxRegistry.get_margins(npc_key)
+            default_scale = margins.scale
+
             self.s3_ui = {
-                "npc_type": p.get("npc_type", "generic"),
+                "npc_type": nt,
                 "title":  TextInput("NPC Title", 472, CONTENT_Y+48,  782, initial=p.get("title","New NPC")),
                 "text":   TextInput("Dialogue",  472, CONTENT_Y+132, 782, initial=p.get("text","...")),
                 "radius": Slider("Proximity Radius", 472, CONTENT_Y+218, 782, 50, 400, float(p.get("radius",160))),
                 "dist":   Slider("Trigger Distance", 472, CONTENT_Y+308, 782, 0, end, dist),
-                "scale":  Slider("Scale", 472, CONTENT_Y+388, 782, 0.5, 6.0, float(p.get("scale",2.0)), True),
+                "scale":  Slider("Scale", 472, CONTENT_Y+388, 782, 0.5, 6.0, float(p.get("scale", default_scale)), True),
             }
             self.browser.selected = p.get("sprite_dir") or None
         elif etype == "enemy_wave":

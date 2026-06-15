@@ -6,9 +6,19 @@
     "spawn_zones": [
         {
             "min_dist": 0,
-            "max_dist": 1000,
+            "max_dist": 530,
             "max_skeletons": 3,
-            "delay": 6000
+            "delay": 6000,
+            "tier": "minion",
+            "sprite_root": "assets/skeleton",
+            "behaviour_map": {
+                "Skeleton_01_White_Attack1": "attack",
+                "Skeleton_01_White_Attack2": "attack",
+                "Skeleton_01_White_Die": "death",
+                "Skeleton_01_White_Hurt": "hurt",
+                "Skeleton_01_White_Idle": "idle",
+                "Skeleton_01_White_Walk": "chase"
+            }
         },
         {
             "min_dist": 1000,
@@ -57,8 +67,8 @@
                 "sprite_dir": "assets/graphics/masked_man",
                 "title": "Masked Stranger",
                 "radius": 160,
-                "scale": 2.0,
-                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors \u2014 they strike in groups and show no mercy."
+                "scale": 6.0,
+                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors — they strike in groups and show no mercy."
             }
         },
         {
@@ -82,17 +92,20 @@
                 "npc_type": "wizard",
                 "title": "Wizard",
                 "radius": 180,
-                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde \u2014 without my barrier they would overrun these lands. Press on, and may my magic shield your path."
+                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde — without my barrier they would overrun these lands. Press on, and may my magic shield your path."
             }
         },
         {
             "id": 6,
             "distance": 2145,
-            "type": "interaction",
+            "type": "npc",
             "params": {
+                "npc_type": "generic",
                 "title": "Tower of Darkness",
                 "text": "Checkpoint - auto save initiated",
-                "radius": 114
+                "radius": 114,
+                "scale": 2.0,
+                "sprite_dir": "assets/graphics/RedMoonTower"
             }
         },
         {
