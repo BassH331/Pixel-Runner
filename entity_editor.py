@@ -147,6 +147,9 @@ class HitboxEditorApp:
         self.frame_idx = 0
         self.frame_timer = 0.0
 
+        # Confirmation & Transaction State
+        self.confirming_save = False
+
         # Drag & Drop interaction state variables
         self.dragging_edge = None
         self.dragging_floor = False
@@ -185,6 +188,7 @@ class HitboxEditorApp:
         }
 
         self.select_entity(0)
+        HitboxRegistry.begin_transaction()
 
     def scan_level_files(self):
         """Scans all level configuration JSONs in game_data to find actual game NPCs."""
@@ -373,6 +377,10 @@ class HitboxEditorApp:
         self.entity.adjust_hitbox_sides(left=left, right=right, top=top, bottom=bottom)
 
     def save_current_config(self):
+        # Open confirmation dialog instead of writing directly
+        self.confirming_save = True
+
+    def execute_save_commit(self):
         config = self.entity_configs[self.active_index]
         key = config["key"]
         margins = HitboxMargins(
@@ -383,23 +391,31 @@ class HitboxEditorApp:
             ground_offset=self.sliders["ground_offset"].val,
             scale=self.sliders["scale"].val
         )
+        # Update memory configuration
         HitboxRegistry.update_margins(key, margins)
-        print(f"Saved configuration for {key}: {margins}")
+        # Commit transaction to database exclusively locked under flock
+        HitboxRegistry.commit_transaction()
+        print(f"Committed and locked database update for {key}: {margins}")
 
     def reset_current_config(self):
         config = self.entity_configs[self.active_index]
         key = config["key"]
-        default_margins = HitboxRegistry.DEFAULTS.get(key, HitboxMargins(0, 0, 0, 0, 34, scale=2.0))
         
-        self.sliders["scale"].val = default_margins.scale
-        self.sliders["left"].val = default_margins.left
-        self.sliders["right"].val = default_margins.right
-        self.sliders["top"].val = default_margins.top
-        self.sliders["bottom"].val = default_margins.bottom
-        self.sliders["ground_offset"].val = default_margins.ground_offset
+        # Rollback current in-memory changes to the last committed transaction checkpoint
+        HitboxRegistry.rollback_transaction()
+        
+        # Reload margins from rollback state
+        margins = HitboxRegistry.get_margins(key)
+        
+        self.sliders["scale"].val = margins.scale
+        self.sliders["left"].val = margins.left
+        self.sliders["right"].val = margins.right
+        self.sliders["top"].val = margins.top
+        self.sliders["bottom"].val = margins.bottom
+        self.sliders["ground_offset"].val = margins.ground_offset
         
         self.reload_entity()
-        print(f"Reset {key} to defaults.")
+        print(f"Rolled back {key} configuration to last saved checkpoint.")
 
     def run(self):
         while self.running:
@@ -427,6 +443,29 @@ class HitboxEditorApp:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 self.running = False
+                return
+
+            if self.confirming_save:
+                # Handle inputs only for confirmation dialog
+                if event.type == pg.KEYDOWN:
+                    if event.key in (pg.K_RETURN, pg.K_y):
+                        self.execute_save_commit()
+                        self.confirming_save = False
+                    elif event.key in (pg.K_ESCAPE, pg.K_n):
+                        self.confirming_save = False
+                elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                    # Check Confirm/Cancel dialog button clicks
+                    dialog_w, dialog_h = 500, 240
+                    dialog_x = (SCREEN_W - dialog_w) // 2
+                    dialog_y = (SCREEN_H - dialog_h) // 2
+                    confirm_btn_rect = pg.Rect(dialog_x + 40, dialog_y + 160, 180, 45)
+                    cancel_btn_rect = pg.Rect(dialog_x + 280, dialog_y + 160, 180, 45)
+                    if confirm_btn_rect.collidepoint(event.pos):
+                        self.execute_save_commit()
+                        self.confirming_save = False
+                    elif cancel_btn_rect.collidepoint(event.pos):
+                        self.confirming_save = False
+                continue
                 
             elif event.type == pg.KEYDOWN:
                 if event.key == pg.K_ESCAPE:
@@ -640,6 +679,56 @@ class HitboxEditorApp:
         # Draw action buttons
         for btn in self.action_buttons:
             btn.draw(screen, ui_font)
+
+        # ─ 7. Write Confirmation Dialog (Overlay) ──────────────
+        if self.confirming_save:
+            # 1. Darken the entire screen slightly
+            overlay = pg.Surface((SCREEN_W, SCREEN_H), pg.SRCALPHA)
+            overlay.fill((10, 10, 15, 200))  # Semi-transparent dark blue/black
+            screen.blit(overlay, (0, 0))
+
+            # 2. Draw the Modal Dialog Box
+            dialog_w, dialog_h = 520, 240
+            dialog_x = (SCREEN_W - dialog_w) // 2
+            dialog_y = (SCREEN_H - dialog_h) // 2
+            dialog_rect = pg.Rect(dialog_x, dialog_y, dialog_w, dialog_h)
+
+            # Draw outer container with premium styling
+            pg.draw.rect(screen, (25, 25, 35), dialog_rect, border_radius=16)
+            pg.draw.rect(screen, (241, 196, 15), dialog_rect, width=3, border_radius=16)
+
+            # 3. Text content
+            title_text = title_font.render("COMMIT TRANSACTION?", True, (241, 196, 15))
+            desc_text_1 = help_font.render("Write and lock configurations to secure bank database?", True, (240, 240, 240))
+            desc_text_2 = help_font.render("This commits changes to game_data/entity_dimensions.json", True, (160, 160, 180))
+
+            title_rect = title_text.get_rect(centerx=dialog_rect.centerx, y=dialog_rect.y + 30)
+            desc_rect_1 = desc_text_1.get_rect(centerx=dialog_rect.centerx, y=dialog_rect.y + 85)
+            desc_rect_2 = desc_text_2.get_rect(centerx=dialog_rect.centerx, y=dialog_rect.y + 115)
+
+            screen.blit(title_text, title_rect)
+            screen.blit(desc_text_1, desc_rect_1)
+            screen.blit(desc_text_2, desc_rect_2)
+
+            # 4. Buttons (Confirm / Cancel)
+            confirm_btn_rect = pg.Rect(dialog_x + 40, dialog_y + 160, 190, 45)
+            cancel_btn_rect = pg.Rect(dialog_x + 290, dialog_y + 160, 190, 45)
+
+            # Hover states
+            confirm_hover = confirm_btn_rect.collidepoint(m_pos)
+            cancel_hover = cancel_btn_rect.collidepoint(m_pos)
+
+            confirm_color = (46, 204, 113) if confirm_hover else (39, 174, 96)
+            cancel_color = (231, 76, 60) if cancel_hover else (192, 57, 43)
+
+            pg.draw.rect(screen, confirm_color, confirm_btn_rect, border_radius=8)
+            pg.draw.rect(screen, cancel_color, cancel_btn_rect, border_radius=8)
+
+            confirm_lbl = ui_font.render("CONFIRM (ENTER)", True, (255, 255, 255))
+            cancel_lbl = ui_font.render("CANCEL (ESC)", True, (255, 255, 255))
+
+            screen.blit(confirm_lbl, confirm_lbl.get_rect(center=confirm_btn_rect.center))
+            screen.blit(cancel_lbl, cancel_lbl.get_rect(center=cancel_btn_rect.center))
 
         pg.display.flip()
 

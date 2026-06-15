@@ -298,7 +298,16 @@ class GameState(State):
         
         # Position all NPCs on the ground level (aligned with their config feet position)
         from src.game.entities.hitbox_registry import HitboxRegistry
-        npc_key = "wizard_npc" if npc_type == "wizard" else "generic_npc"
+        if npc_type == "wizard":
+            npc_key = "wizard_npc"
+        else:
+            sprite_dir = params.get("sprite_dir", "")
+            folder_name = os.path.basename(sprite_dir.rstrip("/"))
+            if folder_name.lower() == "idle":
+                parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                folder_name = os.path.basename(parent_dir)
+            npc_key = f"generic_npc_{folder_name.lower()}"
+
         margins = HitboxRegistry.get_margins(npc_key)
         ground_y = self.height - margins.ground_offset
 
@@ -308,7 +317,7 @@ class GameState(State):
                 y=ground_y,
                 text=params["text"],
                 title=params["title"],
-                scale=params.get("scale", 2.0),
+                scale=None,  # Dynamic fallback to database scale
                 proximity_radius=params.get("radius", 160),
             ))
         else:
@@ -319,7 +328,7 @@ class GameState(State):
                 sprite_dir=params["sprite_dir"],
                 text=params["text"],
                 title=params.get("title", "NPC"),
-                scale=params.get("scale", 2.0),
+                scale=None,  # Dynamic fallback to database scale
                 proximity_radius=params.get("radius", 160),
                 frame_duration=params.get("frame_duration", 0.15),
             ))
