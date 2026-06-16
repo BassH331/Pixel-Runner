@@ -108,7 +108,7 @@ class CombatManager:
                 continue
             
             # Check collision with enemy's hitbox
-            if not attack_hitbox.colliderect(enemy.hitbox):
+            if not attack_hitbox.colliderect(enemy.hitbox):  # type: ignore
                 continue
             
             # Try to register the hit (prevents duplicates)
@@ -149,7 +149,7 @@ class CombatManager:
         ]
         
         # Process all collisions at once
-        hits = player.process_attack_collisions(targets)
+        hits = player.process_attack_collisions(targets)  # type: ignore
         
         # Apply results
         for hit in hits:
@@ -192,7 +192,7 @@ class CombatManager:
                 continue
             
             # Check collision with player
-            if not attack_hitbox.colliderect(player.hitbox):
+            if not attack_hitbox.colliderect(player.hitbox):  # type: ignore
                 continue
             
             # Try to register hit (enemy needs same system)
@@ -235,12 +235,12 @@ class CombatManager:
             return
         
         # Draw player attack hitbox (red)
-        player.draw_debug_hitboxes(surface)
+        player.draw_debug_hitboxes(surface)  # type: ignore
         
         # Draw enemy attack hitboxes (orange)
         for enemy in enemies:
             if hasattr(enemy, 'draw_debug_hitboxes'):
-                enemy.draw_debug_hitboxes(surface)
+                enemy.draw_debug_hitboxes(surface)  # type: ignore
 
 
 # ─────────────────────────────────────────────────────────────────────────────

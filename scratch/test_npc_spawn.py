@@ -48,8 +48,8 @@ game_state = GameState(manager)
 game_state.on_enter()
 
 # Close the tutorial and objective displays so the game updates
-game_state.tutorial_overlay.active = False
-game_state.objective_display.active = False
+game_state.tutorial_overlay._active = False
+game_state.objective_display._active = False
 
 print("Initial world_distance:", game_state.world_distance)
 print("Initial npc_group size:", len(game_state.npc_group))
