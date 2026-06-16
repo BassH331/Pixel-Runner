@@ -405,7 +405,17 @@ class App:
 
     def commit(self):
         for k in self.reg_del:
-            HitboxRegistry._cached_config.pop(k, None)
+            is_used = False
+            for ev in self.pending:
+                if ev.get("type") == "npc":
+                    p = ev.get("params", {})
+                    nt = p.get("npc_type", "generic")
+                    sprite_dir = p.get("sprite_dir", "") if nt == "generic" else ""
+                    if _npc_registry_key(nt, sprite_dir) == k:
+                        is_used = True
+                        break
+            if not is_used:
+                HitboxRegistry._cached_config.pop(k, None)
         self.pending.sort(key=lambda e: e["distance"])
         self.level_data["world_events"] = copy.deepcopy(self.pending)
         with open(self.level_files[self.active_idx], "w") as fh:
@@ -488,11 +498,21 @@ class App:
                 sprite_dir = self.browser.selected or ""
                 p["sprite_dir"] = sprite_dir
 
-            # Save the same scale that the runtime registry will use.
-            # This is the bug your simulation correctly caught.
-            registry_scale = _scale_from_registry(nt, sprite_dir, float(ui["scale"].val))
-            ui["scale"].val = registry_scale
-            p["scale"] = registry_scale
+            # Save the new scale to both level JSON and HitboxRegistry
+            new_scale = float(ui["scale"].val)
+            key = _npc_registry_key(nt, sprite_dir)
+            if key:
+                old_margins = HitboxRegistry.get_margins(key)
+                new_margins = HitboxMargins(
+                    left=old_margins.left,
+                    right=old_margins.right,
+                    top=old_margins.top,
+                    bottom=old_margins.bottom,
+                    ground_offset=old_margins.ground_offset,
+                    scale=new_scale
+                )
+                HitboxRegistry.update_margins(key, new_margins)
+            p["scale"] = new_scale
         elif t == "enemy_wave":
             p = {"count": int(ui["count"].val), "type": "bat"}
         else:
@@ -824,6 +844,23 @@ class App:
                 self.surf.blit(st, (472, CONTENT_Y+47))
             for v in self.s3_ui.values():
                 if hasattr(v,"draw"): v.draw(self.surf, self.f, self.sf)
+            if self.s3_idx >= 0:
+                ev = self.pending[self.s3_idx]
+                json_scale = ev.get("params", {}).get("scale")
+                if json_scale is not None:
+                    sprite_dir = "" if nt == "wizard" else (self.browser.selected or "")
+                    key = _npc_registry_key(nt, sprite_dir)
+                    registry_scale = None
+                    if key:
+                        try:
+                            registry_scale = HitboxRegistry.get_margins(key).scale
+                        except Exception:
+                            pass
+                    if registry_scale is not None:
+                        comp_y = self.s3_ui["scale"].track.y + 16
+                        comp_text = f"JSON config scale: {json_scale:.2f}  |  Registry scale: {registry_scale:.2f}"
+                        color = SUCCESS if abs(json_scale - registry_scale) < 0.01 else WARN
+                        self.surf.blit(self.sf.render(comp_text, True, color), (self.s3_ui["scale"].track.x, comp_y))
             pbox = pg.Rect(472, CONTENT_Y+460, 782, 160)
             pg.draw.rect(self.surf, PANEL2, pbox, border_radius=8)
             pg.draw.rect(self.surf, BORDER, pbox, width=1, border_radius=8)

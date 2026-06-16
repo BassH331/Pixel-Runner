@@ -408,6 +408,11 @@ class GameState(State):
             setattr(npc, "event_distance", params.get("_event_distance"))
             self.npc_group.add(npc)
 
+        event_distance = float(params.get("_event_distance", self.world_distance))
+        spawn_lead_px = 50
+        setattr(npc, "world_x", event_distance + self.width + spawn_lead_px)
+        setattr(npc, "spawn_world_distance", self.world_distance)
+
     def _handle_enemy_wave(self, params: dict) -> None:
         """Handler for 'enemy_wave' events."""
         count = params.get("count", 3)
@@ -949,6 +954,8 @@ class GameState(State):
                 npc_res["actual_height"] = spawned_data["actual_height"]
                 npc_res["initial_screen_x"] = spawned_data["initial_x"]
                 npc_res["initial_screen_y"] = spawned_data["initial_y"]
+                npc_res["first_physical_collision"] = spawned_data.get("first_physical_collision")
+                npc_res["first_proximity_collision"] = spawned_data.get("first_proximity_collision")
                 
                 positions = spawned_data["positions"]
                 npc_res["total_frames_tracked"] = len(positions)
@@ -992,6 +999,20 @@ class GameState(State):
                 else:
                     # Too few frames to assess scrolling — spawned near timeout boundary
                     npc_res["insufficient_data"] = True
+
+                # === Consistency Check 6: Screen position accuracy ===
+                if "world_x" in spawned_data and spawned_data["world_x"] is not None:
+                    last_x = positions[-1][0]
+                    expected_x = spawned_data["world_x"] - self.world_distance
+                    x_error = abs(last_x - expected_x)
+                    npc_res["expected_screen_x"] = expected_x
+                    npc_res["actual_screen_x"] = last_x
+                    npc_res["screen_x_error"] = x_error
+                    if x_error > 5:
+                        npc_res["issues"].append(
+                            f"Screen position mismatch: expected x={expected_x:.1f}, "
+                            f"actual x={last_x:.1f}, error={x_error:.1f}"
+                        )
                 
                 # === Position sample: first, middle, last frames ===
                 samples = []
@@ -1035,6 +1056,17 @@ class GameState(State):
                 markdown_lines.append(f"- **Initial Screen Pos:** ({npc_res['initial_screen_x']}, {npc_res['initial_screen_y']})")
                 markdown_lines.append(f"- **Frames Tracked:** {npc_res['total_frames_tracked']}")
                 markdown_lines.append(f"- **Total X Scrolled:** {npc_res.get('total_x_scrolled', 'N/A')}px")
+                if npc_res.get("first_physical_collision"):
+                    phy = npc_res["first_physical_collision"]
+                    markdown_lines.append(f"- **Physical Collision:** reached at world_distance={phy['world_distance']:.1f}m (level editor trigger={phy['trigger_distance']}m, delta={phy['delta']:.1f}m)")
+                else:
+                    markdown_lines.append(f"- **Physical Collision:** None (no bounding box overlap)")
+                
+                if npc_res.get("first_proximity_collision"):
+                    prox = npc_res["first_proximity_collision"]
+                    markdown_lines.append(f"- **Proximity Collision:** reached at world_distance={prox['world_distance']:.1f}m (level editor trigger={prox['trigger_distance']}m, delta={prox['delta']:.1f}m)")
+                else:
+                    markdown_lines.append(f"- **Proximity Collision:** None (no interaction radius overlap)")
                 if npc_res.get("position_samples"):
                     markdown_lines.append(f"- **Position Samples:**")
                     for s in npc_res["position_samples"]:
@@ -1076,6 +1108,12 @@ class GameState(State):
         for npc in report_data["npcs"]:
             status = npc['status']
             print(f"  NPC #{npc['id']} ({npc['title']}): {status}")
+            if npc.get("first_physical_collision"):
+                phy = npc["first_physical_collision"]
+                print(f"    - Physical Collision: world_dist={phy['world_distance']:.0f} (delta={phy['delta']:.0f})")
+            if npc.get("first_proximity_collision"):
+                prox = npc["first_proximity_collision"]
+                print(f"    - Proximity Collision: world_dist={prox['world_distance']:.0f} (delta={prox['delta']:.0f})")
             if npc.get("issues"):
                 for issue in npc["issues"]:
                     print(f"    ⚠ {issue}")
@@ -1137,7 +1175,12 @@ class GameState(State):
         self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
-        self.npc_group.update(dt, self.bg_scroll_speed)
+        for npc in self.npc_group:
+            if hasattr(npc, "world_x"):
+                npc.rect.x = int(getattr(npc, "world_x") - self.world_distance)
+                npc.update(dt, scroll_speed=0)
+            else:
+                npc.update(dt, scroll_speed=self.bg_scroll_speed)
 
         # Check proximity for interaction points
         for point in self.interaction_group:
@@ -1183,7 +1226,10 @@ class GameState(State):
                             "actual_height": npc.image.get_height() if npc.image else 0,
                             "initial_x": npc.rect.x,
                             "initial_y": npc.rect.y,
-                            "positions": []
+                            "world_x": getattr(npc, "world_x", None),
+                            "positions": [],
+                            "first_physical_collision": None,
+                            "first_proximity_collision": None
                         }
                         # Log spawn event
                         print(f"[SIM] NPC #{eid} '{getattr(npc, 'title', '?')}' SPAWNED "
@@ -1193,18 +1239,39 @@ class GameState(State):
                               f"radius={getattr(npc, 'proximity_radius', '?')} "
                               f"img={npc.image.get_width() if npc.image else 0}x"
                               f"{npc.image.get_height() if npc.image else 0}")
+                    
+                    # Track collisions in real-time
+                    sim_npc = self._simulation_npcs[eid]
+                    if sim_npc["first_physical_collision"] is None:
+                        if player_sprite.rect.colliderect(npc.rect):
+                            event_dist = float(getattr(npc, "event_distance", 0.0))
+                            sim_npc["first_physical_collision"] = {
+                                "world_distance": float(self.world_distance),
+                                "trigger_distance": event_dist,
+                                "delta": float(self.world_distance - event_dist)
+                            }
+                            print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PHYSICAL COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
+                    
+                    if sim_npc["first_proximity_collision"] is None:
+                        if getattr(npc, "_in_range", False):
+                            event_dist = float(getattr(npc, "event_distance", 0.0))
+                            sim_npc["first_proximity_collision"] = {
+                                "world_distance": float(self.world_distance),
+                                "trigger_distance": event_dist,
+                                "delta": float(self.world_distance - event_dist)
+                            }
+                            print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PROXIMITY COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
+                    
                     # Append coordinate history
                     self._simulation_npcs[eid]["positions"].append((npc.rect.x, npc.rect.y))
             
-            # Real-time log every 30 frames
-            if self._sim_log_counter % 30 == 0:
-                npc_info = []
-                for npc in self.npc_group:
-                    eid = getattr(npc, "event_id", None)
-                    if eid is not None:
-                        npc_info.append(f"#{eid}@({npc.rect.x},{npc.rect.y})")
-                if npc_info:
-                    print(f"[SIM] dist={self.world_distance:.0f} | {' '.join(npc_info)}")
+            # Real-time log every frame
+            npc_info = []
+            for npc in self.npc_group:
+                eid = getattr(npc, "event_id", None)
+                if eid is not None:
+                    npc_info.append(f"#{eid}@({npc.rect.x},{npc.rect.y})")
+            print(f"[SIM] frame={self._sim_log_counter} dist={self.world_distance:.0f} player@({player_sprite.rect.x},{player_sprite.rect.y}) | {' '.join(npc_info)}")
 
             # 2. Check for early exit condition:
             # If we have expected NPCs in range, and all triggered expected NPCs have spawned and are off-screen:

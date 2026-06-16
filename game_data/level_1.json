@@ -60,15 +60,15 @@
     "world_events": [
         {
             "id": 1,
-            "distance": 655,
+            "distance": 460,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
                 "title": "Masked Stranger",
                 "text": "The path ahead grows darker, traveler. Beware the skeletal warriors \u2014 they strike in groups and show no mercy.",
                 "radius": 160,
-                "scale": 3.86,
-                "sprite_dir": "assets/graphics/masked_man"
+                "sprite_dir": "assets/graphics/masked_man",
+                "scale": 4.5
             }
         },
         {
