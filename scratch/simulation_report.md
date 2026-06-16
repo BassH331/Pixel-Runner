@@ -1,45 +1,27 @@
-# Pixel-Runner Simulation Report
+# Pixel-Runner Wave Simulation Report
 
 **Overall Status:** PASSED ✅
-**Final Distance:** 1200.0
+**Final Distance:** 1580.0
 **Simulation Duration:** 6007.0ms
-**Scroll Speed:** 5 px/frame
+**Dynamic Enemies Spawned:** 3
 
-### NPC #1: Masked Stranger (✅ PASSED)
-- **Registry Key:** `generic_npc_masked_man`
-- **Trigger Distance:** JSON=460.0m | Spawned at=460.0m
-- **Scale:** JSON=4.5 | Registry=4.5 | Runtime=4.5
-- **Proximity Radius:** JSON=160.0 | Runtime=160.0
-- **Image Dimensions:** 144×144
-- **Initial Screen Pos:** (1648, 654)
-- **Frames Tracked:** 149
-- **Total X Scrolled:** 740px
-- **Physical Collision:** reached at world_distance=1055.0m (level editor trigger=460.0m, delta=595.0m)
-- **Proximity Collision:** reached at world_distance=1080.0m (level editor trigger=460.0m, delta=620.0m)
-- **Position Samples:**
-  - Frame 0: (1648, 654)
-  - Frame 74: (1278, 654)
-  - Frame 148: (908, 654)
+### Enemy #1 (Skeleton)
+- **Spawned at world_distance:** 645.0m
+- **Initial Screen Position:** (1812, 646)
+- **Physical Collision:** reached at world_distance=1330.0m (Screen: (955, 680))
+- **Frames Tracked:** 188
+- **Position Samples:** Frame 0: (1812, 646), Frame 94: (1256, 680), Frame 187: (689, 680)
 
-### NPC #4: Wizard (⚠️ INCONCLUSIVE (too few frames))
-- **Registry Key:** `wizard_npc`
-- **Trigger Distance:** JSON=1200.0m | Spawned at=1200.0m
-- **Scale:** JSON=1.6 | Registry=1.6 | Runtime=1.6
-- **Proximity Radius:** JSON=180.0 | Runtime=180.0
-- **Image Dimensions:** 369×304
-- **Initial Screen Pos:** (1648, 563)
-- **Frames Tracked:** 1
-- **Total X Scrolled:** N/Apx
-- **Physical Collision:** None (no bounding box overlap)
-- **Proximity Collision:** None (no interaction radius overlap)
-- **Position Samples:**
-  - Frame 0: (1648, 563)
-  - Frame 0: (1648, 563)
-  - Frame 0: (1648, 563)
+### Enemy #2 (Skeleton)
+- **Spawned at world_distance:** 1055.0m
+- **Initial Screen Position:** (1746, 646)
+- **Physical Collision:** reached at world_distance=1545.0m (Screen: (1084, 680))
+- **Frames Tracked:** 106
+- **Position Samples:** Frame 0: (1746, 646), Frame 53: (1399, 680), Frame 105: (1035, 680)
 
-### NPC #7: Moon Tower (⚠️ SKIPPED (not reached))
-- **Registry Key:** `generic_npc_redmoontower`
-- **Trigger Distance:** JSON=2145.0m | Spawned at=N/Am
-- **Scale:** JSON=2.0 | Registry=2.0 | Runtime=N/A
-- **Proximity Radius:** JSON=160.0 | Runtime=N/A
-- **Spawned:** No
+### Enemy #3 (Skeleton)
+- **Spawned at world_distance:** 1465.0m
+- **Initial Screen Position:** (1823, 646)
+- **Physical Collision:** None (no player collision detected)
+- **Frames Tracked:** 24
+- **Position Samples:** Frame 0: (1823, 646), Frame 12: (1739, 680), Frame 23: (1662, 680)

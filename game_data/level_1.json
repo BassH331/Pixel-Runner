@@ -5,11 +5,11 @@
     "spawn_rate_max": 15000,
     "spawn_zones": [
         {
-            "min_dist": 20,
-            "max_dist": 320,
-            "max_skeletons": 8,
-            "delay": 500,
-            "required_kills": 2,
+            "min_dist": 980,
+            "max_dist": 1470,
+            "max_skeletons": 4,
+            "delay": 880,
+            "required_kills": 3,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {
@@ -43,7 +43,7 @@
     "world_events": [
         {
             "id": 1,
-            "distance": 460,
+            "distance": 174,
             "type": "npc",
             "params": {
                 "npc_type": "generic",

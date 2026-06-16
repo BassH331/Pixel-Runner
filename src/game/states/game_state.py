@@ -154,8 +154,10 @@ class GameState(State):
         parser = argparse.ArgumentParser()
         parser.add_argument("--start-dist", type=float, default=None)
         parser.add_argument("--duration", type=float, default=None)
+        parser.add_argument("--target-event-id", type=int, default=None)
         args, _ = parser.parse_known_args()
 
+        self._sim_type = "level"
         if args.start_dist is not None:
             self.world_distance = args.start_dist
             self._is_simulating = True
@@ -163,6 +165,11 @@ class GameState(State):
             self._sim_log_counter = 0
             self._show_objective_on_start = False
             self._show_tutorial_on_start = False
+            if args.target_event_id is not None:
+                self._sim_type = "level"
+            else:
+                self._sim_type = "wave"
+                self._simulation_wave_enemies = []
 
             # Auto-play player by simulating K_RIGHT
             class AutoPlayKeys:
@@ -313,19 +320,23 @@ class GameState(State):
         """Initial interaction points (none — they spawn by distance now)."""
         pass  # Entities are spawned dynamically in _spawn_world_entities()
 
-    def _get_spawn_zone(self) -> dict:
+    def _get_spawn_zone(self) -> Optional[dict]:
         """Get the current spawn zone based on how far the player has traveled.
 
         Zones come from level_1.json → "spawn_zones".
         If the JSON didn't have that key, self._spawn_zones was set to
         _DEFAULT_SPAWN_ZONES during __init__.
 
-        Returns the LAST zone whose min_dist the player has passed.
+        Returns the zone where min_dist <= max_distance_reached <= max_dist.
         """
         for zone in reversed(self._spawn_zones):
-            if self.max_distance_reached >= zone["min_dist"]:
-                return zone
-        return self._spawn_zones[0]
+            min_dist = zone.get("min_dist", 0)
+            max_dist = zone.get("max_dist")
+            
+            if self.max_distance_reached >= min_dist:
+                if max_dist is None or self.max_distance_reached <= max_dist:
+                    return zone
+        return None
 
     def _setup_world_events(self) -> None:
         """Register handlers for world events. Scheduling is handled via JSON config."""
@@ -623,7 +634,7 @@ class GameState(State):
             )
         
         # Spawn skeletons (distance-scaled)
-        if current_time >= self.next_skeleton_spawn_time:
+        if zone is not None and current_time >= self.next_skeleton_spawn_time:
             current_skeletons = sum(1 for sprite in self.obstacle_group 
                                  if isinstance(sprite, Skeleton))
             
@@ -631,12 +642,12 @@ class GameState(State):
             killed_count = zone.get("killed_count", 0)
             
             if required_kills == 0 or killed_count < required_kills:
-                if current_skeletons < zone["max_skeletons"]:
+                if current_skeletons < zone.get("max_skeletons", 0):
                     self.spawn_skeleton(zone)
-                    self.next_skeleton_spawn_time = current_time + zone["delay"]
+                    self.next_skeleton_spawn_time = current_time + zone.get("delay", 6000)
                     print(f"[SPAWN] Skeleton spawned! "
-                          f"alive={current_skeletons + 1}/{zone['max_skeletons']} "
-                          f"delay={zone['delay']}ms "
+                          f"alive={current_skeletons + 1}/{zone.get('max_skeletons', 0)} "
+                          f"delay={zone.get('delay', 6000)}ms "
                           f"dist={int(self.max_distance_reached)} "
                           f"kills={killed_count}/{required_kills if required_kills > 0 else 'inf'}")
     
@@ -1011,6 +1022,86 @@ class GameState(State):
         import os
         from src.game.entities.hitbox_registry import HitboxRegistry
         
+        if getattr(self, "_sim_type", "level") == "wave":
+            overall_passed = len(self._simulation_wave_enemies) > 0
+            
+            report_data = {
+                "status": "PASSED" if overall_passed else "FAILED",
+                "timestamp": pg.time.get_ticks(),
+                "duration_ms": self._simulation_timer,
+                "start_distance": getattr(self, "_sim_start_distance", 0.0),
+                "final_distance": self.world_distance,
+                "scroll_speed": self.max_bg_scroll_speed,
+                "type": "wave",
+                "enemies": self._simulation_wave_enemies
+            }
+            
+            markdown_lines = [
+                "# Pixel-Runner Wave Simulation Report",
+                "",
+                f"**Overall Status:** {'PASSED ✅' if overall_passed else 'FAILED ❌'}",
+                f"**Final Distance:** {self.world_distance:.1f}",
+                f"**Simulation Duration:** {self._simulation_timer:.1f}ms",
+                f"**Dynamic Enemies Spawned:** {len(self._simulation_wave_enemies)}",
+                ""
+            ]
+            
+            if not overall_passed:
+                markdown_lines.append("## Issues Found")
+                markdown_lines.append("1. No dynamic enemies spawned from configured spawn zones during the simulation.")
+                markdown_lines.append("")
+            
+            for enemy in self._simulation_wave_enemies:
+                eid = enemy["id"]
+                markdown_lines.append(f"### Enemy #{eid} ({enemy['type'].capitalize()})")
+                markdown_lines.append(f"- **Spawned at world_distance:** {enemy['spawn_distance']:.1f}m")
+                markdown_lines.append(f"- **Initial Screen Position:** ({enemy['initial_x']}, {enemy['initial_y']})")
+                
+                phy = enemy.get("first_physical_collision")
+                if phy:
+                    markdown_lines.append(f"- **Physical Collision:** reached at world_distance={phy['world_distance']:.1f}m (Screen: ({phy['screen_x']}, {phy['screen_y']}))")
+                else:
+                    markdown_lines.append(f"- **Physical Collision:** None (no player collision detected)")
+                
+                positions = enemy.get("positions", [])
+                if positions:
+                    markdown_lines.append(f"- **Frames Tracked:** {len(positions)}")
+                    samples = []
+                    sample_indices = [0, len(positions)//2, len(positions)-1]
+                    for si in sample_indices:
+                        if 0 <= si < len(positions):
+                            samples.append(f"Frame {si}: ({positions[si][0]}, {positions[si][1]})")
+                    markdown_lines.append(f"- **Position Samples:** {', '.join(samples)}")
+                markdown_lines.append("")
+                
+            os.makedirs("scratch", exist_ok=True)
+            with open("scratch/simulation_report.json", "w") as f:
+                json.dump(report_data, f, indent=4)
+                
+            with open("scratch/simulation_report.md", "w") as f:
+                f.write("\n".join(markdown_lines))
+                
+            print(f"\n{'='*60}")
+            print(f"[WAVE SIMULATION REPORT] Status: {report_data['status']}")
+            print(f"  Distance: {report_data.get('start_distance', 0):.0f} → {self.world_distance:.0f}")
+            print(f"  Duration: {self._simulation_timer:.0f}ms")
+            print(f"  Dynamic Enemies Spawned: {len(self._simulation_wave_enemies)}")
+            
+            if len(self._simulation_wave_enemies) > 0:
+                first_enemy = self._simulation_wave_enemies[0]
+                print(f"  First Spawned Enemy (Skeleton):")
+                print(f"    - Spawned at world_dist: {first_enemy['spawn_distance']:.1f}")
+                print(f"    - Initial Screen Position: ({first_enemy['initial_x']}, {first_enemy['initial_y']})")
+                phy = first_enemy.get("first_physical_collision")
+                if phy:
+                    print(f"    - First Physical Collision: world_dist={phy['world_distance']:.1f} (Screen: ({phy['screen_x']}, {phy['screen_y']}))")
+                else:
+                    print(f"    - First Physical Collision: None detected")
+            else:
+                print("  ⚠ No dynamic enemies spawned.")
+            print(f"{'='*60}")
+            return
+
         report_data = {
             "status": "PASSED",
             "timestamp": pg.time.get_ticks(),
@@ -1338,108 +1429,153 @@ class GameState(State):
         if self._is_simulating:
             self._sim_log_counter += 1
             
-            # 1. Track any NPCs and Bosses currently in the scene
-            sim_targets = []
-            for npc in self.npc_group:
-                eid = getattr(npc, "event_id", None)
-                if eid is not None:
-                    sim_targets.append((npc, "npc"))
-            for obstacle in self.obstacle_group:
-                if getattr(obstacle, "is_boss", False):
-                    eid = getattr(obstacle, "event_id", None)
-                    if eid is not None:
-                        sim_targets.append((obstacle, "boss"))
-
-            for target, ttype in sim_targets:
-                eid = getattr(target, "event_id")
-                if eid not in self._simulation_npcs:
-                    self._simulation_npcs[eid] = {
-                        "id": eid,
-                        "type": ttype if ttype == "boss" else ("wizard" if target.__class__.__name__ == "WizardNPC" else "generic"),
-                        "title": getattr(target, "title" if ttype == "npc" else "boss_title", "Entity"),
-                        "spawn_distance": self.world_distance,
-                        "actual_scale": float(getattr(target, "scale", 1.0)),
-                        "actual_radius": float(getattr(target, "proximity_radius", 160.0)),
-                        "actual_width": target.image.get_width() if target.image else 0,
-                        "actual_height": target.image.get_height() if target.image else 0,
-                        "initial_x": target.rect.x,
-                        "initial_y": target.rect.y,
-                        "world_x": getattr(target, "world_x", None),
-                        "positions": [],
-                        "first_physical_collision": None,
-                        "first_proximity_collision": None
-                    }
-                    # Log spawn event
-                    print(f"[SIM] NPC #{eid} '{self._simulation_npcs[eid]['title']}' SPAWNED "
-                          f"at world_dist={self.world_distance:.0f} "
-                          f"screen=({target.rect.x},{target.rect.y}) "
-                          f"scale={self._simulation_npcs[eid]['actual_scale']} "
-                          f"radius={self._simulation_npcs[eid]['actual_radius']} "
-                          f"img={self._simulation_npcs[eid]['actual_width']}x"
-                          f"{self._simulation_npcs[eid]['actual_height']}")
+            if getattr(self, "_sim_type", "level") == "wave":
+                # Track dynamic spawned skeletons (enemies)
+                for obstacle in self.obstacle_group:
+                    if isinstance(obstacle, Skeleton) and not getattr(obstacle, "is_boss", False):
+                        if not getattr(obstacle, "_sim_tracked", False):
+                            setattr(obstacle, "_sim_tracked", True)
+                            enemy_id = len(self._simulation_wave_enemies) + 1
+                            setattr(obstacle, "_sim_id", enemy_id)
+                            self._simulation_wave_enemies.append({
+                                "id": enemy_id,
+                                "type": "skeleton",
+                                "spawn_distance": float(self.world_distance),
+                                "initial_x": obstacle.rect.x,
+                                "initial_y": obstacle.rect.y,
+                                "first_physical_collision": None,
+                                "positions": []
+                            })
+                            print(f"[SIM] Dynamic enemy #{enemy_id} (Skeleton) SPAWNED at world_dist={self.world_distance:.0f} screen=({obstacle.rect.x},{obstacle.rect.y})")
                 
-                # Track collisions in real-time
-                sim_npc = self._simulation_npcs[eid]
-                if sim_npc["first_physical_collision"] is None:
-                    if player_sprite.rect.colliderect(target.rect):
-                        event_dist = float(getattr(target, "event_distance", 0.0))
-                        sim_npc["first_physical_collision"] = {
-                            "world_distance": float(self.world_distance),
-                            "trigger_distance": event_dist,
-                            "delta": float(self.world_distance - event_dist)
-                        }
-                        print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PHYSICAL COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
+                # Update positions and collisions for tracked wave enemies
+                for obstacle in self.obstacle_group:
+                    if isinstance(obstacle, Skeleton) and getattr(obstacle, "_sim_tracked", False):
+                        enemy_id = getattr(obstacle, "_sim_id")
+                        enemy_data = self._simulation_wave_enemies[enemy_id - 1]
+                        
+                        if enemy_data["first_physical_collision"] is None:
+                            if player_sprite.rect.colliderect(obstacle.rect):
+                                enemy_data["first_physical_collision"] = {
+                                    "world_distance": float(self.world_distance),
+                                    "screen_x": obstacle.rect.x,
+                                    "screen_y": obstacle.rect.y
+                                }
+                                print(f"[SIM] Dynamic enemy #{enemy_id} (Skeleton) PHYSICAL COLLISION at world_dist={self.world_distance:.0f}")
+                        
+                        enemy_data["positions"].append((obstacle.rect.x, obstacle.rect.y))
                 
-                if sim_npc["first_proximity_collision"] is None:
-                    if ttype == "npc" and getattr(target, "_in_range", False):
-                        event_dist = float(getattr(target, "event_distance", 0.0))
-                        sim_npc["first_proximity_collision"] = {
-                            "world_distance": float(self.world_distance),
-                            "trigger_distance": event_dist,
-                            "delta": float(self.world_distance - event_dist)
-                        }
-                        print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PROXIMITY COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
-                
-                # Append coordinate history
-                self._simulation_npcs[eid]["positions"].append((target.rect.x, target.rect.y))
+                # Real-time frame logging for wave mode
+                active_enemies = [
+                    f"#{getattr(s, '_sim_id')}@({s.rect.x},{s.rect.y})"
+                    for s in self.obstacle_group
+                    if isinstance(s, Skeleton) and getattr(s, "_sim_tracked", False)
+                ]
+                print(f"[SIM] frame={self._sim_log_counter} dist={self.world_distance:.0f} player@({player_sprite.rect.x},{player_sprite.rect.y}) | {' '.join(active_enemies)}")
             
-            # Real-time log every frame
-            npc_info = []
-            for target, ttype in sim_targets:
-                eid = getattr(target, "event_id")
-                npc_info.append(f"#{eid}@({target.rect.x},{target.rect.y})")
-            print(f"[SIM] frame={self._sim_log_counter} dist={self.world_distance:.0f} player@({player_sprite.rect.x},{player_sprite.rect.y}) | {' '.join(npc_info)}")
+            else:
+                # 1. Track any NPCs and Bosses currently in the scene
+                sim_targets = []
+                for npc in self.npc_group:
+                    eid = getattr(npc, "event_id", None)
+                    if eid is not None:
+                        sim_targets.append((npc, "npc"))
+                for obstacle in self.obstacle_group:
+                    if getattr(obstacle, "is_boss", False):
+                        eid = getattr(obstacle, "event_id", None)
+                        if eid is not None:
+                            sim_targets.append((obstacle, "boss"))
 
-            # 2. Check for early exit condition:
-            # If we have expected NPCs in range, and all triggered expected NPCs have spawned and are off-screen or dead:
-            triggered_expected_eids = [
-                eid for eid, exp in self._simulation_expected_npcs.items()
-                if exp["distance"] <= self.world_distance
-            ]
-            if triggered_expected_eids:
-                all_spawned = all(eid in self._simulation_npcs for eid in triggered_expected_eids)
-                all_offscreen = False
-                if all_spawned:
-                    all_offscreen = True
-                    for npc in self.npc_group:
-                        eid = getattr(npc, "event_id", None)
-                        if eid in triggered_expected_eids:
-                            if npc.rect.right >= 0:
-                                all_offscreen = False
-                                break
-                    if all_offscreen:
-                        for obstacle in self.obstacle_group:
-                            eid = getattr(obstacle, "event_id", None)
+                for target, ttype in sim_targets:
+                    eid = getattr(target, "event_id")
+                    if eid not in self._simulation_npcs:
+                        self._simulation_npcs[eid] = {
+                            "id": eid,
+                            "type": ttype if ttype == "boss" else ("wizard" if target.__class__.__name__ == "WizardNPC" else "generic"),
+                            "title": getattr(target, "title" if ttype == "npc" else "boss_title", "Entity"),
+                            "spawn_distance": self.world_distance,
+                            "actual_scale": float(getattr(target, "scale", 1.0)),
+                            "actual_radius": float(getattr(target, "proximity_radius", 160.0)),
+                            "actual_width": target.image.get_width() if target.image else 0,
+                            "actual_height": target.image.get_height() if target.image else 0,
+                            "initial_x": target.rect.x,
+                            "initial_y": target.rect.y,
+                            "world_x": getattr(target, "world_x", None),
+                            "positions": [],
+                            "first_physical_collision": None,
+                            "first_proximity_collision": None
+                        }
+                        # Log spawn event
+                        print(f"[SIM] NPC #{eid} '{self._simulation_npcs[eid]['title']}' SPAWNED "
+                              f"at world_dist={self.world_distance:.0f} "
+                              f"screen=({target.rect.x},{target.rect.y}) "
+                              f"scale={self._simulation_npcs[eid]['actual_scale']} "
+                              f"radius={self._simulation_npcs[eid]['actual_radius']} "
+                              f"img={self._simulation_npcs[eid]['actual_width']}x"
+                              f"{self._simulation_npcs[eid]['actual_height']}")
+                    
+                    # Track collisions in real-time
+                    sim_npc = self._simulation_npcs[eid]
+                    if sim_npc["first_physical_collision"] is None:
+                        if player_sprite.rect.colliderect(target.rect):
+                            event_dist = float(getattr(target, "event_distance", 0.0))
+                            sim_npc["first_physical_collision"] = {
+                                "world_distance": float(self.world_distance),
+                                "trigger_distance": event_dist,
+                                "delta": float(self.world_distance - event_dist)
+                            }
+                            print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PHYSICAL COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
+                    
+                    if sim_npc["first_proximity_collision"] is None:
+                        if ttype == "npc" and getattr(target, "_in_range", False):
+                            event_dist = float(getattr(target, "event_distance", 0.0))
+                            sim_npc["first_proximity_collision"] = {
+                                "world_distance": float(self.world_distance),
+                                "trigger_distance": event_dist,
+                                "delta": float(self.world_distance - event_dist)
+                            }
+                            print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PROXIMITY COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
+                    
+                    # Append coordinate history
+                    self._simulation_npcs[eid]["positions"].append((target.rect.x, target.rect.y))
+                
+                # Real-time log every frame
+                npc_info = []
+                for target, ttype in sim_targets:
+                    eid = getattr(target, "event_id")
+                    npc_info.append(f"#{eid}@({target.rect.x},{target.rect.y})")
+                print(f"[SIM] frame={self._sim_log_counter} dist={self.world_distance:.0f} player@({player_sprite.rect.x},{player_sprite.rect.y}) | {' '.join(npc_info)}")
+
+                # 2. Check for early exit condition:
+                # If we have expected NPCs in range, and all triggered expected NPCs have spawned and are off-screen or dead:
+                triggered_expected_eids = [
+                    eid for eid, exp in self._simulation_expected_npcs.items()
+                    if exp["distance"] <= self.world_distance
+                ]
+                if triggered_expected_eids:
+                    all_spawned = all(eid in self._simulation_npcs for eid in triggered_expected_eids)
+                    all_offscreen = False
+                    if all_spawned:
+                        all_offscreen = True
+                        for npc in self.npc_group:
+                            eid = getattr(npc, "event_id", None)
                             if eid in triggered_expected_eids:
-                                if getattr(obstacle, "is_boss", False):
-                                    state = getattr(obstacle, "state", None)
-                                    if state != SkeletonState.DEATH and getattr(obstacle, "_health", 0) > 0:
-                                        all_offscreen = False
-                                        break
-                if all_spawned and all_offscreen:
-                    self._write_simulation_report()
-                    pg.quit()
-                    exit(0)
+                                if npc.rect.right >= 0:
+                                    all_offscreen = False
+                                    break
+                        if all_offscreen:
+                            for obstacle in self.obstacle_group:
+                                eid = getattr(obstacle, "event_id", None)
+                                if eid in triggered_expected_eids:
+                                    if getattr(obstacle, "is_boss", False):
+                                        state = getattr(obstacle, "state", None)
+                                        if state != SkeletonState.DEATH and getattr(obstacle, "_health", 0) > 0:
+                                            all_offscreen = False
+                                            break
+                    if all_spawned and all_offscreen:
+                        self._write_simulation_report()
+                        pg.quit()
+                        exit(0)
 
             # 3. Safety timeout check
             self._simulation_timer += dt

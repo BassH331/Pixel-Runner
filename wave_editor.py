@@ -315,6 +315,31 @@ class WaveEditorApp:
         except Exception as e:
             print(f"Error restoring original level file content: {e}")
 
+        # Check simulation report results
+        report_file = "scratch/simulation_report.json"
+        if os.path.exists(report_file):
+            try:
+                with open(report_file, "r") as f:
+                    report = json.load(f)
+                if report.get("status") == "FAILED":
+                    self.modal = ModalDialog(
+                        "Simulation Failure",
+                        "No dynamic enemies spawned during simulation!",
+                        lambda: setattr(self, "modal", None),
+                        lambda: setattr(self, "modal", None)
+                    )
+                else:
+                    self.modal = ModalDialog(
+                        "Simulation Passed",
+                        f"Spawned {len(report.get('enemies', []))} enemies successfully!",
+                        lambda: setattr(self, "modal", None),
+                        lambda: setattr(self, "modal", None)
+                    )
+            except Exception as e:
+                print(f"Error reading simulation report: {e}")
+        else:
+            print("[WARN] No simulation_report.json was produced.")
+
     def delete(self, idx: int):
         z = self.pending[idx]
         def _do(): self.pending.pop(idx); self.modal = None
