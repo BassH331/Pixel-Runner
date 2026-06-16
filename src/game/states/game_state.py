@@ -540,13 +540,18 @@ class GameState(State):
             current_skeletons = sum(1 for sprite in self.obstacle_group 
                                  if isinstance(sprite, Skeleton))
             
-            if current_skeletons < zone["max_skeletons"]:
-                self.spawn_skeleton(zone)
-                self.next_skeleton_spawn_time = current_time + zone["delay"]
-                print(f"[SPAWN] Skeleton spawned! "
-                      f"alive={current_skeletons + 1}/{zone['max_skeletons']} "
-                      f"delay={zone['delay']}ms "
-                      f"dist={int(self.max_distance_reached)}")
+            required_kills = zone.get("required_kills", 0)
+            killed_count = zone.get("killed_count", 0)
+            
+            if required_kills == 0 or killed_count < required_kills:
+                if current_skeletons < zone["max_skeletons"]:
+                    self.spawn_skeleton(zone)
+                    self.next_skeleton_spawn_time = current_time + zone["delay"]
+                    print(f"[SPAWN] Skeleton spawned! "
+                          f"alive={current_skeletons + 1}/{zone['max_skeletons']} "
+                          f"delay={zone['delay']}ms "
+                          f"dist={int(self.max_distance_reached)} "
+                          f"kills={killed_count}/{required_kills if required_kills > 0 else 'inf'}")
     
     def spawn_skeleton(self, zone: Optional[dict] = None) -> None:
         """Spawn a new skeleton at a random position on the right side of the screen."""
@@ -577,6 +582,8 @@ class GameState(State):
             tier=tier
         )
         self.obstacle_group.add(skeleton)
+        if zone is not None:
+            skeleton.spawn_zone = zone
         self.audio_manager.play_sound("skeleton_spawn")
     
     # ─────────────────────────────────────────────────────────────────────────
@@ -737,6 +744,14 @@ class GameState(State):
                     not getattr(enemy, "_death_sound_played", False)):
                 self.audio_manager.play_sound("skeleton_death")
                 setattr(enemy, "_death_sound_played", True)
+                
+                # Track zone kills
+                zone = getattr(enemy, "spawn_zone", None)
+                if zone is not None:
+                    zone["killed_count"] = zone.get("killed_count", 0) + 1
+                    print(f"[KILL] Skeleton from zone killed! "
+                          f"kills={zone['killed_count']}/{zone.get('required_kills', 0)}")
+                
                 # Fire "first_kill" flag for objective triggers
                 self.trigger_manager.set_flag("first_kill")
         

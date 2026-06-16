@@ -232,6 +232,7 @@ class Skeleton(Actor):
         self._detection_range: int = 1000
         self._attack_range: int = 60
         self._vertical_tolerance: int = 100
+        self.spawn_zone: Optional[dict] = None
         
     def _load_frames(
         self,

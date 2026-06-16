@@ -174,7 +174,7 @@ class WaveEditorApp:
         self.browser = FolderBrowser("assets",
                                      pg.Rect(12, CONTENT_Y+50, 438, CONTENT_H-70),
                                      allow_parent=True)
-        self.bmap = BehaviourMapper(pg.Rect(462, CONTENT_Y+340, 800, CONTENT_H-360))
+        self.bmap = BehaviourMapper(pg.Rect(462, CONTENT_Y+345, 800, CONTENT_H-365))
         self._prev_sel: Optional[str] = None
 
         self._s1b: list[Button] = []
@@ -229,12 +229,14 @@ class WaveEditorApp:
         mx = _f(z.get("max_dist", end), end)
         if mx >= 99999: mx = end
         self.s3_ui = {
-            "min":   Slider("Zone Start Distance (m)", 462, CONTENT_Y+60,  800, 0, end, mn),
-            "max":   Slider("Zone End Distance (m)",   462, CONTENT_Y+130, 800, 0, end, mx),
-            "count": Slider("Max Concurrent Enemies",  462, CONTENT_Y+200, 800, 1, 20,
+            "min":   Slider("Zone Start Distance (m)", 462, CONTENT_Y+50,  800, 0, end, mn),
+            "max":   Slider("Zone End Distance (m)",   462, CONTENT_Y+105, 800, 0, end, mx),
+            "count": Slider("Max Concurrent Enemies",  462, CONTENT_Y+160, 800, 1, 20,
                             _f(z.get("max_skeletons",3), 3.0)),
-            "delay": Slider("Spawn Delay (ms)",        462, CONTENT_Y+270, 800, 500, 10000,
+            "delay": Slider("Spawn Delay (ms)",        462, CONTENT_Y+215, 800, 500, 10000,
                             _f(z.get("delay",4000), 4000.0)),
+            "required_kills": Slider("Required Kills (0=inf)", 462, CONTENT_Y+270, 800, 0, 50,
+                            _f(z.get("required_kills",0), 0.0)),
             "tier": str(z.get("tier", "minion")),
         }
         sr = z.get("sprite_root")
@@ -251,6 +253,7 @@ class WaveEditorApp:
         r: dict = {"min_dist": mn, "max_dist": mx,
                     "max_skeletons": int(ui["count"].val),
                     "delay": int(ui["delay"].val),
+                    "required_kills": int(ui["required_kills"].val),
                     "tier": ui.get("tier", "minion")}
         if self.browser.selected:
             r["sprite_root"] = self.browser.selected
@@ -526,8 +529,8 @@ class WaveEditorApp:
             self.s3_ui["tier"] = TIERS[(ci+1)%len(TIERS)]
         tc = TIER_COL.get(tier, TXT2)
         tier_lbl = self.sf.render(f"Enemy Tier:  {tier.upper()}", True, tc)
-        self.surf.blit(tier_lbl, (rx, CONTENT_Y+310))
-        tb = Button(f"[ {tier.upper()} ]  click to cycle", rx+180, CONTENT_Y+306, 260, 24, _cyc, "ghost")
+        self.surf.blit(tier_lbl, (rx, CONTENT_Y+315))
+        tb = Button(f"[ {tier.upper()} ]  click to cycle", rx+180, CONTENT_Y+311, 260, 24, _cyc, "ghost")
         tb.draw(self.surf, self.sf)
         self._s3b.append(tb)
 

@@ -9,6 +9,7 @@
             "max_dist": 320,
             "max_skeletons": 8,
             "delay": 500,
+            "required_kills": 2,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {
