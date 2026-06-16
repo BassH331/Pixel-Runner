@@ -263,6 +263,55 @@ class WaveEditorApp:
         else: self.pending[self.s3_idx] = z
         self.go2()
 
+    def simulate(self):
+        z = self._read()
+        temp_pending = list(self.pending)
+        if self.s3_mode == "create":
+            temp_pending.append(z)
+        else:
+            temp_pending[self.s3_idx] = z
+
+        level_file = self.level_files[self.active_idx]
+        try:
+            with open(level_file, "r") as f:
+                original_content = f.read()
+        except Exception as e:
+            print(f"Error backing up level file: {e}")
+            return
+
+        temp_data = dict(self.level_data)
+        temp_data["spawn_zones"] = temp_pending
+        try:
+            with open(level_file, "w") as f:
+                json.dump(temp_data, f, indent=4)
+        except Exception as e:
+            print(f"Error writing temporary simulation file: {e}")
+            return
+
+        # Start distance: max(0, min_dist - 200)
+        start_dist = max(0.0, float(z["min_dist"]) - 200.0)
+
+        import subprocess
+        import sys
+
+        self.surf.blit(self.tf.render("Launching Simulation...", True, WARN), (W//2 - 150, H//2 - 20))
+        pg.display.flip()
+
+        try:
+            cmd = [sys.executable, "main.py", "--start-dist", str(start_dist), "--duration", "6.0"]
+            venv_python = os.path.join(".venv", "bin", "python")
+            if os.path.exists(venv_python):
+                cmd[0] = venv_python
+            subprocess.run(cmd, env=dict(os.environ, PYTHONPATH="."))
+        except Exception as e:
+            print(f"Error launching game subprocess: {e}")
+
+        try:
+            with open(level_file, "w") as f:
+                f.write(original_content)
+        except Exception as e:
+            print(f"Error restoring original level file content: {e}")
+
     def delete(self, idx: int):
         z = self.pending[idx]
         def _do(): self.pending.pop(idx); self.modal = None
@@ -489,8 +538,9 @@ class WaveEditorApp:
         sub = Button("Add Zone  ✓" if self.s3_mode=="create" else "Save Changes  ✓",
                      W-470, H-BTMBAR_H+8, 250, 42, self.submit, "success")
         cnl = Button("← Cancel", W-210, H-BTMBAR_H+8, 110, 42, self.go2, "ghost")
-        sub.draw(self.surf, self.f); cnl.draw(self.surf, self.f)
-        self._s3b += [sub, cnl]
+        sim = Button("Simulate  ▶", W-690, H-BTMBAR_H+8, 210, 42, self.simulate, "primary")
+        sub.draw(self.surf, self.f); cnl.draw(self.surf, self.f); sim.draw(self.surf, self.f)
+        self._s3b += [sub, cnl, sim]
 
 
 if __name__ == "__main__":

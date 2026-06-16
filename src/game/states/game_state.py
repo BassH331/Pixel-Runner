@@ -146,6 +146,35 @@ class GameState(State):
 
         # Travel distance tracking
         self.world_distance: float = 0.0
+        self._is_simulating = False
+        self._simulation_timer = 0.0
+        self._simulation_duration = 5.0
+
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--start-dist", type=float, default=None)
+        parser.add_argument("--duration", type=float, default=None)
+        args, _ = parser.parse_known_args()
+
+        if args.start_dist is not None:
+            self.world_distance = args.start_dist
+            self._is_simulating = True
+            self._sim_start_distance = args.start_dist
+            self._sim_log_counter = 0
+            self._show_objective_on_start = False
+            self._show_tutorial_on_start = False
+
+            # Auto-play player by simulating K_RIGHT
+            class AutoPlayKeys:
+                def __getitem__(self, key):
+                    if key == pg.K_RIGHT:
+                        return True
+                    return False
+            pg.key.get_pressed = lambda: AutoPlayKeys()  # type: ignore
+
+        if args.duration is not None:
+            self._simulation_duration = args.duration
+
         self.max_distance_reached: float = 0.0
         self._level_end_distance: float = 8000.0
         self._level_complete: bool = False
@@ -208,12 +237,52 @@ class GameState(State):
             
             # Load World Events from JSON
             world_events = self.level_data.get("world_events", [])
+
+            # --- Simulation Expected NPCs Setup ---
+            self._simulation_npcs = {}
+            self._simulation_expected_npcs = {}
+            if self._is_simulating:
+                from src.game.entities.hitbox_registry import HitboxRegistry
+                for event in world_events:
+                    if event.get("type") == "npc":
+                        eid = event["id"]
+                        params = event.get("params", {})
+                        ntype = params.get("npc_type", "generic")
+                        
+                        if ntype == "wizard":
+                            npc_key = "wizard_npc"
+                        else:
+                            sprite_dir = params.get("sprite_dir", "")
+                            folder_name = os.path.basename(sprite_dir.rstrip("/"))
+                            if folder_name.lower() == "idle":
+                                parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                                folder_name = os.path.basename(parent_dir)
+                            npc_key = f"generic_npc_{folder_name.lower()}"
+                        
+                        margins = HitboxRegistry.get_margins(npc_key)
+                        default_scale = margins.scale
+                        
+                        self._simulation_expected_npcs[eid] = {
+                            "id": eid,
+                            "type": ntype,
+                            "title": params.get("title", "NPC"),
+                            "distance": float(event["distance"]),
+                            "scale": float(params.get("scale", default_scale)),
+                            "radius": float(params.get("radius", 160.0)),
+                            "sprite_dir": params.get("sprite_dir", "")
+                        }
+            # ---------------------------------------
+
             for event in world_events:
+                # Inject event metadata to params
+                params = dict(event.get("params", {}))
+                params["_event_id"] = event["id"]
+                params["_event_distance"] = event["distance"]
                 self.world_manager.add_event(
                     id=event["id"],
                     distance=event["distance"],
                     event_type=event["type"],
-                    **event.get("params", {})
+                    **params
                 )
             # Optimize the list after loading
             self.world_manager.finalize()
@@ -312,17 +381,20 @@ class GameState(State):
         ground_y = self.height - margins.ground_offset
 
         if npc_type == "wizard":
-            self.npc_group.add(WizardNPC(
+            npc = WizardNPC(
                 x=self.width + 50,
                 y=ground_y,
                 text=params["text"],
                 title=params["title"],
                 scale=params.get("scale"),  # Respect level configuration scale
                 proximity_radius=params.get("radius", 160),
-            ))
+            )
+            setattr(npc, "event_id", params.get("_event_id"))
+            setattr(npc, "event_distance", params.get("_event_distance"))
+            self.npc_group.add(npc)
         else:
             # Generic NPC — works with any sprite folder
-            self.npc_group.add(GenericNPC(
+            npc = GenericNPC(
                 x=self.width + 50,
                 y=ground_y,
                 sprite_dir=params["sprite_dir"],
@@ -331,7 +403,10 @@ class GameState(State):
                 scale=params.get("scale"),  # Respect level configuration scale
                 proximity_radius=params.get("radius", 160),
                 frame_duration=params.get("frame_duration", 0.15),
-            ))
+            )
+            setattr(npc, "event_id", params.get("_event_id"))
+            setattr(npc, "event_distance", params.get("_event_distance"))
+            self.npc_group.add(npc)
 
     def _handle_enemy_wave(self, params: dict) -> None:
         """Handler for 'enemy_wave' events."""
@@ -798,7 +873,214 @@ class GameState(State):
     # ─────────────────────────────────────────────────────────────────────────
     # Main Update Loop
     # ─────────────────────────────────────────────────────────────────────────
-    
+    def _write_simulation_report(self) -> None:
+        import json
+        import os
+        from src.game.entities.hitbox_registry import HitboxRegistry
+        
+        report_data = {
+            "status": "PASSED",
+            "timestamp": pg.time.get_ticks(),
+            "duration_ms": self._simulation_timer,
+            "start_distance": getattr(self, "_sim_start_distance", 0.0),
+            "final_distance": self.world_distance,
+            "scroll_speed": self.max_bg_scroll_speed,
+            "npcs": []
+        }
+        
+        markdown_lines = [
+            "# Pixel-Runner Simulation Report",
+            "",
+            f"**Final Distance:** {self.world_distance:.1f}",
+            f"**Simulation Duration:** {self._simulation_timer:.1f}ms",
+            f"**Scroll Speed:** {self.max_bg_scroll_speed} px/frame",
+            ""
+        ]
+        
+        overall_passed = True
+        issues: list[str] = []
+        
+        for eid, exp in self._simulation_expected_npcs.items():
+            # Load what entity_dimensions.json has for this NPC
+            ntype = exp["type"]
+            if ntype == "wizard":
+                reg_key = "wizard_npc"
+            else:
+                sprite_dir = exp.get("sprite_dir", "")
+                folder_name = os.path.basename(sprite_dir.rstrip("/"))
+                if folder_name.lower() == "idle":
+                    parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                    folder_name = os.path.basename(parent_dir)
+                reg_key = f"generic_npc_{folder_name.lower()}"
+            
+            reg_margins = HitboxRegistry.get_margins(reg_key)
+            
+            npc_res: dict = {
+                "id": eid,
+                "type": ntype,
+                "title": exp["title"],
+                "registry_key": reg_key,
+                # What level_1.json says (params)
+                "json_distance": exp["distance"],
+                "json_scale": exp["scale"],
+                "json_radius": exp["radius"],
+                # What entity_dimensions.json says
+                "registry_scale": reg_margins.scale,
+                "registry_ground_offset": reg_margins.ground_offset,
+                "spawned": False,
+                "status": "NOT SPAWNED",
+                "issues": []
+            }
+            
+            # === Consistency Check 1: JSON scale vs Registry scale ===
+            if abs(exp["scale"] - reg_margins.scale) > 0.01:
+                npc_res["issues"].append(
+                    f"Scale mismatch: level JSON has {exp['scale']}, "
+                    f"entity_dimensions.json has {reg_margins.scale} for '{reg_key}'"
+                )
+            
+            spawned_data = self._simulation_npcs.get(eid)
+            if spawned_data:
+                npc_res["spawned"] = True
+                npc_res["actual_spawn_distance"] = spawned_data["spawn_distance"]
+                npc_res["actual_scale"] = spawned_data["actual_scale"]
+                npc_res["actual_radius"] = spawned_data["actual_radius"]
+                npc_res["actual_width"] = spawned_data["actual_width"]
+                npc_res["actual_height"] = spawned_data["actual_height"]
+                npc_res["initial_screen_x"] = spawned_data["initial_x"]
+                npc_res["initial_screen_y"] = spawned_data["initial_y"]
+                
+                positions = spawned_data["positions"]
+                npc_res["total_frames_tracked"] = len(positions)
+                
+                # === Consistency Check 2: Did the NPC spawn at the right world_distance? ===
+                dist_delta = abs(spawned_data["spawn_distance"] - exp["distance"])
+                if dist_delta > 20:  # Allow small tolerance for frame timing
+                    npc_res["issues"].append(
+                        f"Spawn distance mismatch: expected trigger at {exp['distance']}, "
+                        f"but first detected at world_distance={spawned_data['spawn_distance']:.1f} "
+                        f"(delta={dist_delta:.1f})"
+                    )
+                
+                # === Consistency Check 3: Does actual scale match JSON config? ===
+                if abs(spawned_data["actual_scale"] - exp["scale"]) > 0.01:
+                    npc_res["issues"].append(
+                        f"Runtime scale mismatch: JSON says {exp['scale']}, "
+                        f"but NPC spawned with scale={spawned_data['actual_scale']}"
+                    )
+                
+                # === Consistency Check 4: Does actual radius match JSON config? ===
+                if abs(spawned_data["actual_radius"] - exp["radius"]) > 0.01:
+                    npc_res["issues"].append(
+                        f"Runtime radius mismatch: JSON says {exp['radius']}, "
+                        f"but NPC spawned with radius={spawned_data['actual_radius']}"
+                    )
+                
+                # === Consistency Check 5: Scrolling behavior ===
+                if len(positions) >= 5:
+                    moved_left = positions[-1][0] < positions[0][0]
+                    if not moved_left:
+                        npc_res["issues"].append(
+                            f"NPC did not scroll left: start_x={positions[0][0]}, "
+                            f"end_x={positions[-1][0]}"
+                        )
+                    
+                    # Calculate actual scroll rate
+                    x_delta = positions[0][0] - positions[-1][0]
+                    npc_res["total_x_scrolled"] = x_delta
+                    npc_res["avg_scroll_per_frame"] = x_delta / len(positions) if positions else 0
+                else:
+                    # Too few frames to assess scrolling — spawned near timeout boundary
+                    npc_res["insufficient_data"] = True
+                
+                # === Position sample: first, middle, last frames ===
+                samples = []
+                sample_indices = [0, len(positions)//2, len(positions)-1]
+                for si in sample_indices:
+                    if 0 <= si < len(positions):
+                        samples.append({"frame": si, "x": positions[si][0], "y": positions[si][1]})
+                npc_res["position_samples"] = samples
+                
+                # Determine pass/fail
+                if npc_res["issues"]:
+                    npc_res["status"] = "FAILED"
+                    overall_passed = False
+                elif npc_res.get("insufficient_data"):
+                    npc_res["status"] = "INCONCLUSIVE (too few frames)"
+                else:
+                    npc_res["status"] = "PASSED"
+            else:
+                if self.world_distance < exp["distance"]:
+                    npc_res["status"] = "SKIPPED (not reached)"
+                else:
+                    npc_res["status"] = "FAILED"
+                    npc_res["issues"].append(
+                        f"NPC should have spawned at distance {exp['distance']}, "
+                        f"world reached {self.world_distance:.1f} but NPC never appeared"
+                    )
+                    overall_passed = False
+            
+            issues.extend(npc_res["issues"])
+            report_data["npcs"].append(npc_res)
+            
+            # Build markdown section
+            status_emoji = "✅" if npc_res["status"] == "PASSED" else "❌" if "FAILED" in npc_res["status"] else "⚠️"
+            markdown_lines.append(f"### NPC #{eid}: {exp['title']} ({status_emoji} {npc_res['status']})")
+            markdown_lines.append(f"- **Registry Key:** `{reg_key}`")
+            markdown_lines.append(f"- **Trigger Distance:** JSON={exp['distance']}m | Spawned at={npc_res.get('actual_spawn_distance', 'N/A')}m")
+            markdown_lines.append(f"- **Scale:** JSON={exp['scale']} | Registry={reg_margins.scale} | Runtime={npc_res.get('actual_scale', 'N/A')}")
+            markdown_lines.append(f"- **Proximity Radius:** JSON={exp['radius']} | Runtime={npc_res.get('actual_radius', 'N/A')}")
+            if spawned_data:
+                markdown_lines.append(f"- **Image Dimensions:** {npc_res['actual_width']}×{npc_res['actual_height']}")
+                markdown_lines.append(f"- **Initial Screen Pos:** ({npc_res['initial_screen_x']}, {npc_res['initial_screen_y']})")
+                markdown_lines.append(f"- **Frames Tracked:** {npc_res['total_frames_tracked']}")
+                markdown_lines.append(f"- **Total X Scrolled:** {npc_res.get('total_x_scrolled', 'N/A')}px")
+                if npc_res.get("position_samples"):
+                    markdown_lines.append(f"- **Position Samples:**")
+                    for s in npc_res["position_samples"]:
+                        markdown_lines.append(f"  - Frame {s['frame']}: ({s['x']}, {s['y']})")
+            else:
+                markdown_lines.append(f"- **Spawned:** No")
+            
+            if npc_res["issues"]:
+                markdown_lines.append(f"- **⚠ Issues:**")
+                for issue in npc_res["issues"]:
+                    markdown_lines.append(f"  - {issue}")
+            markdown_lines.append("")
+            
+        if not overall_passed:
+            report_data["status"] = "FAILED"
+        
+        # Summary section
+        if issues:
+            markdown_lines.insert(2, f"**Overall Status:** FAILED ❌")
+            markdown_lines.insert(3, "")
+            markdown_lines.insert(4, "## Issues Found")
+            for i, issue in enumerate(issues):
+                markdown_lines.insert(5 + i, f"{i+1}. {issue}")
+            markdown_lines.insert(5 + len(issues), "")
+        else:
+            markdown_lines.insert(2, f"**Overall Status:** PASSED ✅")
+        
+        os.makedirs("scratch", exist_ok=True)
+        with open("scratch/simulation_report.json", "w") as f:
+            json.dump(report_data, f, indent=4)
+            
+        with open("scratch/simulation_report.md", "w") as f:
+            f.write("\n".join(markdown_lines))
+            
+        print(f"\n{'='*60}")
+        print(f"[SIMULATION REPORT] Status: {report_data['status']}")
+        print(f"  Distance: {report_data.get('start_distance', 0):.0f} → {self.world_distance:.0f}")
+        print(f"  Duration: {self._simulation_timer:.0f}ms")
+        for npc in report_data["npcs"]:
+            status = npc['status']
+            print(f"  NPC #{npc['id']} ({npc['title']}): {status}")
+            if npc.get("issues"):
+                for issue in npc["issues"]:
+                    print(f"    ⚠ {issue}")
+        print(f"{'='*60}")
+
     def update(self, dt: float) -> None:
         """
         Main game update tick.
@@ -806,6 +1088,7 @@ class GameState(State):
         Args:
             dt: Delta time since last update in seconds.
         """
+
         # Freeze gameplay while tutorial or objective overlay is active
         if self.tutorial_overlay.is_active:
             self.tutorial_overlay.update(dt)
@@ -880,6 +1163,77 @@ class GameState(State):
         
         # State transitions
         self._check_game_over()
+
+        if self._is_simulating:
+            self._sim_log_counter += 1
+            
+            # 1. Track any NPCs currently in the npc_group
+            for npc in self.npc_group:
+                eid = getattr(npc, "event_id", None)
+                if eid is not None:
+                    if eid not in self._simulation_npcs:
+                        self._simulation_npcs[eid] = {
+                            "id": eid,
+                            "type": "wizard" if npc.__class__.__name__ == "WizardNPC" else "generic",
+                            "title": getattr(npc, "title", "NPC"),
+                            "spawn_distance": self.world_distance,
+                            "actual_scale": float(getattr(npc, "scale", 1.0)),
+                            "actual_radius": float(getattr(npc, "proximity_radius", 160.0)),
+                            "actual_width": npc.image.get_width() if npc.image else 0,
+                            "actual_height": npc.image.get_height() if npc.image else 0,
+                            "initial_x": npc.rect.x,
+                            "initial_y": npc.rect.y,
+                            "positions": []
+                        }
+                        # Log spawn event
+                        print(f"[SIM] NPC #{eid} '{getattr(npc, 'title', '?')}' SPAWNED "
+                              f"at world_dist={self.world_distance:.0f} "
+                              f"screen=({npc.rect.x},{npc.rect.y}) "
+                              f"scale={getattr(npc, 'scale', '?')} "
+                              f"radius={getattr(npc, 'proximity_radius', '?')} "
+                              f"img={npc.image.get_width() if npc.image else 0}x"
+                              f"{npc.image.get_height() if npc.image else 0}")
+                    # Append coordinate history
+                    self._simulation_npcs[eid]["positions"].append((npc.rect.x, npc.rect.y))
+            
+            # Real-time log every 30 frames
+            if self._sim_log_counter % 30 == 0:
+                npc_info = []
+                for npc in self.npc_group:
+                    eid = getattr(npc, "event_id", None)
+                    if eid is not None:
+                        npc_info.append(f"#{eid}@({npc.rect.x},{npc.rect.y})")
+                if npc_info:
+                    print(f"[SIM] dist={self.world_distance:.0f} | {' '.join(npc_info)}")
+
+            # 2. Check for early exit condition:
+            # If we have expected NPCs in range, and all triggered expected NPCs have spawned and are off-screen:
+            triggered_expected_eids = [
+                eid for eid, exp in self._simulation_expected_npcs.items()
+                if exp["distance"] <= self.world_distance
+            ]
+            if triggered_expected_eids:
+                all_spawned = all(eid in self._simulation_npcs for eid in triggered_expected_eids)
+                all_offscreen = False
+                if all_spawned:
+                    all_offscreen = True
+                    for npc in self.npc_group:
+                        eid = getattr(npc, "event_id", None)
+                        if eid in triggered_expected_eids:
+                            if npc.rect.right >= 0:
+                                all_offscreen = False
+                                break
+                if all_spawned and all_offscreen:
+                    self._write_simulation_report()
+                    pg.quit()
+                    exit(0)
+
+            # 3. Safety timeout check
+            self._simulation_timer += dt
+            if self._simulation_timer >= self._simulation_duration * 1000:
+                self._write_simulation_report()
+                pg.quit()
+                exit(0)
     
     # ─────────────────────────────────────────────────────────────────────────
     # Rendering

@@ -312,6 +312,33 @@ def _npc_key(d: str) -> str:
         n = os.path.basename(os.path.dirname(d.rstrip("/")))
     return f"generic_npc_{n.lower()}"
 
+
+def _npc_registry_key(npc_type: str, sprite_dir: str = "") -> str:
+    """Return the exact key used by entity_dimensions.json / HitboxRegistry."""
+    if npc_type == "wizard":
+        return "wizard_npc"
+    if sprite_dir:
+        return _npc_key(sprite_dir)
+    return ""
+
+
+def _scale_from_registry(npc_type: str, sprite_dir: str = "", fallback: float = 1.0) -> float:
+    """Keep level JSON scale in sync with entity_dimensions.json.
+
+    The simulation compares the scale in the level event with the scale in
+    entity_dimensions.json. If both are allowed to drift, the simulation should
+    fail. This helper makes the registry the source of truth whenever a known
+    NPC key exists.
+    """
+    key = _npc_registry_key(npc_type, sprite_dir)
+    if not key:
+        return float(fallback)
+    try:
+        return float(HitboxRegistry.get_margins(key).scale)
+    except Exception as e:
+        print(f"[WARN] Could not read registry scale for {key!r}: {e}")
+        return float(fallback)
+
 def _load_preview(path: str, scale: float = 2.0) -> list[pg.Surface]:
     frames: list[pg.Surface] = []
     if not os.path.exists(path): return frames
@@ -372,13 +399,15 @@ class App:
         self.level_data.setdefault("world_events", [])
         self.level_backup = copy.deepcopy(self.level_data)
         self.pending = copy.deepcopy(self.level_data["world_events"])
+        self.pending.sort(key=lambda e: e["distance"])
         self.reg_del = set()
         HitboxRegistry.begin_transaction()
 
     def commit(self):
         for k in self.reg_del:
             HitboxRegistry._cached_config.pop(k, None)
-        self.level_data["world_events"] = sorted(self.pending, key=lambda e: e["distance"])
+        self.pending.sort(key=lambda e: e["distance"])
+        self.level_data["world_events"] = copy.deepcopy(self.pending)
         with open(self.level_files[self.active_idx], "w") as fh:
             fcntl.flock(fh, fcntl.LOCK_EX)
             json.dump(self.level_data, fh, indent=4)
@@ -390,6 +419,7 @@ class App:
     def rollback(self):
         self.level_data = copy.deepcopy(self.level_backup)
         self.pending = copy.deepcopy(self.level_data["world_events"])
+        self.pending.sort(key=lambda e: e["distance"])
         self.reg_del = set()
         HitboxRegistry.rollback_transaction()
         self.modal = None
@@ -413,18 +443,12 @@ class App:
         dist = float(_dist_raw) if isinstance(_dist_raw, (int, float)) else 500.0
         if etype == "npc":
             nt = p.get("npc_type", "generic")
-            if nt == "wizard":
-                npc_key = "wizard_npc"
-            else:
-                sprite_dir = p.get("sprite_dir") or ""
-                folder_name = os.path.basename(sprite_dir.rstrip("/"))
-                if folder_name.lower() == "idle":
-                    parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
-                    folder_name = os.path.basename(parent_dir)
-                npc_key = f"generic_npc_{folder_name.lower()}"
-            from src.game.entities.hitbox_registry import HitboxRegistry
-            margins = HitboxRegistry.get_margins(npc_key)
-            default_scale = margins.scale
+            sprite_dir = p.get("sprite_dir") or ""
+
+            # Registry wins over stale level JSON. This prevents reports like:
+            # level JSON scale=3.86 but entity_dimensions.json scale=4.61.
+            current_scale = float(p.get("scale", 1.0))
+            default_scale = _scale_from_registry(nt, sprite_dir, current_scale)
 
             self.s3_ui = {
                 "npc_type": nt,
@@ -432,7 +456,7 @@ class App:
                 "text":   TextInput("Dialogue",  472, CONTENT_Y+132, 782, initial=p.get("text","...")),
                 "radius": Slider("Proximity Radius", 472, CONTENT_Y+218, 782, 50, 400, float(p.get("radius",160))),
                 "dist":   Slider("Trigger Distance", 472, CONTENT_Y+308, 782, 0, end, dist),
-                "scale":  Slider("Scale", 472, CONTENT_Y+388, 782, 0.5, 6.0, float(p.get("scale", default_scale)), True),
+                "scale":  Slider("Scale", 472, CONTENT_Y+388, 782, 0.5, 6.0, default_scale, True),
             }
             self.browser.selected = p.get("sprite_dir") or None
         elif etype == "enemy_wave":
@@ -458,10 +482,17 @@ class App:
         if t == "npc":
             nt = ui.get("npc_type", "generic")
             p: dict = {"npc_type": nt, "title": ui["title"].val,
-                       "text": ui["text"].val, "radius": int(ui["radius"].val),
-                       "scale": float(ui["scale"].val)}
+                       "text": ui["text"].val, "radius": int(ui["radius"].val)}
+            sprite_dir = ""
             if nt == "generic":
-                p["sprite_dir"] = self.browser.selected or ""
+                sprite_dir = self.browser.selected or ""
+                p["sprite_dir"] = sprite_dir
+
+            # Save the same scale that the runtime registry will use.
+            # This is the bug your simulation correctly caught.
+            registry_scale = _scale_from_registry(nt, sprite_dir, float(ui["scale"].val))
+            ui["scale"].val = registry_scale
+            p["scale"] = registry_scale
         elif t == "enemy_wave":
             p = {"count": int(ui["count"].val), "type": "bat"}
         else:
@@ -473,7 +504,115 @@ class App:
         ev = self._read_s3()
         if self.s3_mode == "create": self.pending.append(ev)
         else: self.pending[self.s3_idx] = ev
+        self.pending.sort(key=lambda e: e["distance"])
         self.go2()
+
+    def simulate_s3(self):
+        """
+        Run the simulation like the real game flow.
+
+        Previous versions jumped to distance-300 and only ran for 6 seconds.
+        That made the test fast, but it broke the actual spawning context:
+        events behind the artificial start point could be detected late, and
+        nearby NPCs/objects could look as if they were moving toward the edited
+        event. This version starts from 0 and runs long enough to naturally
+        reach the edited trigger distance.
+        """
+        ev = self._read_s3()
+        temp_pending = list(self.pending)
+        if self.s3_mode == "create":
+            temp_pending.append(ev)
+        else:
+            temp_pending[self.s3_idx] = ev
+        temp_pending.sort(key=lambda e: e["distance"])
+
+        # Real-flow simulation: do NOT skip to the edited event.
+        # Starting at 0 keeps all earlier NPCs/objects in their proper order.
+        target_dist = max(0.0, float(ev.get("distance", 0)))
+        start_dist = 0.0
+
+        # The logs show world distance advancing about 1200 units in 6 seconds,
+        # which is roughly 200 distance-units per second. Add a safety buffer so
+        # the target has time to spawn and be observed.
+        SIM_DISTANCE_PER_SEC = 200.0
+        SIM_BUFFER_SEC = 4.0
+        duration = max(6.0, (target_dist / SIM_DISTANCE_PER_SEC) + SIM_BUFFER_SEC)
+
+        print(
+            f"[SIM] Full-flow editor simulation: start_dist={start_dist:.1f}, "
+            f"target_event_id={ev.get('id')}, target_dist={target_dist:.1f}, "
+            f"duration={duration:.1f}s, events={len(temp_pending)}"
+        )
+
+        level_file = self.level_files[self.active_idx]
+        try:
+            with open(level_file, "r") as f:
+                original_content = f.read()
+        except Exception as e:
+            print(f"Error backing up level file: {e}")
+            return
+
+        # Remove stale reports before running so a failed subprocess does not
+        # leave you reading yesterday's simulation result.
+        report_file = os.path.join("scratch", "simulation_report.json")
+        try:
+            if os.path.exists(report_file):
+                os.remove(report_file)
+        except Exception as e:
+            print(f"[WARN] Could not delete stale simulation report: {e}")
+
+        temp_data = copy.deepcopy(self.level_data)
+        temp_data["world_events"] = temp_pending
+        try:
+            with open(level_file, "w") as f:
+                json.dump(temp_data, f, indent=4)
+        except Exception as e:
+            print(f"Error writing temporary simulation file: {e}")
+            return
+
+        import subprocess
+        import sys
+
+        self.surf.blit(self.tf.render("Launching Full Simulation...", True, WARN), (W//2 - 190, H//2 - 20))
+        pg.display.flip()
+
+        try:
+            cmd = [
+                sys.executable,
+                "main.py",
+                "--start-dist", str(start_dist),
+                "--duration", str(duration),
+            ]
+            venv_python = os.path.join(".venv", "bin", "python")
+            if os.path.exists(venv_python):
+                cmd[0] = venv_python
+            subprocess.run(cmd, env=dict(os.environ, PYTHONPATH="."))
+        except Exception as e:
+            print(f"Error launching game subprocess: {e}")
+        finally:
+            try:
+                with open(level_file, "w") as f:
+                    f.write(original_content)
+            except Exception as e:
+                print(f"Error restoring original level file content: {e}")
+
+        # Check simulation report results. This still depends on main.py's
+        # simulation reporter, but now the run itself matches the real level flow.
+        if os.path.exists(report_file):
+            try:
+                with open(report_file, "r") as f:
+                    report = json.load(f)
+                if report.get("status") == "FAILED":
+                    self.modal = ModalDialog(
+                        "Simulation Failure",
+                        "Dimension mismatch or scrolling error detected!",
+                        lambda: setattr(self, "modal", None),
+                        lambda: setattr(self, "modal", None)
+                    )
+            except Exception as e:
+                print(f"Error reading simulation report: {e}")
+        else:
+            print("[WARN] No simulation_report.json was produced.")
 
     def delete_event(self, idx: int):
         ev = self.pending[idx]
@@ -482,6 +621,7 @@ class App:
                 sd = ev["params"].get("sprite_dir","")
                 if sd: self.reg_del.add(_npc_key(sd))
             self.pending.pop(idx)
+            self.pending.sort(key=lambda e: e["distance"])
             self.modal = None
         self.modal = ModalDialog(
             "Delete Event?",
@@ -537,8 +677,15 @@ class App:
         for v in self.s3_ui.values():
             if hasattr(v, "on"): v.on(ev)
         if self.s3_type == "npc":
+            before = self.browser.selected
             self.browser.on(ev)
-            if ev.type == pg.MOUSEBUTTONDOWN: self.prev_frames = []
+            after = self.browser.selected
+            if after != before:
+                self.prev_frames = []
+                self.prev_dir = ""
+                if after and "scale" in self.s3_ui:
+                    nt = self.s3_ui.get("npc_type", "generic")
+                    self.s3_ui["scale"].val = _scale_from_registry(nt, after, self.s3_ui["scale"].val)
         for b in self._s3b: b.on(ev)
 
     def _draw(self):
@@ -662,7 +809,11 @@ class App:
             self.browser.draw(self.surf, self.f, self.sf)
             nt = self.s3_ui.get("npc_type","generic")
             def _tgl():
-                self.s3_ui["npc_type"] = "wizard" if nt=="generic" else "generic"
+                new_nt = "wizard" if self.s3_ui.get("npc_type", "generic") == "generic" else "generic"
+                self.s3_ui["npc_type"] = new_nt
+                sprite_dir = "" if new_nt == "wizard" else (self.browser.selected or "")
+                if "scale" in self.s3_ui:
+                    self.s3_ui["scale"].val = _scale_from_registry(new_nt, sprite_dir, self.s3_ui["scale"].val)
                 self.prev_frames = []; self.prev_dir = ""
             tb = Button(f"Type: {nt.capitalize()}  (toggle)", 472, CONTENT_Y+10, 380, 32, _tgl, "ghost")
             tb.draw(self.surf, self.sf)
@@ -695,9 +846,13 @@ class App:
                      self.submit_s3 if npc_ready else lambda: None,
                      "success" if npc_ready else "ghost")
         cnl = Button("← Cancel", W-210, H-BTMBAR_H+8, 110, 42, self.go2, "ghost")
+        sim = Button("Simulate  ▶", W-690, H-BTMBAR_H+8, 210, 42,
+                     self.simulate_s3 if npc_ready else lambda: None,
+                     "primary" if npc_ready else "ghost")
         sub.enabled = npc_ready
-        sub.draw(self.surf, self.f); cnl.draw(self.surf, self.f)
-        self._s3b += [sub, cnl]
+        sim.enabled = npc_ready
+        sub.draw(self.surf, self.f); cnl.draw(self.surf, self.f); sim.draw(self.surf, self.f)
+        self._s3b += [sub, cnl, sim]
 
 
 if __name__ == "__main__":

@@ -81,6 +81,15 @@ STORY_SFX_TIMING = {
 }
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--start-dist", type=float, default=None)
+    args, _ = parser.parse_known_args()
+
+    init_state = SplashState
+    if args.start_dist is not None:
+        init_state = GameState
+
     # ── 1. Ignition Manifest ────────────────────────────────────────────────
     # This is the "Blueprint" of your game. 
     # Assets AND the baton-pass (Game Flow) are both defined here.
@@ -88,7 +97,7 @@ def main():
         title="Runner: Guardian of the Star-Fire",
         base_width=BASE_WIDTH,
         base_height=BASE_HEIGHT,
-        initial_state=SplashState,
+        initial_state=init_state,
         
         # Game Flow Map (State Routing)
         routes={

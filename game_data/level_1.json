@@ -59,13 +59,26 @@
     ],
     "world_events": [
         {
+            "id": 1,
+            "distance": 655,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "Masked Stranger",
+                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors \u2014 they strike in groups and show no mercy.",
+                "radius": 160,
+                "scale": 3.86,
+                "sprite_dir": "assets/graphics/masked_man"
+            }
+        },
+        {
             "id": 4,
             "distance": 1200,
             "type": "npc",
             "params": {
                 "npc_type": "wizard",
                 "title": "Wizard",
-                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde — without my barrier they would overrun these lands. Press on, and may my magic shield your path.",
+                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde \u2014 without my barrier they would overrun these lands. Press on, and may my magic shield your path.",
                 "radius": 180,
                 "scale": 1.6
             }
@@ -81,19 +94,6 @@
                 "radius": 160,
                 "scale": 2.0,
                 "sprite_dir": "assets/graphics/RedMoonTower"
-            }
-        },
-        {
-            "id": 1,
-            "distance": 400,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Masked Stranger",
-                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors — they strike in groups and show no mercy.",
-                "radius": 160,
-                "scale": 6.0,
-                "sprite_dir": "assets/graphics/masked_man"
             }
         },
         {
