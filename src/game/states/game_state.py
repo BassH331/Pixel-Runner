@@ -171,13 +171,17 @@ class GameState(State):
                 self._sim_type = "wave"
                 self._simulation_wave_enemies = []
 
-            # Auto-play player by simulating K_RIGHT
+            # Auto-play player by simulating K_RIGHT, unless a boss is active
             class AutoPlayKeys:
+                def __init__(self, state):
+                    self.state = state
                 def __getitem__(self, key):
                     if key == pg.K_RIGHT:
+                        if self.state._is_boss_active():
+                            return False
                         return True
                     return False
-            pg.key.get_pressed = lambda: AutoPlayKeys()  # type: ignore
+            pg.key.get_pressed = lambda: AutoPlayKeys(self)  # type: ignore
 
         if args.duration is not None:
             self._simulation_duration = args.duration
@@ -280,7 +284,8 @@ class GameState(State):
                             "distance": float(event["distance"]),
                             "scale": float(params.get("scale", default_scale)),
                             "radius": float(params.get("radius", 160.0)),
-                            "sprite_dir": params.get("sprite_dir", "")
+                            "sprite_dir": params.get("sprite_dir", ""),
+                            "registry_key": npc_key
                         }
             # ---------------------------------------
 
@@ -1127,15 +1132,7 @@ class GameState(State):
         for eid, exp in self._simulation_expected_npcs.items():
             # Load what entity_dimensions.json has for this NPC
             ntype = exp["type"]
-            if ntype == "wizard":
-                reg_key = "wizard_npc"
-            else:
-                sprite_dir = exp.get("sprite_dir", "")
-                folder_name = os.path.basename(sprite_dir.rstrip("/"))
-                if folder_name.lower() == "idle":
-                    parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
-                    folder_name = os.path.basename(parent_dir)
-                reg_key = f"generic_npc_{folder_name.lower()}"
+            reg_key = exp.get("registry_key", "generic_npc_")
             
             reg_margins = HitboxRegistry.get_margins(reg_key)
             

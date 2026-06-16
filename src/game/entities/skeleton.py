@@ -160,7 +160,7 @@ class Skeleton(Actor):
         if self.tier == "boss":
             self.scale *= 1.8
             self._max_health = 150.0
-            self._speed = 1.8
+            self._speed = 3.2
             damage_scale = 3.0
             knockback_scale = 1.8
             # Scale all pre-loaded animation frames to boss scale
@@ -229,7 +229,7 @@ class Skeleton(Actor):
         self._ground_y: int = pg.display.Info().current_h - margins.ground_offset
         
         # AI configuration
-        self._detection_range: int = 1000
+        self._detection_range: int = 3000 if self.tier == "boss" else 1000
         self._attack_range: int = 60
         self._vertical_tolerance: int = 100
         self.spawn_zone: Optional[dict] = None

@@ -385,8 +385,8 @@ class App:
         self.prev_timer = 0.0
         self.prev_idx   = 0
         self.prev_dir   = ""
-        self.browser    = FolderBrowser("assets/graphics",
-                                         pg.Rect(12, CONTENT_Y+34, 438, CONTENT_H-50))
+        self.browser    = FolderBrowser("assets",
+                                         pg.Rect(12, CONTENT_Y+34, 438, CONTENT_H-50), allow_parent=True)
         from wave_editor import BehaviourMapper
         self.bmap       = BehaviourMapper(pg.Rect(856, CONTENT_Y+48, 412, CONTENT_H-68))
         self._topback: Optional[Button] = None
@@ -648,6 +648,7 @@ class App:
                 "main.py",
                 "--start-dist", str(start_dist),
                 "--duration", str(duration),
+                "--target-event-id", str(ev.get('id')),
             ]
             venv_python = os.path.join(".venv", "bin", "python")
             if os.path.exists(venv_python):

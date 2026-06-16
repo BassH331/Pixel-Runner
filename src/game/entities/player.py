@@ -1071,8 +1071,10 @@ class Player(Actor):
         self.rect.x += int(self._direction * move_speed)
 
         # Clamp to screen bounds
+        screen_surf = pg.display.get_surface()
+        screen_w = screen_surf.get_width() if screen_surf else 1280
         self.rect.left = max(self.rect.left, self._SCREEN_BOUND_LEFT)
-        self.rect.right = min(self.rect.right, self._SCREEN_BOUND_RIGHT)
+        self.rect.right = min(self.rect.right, screen_w)
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Transition Helpers

@@ -20,6 +20,23 @@
                 "Skeleton_01_White_Idle": "idle",
                 "Skeleton_01_White_Walk": "chase"
             }
+        },
+        {
+            "min_dist": 3080,
+            "max_dist": 3570,
+            "max_skeletons": 6,
+            "delay": 797,
+            "required_kills": 5,
+            "tier": "minion",
+            "sprite_root": "assets/skeleton",
+            "behaviour_map": {
+                "Skeleton_01_White_Attack1": "attack",
+                "Skeleton_01_White_Attack2": "attack",
+                "Skeleton_01_White_Die": "death",
+                "Skeleton_01_White_Hurt": "hurt",
+                "Skeleton_01_White_Idle": "idle",
+                "Skeleton_01_White_Walk": "walk"
+            }
         }
     ],
     "bat_spawn": {
@@ -52,6 +69,25 @@
                 "radius": 160,
                 "sprite_dir": "assets/graphics/masked_man",
                 "scale": 4.5
+            }
+        },
+        {
+            "id": 8,
+            "distance": 500,
+            "type": "boss",
+            "params": {
+                "title": "Mini Boss",
+                "scale": 3.6,
+                "health": 100.0,
+                "tier": "boss",
+                "sprite_dir": "assets/wizard",
+                "behaviour_map": {
+                    "Attack": "attack",
+                    "Death": "death",
+                    "Idle": "idle",
+                    "Move": "walk",
+                    "Take Hit": "attack"
+                }
             }
         },
         {
