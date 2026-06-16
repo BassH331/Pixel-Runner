@@ -313,29 +313,39 @@ def _npc_key(d: str) -> str:
     return f"generic_npc_{n.lower()}"
 
 
-def _npc_registry_key(npc_type: str, sprite_dir: str = "") -> str:
+def _registry_key(etype: str, npc_type: str = "", sprite_dir: str = "") -> str:
     """Return the exact key used by entity_dimensions.json / HitboxRegistry."""
-    if npc_type == "wizard":
-        return "wizard_npc"
-    if sprite_dir:
-        return _npc_key(sprite_dir)
+    if etype == "npc":
+        if npc_type == "wizard":
+            return "wizard_npc"
+        if sprite_dir:
+            return _npc_key(sprite_dir)
+    elif etype == "boss":
+        if sprite_dir:
+            return f"boss:{os.path.basename(sprite_dir.rstrip('/'))}"
+        return "boss"
     return ""
 
 
-def _scale_from_registry(npc_type: str, sprite_dir: str = "", fallback: float = 1.0) -> float:
+def _scale_from_registry(etype: str, npc_type: str = "", sprite_dir: str = "", fallback: float = 1.0) -> float:
     """Keep level JSON scale in sync with entity_dimensions.json.
 
     The simulation compares the scale in the level event with the scale in
     entity_dimensions.json. If both are allowed to drift, the simulation should
     fail. This helper makes the registry the source of truth whenever a known
-    NPC key exists.
+    key exists.
     """
-    key = _npc_registry_key(npc_type, sprite_dir)
+    key = _registry_key(etype, npc_type, sprite_dir)
     if not key:
         return float(fallback)
     try:
         return float(HitboxRegistry.get_margins(key).scale)
     except Exception as e:
+        if etype == "boss":
+            try:
+                return float(HitboxRegistry.get_margins("skeleton").scale)
+            except Exception:
+                pass
         print(f"[WARN] Could not read registry scale for {key!r}: {e}")
         return float(fallback)
 
@@ -375,9 +385,10 @@ class App:
         self.prev_timer = 0.0
         self.prev_idx   = 0
         self.prev_dir   = ""
-        self.ev_scroll  = 0
         self.browser    = FolderBrowser("assets/graphics",
                                          pg.Rect(12, CONTENT_Y+34, 438, CONTENT_H-50))
+        from wave_editor import BehaviourMapper
+        self.bmap       = BehaviourMapper(pg.Rect(856, CONTENT_Y+48, 412, CONTENT_H-68))
         self._topback: Optional[Button] = None
         self._s1b: list[Button] = []
         self._s2b: list[Button] = []
@@ -407,11 +418,11 @@ class App:
         for k in self.reg_del:
             is_used = False
             for ev in self.pending:
-                if ev.get("type") == "npc":
+                if ev.get("type") in ("npc", "boss"):
                     p = ev.get("params", {})
                     nt = p.get("npc_type", "generic")
-                    sprite_dir = p.get("sprite_dir", "") if nt == "generic" else ""
-                    if _npc_registry_key(nt, sprite_dir) == k:
+                    sprite_dir = p.get("sprite_dir") or ""
+                    if _registry_key(ev["type"], nt, sprite_dir) == k:
                         is_used = True
                         break
             if not is_used:
@@ -458,7 +469,7 @@ class App:
             # Registry wins over stale level JSON. This prevents reports like:
             # level JSON scale=3.86 but entity_dimensions.json scale=4.61.
             current_scale = float(p.get("scale", 1.0))
-            default_scale = _scale_from_registry(nt, sprite_dir, current_scale)
+            default_scale = _scale_from_registry("npc", nt, sprite_dir, current_scale)
 
             self.s3_ui = {
                 "npc_type": nt,
@@ -469,11 +480,18 @@ class App:
                 "scale":  Slider("Scale", 472, CONTENT_Y+388, 782, 0.5, 6.0, default_scale, True),
             }
             self.browser.selected = p.get("sprite_dir") or None
-        elif etype == "enemy_wave":
+        elif etype == "boss":
+            current_scale = float(p.get("scale", 2.0))
+            default_scale = _scale_from_registry("boss", "", p.get("sprite_dir") or "", current_scale)
             self.s3_ui = {
-                "count": Slider("Enemy Count",      160, CONTENT_Y+120, 940, 1, 15, float(p.get("count",3))),
-                "dist":  Slider("Trigger Distance", 160, CONTENT_Y+220, 940, 0, end, dist),
+                "title":  TextInput("Boss Name", 462, CONTENT_Y+48,  380, initial=p.get("title","Mini Boss")),
+                "dist":   Slider("Trigger Distance", 462, CONTENT_Y+132, 380, 0, end, dist),
+                "scale":  Slider("Boss Scale", 462, CONTENT_Y+218, 380, 0.5, 6.0, default_scale, True),
+                "health": Slider("Boss Health", 462, CONTENT_Y+304, 380, 10, 500, float(p.get("health",100.0))),
+                "tier":   str(p.get("tier", "boss")),
             }
+            self.browser.selected = p.get("sprite_dir") or None
+            self.bmap.load(self.browser.selected, p.get("behaviour_map"))
         else:
             self.s3_ui = {
                 "title":  TextInput("Title",    160, CONTENT_Y+90,  940, initial=p.get("title","Sign")),
@@ -500,7 +518,7 @@ class App:
 
             # Save the new scale to both level JSON and HitboxRegistry
             new_scale = float(ui["scale"].val)
-            key = _npc_registry_key(nt, sprite_dir)
+            key = _registry_key("npc", nt, sprite_dir)
             if key:
                 old_margins = HitboxRegistry.get_margins(key)
                 new_margins = HitboxMargins(
@@ -513,8 +531,36 @@ class App:
                 )
                 HitboxRegistry.update_margins(key, new_margins)
             p["scale"] = new_scale
-        elif t == "enemy_wave":
-            p = {"count": int(ui["count"].val), "type": "bat"}
+        elif t == "boss":
+            sprite_dir = self.browser.selected or ""
+            p = {
+                "title": ui["title"].val,
+                "scale": float(ui["scale"].val),
+                "health": float(ui["health"].val),
+                "tier": ui.get("tier", "boss"),
+                "sprite_dir": sprite_dir,
+                "behaviour_map": dict(self.bmap.mapping)
+            }
+            new_scale = float(ui["scale"].val)
+            key = _registry_key("boss", "", sprite_dir)
+            if key:
+                old_margins = None
+                try:
+                    old_margins = HitboxRegistry.get_margins(key)
+                except Exception:
+                    try:
+                        old_margins = HitboxRegistry.get_margins("skeleton")
+                    except Exception:
+                        pass
+                if old_margins:
+                    new_margins = HitboxMargins(
+                        left=old_margins.left,
+                        right=old_margins.right,
+                        top=old_margins.top,
+                        bottom=old_margins.bottom,
+                        ground_offset=old_margins.ground_offset,
+                        scale=new_scale
+                    )
         else:
             p = {"title": ui["title"].val, "text": ui["text"].val,
                  "radius": int(ui["radius"].val)}
@@ -640,6 +686,9 @@ class App:
             if ev["type"] == "npc" and ev["params"].get("npc_type") == "generic":
                 sd = ev["params"].get("sprite_dir","")
                 if sd: self.reg_del.add(_npc_key(sd))
+            elif ev["type"] == "boss":
+                sd = ev["params"].get("sprite_dir","")
+                self.reg_del.add(_registry_key("boss", "", sd))
             self.pending.pop(idx)
             self.pending.sort(key=lambda e: e["distance"])
             self.modal = None
@@ -661,10 +710,22 @@ class App:
         if self.prev_timer >= 0.15:
             self.prev_timer = 0.0
             self.prev_idx  += 1
-        if self.stage == 3 and self.s3_type == "npc":
-            nt  = self.s3_ui.get("npc_type","generic")
-            tgt = ("assets/graphics/Wizard_NPC" if nt == "wizard"
-                   else self.browser.selected or "")
+        if self.stage == 3 and self.s3_type in ("npc", "boss"):
+            if self.s3_type == "npc":
+                nt  = self.s3_ui.get("npc_type","generic")
+                tgt = ("assets/graphics/Wizard_NPC" if nt == "wizard"
+                       else self.browser.selected or "")
+            else:
+                tgt = self.browser.selected or ""
+                if tgt and os.path.isdir(tgt):
+                    pngs = [f for f in os.listdir(tgt) if f.lower().endswith(".png")]
+                    if not pngs:
+                        subs = sorted([d for d in os.listdir(tgt) if os.path.isdir(os.path.join(tgt, d))])
+                        for sub in subs:
+                            subpath = os.path.join(tgt, sub)
+                            if any(f.lower().endswith(".png") for f in os.listdir(subpath)):
+                                tgt = subpath
+                                break
             if tgt and tgt != self.prev_dir:
                 self.prev_frames = _load_preview(tgt)
                 self.prev_dir    = tgt
@@ -696,16 +757,23 @@ class App:
     def _h3(self, ev: pg.event.Event):
         for v in self.s3_ui.values():
             if hasattr(v, "on"): v.on(ev)
-        if self.s3_type == "npc":
+        if self.s3_type in ("npc", "boss"):
             before = self.browser.selected
             self.browser.on(ev)
             after = self.browser.selected
             if after != before:
                 self.prev_frames = []
                 self.prev_dir = ""
-                if after and "scale" in self.s3_ui:
-                    nt = self.s3_ui.get("npc_type", "generic")
-                    self.s3_ui["scale"].val = _scale_from_registry(nt, after, self.s3_ui["scale"].val)
+                if self.s3_type == "npc":
+                    if after and "scale" in self.s3_ui:
+                        nt = self.s3_ui.get("npc_type", "generic")
+                        self.s3_ui["scale"].val = _scale_from_registry("npc", nt, after, self.s3_ui["scale"].val)
+                elif self.s3_type == "boss":
+                    self.bmap.load(after)
+                    if after and "scale" in self.s3_ui:
+                        self.s3_ui["scale"].val = _scale_from_registry("boss", "", after, self.s3_ui["scale"].val)
+            if self.s3_type == "boss":
+                self.bmap.on(ev)
         for b in self._s3b: b.on(ev)
 
     def _draw(self):
@@ -777,7 +845,7 @@ class App:
         maxsc = max(0, len(self.pending)*ROW - lh)
         self.ev_scroll = max(0, min(self.ev_scroll, maxsc))
         self.surf.set_clip(pg.Rect(0, ly0, lw, lh))
-        TC = {"npc": ACCENT, "enemy_wave": DANGER, "interaction": (155,89,182)}
+        TC = {"npc": ACCENT, "interaction": (155,89,182), "boss": WARN}
         for i, ev in enumerate(self.pending):
             ry  = ly0 + i*ROW - self.ev_scroll
             row = pg.Rect(6, ry, lw-12, ROW-4)
@@ -788,7 +856,7 @@ class App:
             tb  = self.sf.render(ev["type"].upper(), True, tc)
             self.surf.blit(tb, (row.x+8, ry+(ROW-4-tb.get_height())//2))
             lbl = (ev["params"].get("title") or
-                   f"{ev['params'].get('count','?')}× bat")
+                   f"{ev['params'].get('count','?')}× {ev['params'].get('type','bat')}")
             self.surf.blit(self.f.render(f"{ev['distance']}m  —  {lbl}", True, TXT),
                            (row.x+115, ry+(ROW-4-self.f.size(lbl)[1])//2))
             def _ed(idx=i): self.go3("edit", self.pending[idx]["type"], idx)
@@ -803,8 +871,8 @@ class App:
         self.surf.blit(self.tf.render("Add Event", True, TXT), (rx, CONTENT_Y+10))
         adds = [
             Button("＋ NPC",          rx, CONTENT_Y+55,  420, 50, lambda: self.go3("create","npc"),         "primary"),
-            Button("＋ Enemy Wave",    rx, CONTENT_Y+118, 420, 50, lambda: self.go3("create","enemy_wave"), "danger"),
-            Button("＋ Interaction",   rx, CONTENT_Y+181, 420, 50, lambda: self.go3("create","interaction"),"ghost"),
+            Button("＋ Interaction",   rx, CONTENT_Y+118, 420, 50, lambda: self.go3("create","interaction"),"ghost"),
+            Button("＋ Boss Fight",    rx, CONTENT_Y+181, 420, 50, lambda: self.go3("create","boss"),       "warn"),
         ]
         for b in adds: b.draw(self.surf, self.f)
 
@@ -820,7 +888,7 @@ class App:
 
     def _d3(self):
         self._s3b = []
-        TYPE_LBL = {"npc":"NPC Event","enemy_wave":"Enemy Wave","interaction":"Interaction"}
+        TYPE_LBL = {"npc":"NPC Event","interaction":"Interaction","boss":"Boss Fight"}
         mode_str = "Create" if self.s3_mode == "create" else "Edit"
         self.surf.blit(self.tf.render(f"{mode_str}  ·  {TYPE_LBL.get(self.s3_type,'')}", True, WARN),
                        (14, CONTENT_Y+10))
@@ -833,7 +901,7 @@ class App:
                 self.s3_ui["npc_type"] = new_nt
                 sprite_dir = "" if new_nt == "wizard" else (self.browser.selected or "")
                 if "scale" in self.s3_ui:
-                    self.s3_ui["scale"].val = _scale_from_registry(new_nt, sprite_dir, self.s3_ui["scale"].val)
+                    self.s3_ui["scale"].val = _scale_from_registry("npc", new_nt, sprite_dir, self.s3_ui["scale"].val)
                 self.prev_frames = []; self.prev_dir = ""
             tb = Button(f"Type: {nt.capitalize()}  (toggle)", 472, CONTENT_Y+10, 380, 32, _tgl, "ghost")
             tb.draw(self.surf, self.sf)
@@ -849,7 +917,7 @@ class App:
                 json_scale = ev.get("params", {}).get("scale")
                 if json_scale is not None:
                     sprite_dir = "" if nt == "wizard" else (self.browser.selected or "")
-                    key = _npc_registry_key(nt, sprite_dir)
+                    key = _registry_key("npc", nt, sprite_dir)
                     registry_scale = None
                     if key:
                         try:
@@ -871,23 +939,72 @@ class App:
             else:
                 ph = self.sf.render("No preview — select a sprite folder", True, TXT3)
                 self.surf.blit(ph, ph.get_rect(center=pbox.center))
+        elif self.s3_type == "boss":
+            self.browser.draw(self.surf, self.f, self.sf)
+            tier = self.s3_ui.get("tier", "boss")
+            def _tgl_tier():
+                new_tier = "elite" if self.s3_ui.get("tier", "boss") == "boss" else "boss"
+                self.s3_ui["tier"] = new_tier
+            tb = Button(f"Tier: {tier.upper()}  (toggle)", 462, CONTENT_Y+390, 380, 32, _tgl_tier, "ghost")
+            tb.draw(self.surf, self.sf)
+            self._s3b.append(tb)
+
+            sel = self.browser.selected or "—  default skeleton assets"
+            st  = self.sf.render(f"Sprite Folder:  {sel}", True, WARN if self.browser.selected else TXT3)
+            self.surf.blit(st, (462, CONTENT_Y+12))
+
+            for k, v in self.s3_ui.items():
+                if k != "tier" and hasattr(v, "draw"):
+                    v.draw(self.surf, self.f, self.sf)
+
+            if self.s3_idx >= 0:
+                ev = self.pending[self.s3_idx]
+                json_scale = ev.get("params", {}).get("scale")
+                if json_scale is not None:
+                    sprite_dir = self.browser.selected or ""
+                    key = _registry_key("boss", "", sprite_dir)
+                    registry_scale = None
+                    if key:
+                        try:
+                            registry_scale = HitboxRegistry.get_margins(key).scale
+                        except Exception:
+                            pass
+                    if registry_scale is not None:
+                        comp_y = self.s3_ui["scale"].track.y + 16
+                        comp_text = f"JSON scale: {json_scale:.2f}  |  Registry: {registry_scale:.2f}"
+                        color = SUCCESS if abs(json_scale - registry_scale) < 0.01 else WARN
+                        self.surf.blit(self.sf.render(comp_text, True, color), (self.s3_ui["scale"].track.x, comp_y))
+
+            # Live Preview box at bottom of middle column
+            pbox = pg.Rect(462, CONTENT_Y+435, 380, 150)
+            pg.draw.rect(self.surf, PANEL2, pbox, border_radius=8)
+            pg.draw.rect(self.surf, BORDER, pbox, width=1, border_radius=8)
+            self.surf.blit(self.sf.render("Live Preview", True, TXT2), (pbox.x+8, pbox.y+6))
+            if self.prev_frames:
+                fr = self.prev_frames[self.prev_idx % len(self.prev_frames)]
+                self.surf.blit(fr, fr.get_rect(center=pbox.center))
+            else:
+                ph = self.sf.render("No preview — select a sprite folder", True, TXT3)
+                self.surf.blit(ph, ph.get_rect(center=pbox.center))
+
+            self.bmap.draw(self.surf, self.f, self.sf)
         else:
             for v in self.s3_ui.values():
                 if hasattr(v,"draw"): v.draw(self.surf, self.f, self.sf)
 
-        npc_ready = not (self.s3_type == "npc" and
-                         self.s3_ui.get("npc_type") == "generic" and
-                         not self.browser.selected)
+        ready = not (self.s3_type == "npc" and
+                     self.s3_ui.get("npc_type") == "generic" and
+                     not self.browser.selected)
         lbl = "Add to Level  ✓" if self.s3_mode == "create" else "Save Changes  ✓"
         sub = Button(lbl,       W-468, H-BTMBAR_H+8, 248, 42,
-                     self.submit_s3 if npc_ready else lambda: None,
-                     "success" if npc_ready else "ghost")
+                     self.submit_s3 if ready else lambda: None,
+                     "success" if ready else "ghost")
         cnl = Button("← Cancel", W-210, H-BTMBAR_H+8, 110, 42, self.go2, "ghost")
         sim = Button("Simulate  ▶", W-690, H-BTMBAR_H+8, 210, 42,
-                     self.simulate_s3 if npc_ready else lambda: None,
-                     "primary" if npc_ready else "ghost")
-        sub.enabled = npc_ready
-        sim.enabled = npc_ready
+                     self.simulate_s3 if ready else lambda: None,
+                     "primary" if ready else "ghost")
+        sub.enabled = ready
+        sim.enabled = ready
         sub.draw(self.surf, self.f); cnl.draw(self.surf, self.f); sim.draw(self.surf, self.f)
         self._s3b += [sub, cnl, sim]
 

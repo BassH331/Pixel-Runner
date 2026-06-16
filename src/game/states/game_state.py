@@ -244,12 +244,16 @@ class GameState(State):
             if self._is_simulating:
                 from src.game.entities.hitbox_registry import HitboxRegistry
                 for event in world_events:
-                    if event.get("type") == "npc":
+                    etype = event.get("type")
+                    if etype in ("npc", "boss"):
                         eid = event["id"]
                         params = event.get("params", {})
-                        ntype = params.get("npc_type", "generic")
                         
-                        if ntype == "wizard":
+                        if etype == "boss":
+                            sprite_dir = params.get("sprite_dir", "")
+                            folder_name = os.path.basename(sprite_dir.rstrip("/"))
+                            npc_key = f"boss:{folder_name.lower()}" if sprite_dir else "boss"
+                        elif params.get("npc_type", "generic") == "wizard":
                             npc_key = "wizard_npc"
                         else:
                             sprite_dir = params.get("sprite_dir", "")
@@ -264,8 +268,8 @@ class GameState(State):
                         
                         self._simulation_expected_npcs[eid] = {
                             "id": eid,
-                            "type": ntype,
-                            "title": params.get("title", "NPC"),
+                            "type": etype,
+                            "title": params.get("title", "NPC" if etype == "npc" else "Boss"),
                             "distance": float(event["distance"]),
                             "scale": float(params.get("scale", default_scale)),
                             "radius": float(params.get("radius", 160.0)),
@@ -328,6 +332,7 @@ class GameState(State):
         self.world_manager.register_handler("interaction", self._handle_interaction_spawn)
         self.world_manager.register_handler("npc", self._handle_npc_spawn)
         self.world_manager.register_handler("enemy_wave", self._handle_enemy_wave)
+        self.world_manager.register_handler("boss", self._handle_boss_spawn)
 
     def _handle_interaction_spawn(self, params: dict) -> None:
         """Handler for 'interaction' events."""
@@ -430,6 +435,88 @@ class GameState(State):
         elif enemy_type == "skeleton":
             for _ in range(count):
                 self.spawn_skeleton()
+
+    def _handle_boss_spawn(self, params: dict) -> None:
+        """Handler for 'boss' events."""
+        title = params.get("title", "Boss")
+        scale = float(params.get("scale", 2.0))
+        health = float(params.get("health", 100.0))
+        tier = params.get("tier", "boss")
+        sprite_dir = params.get("sprite_dir") or None
+        behaviour_map = params.get("behaviour_map") or None
+
+        # Spawn off-screen right
+        spawn_x = self.width + 200
+        spawn_y = self.height - 70
+
+        player_sprite = self.player.sprite
+        if player_sprite is None:
+            return
+
+        boss = Skeleton(
+            x=spawn_x,
+            y=spawn_y,
+            player=player_sprite,
+            sprite_root=sprite_dir,
+            behaviour_map=behaviour_map,
+            tier=tier
+        )
+
+        # Apply custom scale and health
+        old_scale = boss.scale
+        boss.scale = scale
+        if scale != old_scale:
+            # Rescale all animation frames
+            for state in list(boss.animations.keys()):
+                boss.animations[state] = [
+                    pg.transform.scale(img, (int(img.get_width() * scale / old_scale), int(img.get_height() * scale / old_scale)))
+                    for img in boss.animations[state]
+                ]
+            boss._attack1_frames = [
+                pg.transform.scale(img, (int(img.get_width() * scale / old_scale), int(img.get_height() * scale / old_scale)))
+                for img in boss._attack1_frames
+            ]
+            boss._attack2_frames = [
+                pg.transform.scale(img, (int(img.get_width() * scale / old_scale), int(img.get_height() * scale / old_scale)))
+                for img in boss._attack2_frames
+            ]
+
+        boss._max_health = health
+        boss._health = health
+        
+        # Adjust rect for new dimensions
+        boss.image = boss.animations[boss.state][0]
+        boss.rect = boss.image.get_rect(midbottom=(spawn_x, spawn_y))
+        
+        # Update hitbox registry margins
+        from src.game.entities.hitbox_registry import HitboxRegistry
+        key = f"boss:{os.path.basename(sprite_dir.rstrip('/'))}" if sprite_dir else "boss"
+        margins = None
+        try:
+            margins = HitboxRegistry.get_margins(key)
+        except Exception:
+            try:
+                margins = HitboxRegistry.get_margins("skeleton")
+            except Exception:
+                pass
+        if margins:
+            boss.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
+
+        # Tag boss attributes so we can identify it in the update loop
+        setattr(boss, "is_boss", True)
+        setattr(boss, "boss_title", title)
+        setattr(boss, "tier", tier)
+        setattr(boss, "event_id", params.get("_event_id"))
+        setattr(boss, "event_distance", params.get("_event_distance"))
+
+        self.obstacle_group.add(boss)
+        self.audio_manager.play_sound("skeleton_spawn")
+        
+        # Draw target text banner when boss spawns
+        self.notification_banner.show(
+            f"WARNING: {title.upper()} APPROACHING!",
+            notification="yellow"
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Lifecycle
@@ -745,6 +832,22 @@ class GameState(State):
                 self.audio_manager.play_sound("skeleton_death")
                 setattr(enemy, "_death_sound_played", True)
                 
+                # Check for Boss defeat
+                if getattr(enemy, "is_boss", False):
+                    if getattr(enemy, "tier", "boss") == "boss":
+                        self._level_complete = True
+                        self.objective_display.show(
+                            f"You have defeated the mighty {getattr(enemy, 'boss_title', 'Boss')}! "
+                            "The land is saved, and your name shall be sung in legend. "
+                            "Victory is yours!",
+                            "Victory Achieved!"
+                        )
+                    else:
+                        self.notification_banner.show(
+                            f"VICTORY: {getattr(enemy, 'boss_title', 'Mini-boss').upper()} DEFEATED!",
+                            notification="green"
+                        )
+
                 # Track zone kills
                 zone = getattr(enemy, "spawn_zone", None)
                 if zone is not None:
@@ -764,6 +867,16 @@ class GameState(State):
         if frame is None:
             return "smash"
         return self._SMASH_SOUND_MAP.get(frame, "smash")
+
+    def _is_boss_active(self) -> bool:
+        """Check if any boss is currently active and alive in the scene."""
+        for sprite in self.obstacle_group.sprites():
+            if getattr(sprite, "is_boss", False):
+                # Check health or state
+                state = getattr(sprite, "state", None)
+                if state != SkeletonState.DEATH and getattr(sprite, "_health", 0) > 0:
+                    return True
+        return False
 
     def _manage_skeleton_spawns(self) -> None:
         """Maintain skeleton population within configured limits."""
@@ -1160,7 +1273,7 @@ class GameState(State):
         
         # Calculate scroll speed based on player movement
         player_sprite = self.player.sprite
-        if player_sprite.is_running:
+        if player_sprite.is_running and not self._is_boss_active():
             self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
         else:
             self.bg_scroll_speed = 0
@@ -1225,71 +1338,80 @@ class GameState(State):
         if self._is_simulating:
             self._sim_log_counter += 1
             
-            # 1. Track any NPCs currently in the npc_group
+            # 1. Track any NPCs and Bosses currently in the scene
+            sim_targets = []
             for npc in self.npc_group:
                 eid = getattr(npc, "event_id", None)
                 if eid is not None:
-                    if eid not in self._simulation_npcs:
-                        self._simulation_npcs[eid] = {
-                            "id": eid,
-                            "type": "wizard" if npc.__class__.__name__ == "WizardNPC" else "generic",
-                            "title": getattr(npc, "title", "NPC"),
-                            "spawn_distance": self.world_distance,
-                            "actual_scale": float(getattr(npc, "scale", 1.0)),
-                            "actual_radius": float(getattr(npc, "proximity_radius", 160.0)),
-                            "actual_width": npc.image.get_width() if npc.image else 0,
-                            "actual_height": npc.image.get_height() if npc.image else 0,
-                            "initial_x": npc.rect.x,
-                            "initial_y": npc.rect.y,
-                            "world_x": getattr(npc, "world_x", None),
-                            "positions": [],
-                            "first_physical_collision": None,
-                            "first_proximity_collision": None
+                    sim_targets.append((npc, "npc"))
+            for obstacle in self.obstacle_group:
+                if getattr(obstacle, "is_boss", False):
+                    eid = getattr(obstacle, "event_id", None)
+                    if eid is not None:
+                        sim_targets.append((obstacle, "boss"))
+
+            for target, ttype in sim_targets:
+                eid = getattr(target, "event_id")
+                if eid not in self._simulation_npcs:
+                    self._simulation_npcs[eid] = {
+                        "id": eid,
+                        "type": ttype if ttype == "boss" else ("wizard" if target.__class__.__name__ == "WizardNPC" else "generic"),
+                        "title": getattr(target, "title" if ttype == "npc" else "boss_title", "Entity"),
+                        "spawn_distance": self.world_distance,
+                        "actual_scale": float(getattr(target, "scale", 1.0)),
+                        "actual_radius": float(getattr(target, "proximity_radius", 160.0)),
+                        "actual_width": target.image.get_width() if target.image else 0,
+                        "actual_height": target.image.get_height() if target.image else 0,
+                        "initial_x": target.rect.x,
+                        "initial_y": target.rect.y,
+                        "world_x": getattr(target, "world_x", None),
+                        "positions": [],
+                        "first_physical_collision": None,
+                        "first_proximity_collision": None
+                    }
+                    # Log spawn event
+                    print(f"[SIM] NPC #{eid} '{self._simulation_npcs[eid]['title']}' SPAWNED "
+                          f"at world_dist={self.world_distance:.0f} "
+                          f"screen=({target.rect.x},{target.rect.y}) "
+                          f"scale={self._simulation_npcs[eid]['actual_scale']} "
+                          f"radius={self._simulation_npcs[eid]['actual_radius']} "
+                          f"img={self._simulation_npcs[eid]['actual_width']}x"
+                          f"{self._simulation_npcs[eid]['actual_height']}")
+                
+                # Track collisions in real-time
+                sim_npc = self._simulation_npcs[eid]
+                if sim_npc["first_physical_collision"] is None:
+                    if player_sprite.rect.colliderect(target.rect):
+                        event_dist = float(getattr(target, "event_distance", 0.0))
+                        sim_npc["first_physical_collision"] = {
+                            "world_distance": float(self.world_distance),
+                            "trigger_distance": event_dist,
+                            "delta": float(self.world_distance - event_dist)
                         }
-                        # Log spawn event
-                        print(f"[SIM] NPC #{eid} '{getattr(npc, 'title', '?')}' SPAWNED "
-                              f"at world_dist={self.world_distance:.0f} "
-                              f"screen=({npc.rect.x},{npc.rect.y}) "
-                              f"scale={getattr(npc, 'scale', '?')} "
-                              f"radius={getattr(npc, 'proximity_radius', '?')} "
-                              f"img={npc.image.get_width() if npc.image else 0}x"
-                              f"{npc.image.get_height() if npc.image else 0}")
-                    
-                    # Track collisions in real-time
-                    sim_npc = self._simulation_npcs[eid]
-                    if sim_npc["first_physical_collision"] is None:
-                        if player_sprite.rect.colliderect(npc.rect):
-                            event_dist = float(getattr(npc, "event_distance", 0.0))
-                            sim_npc["first_physical_collision"] = {
-                                "world_distance": float(self.world_distance),
-                                "trigger_distance": event_dist,
-                                "delta": float(self.world_distance - event_dist)
-                            }
-                            print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PHYSICAL COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
-                    
-                    if sim_npc["first_proximity_collision"] is None:
-                        if getattr(npc, "_in_range", False):
-                            event_dist = float(getattr(npc, "event_distance", 0.0))
-                            sim_npc["first_proximity_collision"] = {
-                                "world_distance": float(self.world_distance),
-                                "trigger_distance": event_dist,
-                                "delta": float(self.world_distance - event_dist)
-                            }
-                            print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PROXIMITY COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
-                    
-                    # Append coordinate history
-                    self._simulation_npcs[eid]["positions"].append((npc.rect.x, npc.rect.y))
+                        print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PHYSICAL COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
+                
+                if sim_npc["first_proximity_collision"] is None:
+                    if ttype == "npc" and getattr(target, "_in_range", False):
+                        event_dist = float(getattr(target, "event_distance", 0.0))
+                        sim_npc["first_proximity_collision"] = {
+                            "world_distance": float(self.world_distance),
+                            "trigger_distance": event_dist,
+                            "delta": float(self.world_distance - event_dist)
+                        }
+                        print(f"[SIM] NPC #{eid} '{sim_npc['title']}' PROXIMITY COLLISION at world_dist={self.world_distance:.0f} (delta={self.world_distance - event_dist:.0f})")
+                
+                # Append coordinate history
+                self._simulation_npcs[eid]["positions"].append((target.rect.x, target.rect.y))
             
             # Real-time log every frame
             npc_info = []
-            for npc in self.npc_group:
-                eid = getattr(npc, "event_id", None)
-                if eid is not None:
-                    npc_info.append(f"#{eid}@({npc.rect.x},{npc.rect.y})")
+            for target, ttype in sim_targets:
+                eid = getattr(target, "event_id")
+                npc_info.append(f"#{eid}@({target.rect.x},{target.rect.y})")
             print(f"[SIM] frame={self._sim_log_counter} dist={self.world_distance:.0f} player@({player_sprite.rect.x},{player_sprite.rect.y}) | {' '.join(npc_info)}")
 
             # 2. Check for early exit condition:
-            # If we have expected NPCs in range, and all triggered expected NPCs have spawned and are off-screen:
+            # If we have expected NPCs in range, and all triggered expected NPCs have spawned and are off-screen or dead:
             triggered_expected_eids = [
                 eid for eid, exp in self._simulation_expected_npcs.items()
                 if exp["distance"] <= self.world_distance
@@ -1305,6 +1427,15 @@ class GameState(State):
                             if npc.rect.right >= 0:
                                 all_offscreen = False
                                 break
+                    if all_offscreen:
+                        for obstacle in self.obstacle_group:
+                            eid = getattr(obstacle, "event_id", None)
+                            if eid in triggered_expected_eids:
+                                if getattr(obstacle, "is_boss", False):
+                                    state = getattr(obstacle, "state", None)
+                                    if state != SkeletonState.DEATH and getattr(obstacle, "_health", 0) > 0:
+                                        all_offscreen = False
+                                        break
                 if all_spawned and all_offscreen:
                     self._write_simulation_report()
                     pg.quit()
@@ -1373,6 +1504,9 @@ class GameState(State):
         if self.debug_mode:
             self._draw_debug_info(surface)
 
+        # Boss Health Bar overlay
+        self._draw_boss_health_bar(surface)
+
         # Objective overlay (drawn on top of everything)
         self.objective_display.draw(surface)
 
@@ -1381,6 +1515,57 @@ class GameState(State):
 
         # Tutorial overlay (above everything)
         self.tutorial_overlay.draw(surface)
+
+    def _draw_boss_health_bar(self, surface: pg.Surface) -> None:
+        """Render a premium boss health bar overlay if a boss is active."""
+        # Find the active boss
+        boss_sprite = None
+        for sprite in self.obstacle_group.sprites():
+            if getattr(sprite, "is_boss", False):
+                state = getattr(sprite, "state", None)
+                if state != SkeletonState.DEATH and getattr(sprite, "_health", 0) > 0:
+                    boss_sprite = sprite
+                    break
+        if boss_sprite is None:
+            return
+
+        # Get boss attributes
+        title = getattr(boss_sprite, "boss_title", "Boss")
+        health = getattr(boss_sprite, "_health", 0.0)
+        max_health = getattr(boss_sprite, "_max_health", 100.0)
+        pct = max(0.0, min(1.0, health / max_health))
+
+        # Layout math
+        bar_w = 600
+        bar_h = 24
+        bar_x = (self.width - bar_w) // 2
+        bar_y = self.height - 80
+
+        # Draw shadows/glow
+        glow_rect = pg.Rect(bar_x - 3, bar_y - 3, bar_w + 6, bar_h + 6)
+        pg.draw.rect(surface, (15, 15, 20), glow_rect, border_radius=6)
+        pg.draw.rect(surface, (231, 76, 60), glow_rect, width=1, border_radius=6) # Red outline
+
+        # Draw background bar
+        bg_rect = pg.Rect(bar_x, bar_y, bar_w, bar_h)
+        pg.draw.rect(surface, (30, 30, 35), bg_rect, border_radius=4)
+
+        # Draw filled part
+        if pct > 0:
+            fill_w = int(bar_w * pct)
+            fill_rect = pg.Rect(bar_x, bar_y, fill_w, bar_h)
+            # Draw gradient red
+            pg.draw.rect(surface, (192, 57, 43), fill_rect, border_radius=4)
+            # Highlight top half
+            top_rect = pg.Rect(bar_x, bar_y, fill_w, bar_h // 2)
+            pg.draw.rect(surface, (231, 76, 60), top_rect, border_radius=4)
+
+        # Draw boss name and numbers
+        font = pg.font.SysFont("Arial", 14, bold=True)
+        lbl = f"{title.upper()}  —  {int(health)}/{int(max_health)}"
+        txt_surf = font.render(lbl, True, (255, 255, 255))
+        txt_rect = txt_surf.get_rect(center=bg_rect.center)
+        surface.blit(txt_surf, txt_rect)
     
     def _draw_debug_info(self, surface: pg.Surface) -> None:
         """
