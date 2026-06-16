@@ -191,7 +191,7 @@ class HitboxEditorApp:
         HitboxRegistry.begin_transaction()
 
     def scan_level_files(self):
-        """Scans all level configuration JSONs in game_data to find actual game NPCs."""
+        """Scans all level configuration JSONs in game_data to find actual game NPCs and bosses."""
         added_keys = {"player", "skeleton", "enemy"}
         
         level_files = glob.glob("game_data/level_*.json")
@@ -200,10 +200,11 @@ class HitboxEditorApp:
                 with open(filepath, "r") as f:
                     level_data = json.load(f)
                 
-                # Scan world_events for NPCs
+                # Scan world_events for NPCs and bosses
                 world_events = level_data.get("world_events", [])
                 for event in world_events:
-                    if event.get("type") == "npc":
+                    etype = event.get("type")
+                    if etype == "npc":
                         params = event.get("params", {})
                         npc_type = params.get("npc_type")
                         
@@ -235,6 +236,18 @@ class HitboxEditorApp:
                                         "params": params
                                     })
                                     added_keys.add(key)
+                    elif etype == "boss":
+                        params = event.get("params", {})
+                        sprite_dir = params.get("sprite_dir") or ""
+                        key = f"boss:{os.path.basename(sprite_dir.rstrip('/'))}" if sprite_dir else "boss"
+                        if key not in added_keys:
+                            self.entity_configs.append({
+                                "key": key,
+                                "label": f"Boss: {params.get('title', 'Boss')}",
+                                "type": "boss",
+                                "params": params
+                            })
+                            added_keys.add(key)
             except Exception as e:
                 print(f"Error scanning level file {filepath}: {e}")
 
@@ -256,6 +269,26 @@ class HitboxEditorApp:
                     "title": "Goblin",
                     "scale": 2.0,
                     "text": "Greetings!"
+                }
+            })
+        if "boss:wizard" not in added_keys:
+            self.entity_configs.append({
+                "key": "boss:wizard",
+                "label": "Boss: Wizard",
+                "type": "boss",
+                "params": {
+                    "sprite_dir": "assets/wizard",
+                    "title": "Wizard Boss",
+                    "scale": 1.0,
+                    "health": 150.0,
+                    "tier": "boss",
+                    "behaviour_map": {
+                        "Attack": "ATTACK",
+                        "Death": "DEATH",
+                        "Idle": "IDLE",
+                        "Move": "WALK",
+                        "Take Hit": "ATTACK"
+                    }
                 }
             })
 
@@ -294,6 +327,16 @@ class HitboxEditorApp:
                 text=params.get("text", "Greetings!"), 
                 title=params.get("title", "NPC"), 
                 scale=self.sliders["scale"].val
+            )
+        elif ent_type == "boss":
+            dummy_player = Player(640, 480, mock_audio)
+            self.entity = Skeleton(
+                x=640,
+                y=480,
+                player=dummy_player,
+                sprite_root=params.get("sprite_dir"),
+                behaviour_map=params.get("behaviour_map"),
+                tier=params.get("tier", "boss")
             )
 
         # Retrieve base texture dimensions

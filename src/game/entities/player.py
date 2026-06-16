@@ -414,7 +414,9 @@ class Player(Actor):
         
         # Physics state
         self._gravity: float = 0.0
-        self._ground_y: int = pg.display.Info().current_h - margins.ground_offset
+        surf = pg.display.get_surface()
+        height = surf.get_height() if surf else 720
+        self._ground_y: int = height - margins.ground_offset
         
         # Movement state
         self._direction: int = 0

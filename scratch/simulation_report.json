@@ -1,7 +1,7 @@
 {
-    "status": "PASSED",
-    "timestamp": 6729,
-    "duration_ms": 6511.0,
+    "status": "FAILED",
+    "timestamp": 8383,
+    "duration_ms": 8005.0,
     "start_distance": 0.0,
     "final_distance": 500.0,
     "scroll_speed": 5,
@@ -28,9 +28,9 @@
             "initial_screen_y": 654,
             "first_physical_collision": null,
             "first_proximity_collision": null,
-            "total_frames_tracked": 206,
+            "total_frames_tracked": 263,
             "total_x_scrolled": 325,
-            "avg_scroll_per_frame": 1.5776699029126213,
+            "avg_scroll_per_frame": 1.2357414448669202,
             "expected_screen_x": 1322.0,
             "actual_screen_x": 1322,
             "screen_x_error": 0.0,
@@ -41,12 +41,12 @@
                     "y": 654
                 },
                 {
-                    "frame": 103,
+                    "frame": 131,
                     "x": 1322,
                     "y": 654
                 },
                 {
-                    "frame": 205,
+                    "frame": 262,
                     "x": 1322,
                     "y": 654
                 }
@@ -58,40 +58,42 @@
             "title": "Mini Boss",
             "registry_key": "boss:wizard",
             "json_distance": 500.0,
-            "json_scale": 1.0,
+            "json_scale": 3.6,
             "json_radius": 160.0,
-            "registry_scale": 1.0,
-            "registry_ground_offset": 0,
+            "registry_scale": 4.11,
+            "registry_ground_offset": 35,
             "spawned": true,
-            "status": "PASSED",
-            "issues": [],
+            "status": "FAILED",
+            "issues": [
+                "Scale mismatch: level JSON has 3.6, entity_dimensions.json has 4.11 for 'boss:wizard'"
+            ],
             "actual_spawn_distance": 500.0,
-            "actual_scale": 1.0,
+            "actual_scale": 3.6,
             "actual_radius": 160.0,
-            "actual_width": 150,
-            "actual_height": 150,
-            "initial_screen_x": 1715,
-            "initial_screen_y": 604,
+            "actual_width": 539,
+            "actual_height": 539,
+            "initial_screen_x": 1586,
+            "initial_screen_y": 235,
             "first_physical_collision": null,
             "first_proximity_collision": null,
-            "total_frames_tracked": 141,
-            "total_x_scrolled": 420,
-            "avg_scroll_per_frame": 2.978723404255319,
+            "total_frames_tracked": 198,
+            "total_x_scrolled": 591,
+            "avg_scroll_per_frame": 2.984848484848485,
             "position_samples": [
                 {
                     "frame": 0,
-                    "x": 1715,
-                    "y": 604
+                    "x": 1586,
+                    "y": 235
                 },
                 {
-                    "frame": 70,
-                    "x": 1505,
-                    "y": 638
+                    "frame": 99,
+                    "x": 1289,
+                    "y": 412
                 },
                 {
-                    "frame": 140,
-                    "x": 1295,
-                    "y": 638
+                    "frame": 197,
+                    "x": 995,
+                    "y": 412
                 }
             ]
         },

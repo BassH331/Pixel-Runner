@@ -117,6 +117,9 @@ class HitboxRegistry:
         # Dynamic fallback for generic NPCs
         if entity_name.startswith("generic_npc_"):
             return HitboxMargins(0, 0, 0, 0, 34, scale=2.0)
+        if entity_name.startswith("boss:") or entity_name == "boss":
+            skeleton_margins = cls.DEFAULTS.get("skeleton") or HitboxMargins(65, 65, 20, 0, 127, scale=2.0)
+            return copy.deepcopy(skeleton_margins)
         return HitboxMargins(0, 0, 0, 0, 0, scale=1.0)
 
     @classmethod

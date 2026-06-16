@@ -516,7 +516,11 @@ class GameState(State):
             except Exception:
                 pass
         if margins:
+            boss.image_offset = pg.math.Vector2(0, 0)
             boss.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
+            surf = pg.display.get_surface()
+            height = surf.get_height() if surf else 720
+            boss._ground_y = height - margins.ground_offset
 
         # Tag boss attributes so we can identify it in the update loop
         setattr(boss, "is_boss", True)

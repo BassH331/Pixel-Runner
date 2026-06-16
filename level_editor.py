@@ -337,17 +337,17 @@ def _scale_from_registry(etype: str, npc_type: str = "", sprite_dir: str = "", f
     """
     key = _registry_key(etype, npc_type, sprite_dir)
     if not key:
-        return float(fallback)
+        return fallback
     try:
-        return float(HitboxRegistry.get_margins(key).scale)
+        return HitboxRegistry.get_margins(key).scale
     except Exception as e:
         if etype == "boss":
             try:
-                return float(HitboxRegistry.get_margins("skeleton").scale)
+                return HitboxRegistry.get_margins("skeleton").scale
             except Exception:
                 pass
         print(f"[WARN] Could not read registry scale for {key!r}: {e}")
-        return float(fallback)
+        return fallback
 
 def _load_preview(path: str, scale: float = 2.0) -> list[pg.Surface]:
     frames: list[pg.Surface] = []
@@ -561,12 +561,59 @@ class App:
                         ground_offset=old_margins.ground_offset,
                         scale=new_scale
                     )
+                    HitboxRegistry.update_margins(key, new_margins)
         else:
             p = {"title": ui["title"].val, "text": ui["text"].val,
                  "radius": int(ui["radius"].val)}
         return {"id": eid, "distance": dist, "type": t, "params": p}
 
-    def submit_s3(self):
+    def submit_s3(self, force_confirm=False):
+        if self.s3_type == "boss" and not force_confirm:
+            ui = self.s3_ui
+            new_scale = float(ui["scale"].val)
+            sprite_dir = self.browser.selected or ""
+            key = _registry_key("boss", "", sprite_dir)
+            registry_scale = None
+            if key:
+                try:
+                    registry_scale = HitboxRegistry.get_margins(key).scale
+                except Exception:
+                    pass
+            if registry_scale is None or abs(registry_scale - new_scale) > 0.01:
+                def _do_confirm():
+                    self.modal = None
+                    if key:
+                        old_margins = None
+                        try:
+                            old_margins = HitboxRegistry.get_margins(key)
+                        except Exception:
+                            try:
+                                old_margins = HitboxRegistry.get_margins("skeleton")
+                            except Exception:
+                                pass
+                        new_margins = HitboxMargins(
+                            left=old_margins.left if old_margins else 65,
+                            right=old_margins.right if old_margins else 65,
+                            top=old_margins.top if old_margins else 20,
+                            bottom=old_margins.bottom if old_margins else 0,
+                            ground_offset=old_margins.ground_offset if old_margins else 127,
+                            scale=new_scale
+                        )
+                        HitboxRegistry.update_margins(key, new_margins)
+                        HitboxRegistry.save_all()
+                    self.submit_s3(force_confirm=True)
+
+                msg = f"Set registry scale for '{key}' to {new_scale:.2f}?"
+                if registry_scale is not None:
+                    msg = f"Update '{key}' registry scale: {registry_scale:.2f} -> {new_scale:.2f}?"
+                self.modal = ModalDialog(
+                    "Sync Registry Scale?",
+                    msg,
+                    _do_confirm,
+                    lambda: setattr(self, "modal", None)
+                )
+                return
+
         ev = self._read_s3()
         if self.s3_mode == "create": self.pending.append(ev)
         else: self.pending[self.s3_idx] = ev
@@ -913,23 +960,20 @@ class App:
                 self.surf.blit(st, (472, CONTENT_Y+47))
             for v in self.s3_ui.values():
                 if hasattr(v,"draw"): v.draw(self.surf, self.f, self.sf)
-            if self.s3_idx >= 0:
-                ev = self.pending[self.s3_idx]
-                json_scale = ev.get("params", {}).get("scale")
-                if json_scale is not None:
-                    sprite_dir = "" if nt == "wizard" else (self.browser.selected or "")
-                    key = _registry_key("npc", nt, sprite_dir)
-                    registry_scale = None
-                    if key:
-                        try:
-                            registry_scale = HitboxRegistry.get_margins(key).scale
-                        except Exception:
-                            pass
-                    if registry_scale is not None:
-                        comp_y = self.s3_ui["scale"].track.y + 16
-                        comp_text = f"JSON config scale: {json_scale:.2f}  |  Registry scale: {registry_scale:.2f}"
-                        color = SUCCESS if abs(json_scale - registry_scale) < 0.01 else WARN
-                        self.surf.blit(self.sf.render(comp_text, True, color), (self.s3_ui["scale"].track.x, comp_y))
+            sprite_dir = "" if nt == "wizard" else (self.browser.selected or "")
+            key = _registry_key("npc", nt, sprite_dir)
+            registry_scale = None
+            if key:
+                try:
+                    registry_scale = HitboxRegistry.get_margins(key).scale
+                except Exception:
+                    pass
+            if registry_scale is not None:
+                current_val = float(self.s3_ui["scale"].val)
+                comp_y = self.s3_ui["scale"].track.y + 16
+                comp_text = f"JSON config scale: {current_val:.2f}  |  Registry scale: {registry_scale:.2f}"
+                color = SUCCESS if abs(current_val - registry_scale) < 0.01 else WARN
+                self.surf.blit(self.sf.render(comp_text, True, color), (self.s3_ui["scale"].track.x, comp_y))
             pbox = pg.Rect(472, CONTENT_Y+460, 782, 160)
             pg.draw.rect(self.surf, PANEL2, pbox, border_radius=8)
             pg.draw.rect(self.surf, BORDER, pbox, width=1, border_radius=8)
@@ -958,23 +1002,20 @@ class App:
                 if k != "tier" and hasattr(v, "draw"):
                     v.draw(self.surf, self.f, self.sf)
 
-            if self.s3_idx >= 0:
-                ev = self.pending[self.s3_idx]
-                json_scale = ev.get("params", {}).get("scale")
-                if json_scale is not None:
-                    sprite_dir = self.browser.selected or ""
-                    key = _registry_key("boss", "", sprite_dir)
-                    registry_scale = None
-                    if key:
-                        try:
-                            registry_scale = HitboxRegistry.get_margins(key).scale
-                        except Exception:
-                            pass
-                    if registry_scale is not None:
-                        comp_y = self.s3_ui["scale"].track.y + 16
-                        comp_text = f"JSON scale: {json_scale:.2f}  |  Registry: {registry_scale:.2f}"
-                        color = SUCCESS if abs(json_scale - registry_scale) < 0.01 else WARN
-                        self.surf.blit(self.sf.render(comp_text, True, color), (self.s3_ui["scale"].track.x, comp_y))
+            sprite_dir = self.browser.selected or ""
+            key = _registry_key("boss", "", sprite_dir)
+            registry_scale = None
+            if key:
+                try:
+                    registry_scale = HitboxRegistry.get_margins(key).scale
+                except Exception:
+                    pass
+            if registry_scale is not None:
+                current_val = float(self.s3_ui["scale"].val)
+                comp_y = self.s3_ui["scale"].track.y + 16
+                comp_text = f"JSON scale: {current_val:.2f}  |  Registry: {registry_scale:.2f}"
+                color = SUCCESS if abs(current_val - registry_scale) < 0.01 else WARN
+                self.surf.blit(self.sf.render(comp_text, True, color), (self.s3_ui["scale"].track.x, comp_y))
 
             # Live Preview box at bottom of middle column
             pbox = pg.Rect(462, CONTENT_Y+435, 380, 150)

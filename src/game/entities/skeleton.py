@@ -81,16 +81,26 @@ class Skeleton(Actor):
         self.tier = tier
         
         # Load margins and scale first
-        margins_key = "skeleton"
-        if sprite_root:
-            import os
-            folder_name = os.path.basename(sprite_root.rstrip("/"))
-            margins_key = f"skeleton_{folder_name.lower()}"
+        if self.tier == "boss":
+            margins_key = "boss"
+            if sprite_root:
+                import os
+                folder_name = os.path.basename(sprite_root.rstrip("/"))
+                margins_key = f"boss:{folder_name.lower()}"
+        else:
+            margins_key = "skeleton"
+            if sprite_root:
+                import os
+                folder_name = os.path.basename(sprite_root.rstrip("/"))
+                margins_key = f"skeleton_{folder_name.lower()}"
         
         margins = HitboxRegistry.get_margins(margins_key)
-        # If margins for custom skeleton are missing, fall back to "skeleton" defaults
+        # If margins for custom skeleton/boss are missing, fall back to default
         if margins.scale == 1.0 and margins.ground_offset == 0:
-            margins = HitboxRegistry.get_margins("skeleton")
+            if self.tier == "boss":
+                margins = HitboxRegistry.get_margins("boss")
+            else:
+                margins = HitboxRegistry.get_margins("skeleton")
             
         self.scale = margins.scale
         
@@ -158,45 +168,47 @@ class Skeleton(Actor):
         knockback_scale = 1.0
         
         if self.tier == "boss":
-            self.scale *= 1.8
+            if not sprite_root:
+                self.scale *= 1.8
+                # Scale all pre-loaded animation frames to boss scale
+                for state in list(self.animations.keys()):
+                    self.animations[state] = [
+                        pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
+                        for img in self.animations[state]
+                    ]
+                self._attack1_frames = [
+                    pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
+                    for img in self._attack1_frames
+                ]
+                self._attack2_frames = [
+                    pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
+                    for img in self._attack2_frames
+                ]
             self._max_health = 150.0
             self._speed = 3.2
             damage_scale = 3.0
             knockback_scale = 1.8
-            # Scale all pre-loaded animation frames to boss scale
-            for state in list(self.animations.keys()):
-                self.animations[state] = [
-                    pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
-                    for img in self.animations[state]
-                ]
-            self._attack1_frames = [
-                pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
-                for img in self._attack1_frames
-            ]
-            self._attack2_frames = [
-                pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
-                for img in self._attack2_frames
-            ]
         elif self.tier == "elite":
-            self.scale *= 1.3
+            if not sprite_root:
+                self.scale *= 1.3
+                # Scale all pre-loaded animation frames to elite scale
+                for state in list(self.animations.keys()):
+                    self.animations[state] = [
+                        pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
+                        for img in self.animations[state]
+                    ]
+                self._attack1_frames = [
+                    pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
+                    for img in self._attack1_frames
+                ]
+                self._attack2_frames = [
+                    pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
+                    for img in self._attack2_frames
+                ]
             self._max_health = 60.0
             self._speed = 3.2
             damage_scale = 1.6
             knockback_scale = 1.3
-            # Scale all pre-loaded animation frames to elite scale
-            for state in list(self.animations.keys()):
-                self.animations[state] = [
-                    pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
-                    for img in self.animations[state]
-                ]
-            self._attack1_frames = [
-                pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
-                for img in self._attack1_frames
-            ]
-            self._attack2_frames = [
-                pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
-                for img in self._attack2_frames
-            ]
         else:  # minion
             self._max_health = 30.0
             self._speed = 2.5
@@ -225,13 +237,15 @@ class Skeleton(Actor):
         
         # Movement and physics
         self._gravity: float = 0.0
-        # Load dynamic ground offset from HitboxRegistry
-        self._ground_y: int = pg.display.Info().current_h - margins.ground_offset
+        # Load dynamic ground offset from HitboxRegistry using the active display surface height
+        surf = pg.display.get_surface()
+        height = surf.get_height() if surf else 720
+        self._ground_y: int = height - margins.ground_offset
         
         # AI configuration
         self._detection_range: int = 3000 if self.tier == "boss" else 1000
         self._attack_range: int = 60
-        self._vertical_tolerance: int = 100
+        self._vertical_tolerance: int = 500 if self.tier == "boss" else 100
         self.spawn_zone: Optional[dict] = None
         
     def _load_frames(
