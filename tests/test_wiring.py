@@ -298,6 +298,7 @@ class TestGameStateWiring(unittest.TestCase):
             self.game_state.max_distance_reached = 1000.0
             zone = self.game_state._get_spawn_zone()
             self.assertIsNotNone(zone)
+            assert zone is not None
             self.assertIn('max_skeletons', zone)
             self.assertIn('delay', zone)
 

@@ -12,6 +12,7 @@ from random import randint
 from typing import TYPE_CHECKING, Final, Optional
 from dataclasses import dataclass
 
+import pygame
 import pygame as pg
 
 from src.game.entities.enemy import Enemy
@@ -516,7 +517,7 @@ class GameState(State):
             except Exception:
                 pass
         if margins:
-            boss.image_offset = pg.math.Vector2(0, 0)
+            boss.image_offset = pygame.math.Vector2(0, 0)
             boss.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
             surf = pg.display.get_surface()
             height = surf.get_height() if surf else 720
@@ -805,7 +806,7 @@ class GameState(State):
     def _apply_player_damage_to_enemy(
         self,
         player: Player,
-        enemy: Enemy,
+        enemy: Enemy | Skeleton,
     ) -> None:
         """
         Apply player attack damage and effects to an enemy.
@@ -824,13 +825,16 @@ class GameState(State):
         knockback = player.get_attack_knockback(enemy.rect.center)
         
         # Apply damage to enemy
-        if hasattr(enemy, 'take_damage'):
-            # Check if enemy's take_damage accepts knockback parameter
+        if isinstance(enemy, Skeleton):
+            enemy.take_damage(damage)
+        elif isinstance(enemy, Enemy):
+            enemy.take_damage(damage, knockback)
+        elif hasattr(enemy, 'take_damage'):
+            # Fallback: call take_damage dynamically
             try:
-                enemy.take_damage(damage, knockback)
+                enemy.take_damage(damage, knockback)  # type: ignore
             except TypeError:
-                # Fallback: take_damage only accepts damage
-                enemy.take_damage(damage)
+                enemy.take_damage(damage)  # type: ignore
         else:
             # Non-damageable obstacle - just destroy it
             enemy.kill()
@@ -901,6 +905,8 @@ class GameState(State):
     def _manage_skeleton_spawns(self) -> None:
         """Maintain skeleton population within configured limits."""
         zone = self._get_spawn_zone()
+        if zone is None:
+            return
         current_skeletons = sum(
             1 for sprite in self.obstacle_group if isinstance(sprite, Skeleton)
         )
@@ -1745,11 +1751,13 @@ class GameState(State):
 
         # Distance debug info (top-right)
         zone = self._get_spawn_zone()
+        max_skel = zone["max_skeletons"] if zone else "N/A"
+        delay = zone["delay"] if zone else "N/A"
         dist_font = pg.font.SysFont("monospace", 18)
         dist_lines = [
             f"Distance: {int(self.world_distance)} / {int(self._level_end_distance)}",
             f"Max reached: {int(self.max_distance_reached)}",
-            f"Zone: max_skel={zone['max_skeletons']} delay={zone['delay']}ms",
+            f"Zone: max_skel={max_skel} delay={delay}ms",
         ]
         for i, line in enumerate(dist_lines):
             surf = dist_font.render(line, True, (255, 255, 100))

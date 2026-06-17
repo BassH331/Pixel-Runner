@@ -81,8 +81,8 @@ assert boss.event_id == 99, "Expected event_id 99"
 # 2. Verify Scroll Lock Logic
 # Stub is_running and direction to always return True/1 for the test on the Player class
 # so that player.update() does not reset them
-Player.is_running = property(lambda self: True)
-Player.direction = property(lambda self: 1)
+setattr(Player, "is_running", property(lambda self: True))
+setattr(Player, "direction", property(lambda self: 1))
 
 player = game_state.player.sprite
 player._direction = 1
