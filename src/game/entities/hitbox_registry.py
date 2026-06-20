@@ -123,6 +123,18 @@ class HitboxRegistry:
         return HitboxMargins(0, 0, 0, 0, 0, scale=1.0)
 
     @classmethod
+    def has_custom_margins(cls, entity_name: str) -> bool:
+        """Checks if the database JSON file contains an entry for entity_name."""
+        if not os.path.exists(CONFIG_PATH):
+            return False
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                data = json.load(f)
+            return entity_name in data
+        except Exception:
+            return False
+
+    @classmethod
     def update_margins(cls, entity_name: str, margins: HitboxMargins) -> None:
         """Updates the configuration in memory. Must commit transaction to save to disk."""
         if not cls._cached_config:

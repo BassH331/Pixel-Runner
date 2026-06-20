@@ -27,6 +27,7 @@ from src.game.entities.skeleton import Skeleton
 from src.game.entities.enemy import Enemy
 from src.game.entities.wizard_npc import WizardNPC
 from src.game.entities.generic_npc import GenericNPC
+from src.game.entities.fire_wizard import FireWizard
 
 # Load fonts
 try:
@@ -330,14 +331,24 @@ class HitboxEditorApp:
             )
         elif ent_type == "boss":
             dummy_player = Player(640, 480, mock_audio)
-            self.entity = Skeleton(
-                x=640,
-                y=480,
-                player=dummy_player,
-                sprite_root=params.get("sprite_dir"),
-                behaviour_map=params.get("behaviour_map"),
-                tier=params.get("tier", "boss")
-            )
+            sprite_dir = params.get("sprite_dir")
+            if sprite_dir and "wizard" in sprite_dir.lower():
+                self.entity = FireWizard(
+                    x=640,
+                    y=480,
+                    player=dummy_player,
+                    tier=params.get("tier", "boss"),
+                    sprite_root=sprite_dir
+                )
+            else:
+                self.entity = Skeleton(
+                    x=640,
+                    y=480,
+                    player=dummy_player,
+                    sprite_root=sprite_dir,
+                    behaviour_map=params.get("behaviour_map"),
+                    tier=params.get("tier", "boss")
+                )
 
         # Retrieve base texture dimensions
         if self.entity is not None and self.entity.animations and self.entity.state in self.entity.animations:
@@ -414,7 +425,8 @@ class HitboxEditorApp:
         self.entity.rect = first_frame.get_rect(midbottom=(PREVIEW_CENTER_X, raw_bottom))
         
         # Reset engine image offset vector
-        self.entity.image_offset = pg.math.Vector2(0, 0)
+        self.entity.image_offset.x = 0.0
+        self.entity.image_offset.y = 0.0
         
         # Apply the margins
         self.entity.adjust_hitbox_sides(left=left, right=right, top=top, bottom=bottom)

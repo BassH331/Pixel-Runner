@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 
 from random import randint
-from typing import TYPE_CHECKING, Final, Optional
+from typing import TYPE_CHECKING, Final, Optional, Any
 from dataclasses import dataclass
 
 import pygame
@@ -21,6 +21,8 @@ from src.game.entities.wizard_npc import WizardNPC
 from src.game.entities.generic_npc import GenericNPC
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
+from src.game.entities.fire_wizard import FireWizard, FireWizardState
+from src.game.entities.boss_manager import BossManager
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
 from v3x_zulfiqar_gideon import AssetManager, State
 
@@ -83,6 +85,16 @@ class GameState(State):
         display_surface = pg.display.get_surface()
         self.width: int = display_surface.get_width()
         self.height: int = display_surface.get_height()
+        
+        # Gameplay Telemetry Tracker
+        from src.game.debug.gameplay_tracker import GameplayTracker
+        self.tracker = GameplayTracker()
+        self._prev_player_state: Optional[Any] = None
+        self._prev_boss_state: Optional[Any] = None
+        self._prev_entities_ids: set[tuple[int, str, Optional[int]]] = set()
+        self._prev_player_health: Optional[float] = None
+        self._logged_damage_this_tick: bool = False
+        self._fps_clock: pg.time.Clock = pg.time.Clock()
         
         # Audio system
         self.audio_manager = self.manager.audio_manager
@@ -455,85 +467,16 @@ class GameState(State):
 
     def _handle_boss_spawn(self, params: dict) -> None:
         """Handler for 'boss' events."""
-        title = params.get("title", "Boss")
-        scale = float(params.get("scale", 2.0))
-        health = float(params.get("health", 100.0))
-        tier = params.get("tier", "boss")
-        sprite_dir = params.get("sprite_dir") or None
-        behaviour_map = params.get("behaviour_map") or None
-
-        # Spawn off-screen right
-        spawn_x = self.width + 200
-        spawn_y = self.height - 70
-
         player_sprite = self.player.sprite
         if player_sprite is None:
             return
 
-        boss = Skeleton(
-            x=spawn_x,
-            y=spawn_y,
-            player=player_sprite,
-            sprite_root=sprite_dir,
-            behaviour_map=behaviour_map,
-            tier=tier
-        )
-
-        # Apply custom scale and health
-        old_scale = boss.scale
-        boss.scale = scale
-        if scale != old_scale:
-            # Rescale all animation frames
-            for state in list(boss.animations.keys()):
-                boss.animations[state] = [
-                    pg.transform.scale(img, (int(img.get_width() * scale / old_scale), int(img.get_height() * scale / old_scale)))
-                    for img in boss.animations[state]
-                ]
-            boss._attack1_frames = [
-                pg.transform.scale(img, (int(img.get_width() * scale / old_scale), int(img.get_height() * scale / old_scale)))
-                for img in boss._attack1_frames
-            ]
-            boss._attack2_frames = [
-                pg.transform.scale(img, (int(img.get_width() * scale / old_scale), int(img.get_height() * scale / old_scale)))
-                for img in boss._attack2_frames
-            ]
-
-        boss._max_health = health
-        boss._health = health
-        
-        # Adjust rect for new dimensions
-        boss.image = boss.animations[boss.state][0]
-        boss.rect = boss.image.get_rect(midbottom=(spawn_x, spawn_y))
-        
-        # Update hitbox registry margins
-        from src.game.entities.hitbox_registry import HitboxRegistry
-        key = f"boss:{os.path.basename(sprite_dir.rstrip('/'))}" if sprite_dir else "boss"
-        margins = None
-        try:
-            margins = HitboxRegistry.get_margins(key)
-        except Exception:
-            try:
-                margins = HitboxRegistry.get_margins("skeleton")
-            except Exception:
-                pass
-        if margins:
-            boss.image_offset = pygame.math.Vector2(0, 0)
-            boss.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
-            surf = pg.display.get_surface()
-            height = surf.get_height() if surf else 720
-            boss._ground_y = height - margins.ground_offset
-
-        # Tag boss attributes so we can identify it in the update loop
-        setattr(boss, "is_boss", True)
-        setattr(boss, "boss_title", title)
-        setattr(boss, "tier", tier)
-        setattr(boss, "event_id", params.get("_event_id"))
-        setattr(boss, "event_distance", params.get("_event_distance"))
-
+        boss = BossManager.spawn_boss(params, player_sprite, self.width, self.height)
         self.obstacle_group.add(boss)
         self.audio_manager.play_sound("skeleton_spawn")
         
         # Draw target text banner when boss spawns
+        title = params.get("title", "Boss")
         self.notification_banner.show(
             f"WARNING: {title.upper()} APPROACHING!",
             notification="yellow"
@@ -665,7 +608,7 @@ class GameState(State):
         """Spawn a new skeleton at a random position on the right side of the screen."""
         # Calculate spawn position (off-screen right, but not too far)
         spawn_x = self.width + randint(100, 300)
-        spawn_y = self.height - 70  # Same as initial spawn height
+        spawn_y = self.height - 50  # Same as initial spawn height
         
         # Get player sprite from GroupSingle
         player_sprite = self.player.sprite
@@ -806,7 +749,7 @@ class GameState(State):
     def _apply_player_damage_to_enemy(
         self,
         player: Player,
-        enemy: Enemy | Skeleton,
+        enemy: Enemy | Skeleton | FireWizard,
     ) -> None:
         """
         Apply player attack damage and effects to an enemy.
@@ -825,7 +768,8 @@ class GameState(State):
         knockback = player.get_attack_knockback(enemy.rect.center)
         
         # Apply damage to enemy
-        if isinstance(enemy, Skeleton):
+        target_health_before = getattr(enemy, "_health", getattr(enemy, "health", 0.0))
+        if isinstance(enemy, (Skeleton, FireWizard)):
             enemy.take_damage(damage)
         elif isinstance(enemy, Enemy):
             enemy.take_damage(damage, knockback)
@@ -838,6 +782,17 @@ class GameState(State):
         else:
             # Non-damageable obstacle - just destroy it
             enemy.kill()
+            
+        if self.tracker.enabled:
+            self.tracker.log_event("damage_dealt", {
+                "attacker": "player",
+                "target": enemy.__class__.__name__,
+                "target_is_boss": getattr(enemy, "is_boss", False),
+                "damage": damage,
+                "target_health_before": target_health_before,
+                "target_health_after": getattr(enemy, "_health", getattr(enemy, "health", 0.0)),
+                "world_distance": self.world_distance
+            })
         
         # Audio feedback based on attack type
         from src.game.entities.player import PlayerState
@@ -850,9 +805,12 @@ class GameState(State):
         else:
             self.audio_manager.play_sound("thrust")
         
-        if isinstance(enemy, Skeleton):
-            if (enemy.state == SkeletonState.DEATH and
-                    not getattr(enemy, "_death_sound_played", False)):
+        if isinstance(enemy, (Skeleton, FireWizard)):
+            is_dead = (
+                (enemy.state == SkeletonState.DEATH) if isinstance(enemy, Skeleton)
+                else (enemy.state == FireWizardState.DEATH)
+            )
+            if is_dead and not getattr(enemy, "_death_sound_played", False):
                 self.audio_manager.play_sound("skeleton_death")
                 setattr(enemy, "_death_sound_played", True)
                 
@@ -894,13 +852,7 @@ class GameState(State):
 
     def _is_boss_active(self) -> bool:
         """Check if any boss is currently active and alive in the scene."""
-        for sprite in self.obstacle_group.sprites():
-            if getattr(sprite, "is_boss", False):
-                # Check health or state
-                state = getattr(sprite, "state", None)
-                if state != SkeletonState.DEATH and getattr(sprite, "_health", 0) > 0:
-                    return True
-        return False
+        return BossManager.is_boss_active(self.obstacle_group)
 
     def _manage_skeleton_spawns(self) -> None:
         """Maintain skeleton population within configured limits."""
@@ -932,19 +884,23 @@ class GameState(State):
             
         # Process attacks from all obstacles that can attack
         for obstacle in self.obstacle_group:
-            if isinstance(obstacle, Skeleton):
+            if isinstance(obstacle, (Skeleton, FireWizard)):
                 self._handle_skeleton_attack(player, obstacle)
                 
-    def _handle_skeleton_attack(self, player: Player, skeleton: Skeleton) -> None:
+    def _handle_skeleton_attack(self, player: Player, skeleton: Skeleton | FireWizard) -> None:
         """
         Handle skeleton attack collision with frame-precise damage.
         
         Args:
             player: Player sprite instance.
-            skeleton: Attacking skeleton instance.
+            skeleton: Attacking skeleton/wizard instance.
         """
-        # Gate 1: Skeleton must be in attack state
-        if skeleton.state != SkeletonState.ATTACK:
+        # Gate 1: Entity must be in attack state
+        is_attacking = False
+        if hasattr(skeleton, "state") and skeleton.state is not None:
+            if hasattr(skeleton.state, "name") and "ATTACK" in skeleton.state.name:
+                is_attacking = True
+        if not is_attacking:
             return
         
         # Gate 2: Must be on a hit frame and not already registered
@@ -969,8 +925,20 @@ class GameState(State):
         
         # Gate 4: Player invincibility check (handled inside take_damage)
         damage = skeleton.get_current_attack_damage()
+        player_health_before = player.health
         damage_applied = player.take_damage(damage)
         
+        if damage_applied and self.tracker.enabled:
+            self.tracker.log_event("damage_received", {
+                "attacker": skeleton.__class__.__name__,
+                "attacker_is_boss": getattr(skeleton, "is_boss", False),
+                "damage": damage,
+                "player_health_before": player_health_before,
+                "player_health_after": player.health,
+                "world_distance": self.world_distance
+            })
+            self._logged_damage_this_tick = True
+            
         # Only apply secondary effects if damage went through
         if not damage_applied:
             return
@@ -1590,6 +1558,110 @@ class GameState(State):
                 self._write_simulation_report()
                 pg.quit()
                 exit(0)
+                
+        # ─────────────────────────────────────────────────────────────────────
+        # Telemetry Tracking & Logging System
+        # ─────────────────────────────────────────────────────────────────────
+        if self.tracker.enabled:
+            # 1. Update FPS clock
+            self._fps_clock.tick()
+            fps = self._fps_clock.get_fps()
+            
+            # 2. Check player state change
+            current_player_state = player_sprite.state
+            prev_p_state = self._prev_player_state
+            if prev_p_state is not None and current_player_state != prev_p_state:
+                self.tracker.log_event("player_state_changed", {
+                    "old_state": getattr(prev_p_state, "name", "").lower(),
+                    "new_state": getattr(current_player_state, "name", "").lower(),
+                    "frame": self._frame_count,
+                    "world_distance": self.world_distance
+                })
+            self._prev_player_state = current_player_state
+            
+            # 3. Check boss state change
+            from src.game.entities.boss_manager import BossManager
+            boss = BossManager.get_active_boss(self.obstacle_group)
+            prev_b_state = self._prev_boss_state
+            if boss:
+                current_boss_state = boss.state
+                if prev_b_state is not None and current_boss_state != prev_b_state:
+                    self.tracker.log_event("boss_state_changed", {
+                        "old_state": getattr(prev_b_state, "name", "").lower(),
+                        "new_state": getattr(current_boss_state, "name", "").lower(),
+                        "frame": self._frame_count,
+                        "world_distance": self.world_distance
+                    })
+                self._prev_boss_state = current_boss_state
+            else:
+                if prev_b_state is not None:
+                    self.tracker.log_event("boss_state_changed", {
+                        "old_state": getattr(prev_b_state, "name", "").lower(),
+                        "new_state": "none",
+                        "frame": self._frame_count,
+                        "world_distance": self.world_distance
+                    })
+                    self._prev_boss_state = None
+                    
+            # 4. Spawns and despawns of entities
+            current_entities = {
+                (id(e), e.__class__.__name__, getattr(e, "event_id", None))
+                for e in list(self.obstacle_group) + list(self.npc_group)
+            }
+            if self._prev_entities_ids:
+                spawned = current_entities - self._prev_entities_ids
+                despawned = self._prev_entities_ids - current_entities
+                for eid, class_name, event_id in spawned:
+                    self.tracker.log_event("entity_spawn", {
+                        "entity_id": eid,
+                        "type": class_name,
+                        "event_id": event_id,
+                        "frame": self._frame_count,
+                        "world_distance": self.world_distance
+                    })
+                for eid, class_name, event_id in despawned:
+                    self.tracker.log_event("entity_despawn", {
+                        "entity_id": eid,
+                        "type": class_name,
+                        "event_id": event_id,
+                        "frame": self._frame_count,
+                        "world_distance": self.world_distance
+                    })
+            self._prev_entities_ids = current_entities
+            
+            # 5. Check player health changes dynamically (fallback for hazards/projectiles)
+            if self._prev_player_health is not None and player_sprite.health < self._prev_player_health:
+                if not getattr(self, "_logged_damage_this_tick", False):
+                    # Check if any fireball overlaps the player
+                    has_fireball = any(
+                        e.__class__.__name__ == "Fireball" and e.rect.colliderect(player_sprite.rect)
+                        for e in self.obstacle_group
+                    )
+                    self.tracker.log_event("damage_received", {
+                        "attacker": "Fireball" if has_fireball else "Environment",
+                        "attacker_is_boss": False,
+                        "damage": self._prev_player_health - player_sprite.health,
+                        "player_health_before": self._prev_player_health,
+                        "player_health_after": player_sprite.health,
+                        "world_distance": self.world_distance
+                    })
+            self._prev_player_health = player_sprite.health
+            self._logged_damage_this_tick = False
+            
+            # 6. Periodic frame sampling
+            sample_n = int(self.tracker.config["sample_every_n_frames"])
+            if self._frame_count % sample_n == 0:
+                self.tracker.sample_frame(
+                    frame=self._frame_count,
+                    dt=dt,
+                    fps=fps,
+                    game_state_name=self.__class__.__name__,
+                    player=player_sprite,
+                    boss=boss,
+                    world_distance=self.world_distance
+                )
+                
+        self._frame_count += 1
     
     # ─────────────────────────────────────────────────────────────────────────
     # Rendering
@@ -1661,54 +1733,7 @@ class GameState(State):
 
     def _draw_boss_health_bar(self, surface: pg.Surface) -> None:
         """Render a premium boss health bar overlay if a boss is active."""
-        # Find the active boss
-        boss_sprite = None
-        for sprite in self.obstacle_group.sprites():
-            if getattr(sprite, "is_boss", False):
-                state = getattr(sprite, "state", None)
-                if state != SkeletonState.DEATH and getattr(sprite, "_health", 0) > 0:
-                    boss_sprite = sprite
-                    break
-        if boss_sprite is None:
-            return
-
-        # Get boss attributes
-        title = getattr(boss_sprite, "boss_title", "Boss")
-        health = getattr(boss_sprite, "_health", 0.0)
-        max_health = getattr(boss_sprite, "_max_health", 100.0)
-        pct = max(0.0, min(1.0, health / max_health))
-
-        # Layout math
-        bar_w = 600
-        bar_h = 24
-        bar_x = (self.width - bar_w) // 2
-        bar_y = self.height - 80
-
-        # Draw shadows/glow
-        glow_rect = pg.Rect(bar_x - 3, bar_y - 3, bar_w + 6, bar_h + 6)
-        pg.draw.rect(surface, (15, 15, 20), glow_rect, border_radius=6)
-        pg.draw.rect(surface, (231, 76, 60), glow_rect, width=1, border_radius=6) # Red outline
-
-        # Draw background bar
-        bg_rect = pg.Rect(bar_x, bar_y, bar_w, bar_h)
-        pg.draw.rect(surface, (30, 30, 35), bg_rect, border_radius=4)
-
-        # Draw filled part
-        if pct > 0:
-            fill_w = int(bar_w * pct)
-            fill_rect = pg.Rect(bar_x, bar_y, fill_w, bar_h)
-            # Draw gradient red
-            pg.draw.rect(surface, (192, 57, 43), fill_rect, border_radius=4)
-            # Highlight top half
-            top_rect = pg.Rect(bar_x, bar_y, fill_w, bar_h // 2)
-            pg.draw.rect(surface, (231, 76, 60), top_rect, border_radius=4)
-
-        # Draw boss name and numbers
-        font = pg.font.SysFont("Arial", 14, bold=True)
-        lbl = f"{title.upper()}  —  {int(health)}/{int(max_health)}"
-        txt_surf = font.render(lbl, True, (255, 255, 255))
-        txt_rect = txt_surf.get_rect(center=bg_rect.center)
-        surface.blit(txt_surf, txt_rect)
+        BossManager.draw_boss_health_bar(surface, self.obstacle_group, self.width, self.height)
     
     def _draw_debug_info(self, surface: pg.Surface) -> None:
         """
@@ -1746,7 +1771,7 @@ class GameState(State):
             pg.draw.rect(surface, (0, 255, 0), sprite.rect, 2)
             
             # Skeleton-specific debug info
-            if isinstance(sprite, Skeleton):
+            if isinstance(sprite, (Skeleton, FireWizard)):
                 self._draw_skeleton_debug(surface, sprite)
 
         # Distance debug info (top-right)
@@ -1820,7 +1845,7 @@ class GameState(State):
     def _draw_skeleton_debug(
         self,
         surface: pg.Surface,
-        skeleton: Skeleton,
+        skeleton: Skeleton | FireWizard,
     ) -> None:
         """
         Render skeleton-specific debug information.
@@ -1845,6 +1870,12 @@ class GameState(State):
         # Hit frame indicator (yellow border when in hit frame)
         if skeleton.is_in_hit_frame():
             pg.draw.rect(surface, (255, 255, 0), skeleton.rect, 3)
+            
+            # Draw attack range reach (red box)
+            if hasattr(skeleton, "get_attack_hitbox"):
+                atk_hitbox = skeleton.get_attack_hitbox()
+                if atk_hitbox:
+                    pg.draw.rect(surface, (255, 0, 0), atk_hitbox, 2)
             
             hit_text = font.render("HIT FRAME!", True, (255, 255, 0))
             surface.blit(

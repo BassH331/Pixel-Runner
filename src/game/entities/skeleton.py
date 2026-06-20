@@ -72,7 +72,9 @@ class Skeleton(Actor):
         player: Player,
         sprite_root: Optional[str] = None,
         behaviour_map: Optional[dict[str, str]] = None,
-        tier: str = "minion"
+        tier: str = "minion",
+        custom_scale: Optional[float] = None,
+        custom_health: Optional[float] = None,
     ) -> None:
         super().__init__(x, y)
         
@@ -102,7 +104,16 @@ class Skeleton(Actor):
             else:
                 margins = HitboxRegistry.get_margins("skeleton")
             
-        self.scale = margins.scale
+        # Determine scale: registry priority -> custom_scale priority -> default margins scale
+        registry_scale = None
+        try:
+            if HitboxRegistry.has_custom_margins(margins_key):
+                registry_scale = margins.scale
+        except Exception:
+            pass
+
+        self.scale = registry_scale if registry_scale is not None else (custom_scale if custom_scale is not None else margins.scale)
+        self._scale_is_explicit = (registry_scale is not None or custom_scale is not None)
         
         # 1. Load default animations
         self.animations[SkeletonState.IDLE] = self._load_frames(
@@ -168,7 +179,7 @@ class Skeleton(Actor):
         knockback_scale = 1.0
         
         if self.tier == "boss":
-            if not sprite_root:
+            if not sprite_root and not self._scale_is_explicit:
                 self.scale *= 1.8
                 # Scale all pre-loaded animation frames to boss scale
                 for state in list(self.animations.keys()):
@@ -184,12 +195,12 @@ class Skeleton(Actor):
                     pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
                     for img in self._attack2_frames
                 ]
-            self._max_health = 150.0
+            self._max_health = custom_health if custom_health is not None else 150.0
             self._speed = 3.2
             damage_scale = 3.0
             knockback_scale = 1.8
         elif self.tier == "elite":
-            if not sprite_root:
+            if not sprite_root and not self._scale_is_explicit:
                 self.scale *= 1.3
                 # Scale all pre-loaded animation frames to elite scale
                 for state in list(self.animations.keys()):
@@ -205,13 +216,15 @@ class Skeleton(Actor):
                     pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
                     for img in self._attack2_frames
                 ]
-            self._max_health = 60.0
+            self._max_health = custom_health if custom_health is not None else 60.0
             self._speed = 3.2
             damage_scale = 1.6
             knockback_scale = 1.3
         else:  # minion
-            self._max_health = 30.0
+            self._max_health = custom_health if custom_health is not None else 30.0
             self._speed = 2.5
+            damage_scale = 1.0
+            knockback_scale = 1.0
             
         self._health: float = self._max_health
         

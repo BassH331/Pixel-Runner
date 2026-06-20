@@ -84,10 +84,11 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--start-dist", type=float, default=None)
+    parser.add_argument("--dev", action="store_true", default=False, help="Launch directly into the game scene, bypassing intro scenes")
     args, _ = parser.parse_known_args()
 
     init_state = SplashState
-    if args.start_dist is not None:
+    if args.start_dist is not None or args.dev:
         init_state = GameState
 
     # ── 1. Ignition Manifest ────────────────────────────────────────────────
