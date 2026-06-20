@@ -1,1 +1,1 @@
-# Package initialization file for game debugging tools.
+"""Debug tools and telemetry systems for Pixel Runner."""

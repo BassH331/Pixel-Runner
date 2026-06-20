@@ -1,234 +1,359 @@
-"""
-Unit and Integration Tests for GameplayTracker
+"""Unit tests for the GameplayTracker telemetry system.
+
+Tests cover:
+- Configuration loading and validation
+- JSONL file creation and rotation
+- Event logging verification
+- Session manifest tracking
+- Pixel signature caching
+- Headless environment compatibility
 """
 
-import os
-import sys
-import shutil
-import unittest
 import json
-from unittest.mock import MagicMock, patch
+import os
+import shutil
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch, MagicMock
 
-# Force SDL dummy video driver for headless test runner compatibility
-os.environ["SDL_VIDEODRIVER"] = "dummy"
+try:
+    import pygame as pg
+    PYGAME_AVAILABLE = True
+except ImportError:
+    PYGAME_AVAILABLE = False
 
-import pygame as pg
+from src.game.debug.gameplay_tracker import GameplayTracker, EventType
 
-# Ensure project root is on path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-from src.game.debug.gameplay_tracker import GameplayTracker
 
 class TestGameplayTrackerConfig(unittest.TestCase):
+    """Test configuration loading and validation."""
     
-    def test_default_config(self) -> None:
-        tracker = GameplayTracker(overrides={"enabled": False})
+    def test_default_config(self):
+        """Test that default config is applied when none provided."""
+        tracker = GameplayTracker()
         self.assertFalse(tracker.enabled)
-        self.assertEqual(tracker.log_dir, "logs/gameplay_tracking")
-        self.assertEqual(tracker.config["sample_every_n_frames"], 10)
-
-    def test_overrides(self) -> None:
-        tracker = GameplayTracker(overrides={
+        self.assertEqual(tracker.sample_every_n_frames, 10)
+        self.assertEqual(tracker.log_dir, Path("logs/gameplay_tracking"))
+        self.assertEqual(tracker.max_file_size_bytes, 5 * 1024 * 1024)
+    
+    def test_config_override(self):
+        """Test that user config overrides defaults."""
+        custom_config = {
             "enabled": True,
             "sample_every_n_frames": 5,
-            "log_dir": "test_logs_dir"
-        })
+            "log_dir": "custom_logs",
+            "max_file_size_mb": 10,
+        }
+        tracker = GameplayTracker(config=custom_config)
         self.assertTrue(tracker.enabled)
-        self.assertEqual(tracker.log_dir, "test_logs_dir")
-        self.assertEqual(tracker.config["sample_every_n_frames"], 5)
-        # Cleanup
-        if os.path.exists("test_logs_dir"):
-            shutil.rmtree("test_logs_dir")
-
-    def test_env_overrides(self) -> None:
-        os.environ["GAMEPLAY_TRACKING_ENABLED"] = "True"
-        os.environ["GAMEPLAY_TRACKING_SAMPLE_EVERY_N_FRAMES"] = "3"
-        os.environ["GAMEPLAY_TRACKING_LOG_DIR"] = "env_logs_dir"
-        
-        tracker = GameplayTracker()
-        self.assertTrue(tracker.enabled)
-        self.assertEqual(tracker.log_dir, "env_logs_dir")
-        self.assertEqual(tracker.config["sample_every_n_frames"], 3)
-        
-        # Cleanup env
-        del os.environ["GAMEPLAY_TRACKING_ENABLED"]
-        del os.environ["GAMEPLAY_TRACKING_SAMPLE_EVERY_N_FRAMES"]
-        del os.environ["GAMEPLAY_TRACKING_LOG_DIR"]
-        if os.path.exists("env_logs_dir"):
-            shutil.rmtree("env_logs_dir")
-
-
-class TestGameplayTrackerLogging(unittest.TestCase):
+        self.assertEqual(tracker.sample_every_n_frames, 5)
+        self.assertEqual(tracker.log_dir, Path("custom_logs"))
+        self.assertEqual(tracker.max_file_size_bytes, 10 * 1024 * 1024)
     
-    def setUp(self) -> None:
-        self.test_dir = "temp_test_logs"
+    def test_partial_config_override(self):
+        """Test that partial config merges with defaults."""
+        partial_config = {"enabled": True}
+        tracker = GameplayTracker(config=partial_config)
+        self.assertTrue(tracker.enabled)
+        self.assertEqual(tracker.sample_every_n_frames, 10)  # Default
+
+
+class TestGameplayTrackerSessionManagement(unittest.TestCase):
+    """Test session initialization, cleanup, and manifest management."""
+    
+    def setUp(self):
+        """Set up temporary directory for tests."""
+        self.test_dir = tempfile.mkdtemp()
+    
+    def tearDown(self):
+        """Clean up temporary directory."""
         if os.path.exists(self.test_dir):
             shutil.rmtree(self.test_dir)
-            
-        self.tracker = GameplayTracker(overrides={
+    
+    def test_session_initialization(self):
+        """Test that session initializes log directory and first file."""
+        config = {
             "enabled": True,
             "log_dir": self.test_dir,
-            "max_file_size_mb": 0.001, # ~1KB to trigger rotation quickly
-            "console_output": False
-        })
-
-    def tearDown(self) -> None:
-        if os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
-
-    def test_log_creation_and_append(self) -> None:
-        self.tracker.log_event("test_event", {"some": "data"})
+        }
+        tracker = GameplayTracker(config=config)
         
-        log_path = self.tracker._get_current_log_path()
-        self.assertTrue(os.path.exists(log_path))
+        self.assertTrue(os.path.exists(self.test_dir))
+        self.assertIsNotNone(tracker.current_file_path)
+        self.assertTrue(tracker.current_file_path.parent.exists())
+    
+    def test_manifest_creation(self):
+        """Test that session manifest is created correctly."""
+        config = {
+            "enabled": True,
+            "log_dir": self.test_dir,
+        }
+        tracker = GameplayTracker(config=config)
+        tracker.flush()
         
-        with open(log_path, "r") as f:
-            lines = f.readlines()
-            
-        self.assertEqual(len(lines), 1)
-        data = json.loads(lines[0])
-        self.assertEqual(data["event"], "test_event")
-        self.assertEqual(data["data"]["some"], "data")
-        self.assertEqual(data["session_id"], self.tracker.session_id)
-
-    def test_rolling_file_rotation(self) -> None:
-        # Write enough lines to exceed 1KB and trigger rotation
-        large_payload = "x" * 500
-        for i in range(5):
-            self.tracker.log_event(f"event_{i}", {"payload": large_payload})
-            
-        # Manifest should be updated and file index should be > 1
-        self.assertGreater(self.tracker.file_index, 1)
-        
-        # Verify both log files exist
-        file_1 = os.path.join(self.test_dir, f"session_{self.tracker.session_id}_001.jsonl")
-        file_2 = os.path.join(self.test_dir, f"session_{self.tracker.session_id}_002.jsonl")
-        self.assertTrue(os.path.exists(file_1))
-        self.assertTrue(os.path.exists(file_2))
-
-    def test_manifest_file(self) -> None:
-        manifest_path = os.path.join(self.test_dir, "latest_session.json")
-        self.assertTrue(os.path.exists(manifest_path))
+        manifest_path = Path(self.test_dir) / "latest_session.json"
+        self.assertTrue(manifest_path.exists())
         
         with open(manifest_path, "r") as f:
             manifest = json.load(f)
-            
-        self.assertEqual(manifest["session_id"], self.tracker.session_id)
-        self.assertEqual(manifest["config"]["log_dir"], self.test_dir)
+        
+        self.assertIn("session_timestamp", manifest)
+        self.assertIn("session_start", manifest)
+        self.assertIn("latest_file", manifest)
+        self.assertIn("config", manifest)
 
 
-class TestGameplayTrackerSignatures(unittest.TestCase):
+@unittest.skipUnless(PYGAME_AVAILABLE, "pygame not available")
+class TestGameplayTrackerEventLogging(unittest.TestCase):
+    """Test event logging functionality."""
     
-    @classmethod
-    def setUpClass(cls) -> None:
+    def setUp(self):
+        """Set up temporary directory and tracker."""
+        self.test_dir = tempfile.mkdtemp()
+        self.config = {
+            "enabled": True,
+            "log_dir": self.test_dir,
+            "event_logging_enabled": True,
+        }
+        self.tracker = GameplayTracker(config=self.config)
         pg.init()
-        pg.display.set_mode((1280, 720))
-
-    def test_signature_computation_and_matching(self) -> None:
-        tracker = GameplayTracker(overrides={"enabled": False})
-        
-        # Create a simple surface with a distinct color pattern
-        surf = pg.Surface((40, 40), pg.SRCALPHA)
-        surf.fill((0, 0, 0, 0)) # Transparent
-        # Draw some non-transparent pixels
-        pg.draw.circle(surf, (255, 0, 0, 255), (20, 20), 10)
-        
-        # Test signature
-        sig = tracker._compute_signature(surf)
-        self.assertEqual(sig["size"], [40, 40])
-        self.assertGreater(sig["non_transparent_count"], 0)
-        self.assertEqual(len(sig["colors"]), 5)
-        
-        # Mock entity
-        entity = MagicMock()
-        entity.state = "RUN"
-        entity.animation_index = 0.0
-        entity.image = surf
-        entity.facing_left = False
-        entity.animations = {"RUN": [surf]}
-        
-        # Cache signatures
-        tracker._cache_signatures(entity, None)
-        self.assertTrue(tracker._verify_signature(entity, is_boss=False))
-        
-        # Flip entity
-        entity.facing_left = True
-        # Since the shape is a center circle, a horizontal flip should still match!
-        self.assertTrue(tracker._verify_signature(entity, is_boss=False))
-
-    def test_position_mismatch(self) -> None:
-        tracker = GameplayTracker(overrides={"enabled": False})
-        
-        # Create a surface
-        surf = pg.Surface((40, 40), pg.SRCALPHA)
-        surf.fill((0, 0, 0, 0))
-        pg.draw.circle(surf, (255, 0, 0, 255), (20, 20), 5)
-        
-        # Entity with aligned hitbox
-        entity = MagicMock()
-        entity.image = surf
-        entity.rect = pg.Rect(100, 100, 40, 40)
-        entity.image_offset = pg.math.Vector2(0, 0)
-        
-        self.assertFalse(tracker._check_position_mismatch(entity))
-        
-        # Entity with far away visual rendering (large offset)
-        entity.image_offset = pg.math.Vector2(400, 0)
-        self.assertTrue(tracker._check_position_mismatch(entity))
-
-
-class TestGameStateIntegration(unittest.TestCase):
     
-    @classmethod
-    def setUpClass(cls) -> None:
-        pg.init()
-        pg.display.set_mode((1280, 720))
+    def tearDown(self):
+        """Clean up."""
+        self.tracker.close()
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+        pg.quit()
+    
+    def test_log_event_string(self):
+        """Test logging event with string event type."""
+        self.tracker.log_event("damage_dealt", {
+            "target": "Skeleton",
+            "damage": 10,
+        })
+        
+        self.assertEqual(self.tracker.event_count, 1)
+        self.assertTrue(self.tracker.current_file_path.exists())
+    
+    def test_log_event_enum(self):
+        """Test logging event with EventType enum."""
+        self.tracker.log_event(EventType.DAMAGE_DEALT, {
+            "target": "Skeleton",
+            "damage": 10,
+        })
+        
+        self.assertEqual(self.tracker.event_count, 1)
+    
+    def test_event_content(self):
+        """Test that logged events have correct structure."""
+        self.tracker.log_event("test_event", {
+            "key1": "value1",
+            "key2": 42,
+        })
+        
+        with open(self.tracker.current_file_path, "r") as f:
+            line = f.readline()
+        
+        entry = json.loads(line)
+        self.assertEqual(entry["type"], "event")
+        self.assertEqual(entry["event_type"], "test_event")
+        self.assertEqual(entry["key1"], "value1")
+        self.assertEqual(entry["key2"], 42)
+        self.assertIn("timestamp_ms", entry)
+    
+    def test_disabled_tracking(self):
+        """Test that events are not logged when tracking is disabled."""
+        disabled_tracker = GameplayTracker(config={"enabled": False})
+        disabled_tracker.log_event("test_event", {"data": "value"})
+        
+        self.assertEqual(disabled_tracker.event_count, 0)
 
-    @patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_texture")
-    @patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_sound")
-    def test_game_state_wire_up(self, mock_snd, mock_tex) -> None:
-        mock_tex.return_value = pg.Surface((32, 32))
-        mock_snd.return_value = None
-        
-        # Configure UI theme so GameState init doesn't fail
-        from v3x_zulfiqar_gideon import UITheme
-        UITheme.configure_buttons(
-            assets={
-                "big": ("dummy_big", "dummy_big_p"),
-                "medium": ("dummy_med", "dummy_med_p"),
-                "cancel": ("dummy_cancel", "dummy_cancel_p"),
-                "new_start": ("dummy_new", "dummy_new_p"),
-            },
-            font_path="dummy_font"
+
+@unittest.skipUnless(PYGAME_AVAILABLE, "pygame not available")
+class TestGameplayTrackerFrameSampling(unittest.TestCase):
+    """Test frame sampling functionality."""
+    
+    def setUp(self):
+        """Set up temporary directory and tracker."""
+        self.test_dir = tempfile.mkdtemp()
+        self.config = {
+            "enabled": True,
+            "log_dir": self.test_dir,
+            "sample_every_n_frames": 10,
+        }
+        self.tracker = GameplayTracker(config=self.config)
+        pg.init()
+    
+    def tearDown(self):
+        """Clean up."""
+        self.tracker.close()
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+        pg.quit()
+    
+    def test_sample_frame(self):
+        """Test frame sampling with flexible kwargs."""
+        self.tracker.sample_frame(
+            frame=100,
+            fps=60,
+            player_health=45,
         )
-        UITheme.configure_notifications(
-            banner_path="dummy_banner",
-            icons={"gray": "dummy_gray", "red": "dummy_red", "yellow": "dummy_yellow"},
-            font_path="dummy_font"
-        )
-        UITheme.configure_overlays(
-            stone_path="dummy_stone",
-            parchment_path="dummy_parchment",
-            title_font_path="dummy_font",
-            body_font_path="dummy_font"
+        
+        self.assertEqual(self.tracker.frame_count, 1)
+        self.assertTrue(self.tracker.current_file_path.exists())
+    
+    def test_frame_content(self):
+        """Test that frame samples have correct structure."""
+        self.tracker.sample_frame(
+            frame=50,
+            fps=59.5,
         )
         
-        from src.game.states.game_state import GameState
-        mgr = MagicMock()
-        mgr.audio_manager = MagicMock()
+        with open(self.tracker.current_file_path, "r") as f:
+            line = f.readline()
         
-        # Instantiate GameState with tracking enabled
-        with patch.dict(os.environ, {"GAMEPLAY_TRACKING_ENABLED": "True", "GAMEPLAY_TRACKING_LOG_DIR": "temp_int_logs"}):
-            state = GameState(mgr)
-            self.assertTrue(state.tracker.enabled)
-            self.assertEqual(state.tracker.log_dir, "temp_int_logs")
-            
-            # Tick state update to ensure no exceptions are raised
-            state.update(16.6)
-            
-            # Clean up
-            if os.path.exists("temp_int_logs"):
-                shutil.rmtree("temp_int_logs")
+        entry = json.loads(line)
+        self.assertEqual(entry["type"], "frame_sample")
+        self.assertEqual(entry["frame"], 50)
+        self.assertAlmostEqual(entry["fps"], 59.5)
+        self.assertIn("timestamp_ms", entry)
+
+
+@unittest.skipUnless(PYGAME_AVAILABLE, "pygame not available")
+class TestGameplayTrackerFileRotation(unittest.TestCase):
+    """Test JSONL file rotation functionality."""
+    
+    def setUp(self):
+        """Set up temporary directory and tracker with small file size."""
+        self.test_dir = tempfile.mkdtemp()
+        self.config = {
+            "enabled": True,
+            "log_dir": self.test_dir,
+            "max_file_size_mb": 0.001,  # ~1KB for testing
+        }
+        self.tracker = GameplayTracker(config=self.config)
+        pg.init()
+    
+    def tearDown(self):
+        """Clean up."""
+        self.tracker.close()
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+        pg.quit()
+    
+    def test_file_rotation(self):
+        """Test that files rotate when size limit is reached."""
+        first_file = self.tracker.current_file_path
+        
+        # Log events until rotation occurs
+        for i in range(50):
+            self.tracker.log_event("test_event", {
+                "index": i,
+                "data": "x" * 100,
+            })
+        
+        second_file = self.tracker.current_file_path
+        
+        # Files should be different after rotation
+        self.assertNotEqual(str(first_file), str(second_file))
+        self.assertTrue(first_file.exists())
+        self.assertTrue(second_file.exists())
+
+
+@unittest.skipUnless(PYGAME_AVAILABLE, "pygame not available")
+class TestGameplayTrackerPixelSignatures(unittest.TestCase):
+    """Test pixel signature caching and verification."""
+    
+    def setUp(self):
+        """Set up temporary directory and tracker."""
+        self.test_dir = tempfile.mkdtemp()
+        self.config = {
+            "enabled": True,
+            "log_dir": self.test_dir,
+            "pixel_signatures_enabled": True,
+        }
+        self.tracker = GameplayTracker(config=self.config)
+        pg.init()
+    
+    def tearDown(self):
+        """Clean up."""
+        self.tracker.close()
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+        pg.quit()
+    
+    def test_cache_pixel_signature(self):
+        """Test caching pixel signatures."""
+        # Create a simple test surface
+        surface = pg.Surface((32, 32), pg.SRCALPHA)
+        surface.fill((255, 0, 0, 255))
+        
+        self.tracker.cache_pixel_signature(
+            entity_id="test_entity_1",
+            entity_type="player",
+            image=surface,
+            bounding_box=(0, 0, 32, 32),
+            sample_points=[(0, 0), (16, 16), (31, 31)],
+        )
+        
+        self.assertIn("test_entity_1", self.tracker.pixel_signatures)
+        sig = self.tracker.pixel_signatures["test_entity_1"]
+        self.assertEqual(sig["entity_type"], "player")
+        self.assertEqual(sig["bounding_box"], (0, 0, 32, 32))
+    
+    def test_verify_visual_alignment(self):
+        """Test visual alignment verification."""
+        # Create surfaces for caching and verification
+        surface1 = pg.Surface((32, 32), pg.SRCALPHA)
+        surface1.fill((255, 0, 0, 255))
+        
+        self.tracker.cache_pixel_signature(
+            entity_id="test_entity_2",
+            entity_type="enemy",
+            image=surface1,
+            bounding_box=(0, 0, 32, 32),
+            sample_points=[(0, 0), (16, 16), (31, 31)],
+        )
+        
+        surface2 = pg.Surface((32, 32), pg.SRCALPHA)
+        surface2.fill((255, 0, 0, 255))
+        
+        result = self.tracker.verify_visual_alignment(
+            entity_id="test_entity_2",
+            current_image=surface2,
+        )
+        
+        self.assertTrue(result["verified"])
+        self.assertIn("checks", result)
+
+
+class TestGameplayTrackerHeadlessMode(unittest.TestCase):
+    """Test compatibility with headless environments."""
+    
+    def setUp(self):
+        """Set up temporary directory."""
+        self.test_dir = tempfile.mkdtemp()
+    
+    def tearDown(self):
+        """Clean up."""
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+    
+    @patch('pygame.time.get_ticks', return_value=1000)
+    def test_headless_initialization(self, mock_ticks):
+        """Test that tracker initializes without pygame display."""
+        # This should not raise an error even without pygame display
+        config = {
+            "enabled": True,
+            "log_dir": self.test_dir,
+        }
+        tracker = GameplayTracker(config=config)
+        
+        self.assertTrue(tracker.enabled)
+        self.assertIsNotNone(tracker.current_file_path)
+        tracker.close()
+
 
 if __name__ == "__main__":
     unittest.main()
