@@ -158,6 +158,10 @@ def main():
             "power_release_3": "assets/audio/Magical Light Aura Sound Effect.mp3",
             "power_release_4": "assets/audio/Magical Light Aura Sound Effect.mp3",
             "power_release_5": "assets/audio/Magical Light Aura Sound Effect.mp3",
+            "roll": "assets/audio/angry-grunt-103204.mp3",
+            "dash": "assets/audio/angry-grunt-103204.mp3",
+            "special_attack": "assets/audio/sword-slice-2-393845.mp3",
+            "transform": "assets/audio/Magical Light Aura Sound Effect.mp3",
         },
         
         # UI Aesthetics

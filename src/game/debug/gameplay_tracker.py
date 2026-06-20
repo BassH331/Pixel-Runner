@@ -229,7 +229,7 @@ class GameplayTracker:
         entry = {
             "type": "event",
             "event_type": event_type_str,
-            "timestamp_ms": int(pg.time.get_ticks()),
+            "timestamp_ms": pg.time.get_ticks(),
             **data,
         }
         
@@ -259,11 +259,41 @@ class GameplayTracker:
             
             # Player specific fields
             if entity_class == "Player":
+                locks_movement = False
+                locks_input = False
+                state_configs = getattr(entity, "state_configs", None)
+                curr_state = getattr(entity, "state", None)
+                if state_configs and curr_state in state_configs:
+                    cfg = state_configs[curr_state]
+                    locks_movement = getattr(cfg, "locks_movement", False)
+                    locks_input = getattr(cfg, "locks_input", False)
+
+                inputs = {
+                    "left": False, "right": False, "jump": False, "attack": False,
+                    "roll": False, "dash": False, "special": False, "transform": False
+                }
+                if pg.display.get_init():
+                    try:
+                        keys = pg.key.get_pressed()
+                        inputs["left"] = keys[pg.K_LEFT] or keys[pg.K_a]
+                        inputs["right"] = keys[pg.K_RIGHT] or keys[pg.K_d]
+                        inputs["jump"] = keys[pg.K_SPACE] or keys[pg.K_w] or keys[pg.K_UP]
+                        inputs["attack"] = keys[pg.K_j]
+                        inputs["roll"] = keys[pg.K_LSHIFT]
+                        inputs["dash"] = keys[pg.K_LCTRL]
+                        inputs["special"] = keys[pg.K_f]
+                        inputs["transform"] = keys[pg.K_t]
+                    except Exception:
+                        pass
+
                 vel = getattr(entity, "velocity", None)
                 serialized.update({
                     "velocity": [vel.x, vel.y] if vel else [0.0, 0.0],
                     "is_invincible": bool(getattr(entity, "is_invincible", False)),
-                    "is_attacking": "attack" in serialized["state"],
+                    "is_attacking": "attack" in serialized["state"] or "special_attack" in serialized["state"],
+                    "locks_movement": locks_movement,
+                    "locks_input": locks_input,
+                    "inputs": inputs,
                 })
             
             # FireWizard/Skeleton/Enemy specific fields
@@ -310,7 +340,7 @@ class GameplayTracker:
                 
         entry = {
             "type": "frame_sample",
-            "timestamp_ms": int(pg.time.get_ticks()),
+            "timestamp_ms": pg.time.get_ticks(),
             **processed_kwargs,
         }
         

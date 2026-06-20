@@ -1,0 +1,744 @@
+{
+  "states": {
+    "DEATH": {
+      "animation_speed": 0.15,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": true,
+      "locks_movement": true,
+      "locks_input": true,
+      "next_state": null
+    },
+    "DEFEND": {
+      "animation_speed": 0.24,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": true,
+      "locks_movement": true,
+      "locks_input": false,
+      "next_state": "IDLE"
+    },
+    "HURT": {
+      "animation_speed": 0.2,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": true,
+      "locks_movement": true,
+      "locks_input": true,
+      "next_state": "IDLE"
+    },
+    "ATTACK_THRUST": {
+      "animation_speed": 0.24,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": false,
+      "locks_movement": true,
+      "locks_input": false,
+      "next_state": "IDLE"
+    },
+    "ATTACK_SMASH": {
+      "animation_speed": 0.24,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": false,
+      "locks_movement": true,
+      "locks_input": false,
+      "next_state": "IDLE"
+    },
+    "ATTACK_POWER": {
+      "animation_speed": 0.24,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": false,
+      "locks_movement": true,
+      "locks_input": false,
+      "next_state": "IDLE"
+    },
+    "JUMP_UP": {
+      "animation_speed": 0.27,
+      "loops": true,
+      "interruptible": true,
+      "grants_invincibility": false,
+      "locks_movement": false,
+      "locks_input": false,
+      "next_state": null
+    },
+    "JUMP_DOWN": {
+      "animation_speed": 0.27,
+      "loops": true,
+      "interruptible": true,
+      "grants_invincibility": false,
+      "locks_movement": false,
+      "locks_input": false,
+      "next_state": null
+    },
+    "RUN": {
+      "animation_speed": 0.27,
+      "loops": true,
+      "interruptible": true,
+      "grants_invincibility": false,
+      "locks_movement": false,
+      "locks_input": false,
+      "next_state": null
+    },
+    "IDLE": {
+      "animation_speed": 0.27,
+      "loops": true,
+      "interruptible": true,
+      "grants_invincibility": false,
+      "locks_movement": false,
+      "locks_input": false,
+      "next_state": null
+    },
+    "SPECIAL_ATTACK": {
+      "animation_speed": 0.2,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": true,
+      "locks_movement": true,
+      "locks_input": true,
+      "next_state": "IDLE"
+    },
+    "TRANSFORM": {
+      "animation_speed": 0.18,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": true,
+      "locks_movement": true,
+      "locks_input": true,
+      "next_state": "IDLE"
+    },
+    "ROLL": {
+      "animation_speed": 0.25,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": true,
+      "locks_movement": true,
+      "locks_input": true,
+      "next_state": "IDLE"
+    },
+    "DASH": {
+      "animation_speed": 0.25,
+      "loops": false,
+      "interruptible": false,
+      "grants_invincibility": false,
+      "locks_movement": true,
+      "locks_input": true,
+      "next_state": "IDLE"
+    }
+  },
+  "attacks": {
+    "THRUST_ATTACK_CONFIG": {
+      "hit_frames": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "base_damage": 15.0,
+      "knockback_force": 8.0,
+      "knockback_angle": 30.0,
+      "hit_stop_frames": 3,
+      "can_hit_multiple": true,
+      "max_hits_per_target": 1,
+      "frame_damage_modifiers": {
+        "2": 0.3,
+        "3": 0.5,
+        "4": 0.8,
+        "6": 0.6,
+        "7": 0.4
+      },
+      "hitbox_data": {
+        "2": {
+          "offset_x": 108,
+          "offset_y": 45,
+          "width": 399,
+          "height": 135
+        },
+        "3": {
+          "offset_x": 114,
+          "offset_y": 30,
+          "width": 396,
+          "height": 162
+        },
+        "4": {
+          "offset_x": 129,
+          "offset_y": 36,
+          "width": 378,
+          "height": 150
+        },
+        "5": {
+          "offset_x": 93,
+          "offset_y": 30,
+          "width": 426,
+          "height": 162
+        },
+        "6": {
+          "offset_x": 69,
+          "offset_y": 12,
+          "width": 447,
+          "height": 198
+        },
+        "7": {
+          "offset_x": 57,
+          "offset_y": -6,
+          "width": 432,
+          "height": 234
+        }
+      },
+      "startup_frames": [
+        0,
+        1
+      ],
+      "recovery_frames": [
+        8
+      ]
+    },
+    "SMASH_ATTACK_CONFIG": {
+      "hit_frames": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "base_damage": 25.0,
+      "knockback_force": 15.0,
+      "knockback_angle": 45.0,
+      "hit_stop_frames": 11,
+      "can_hit_multiple": true,
+      "max_hits_per_target": 3,
+      "frame_damage_modifiers": {
+        "2": 0.2,
+        "13": 0.5
+      },
+      "hitbox_data": {
+        "2": {
+          "offset_x": 108,
+          "offset_y": 45,
+          "width": 399,
+          "height": 135
+        },
+        "3": {
+          "offset_x": 114,
+          "offset_y": 30,
+          "width": 396,
+          "height": 162
+        },
+        "4": {
+          "offset_x": 117,
+          "offset_y": 36,
+          "width": 405,
+          "height": 150
+        },
+        "5": {
+          "offset_x": 120,
+          "offset_y": 24,
+          "width": 372,
+          "height": 177
+        },
+        "6": {
+          "offset_x": 138,
+          "offset_y": 6,
+          "width": 336,
+          "height": 213
+        },
+        "7": {
+          "offset_x": 102,
+          "offset_y": 0,
+          "width": 432,
+          "height": 222
+        },
+        "8": {
+          "offset_x": 102,
+          "offset_y": 0,
+          "width": 438,
+          "height": 222
+        },
+        "9": {
+          "offset_x": 114,
+          "offset_y": 3,
+          "width": 423,
+          "height": 216
+        },
+        "10": {
+          "offset_x": 123,
+          "offset_y": 3,
+          "width": 342,
+          "height": 216
+        },
+        "11": {
+          "offset_x": 120,
+          "offset_y": 3,
+          "width": 333,
+          "height": 219
+        },
+        "12": {
+          "offset_x": 117,
+          "offset_y": 6,
+          "width": 354,
+          "height": 213
+        },
+        "13": {
+          "offset_x": 90,
+          "offset_y": 9,
+          "width": 417,
+          "height": 204
+        },
+        "14": {
+          "offset_x": 69,
+          "offset_y": 12,
+          "width": 450,
+          "height": 201
+        }
+      },
+      "startup_frames": [
+        0,
+        1
+      ],
+      "recovery_frames": [
+        15,
+        16
+      ]
+    },
+    "POWER_ATTACK_CONFIG": {
+      "hit_frames": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ],
+      "base_damage": 25.0,
+      "knockback_force": 15.0,
+      "knockback_angle": 45.0,
+      "hit_stop_frames": 19,
+      "can_hit_multiple": true,
+      "max_hits_per_target": 2,
+      "frame_damage_modifiers": {
+        "6": 0.5,
+        "11": 0.8,
+        "16": 1.2,
+        "20": 1.5
+      },
+      "hitbox_data": {
+        "6": {
+          "offset_x": 138,
+          "offset_y": 6,
+          "width": 336,
+          "height": 213
+        },
+        "7": {
+          "offset_x": 102,
+          "offset_y": 0,
+          "width": 432,
+          "height": 222
+        },
+        "8": {
+          "offset_x": 102,
+          "offset_y": 0,
+          "width": 438,
+          "height": 222
+        },
+        "9": {
+          "offset_x": 114,
+          "offset_y": 3,
+          "width": 423,
+          "height": 216
+        },
+        "10": {
+          "offset_x": 123,
+          "offset_y": 3,
+          "width": 342,
+          "height": 216
+        },
+        "11": {
+          "offset_x": 99,
+          "offset_y": -3,
+          "width": 375,
+          "height": 231
+        },
+        "12": {
+          "offset_x": 108,
+          "offset_y": 3,
+          "width": 372,
+          "height": 210
+        },
+        "13": {
+          "offset_x": 93,
+          "offset_y": -3,
+          "width": 408,
+          "height": 231
+        },
+        "14": {
+          "offset_x": 111,
+          "offset_y": 0,
+          "width": 366,
+          "height": 219
+        },
+        "15": {
+          "offset_x": 102,
+          "offset_y": -24,
+          "width": 381,
+          "height": 270
+        },
+        "16": {
+          "offset_x": 153,
+          "offset_y": -18,
+          "width": 486,
+          "height": 258
+        },
+        "17": {
+          "offset_x": 114,
+          "offset_y": -36,
+          "width": 405,
+          "height": 294
+        },
+        "18": {
+          "offset_x": 138,
+          "offset_y": -24,
+          "width": 393,
+          "height": 270
+        },
+        "19": {
+          "offset_x": 153,
+          "offset_y": -27,
+          "width": 543,
+          "height": 279
+        },
+        "20": {
+          "offset_x": 135,
+          "offset_y": -30,
+          "width": 582,
+          "height": 282
+        },
+        "21": {
+          "offset_x": 132,
+          "offset_y": -33,
+          "width": 582,
+          "height": 288
+        },
+        "22": {
+          "offset_x": 150,
+          "offset_y": -27,
+          "width": 555,
+          "height": 279
+        }
+      },
+      "startup_frames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "recovery_frames": []
+    },
+    "SPECIAL_ATTACK_CONFIG": {
+      "hit_frames": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "base_damage": 35.0,
+      "knockback_force": 15.0,
+      "knockback_angle": 45.0,
+      "hit_stop_frames": 15,
+      "can_hit_multiple": true,
+      "max_hits_per_target": 3,
+      "frame_damage_modifiers": {},
+      "hitbox_data": {
+        "14": {
+          "offset_x": 18,
+          "offset_y": 99,
+          "width": 87,
+          "height": 24
+        },
+        "15": {
+          "offset_x": 18,
+          "offset_y": 78,
+          "width": 147,
+          "height": 66
+        },
+        "16": {
+          "offset_x": 21,
+          "offset_y": 24,
+          "width": 69,
+          "height": 174
+        },
+        "17": {
+          "offset_x": 21,
+          "offset_y": -3,
+          "width": 120,
+          "height": 231
+        },
+        "18": {
+          "offset_x": 21,
+          "offset_y": -3,
+          "width": 120,
+          "height": 231
+        },
+        "19": {
+          "offset_x": 30,
+          "offset_y": -12,
+          "width": 204,
+          "height": 249
+        },
+        "20": {
+          "offset_x": 27,
+          "offset_y": -60,
+          "width": 264,
+          "height": 189
+        },
+        "21": {
+          "offset_x": 18,
+          "offset_y": -51,
+          "width": 237,
+          "height": 195
+        },
+        "22": {
+          "offset_x": 51,
+          "offset_y": -51,
+          "width": 303,
+          "height": 213
+        },
+        "23": {
+          "offset_x": 21,
+          "offset_y": -51,
+          "width": 408,
+          "height": 306
+        },
+        "24": {
+          "offset_x": 9,
+          "offset_y": -54,
+          "width": 417,
+          "height": 312
+        },
+        "25": {
+          "offset_x": 9,
+          "offset_y": -57,
+          "width": 408,
+          "height": 321
+        },
+        "26": {
+          "offset_x": 48,
+          "offset_y": -54,
+          "width": 417,
+          "height": 312
+        },
+        "27": {
+          "offset_x": 21,
+          "offset_y": -51,
+          "width": 408,
+          "height": 306
+        },
+        "28": {
+          "offset_x": 21,
+          "offset_y": -51,
+          "width": 384,
+          "height": 303
+        },
+        "29": {
+          "offset_x": 30,
+          "offset_y": -45,
+          "width": 366,
+          "height": 273
+        },
+        "30": {
+          "offset_x": 39,
+          "offset_y": -36,
+          "width": 345,
+          "height": 294
+        },
+        "31": {
+          "offset_x": 33,
+          "offset_y": -30,
+          "width": 336,
+          "height": 285
+        },
+        "32": {
+          "offset_x": 21,
+          "offset_y": -21,
+          "width": 300,
+          "height": 264
+        },
+        "33": {
+          "offset_x": 21,
+          "offset_y": -18,
+          "width": 279,
+          "height": 261
+        }
+      },
+      "startup_frames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "recovery_frames": []
+    },
+    "ENHANCED_SPECIAL_ATTACK_CONFIG": {
+      "hit_frames": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "base_damage": 50.0,
+      "knockback_force": 20.0,
+      "knockback_angle": 45.0,
+      "hit_stop_frames": 19,
+      "can_hit_multiple": true,
+      "max_hits_per_target": 4,
+      "frame_damage_modifiers": {},
+      "hitbox_data": {
+        "6": {
+          "offset_x": -120,
+          "offset_y": -63,
+          "width": 810,
+          "height": 348
+        },
+        "7": {
+          "offset_x": -3,
+          "offset_y": -75,
+          "width": 810,
+          "height": 372
+        },
+        "8": {
+          "offset_x": 3,
+          "offset_y": -75,
+          "width": 837,
+          "height": 372
+        },
+        "9": {
+          "offset_x": -120,
+          "offset_y": -78,
+          "width": 846,
+          "height": 381
+        },
+        "10": {
+          "offset_x": -120,
+          "offset_y": -75,
+          "width": 810,
+          "height": 372
+        },
+        "11": {
+          "offset_x": 3,
+          "offset_y": -75,
+          "width": 837,
+          "height": 372
+        },
+        "12": {
+          "offset_x": -120,
+          "offset_y": -78,
+          "width": 846,
+          "height": 381
+        },
+        "13": {
+          "offset_x": -15,
+          "offset_y": -30,
+          "width": 507,
+          "height": 282
+        },
+        "14": {
+          "offset_x": -21,
+          "offset_y": 27,
+          "width": 249,
+          "height": 168
+        },
+        "15": {
+          "offset_x": -18,
+          "offset_y": 27,
+          "width": 162,
+          "height": 171
+        },
+        "16": {
+          "offset_x": -18,
+          "offset_y": 9,
+          "width": 159,
+          "height": 204
+        },
+        "17": {
+          "offset_x": -120,
+          "offset_y": -60,
+          "width": 177,
+          "height": 345
+        },
+        "18": {
+          "offset_x": 3,
+          "offset_y": -9,
+          "width": 213,
+          "height": 243
+        }
+      },
+      "startup_frames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "recovery_frames": []
+    }
+  }
+}

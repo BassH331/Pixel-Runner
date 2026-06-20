@@ -46,8 +46,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Final, Optional
+from typing import TYPE_CHECKING, Final, Optional, cast
 
+import os
+import json
 import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Actor, FootstepController
@@ -91,6 +93,10 @@ class PlayerState(Enum):
     ATTACK_THRUST = 20
     ATTACK_SMASH = 21
     ATTACK_POWER = 22
+    SPECIAL_ATTACK = 23
+    TRANSFORM = 24
+    ROLL = 25
+    DASH = 26
     
     # Aerial states
     JUMP_UP = 30
@@ -259,6 +265,42 @@ class Player(Actor):
             grants_invincibility=False,
             locks_movement=False,
         ),
+        PlayerState.SPECIAL_ATTACK: StateConfig(
+            animation_speed=0.20,
+            loops=False,
+            next_state=PlayerState.IDLE,
+            interruptible=False,
+            grants_invincibility=True,
+            locks_movement=True,
+            locks_input=True,
+        ),
+        PlayerState.TRANSFORM: StateConfig(
+            animation_speed=0.18,
+            loops=False,
+            next_state=PlayerState.IDLE,
+            interruptible=False,
+            grants_invincibility=True,
+            locks_movement=True,
+            locks_input=True,
+        ),
+        PlayerState.ROLL: StateConfig(
+            animation_speed=0.25,
+            loops=False,
+            next_state=PlayerState.IDLE,
+            interruptible=False,
+            grants_invincibility=True,
+            locks_movement=True,
+            locks_input=True,
+        ),
+        PlayerState.DASH: StateConfig(
+            animation_speed=0.25,
+            loops=False,
+            next_state=PlayerState.IDLE,
+            interruptible=False,
+            grants_invincibility=False,
+            locks_movement=True,
+            locks_input=True,
+        ),
     }
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -275,81 +317,153 @@ class Player(Actor):
     # Adjust these values based on your actual sprite animations.
     #
 
-    # Thrust Attack (9 frames total)  |  Button: Q / Gamepad btn 2
-    # Fast single-hit attack with forward reach
-    # Active frames: 3-4 (wind-up on 0-2, recovery on 5-8)
+    # Thrust Attack
     THRUST_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
-        hit_frames=frozenset({3,}),
+        hit_frames=frozenset([2, 3, 4, 5, 6, 7]),
         base_damage=15.0,
         knockback_force=8.0,
-        knockback_angle=30.0,  # Slightly upward knockback
+        knockback_angle=30.0,
         hit_stop_frames=3,
         can_hit_multiple=True,
         max_hits_per_target=1,
-        frame_damage_modifiers={
-            3: 0.5,   # Early hit - 80% damage
-        },
+        frame_damage_modifiers={'2': 0.3, '3': 0.5, '4': 0.8, '5': 1.0, '6': 0.6, '7': 0.4},
         hitbox_data={
-            3: HitboxData(offset_x=180, offset_y=30, width=250, height=100),
+            2: HitboxData(offset_x=108, offset_y=45, width=399, height=135),
+            3: HitboxData(offset_x=114, offset_y=30, width=396, height=162),
+            4: HitboxData(offset_x=129, offset_y=36, width=378, height=150),
+            5: HitboxData(offset_x=93, offset_y=30, width=426, height=162),
+            6: HitboxData(offset_x=69, offset_y=12, width=447, height=198),
+            7: HitboxData(offset_x=57, offset_y=-6, width=432, height=234),
         },
-        startup_frames=frozenset({0, 1, 2}),
-        recovery_frames=frozenset({5, 6, 7, 8}),
+        startup_frames=frozenset([0, 1]),
+        recovery_frames=frozenset([8]),
     )
 
-    # Smash Attack (17 frames total)  |  Button: E / Gamepad btn 1
-    # Slow multi-hit attack with high damage
-    # Active frames: 5-7 (first hit), 10-12 (second hit)
+    # Smash Attack
     SMASH_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
-        hit_frames=frozenset({3, 7, 11,}),
+        hit_frames=frozenset([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]),
         base_damage=25.0,
         knockback_force=15.0,
-        knockback_angle=45.0,  # Strong upward knockback
+        knockback_angle=45.0,
         hit_stop_frames=11,
         can_hit_multiple=True,
-        max_hits_per_target=3,  # Can hit twice (two swing phases)
-        frame_damage_modifiers={
-            3: 0.3,   # First swing start
-            7: 0.5,   # First swing end
-            11: 0.2,  # Second swing peak - bonus damage!
-        },
+        max_hits_per_target=3,
+        frame_damage_modifiers={'2': 0.2, '7': 1.0, '13': 0.5},
         hitbox_data={
-            # First swing - overhead arc
-            3: HitboxData(offset_x=180, offset_y=30, width=250, height=100),
-            7: HitboxData(offset_x=180, offset_y=20, width=270, height=200),
-            # Second swing - horizontal sweep
-            11: HitboxData(offset_x=180, offset_y=20, width=240, height=200),
+            2: HitboxData(offset_x=108, offset_y=45, width=399, height=135),
+            3: HitboxData(offset_x=114, offset_y=30, width=396, height=162),
+            4: HitboxData(offset_x=117, offset_y=36, width=405, height=150),
+            5: HitboxData(offset_x=120, offset_y=24, width=372, height=177),
+            6: HitboxData(offset_x=138, offset_y=6, width=336, height=213),
+            7: HitboxData(offset_x=102, offset_y=0, width=432, height=222),
+            8: HitboxData(offset_x=102, offset_y=0, width=438, height=222),
+            9: HitboxData(offset_x=114, offset_y=3, width=423, height=216),
+            10: HitboxData(offset_x=123, offset_y=3, width=342, height=216),
+            11: HitboxData(offset_x=120, offset_y=3, width=333, height=219),
+            12: HitboxData(offset_x=117, offset_y=6, width=354, height=213),
+            13: HitboxData(offset_x=90, offset_y=9, width=417, height=204),
+            14: HitboxData(offset_x=69, offset_y=12, width=450, height=201),
         },
-        startup_frames=frozenset({0, 1, 2, 3}),
-        recovery_frames=frozenset({13, 14, 15, 16}),
+        startup_frames=frozenset([0, 1]),
+        recovery_frames=frozenset([15, 16]),
     )
 
-    # Power Attack (23 frames total)  |  Button: W / Gamepad btn 3
-    # Slow multi-hit attack with high damage
-    # Active frames: 5-7 (first hit), 10-12 (second hit)
+    # Power Attack
     POWER_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
-        hit_frames=frozenset({3, 7, 11, 19}),
+        hit_frames=frozenset([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]),
         base_damage=25.0,
         knockback_force=15.0,
-        knockback_angle=45.0,  # Strong upward knockback
+        knockback_angle=45.0,
         hit_stop_frames=19,
         can_hit_multiple=True,
-        max_hits_per_target=2,  # Can hit twice (two swing phases)
-        frame_damage_modifiers={
-            3: 0.3,   # First swing start
-            7: 0.5,   # First swing end
-            11: 0.2,  # Second swing peak - bonus damage!
-            19: 0.5
-        },
+        max_hits_per_target=2,
+        frame_damage_modifiers={'6': 0.5, '11': 0.8, '16': 1.2, '20': 1.5},
         hitbox_data={
-            # First swing - overhead arc
-            3: HitboxData(offset_x=180, offset_y=30, width=250, height=100),
-            7: HitboxData(offset_x=180, offset_y=20, width=270, height=200),
-            # Second swing - horizontal sweep
-            11: HitboxData(offset_x=180, offset_y=20, width=240, height=200),
-            19: HitboxData(offset_x=180, offset_y=20, width=240, height=200),
+            6: HitboxData(offset_x=138, offset_y=6, width=336, height=213),
+            7: HitboxData(offset_x=102, offset_y=0, width=432, height=222),
+            8: HitboxData(offset_x=102, offset_y=0, width=438, height=222),
+            9: HitboxData(offset_x=114, offset_y=3, width=423, height=216),
+            10: HitboxData(offset_x=123, offset_y=3, width=342, height=216),
+            11: HitboxData(offset_x=99, offset_y=-3, width=375, height=231),
+            12: HitboxData(offset_x=108, offset_y=3, width=372, height=210),
+            13: HitboxData(offset_x=93, offset_y=-3, width=408, height=231),
+            14: HitboxData(offset_x=111, offset_y=0, width=366, height=219),
+            15: HitboxData(offset_x=102, offset_y=-24, width=381, height=270),
+            16: HitboxData(offset_x=153, offset_y=-18, width=486, height=258),
+            17: HitboxData(offset_x=114, offset_y=-36, width=405, height=294),
+            18: HitboxData(offset_x=138, offset_y=-24, width=393, height=270),
+            19: HitboxData(offset_x=153, offset_y=-27, width=543, height=279),
+            20: HitboxData(offset_x=135, offset_y=-30, width=582, height=282),
+            21: HitboxData(offset_x=132, offset_y=-33, width=582, height=288),
+            22: HitboxData(offset_x=150, offset_y=-27, width=555, height=279),
         },
-        startup_frames=frozenset({0, 1, 2, 3}),
-        recovery_frames=frozenset({21, 22}),
+        startup_frames=frozenset([0, 1, 2, 3, 4, 5]),
+        recovery_frames=frozenset([]),
+    )
+
+    # Special Attack
+    SPECIAL_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
+        hit_frames=frozenset([14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]),
+        base_damage=35.0,
+        knockback_force=15.0,
+        knockback_angle=45.0,
+        hit_stop_frames=15,
+        can_hit_multiple=True,
+        max_hits_per_target=3,
+        frame_damage_modifiers={},
+        hitbox_data={
+            14: HitboxData(offset_x=18, offset_y=99, width=87, height=24),
+            15: HitboxData(offset_x=18, offset_y=78, width=147, height=66),
+            16: HitboxData(offset_x=21, offset_y=24, width=69, height=174),
+            17: HitboxData(offset_x=21, offset_y=-3, width=120, height=231),
+            18: HitboxData(offset_x=21, offset_y=-3, width=120, height=231),
+            19: HitboxData(offset_x=30, offset_y=-12, width=204, height=249),
+            20: HitboxData(offset_x=27, offset_y=-60, width=264, height=189),
+            21: HitboxData(offset_x=18, offset_y=-51, width=237, height=195),
+            22: HitboxData(offset_x=51, offset_y=-51, width=303, height=213),
+            23: HitboxData(offset_x=21, offset_y=-51, width=408, height=306),
+            24: HitboxData(offset_x=9, offset_y=-54, width=417, height=312),
+            25: HitboxData(offset_x=9, offset_y=-57, width=408, height=321),
+            26: HitboxData(offset_x=48, offset_y=-54, width=417, height=312),
+            27: HitboxData(offset_x=21, offset_y=-51, width=408, height=306),
+            28: HitboxData(offset_x=21, offset_y=-51, width=384, height=303),
+            29: HitboxData(offset_x=30, offset_y=-45, width=366, height=273),
+            30: HitboxData(offset_x=39, offset_y=-36, width=345, height=294),
+            31: HitboxData(offset_x=33, offset_y=-30, width=336, height=285),
+            32: HitboxData(offset_x=21, offset_y=-21, width=300, height=264),
+            33: HitboxData(offset_x=21, offset_y=-18, width=279, height=261),
+        },
+        startup_frames=frozenset([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]),
+        recovery_frames=frozenset([]),
+    )
+
+    # Enhanced Special Attack
+    ENHANCED_SPECIAL_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
+        hit_frames=frozenset([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]),
+        base_damage=50.0,
+        knockback_force=20.0,
+        knockback_angle=45.0,
+        hit_stop_frames=19,
+        can_hit_multiple=True,
+        max_hits_per_target=4,
+        frame_damage_modifiers={},
+        hitbox_data={
+            6: HitboxData(offset_x=3, offset_y=-63, width=810, height=348),
+            7: HitboxData(offset_x=-3, offset_y=-75, width=810, height=372),
+            8: HitboxData(offset_x=3, offset_y=-75, width=837, height=372),
+            9: HitboxData(offset_x=0, offset_y=-78, width=846, height=381),
+            10: HitboxData(offset_x=-3, offset_y=-75, width=810, height=372),
+            11: HitboxData(offset_x=3, offset_y=-75, width=837, height=372),
+            12: HitboxData(offset_x=0, offset_y=-78, width=846, height=381),
+            13: HitboxData(offset_x=-15, offset_y=-30, width=507, height=282),
+            14: HitboxData(offset_x=-21, offset_y=27, width=249, height=168),
+            15: HitboxData(offset_x=-18, offset_y=27, width=162, height=171),
+            16: HitboxData(offset_x=-18, offset_y=9, width=159, height=204),
+            17: HitboxData(offset_x=-21, offset_y=-60, width=177, height=345),
+            18: HitboxData(offset_x=3, offset_y=-9, width=213, height=243),
+        },
+        startup_frames=frozenset([0, 1, 2, 3, 4, 5]),
+        recovery_frames=frozenset([]),
     )
     
     # Physics constants
@@ -387,12 +501,115 @@ class Player(Actor):
         
         self._audio_manager: AudioManager = audio_manager
         
-        # State machine configuration (from static registry)
-        self.state_configs = self._STATE_CONFIGS
+        # State machine configuration (from static registry, dynamically overridden from config if present)
+        self.state_configs = dict(self._STATE_CONFIGS)
+        
+        # Initialize attack configs to defaults
+        self.thrust_attack_config = self.THRUST_ATTACK_CONFIG
+        self.smash_attack_config = self.SMASH_ATTACK_CONFIG
+        self.power_attack_config = self.POWER_ATTACK_CONFIG
+        self.special_attack_config = self.SPECIAL_ATTACK_CONFIG
+        self.enhanced_special_attack_config = self.ENHANCED_SPECIAL_ATTACK_CONFIG
+        
+        try:
+            config_path = "game_data/player_config.json"
+            if os.path.exists(config_path):
+                with open(config_path, "r") as f:
+                    overrides = json.load(f)
+                
+                # Check for new nested format vs legacy format
+                if isinstance(overrides, dict) and ("states" in overrides or "attacks" in overrides):
+                    states_overrides = overrides.get("states", {})
+                    attacks_overrides = overrides.get("attacks", {})
+                else:
+                    states_overrides = overrides
+                    attacks_overrides = {}
+                    
+                # Load state overrides
+                for state_name, cfg_dict in states_overrides.items():
+                    try:
+                        state_enum = PlayerState[state_name]
+                        orig_cfg = self._STATE_CONFIGS.get(state_enum, StateConfig())
+                        next_state_val = orig_cfg.next_state
+                        if "next_state" in cfg_dict and cfg_dict["next_state"]:
+                            try:
+                                next_state_val = PlayerState[cfg_dict["next_state"]]
+                            except KeyError:
+                                pass
+                        self.state_configs[state_enum] = StateConfig(
+                            animation_speed=cfg_dict.get("animation_speed", orig_cfg.animation_speed),
+                            loops=cfg_dict.get("loops", orig_cfg.loops),
+                            next_state=next_state_val,
+                            interruptible=cfg_dict.get("interruptible", orig_cfg.interruptible),
+                            grants_invincibility=cfg_dict.get("grants_invincibility", orig_cfg.grants_invincibility),
+                            locks_movement=cfg_dict.get("locks_movement", orig_cfg.locks_movement),
+                            locks_input=cfg_dict.get("locks_input", orig_cfg.locks_input),
+                        )
+                    except KeyError:
+                        pass
+                        
+                # Load attack overrides
+                for attack_key, atk_dict in attacks_overrides.items():
+                    try:
+                        hit_frames = frozenset(atk_dict.get("hit_frames", []))
+                        startup_frames = frozenset(atk_dict.get("startup_frames", []))
+                        recovery_frames = frozenset(atk_dict.get("recovery_frames", []))
+                        base_damage = float(atk_dict.get("base_damage", 10.0))
+                        knockback_force = float(atk_dict.get("knockback_force", 5.0))
+                        knockback_angle = float(atk_dict.get("knockback_angle", 45.0)) if atk_dict.get("knockback_angle") is not None else None
+                        hit_stop_frames = int(atk_dict.get("hit_stop_frames", 0))
+                        can_hit_multiple = bool(atk_dict.get("can_hit_multiple", True))
+                        max_hits_per_target = int(atk_dict.get("max_hits_per_target", 1))
+                        
+                        frame_damage_modifiers = {}
+                        for k, v in atk_dict.get("frame_damage_modifiers", {}).items():
+                            frame_damage_modifiers[int(k)] = float(v)
+                            
+                        hitbox_data = {}
+                        for k, v in atk_dict.get("hitbox_data", {}).items():
+                            hitbox_data[int(k)] = HitboxData(
+                                offset_x=int(v.get("offset_x", 0)),
+                                offset_y=int(v.get("offset_y", 0)),
+                                width=int(v.get("width", 50)),
+                                height=int(v.get("height", 50))
+                            )
+                            
+                        config_obj = AttackConfig(
+                            hit_frames=hit_frames,
+                            base_damage=base_damage,
+                            knockback_force=knockback_force,
+                            knockback_angle=knockback_angle,
+                            hit_stop_frames=hit_stop_frames,
+                            can_hit_multiple=can_hit_multiple,
+                            max_hits_per_target=max_hits_per_target,
+                            frame_damage_modifiers=frame_damage_modifiers,
+                            hitbox_data=hitbox_data,
+                            startup_frames=startup_frames,
+                            recovery_frames=recovery_frames
+                        )
+                        
+                        if attack_key == "THRUST_ATTACK_CONFIG":
+                            self.thrust_attack_config = config_obj
+                        elif attack_key == "SMASH_ATTACK_CONFIG":
+                            self.smash_attack_config = config_obj
+                        elif attack_key == "POWER_ATTACK_CONFIG":
+                            self.power_attack_config = config_obj
+                        elif attack_key == "SPECIAL_ATTACK_CONFIG":
+                            self.special_attack_config = config_obj
+                        elif attack_key == "ENHANCED_SPECIAL_ATTACK_CONFIG":
+                            self.enhanced_special_attack_config = config_obj
+                    except Exception as ex:
+                        print(f"[PLAYER ATTACK CONFIG ERROR] Failed to load attack override {attack_key}: {ex}")
+        except Exception as e:
+            print(f"[PLAYER CONFIG ERROR] Failed to load custom configurations: {e}")
         
         # Load margins and scale first
         margins = HitboxRegistry.get_margins("player")
         self.scale = margins.scale
+        
+        # Enhanced form state and animation tracking
+        self._is_enhanced = False
+        self.enhanced_animations = {}
         
         # Load all animation frame sets
         self._load_all_animations()
@@ -477,9 +694,60 @@ class Player(Actor):
         self.animations[PlayerState.DEFEND] = self._load_frames(
             "assets/shadow_warrior/defend/defend_{}.png", 7, start_index=1, scale_factor=scale
         )
+        self.animations[PlayerState.ROLL] = self._load_frames(
+            "assets/shadow_warrior/roll/roll_{}.png", 8, start_index=1, scale_factor=scale
+        )
+        self.animations[PlayerState.DASH] = self._load_frames(
+            "assets/shadow_warrior/dash/dash_{}.png", 12, start_index=1, scale_factor=scale
+        )
+        self.animations[PlayerState.SPECIAL_ATTACK] = self._load_frames(
+            "assets/shadow_warrior/sp_atk/sp_atk_{}.png", 34, start_index=1, scale_factor=scale
+        )
+        self.animations[PlayerState.TRANSFORM] = self._load_frames(
+            "assets/shadow_warrior/transform/transform_{}.png", 37, start_index=1, scale_factor=scale
+        )
+        
+        # Load enhanced animations
+        self.enhanced_animations[PlayerState.IDLE] = self._load_frames(
+            "assets/shadow_warrior/e_idle/e_idle_{}.png", 18, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.RUN] = self._load_frames(
+            "assets/shadow_warrior/e_run/e_run_{}.png", 10, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.JUMP_UP] = self._load_frames(
+            "assets/shadow_warrior/e_jump_up/e_jump_up_{}.png", 3, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.JUMP_DOWN] = self._load_frames(
+            "assets/shadow_warrior/e_jump_down/e_jump_down_{}.png", 3, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.ATTACK_THRUST] = self._load_frames(
+            "assets/shadow_warrior/e_1_atk/e_1_atk_{}.png", 14, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.ATTACK_SMASH] = self._load_frames(
+            "assets/shadow_warrior/e_2_atk/e_2_atk_{}.png", 22, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.ATTACK_POWER] = self._load_frames(
+            "assets/shadow_warrior/e_3_atk/e_3_atk_{}.png", 35, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.HURT] = self._load_frames(
+            "assets/shadow_warrior/e_take_hit/e_take_hit_{}.png", 7, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.DEFEND] = self._load_frames(
+            "assets/shadow_warrior/e_defend/e_defend_{}.png", 6, start_index=1, scale_factor=scale
+        )
+        self.enhanced_animations[PlayerState.SPECIAL_ATTACK] = self._load_frames(
+            "assets/shadow_warrior/e_sp_atk/e_sp_atk_{}.png", 19, start_index=1, scale_factor=scale
+        )
+        
+        # Fallbacks for states without enhanced equivalents
+        self.enhanced_animations[PlayerState.DEATH] = self.animations[PlayerState.DEATH]
+        self.enhanced_animations[PlayerState.ROLL] = self.animations[PlayerState.ROLL]
+        self.enhanced_animations[PlayerState.DASH] = self.animations[PlayerState.DASH]
+        self.enhanced_animations[PlayerState.TRANSFORM] = self.animations[PlayerState.TRANSFORM]
+
         # Frame index to freeze on while defend button is held (0-indexed).
         # Frames before this play as the "raise" intro; frames after play on release.
-        self._DEFEND_HOLD_FRAME: int = 3
+        self._DEFEND_HOLD_FRAME = 3
     
     def _load_frames(
         self,
@@ -550,6 +818,7 @@ class Player(Actor):
             PlayerState.ATTACK_THRUST,
             PlayerState.ATTACK_SMASH,
             PlayerState.ATTACK_POWER,
+            PlayerState.SPECIAL_ATTACK,
         )
     
     # ─────────────────────────────────────────────────────────────────────────
@@ -609,8 +878,9 @@ class Player(Actor):
         if not self.should_deal_damage():
             return None
         
-        return self.attack_state.get_current_hitbox(
-            self.rect, self.facing_left
+        return cast(
+            Optional[pg.Rect],
+            self.attack_state.get_current_hitbox(self.rect, self.facing_left)
         )
     
     def try_register_hit(self, target_id: int) -> bool:
@@ -645,7 +915,10 @@ class Player(Actor):
         Returns:
             Damage value for the current frame, or 0 if not attacking.
         """
-        return self.attack_state.get_current_damage()
+        damage = self.attack_state.get_current_damage()
+        if self._is_enhanced:
+            return damage * 1.5
+        return damage
 
     def get_current_attack_frame(self) -> Optional[int]:
         """Return the current animation frame index for the active attack."""
@@ -813,8 +1086,8 @@ class Player(Actor):
         self._transition_to(PlayerState.ATTACK_THRUST)
         
         # Initialize attack state with thrust configuration
-        self.attack_state.begin(self.THRUST_ATTACK_CONFIG)
-        self._current_attack_config = self.THRUST_ATTACK_CONFIG
+        self.attack_state.begin(self.thrust_attack_config)
+        self._current_attack_config = self.thrust_attack_config
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("thrust")
         return True
@@ -838,8 +1111,8 @@ class Player(Actor):
         self._transition_to(PlayerState.ATTACK_SMASH)
         
         # Initialize attack state with smash configuration
-        self.attack_state.begin(self.SMASH_ATTACK_CONFIG)
-        self._current_attack_config = self.SMASH_ATTACK_CONFIG
+        self.attack_state.begin(self.smash_attack_config)
+        self._current_attack_config = self.smash_attack_config
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("smash")
         return True
@@ -863,8 +1136,8 @@ class Player(Actor):
         self._transition_to(PlayerState.ATTACK_POWER)
         
         # Initialize attack state with thrust configuration
-        self.attack_state.begin(self.POWER_ATTACK_CONFIG)
-        self._current_attack_config = self.POWER_ATTACK_CONFIG
+        self.attack_state.begin(self.power_attack_config)
+        self._current_attack_config = self.power_attack_config
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("thrust")
         return True
@@ -883,6 +1156,74 @@ class Player(Actor):
             
         self._transition_to(PlayerState.DEFEND)
         self._audio_manager.play_sound("defend")
+        return True
+
+    def roll(self) -> bool:
+        """
+        Initiate dodge roll.
+        
+        Button: ``LSHIFT`` (keyboard) / Gamepad Button 4 (L1)
+        
+        Returns:
+            True if roll started, False if blocked.
+        """
+        if not self._can_transition_to(PlayerState.ROLL):
+            return False
+        on_ground = self.rect.bottom >= self._ground_y - 1
+        if not on_ground:
+            return False
+        self._transition_to(PlayerState.ROLL)
+        self._audio_manager.play_sound("roll")
+        return True
+
+    def dash(self) -> bool:
+        """
+        Initiate fast dash.
+        
+        Button: ``LCTRL`` (keyboard) / Gamepad Button 5 (R1)
+        
+        Returns:
+            True if dash started, False if blocked.
+        """
+        if not self._can_transition_to(PlayerState.DASH):
+            return False
+        self._transition_to(PlayerState.DASH)
+        self._audio_manager.play_sound("dash")
+        return True
+
+    def special_attack(self) -> bool:
+        """
+        Initiate special slash-storm attack.
+        
+        Button: ``F`` (keyboard) / Gamepad L2 trigger
+        
+        Returns:
+            True if attack started, False if blocked.
+        """
+        if not self._can_transition_to(PlayerState.SPECIAL_ATTACK):
+            return False
+            
+        cfg = self.enhanced_special_attack_config if self._is_enhanced else self.special_attack_config
+        self._current_attack_config = cfg
+        self._transition_to(PlayerState.SPECIAL_ATTACK)
+        self.attack_state.begin(cfg)
+        self._attack_audio_frames_played.clear()
+        self._audio_manager.play_sound("special_attack")
+        return True
+
+    def transform(self) -> bool:
+        """
+        Initiate shadow/enhanced transformation sequence.
+        
+        Button: ``T`` (keyboard) / Gamepad button 8
+        
+        Returns:
+            True if transformation started, False if blocked.
+        """
+        if not self._can_transition_to(PlayerState.TRANSFORM):
+            return False
+        self._transition_to(PlayerState.TRANSFORM)
+        self._audio_manager.play_sound("transform")
         return True
 
     def set_footstep_volume(self, volume: float) -> None:
@@ -1057,6 +1398,23 @@ class Player(Actor):
             if self.state != PlayerState.DEFEND:   # don't re-trigger mid-defend
                 self.defend()
         # Note: button-release logic is handled inside _update_defend_logic()
+
+        # ── Roll           (LSHIFT | gamepad btn 4 / L1) ──────────────────────
+        if keys[pg.K_LSHIFT] or (joystick and joystick.get_button(4)):
+            self.roll()
+
+        # ── Dash           (LCTRL | gamepad btn 5 / R1) ───────────────────────
+        if keys[pg.K_LCTRL] or (joystick and joystick.get_button(5)):
+            self.dash()
+
+        # ── Special Attack (F | gamepad L2 trigger, axis 4 > 0.5) ─────────────
+        l2_trigger = joystick and joystick.get_axis(4) > 0.5 if joystick else False
+        if keys[pg.K_f] or l2_trigger:
+            self.special_attack()
+
+        # ── Transform      (T | gamepad btn 8) ────────────────────────────────
+        if keys[pg.K_t] or (joystick and joystick.get_button(8)):
+            self.transform()
     
     # ─────────────────────────────────────────────────────────────────────────
     # Physics
@@ -1074,16 +1432,23 @@ class Player(Actor):
 
     def _apply_movement(self) -> None:
         """Apply horizontal movement with screen boundary clamping."""
-        if self._direction == 0:
-            return
+        if self.state == PlayerState.ROLL:
+            roll_dir = -1 if self.facing_left else 1
+            self.rect.x += int(roll_dir * 8.5)
+        elif self.state == PlayerState.DASH:
+            dash_dir = -1 if self.facing_left else 1
+            self.rect.x += int(dash_dir * 14.0)
+        else:
+            if self._direction == 0:
+                return
 
-        # Use different speeds for ground and air movement
-        if self.rect.bottom >= self._ground_y - 1:  # On ground
-            move_speed = self._MOVE_SPEED
-        else:  # In air
-            move_speed = self._AIR_MOVE_SPEED
+            # Use different speeds for ground and air movement
+            if self.rect.bottom >= self._ground_y - 1:  # On ground
+                move_speed = self._MOVE_SPEED
+            else:  # In air
+                move_speed = self._AIR_MOVE_SPEED
 
-        self.rect.x += int(self._direction * move_speed)
+            self.rect.x += int(self._direction * move_speed)
 
         # Clamp to screen bounds
         screen_surf = pg.display.get_surface()
@@ -1112,6 +1477,22 @@ class Player(Actor):
     def _transition_to(self, new_state: PlayerState) -> None:
         """Force a state transition using the Actor's set_state."""
         self.set_state(new_state, force=True)
+
+    def set_state(self, new_state: Enum, force: bool = False) -> None:
+        """Override to intercept transformation exit and toggle enhanced mode."""
+        if self.state == PlayerState.TRANSFORM and new_state != PlayerState.TRANSFORM:
+            self._is_enhanced = not self._is_enhanced
+        super().set_state(new_state, force=force)
+
+    def update_animation(self, dt: float) -> None:
+        """Override to dynamically swap standard and enhanced animations."""
+        orig_animations = self.animations
+        if self._is_enhanced:
+            self.animations = self.enhanced_animations
+        try:
+            super().update_animation(dt)
+        finally:
+            self.animations = orig_animations
 
     # ─────────────────────────────────────────────────────────────────────────
     # Per-Frame Logic Updates

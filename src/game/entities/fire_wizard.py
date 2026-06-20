@@ -110,11 +110,13 @@ class FireWizard(Actor):
     """
     
     # Class-level attack configuration (immutable)
-    # The active hit frames are frames 4 and 5, aligning with the visual spell blast
+    # The active hit frames cover the entire blazing duration (frames 2 to 7)
+    # and allow multiple hits to match the continuous fire blaze visual.
     ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
-        hit_frames=frozenset({4, 5}),
+        hit_frames=frozenset({2, 3, 4, 5, 6, 7}),
         base_damage=2.5,
         knockback_force=7.0,
+        max_hits_per_target=3,
     )
     
     STATE_CONFIGS: Final[dict[Enum, StateConfig]] = {
