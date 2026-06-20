@@ -1,4 +1,5 @@
 import pygame as pg
+import os
 
 from v3x_zulfiqar_gideon import V3XCore, V3XManifest
 from src.game.states.splash_state import SplashState
@@ -85,7 +86,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--start-dist", type=float, default=None)
     parser.add_argument("--dev", action="store_true", default=False, help="Launch directly into the game scene, bypassing intro scenes")
+    parser.add_argument("--track", action="store_true", default=False, help="Enable gameplay telemetry tracking")
     args, _ = parser.parse_known_args()
+
+    if args.track:
+        os.environ["TRACKER_ENABLED"] = "1"
 
     init_state = SplashState
     if args.start_dist is not None or args.dev:

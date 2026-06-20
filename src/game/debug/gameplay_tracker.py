@@ -50,8 +50,7 @@ class GameplayTracker:
     - Full error handling with graceful degradation
     
     **Features**:
-    - Configurable frame sampling (every N frames to avoid I/O blocking)
-    - Immediate event logging for critical events (damage, AI state changes)
+    - **Performance Overhead**: Frame sampling will run every 1 frame (configurable) to avoid I/O blocking, while critical events (damage, spells, AI state changes) are logged immediately.
     - Automatic file rotation when exceeding max_file_size_mb
     - Pixel signature caching for visual-logical alignment verification
     - Session manifest tracking (latest_session.json)
@@ -77,7 +76,7 @@ class GameplayTracker:
     
     DEFAULT_CONFIG = {
         "enabled": False,
-        "sample_every_n_frames": 10,
+        "sample_every_n_frames": 1,
         "log_dir": "logs/gameplay_tracking",
         "max_file_size_mb": 5,
         "pixel_signatures_enabled": True,
@@ -91,7 +90,7 @@ class GameplayTracker:
         Args:
             config: Configuration dict overriding defaults. Supported keys:
                 - enabled: Enable/disable tracking (default: False)
-                - sample_every_n_frames: Frame interval for periodic sampling (default: 10)
+                - sample_every_n_frames: Frame interval for periodic sampling (default: 1)
                 - log_dir: Base directory for logs (default: "logs/gameplay_tracking")
                 - max_file_size_mb: Max JSONL file size before rotation (default: 5)
                 - pixel_signatures_enabled: Cache pixel data for verification (default: True)
@@ -103,7 +102,7 @@ class GameplayTracker:
         if config:
             self.config.update(config)
         
-        self.enabled = self.config["enabled"]
+        self.enabled = self.config["enabled"] or os.environ.get("TRACKER_ENABLED") == "1"
         self.sample_every_n_frames = self.config["sample_every_n_frames"]
         self.log_dir = Path(self.config["log_dir"])
         self.max_file_size_bytes = self.config["max_file_size_mb"] * 1024 * 1024
@@ -240,6 +239,47 @@ class GameplayTracker:
     # Frame Sampling (Periodic - Every N Frames)
     # ─────────────────────────────────────────────────────────────────────────
     
+    def _serialize_entity(self, entity: Any) -> Optional[dict[str, Any]]:
+        """Convert a complex game entity into a JSON-serializable dictionary."""
+        if entity is None:
+            return None
+        
+        try:
+            entity_class = entity.__class__.__name__
+            rect = getattr(entity, "rect", None)
+            
+            serialized = {
+                "class": entity_class,
+                "health": float(getattr(entity, "health", getattr(entity, "_health", 0.0))),
+                "position": [rect.x, rect.y, rect.width, rect.height] if rect else None,
+                "facing_left": bool(getattr(entity, "facing_left", False)),
+                "state": getattr(getattr(entity, "state", None), "name", "").lower() or str(getattr(entity, "state", "")),
+                "animation_index": float(getattr(entity, "animation_index", 0.0)),
+            }
+            
+            # Player specific fields
+            if entity_class == "Player":
+                vel = getattr(entity, "velocity", None)
+                serialized.update({
+                    "velocity": [vel.x, vel.y] if vel else [0.0, 0.0],
+                    "is_invincible": bool(getattr(entity, "is_invincible", False)),
+                    "is_attacking": "attack" in serialized["state"],
+                })
+            
+            # FireWizard/Skeleton/Enemy specific fields
+            elif "Wizard" in entity_class or "Skeleton" in entity_class or entity_class == "Enemy":
+                serialized.update({
+                    "mana": float(getattr(entity, "mana", getattr(entity, "_mana", 0.0))),
+                    "is_stagnant": bool(getattr(entity, "_is_stagnant", False)),
+                    "is_recharging": bool(getattr(entity, "_is_recharging", False)),
+                    "stagnant_timer": float(getattr(entity, "_stagnant_timer", 0.0)),
+                    "teleport_cooldown": float(getattr(entity, "_teleport_cooldown", 0.0)),
+                })
+                
+            return serialized
+        except Exception as e:
+            return {"error": f"Serialization failed: {e}", "class": entity.__class__.__name__}
+
     def sample_frame(self, **kwargs: Any) -> None:
         """Log a frame sample (called every N frames to avoid I/O overhead).
         
@@ -255,23 +295,23 @@ class GameplayTracker:
                 - boss: Boss entity state dict (if active)
                 - world_distance: Distance traveled
                 - active_entities: Count of live entities
-        
-        Examples:
-            tracker.sample_frame(
-                frame=100,
-                fps=60,
-                player_health=45,
-                enemy_count=3
-            )
         """
         if not self.enabled or not self.event_logging_enabled:
             return
         
         self.frame_count += 1
+        
+        processed_kwargs = {}
+        for k, v in kwargs.items():
+            if k in ("player", "boss") or hasattr(v, "rect"):
+                processed_kwargs[k] = self._serialize_entity(v)
+            else:
+                processed_kwargs[k] = v
+                
         entry = {
             "type": "frame_sample",
             "timestamp_ms": int(pg.time.get_ticks()),
-            **kwargs,
+            **processed_kwargs,
         }
         
         self._write_entry(entry)
@@ -315,10 +355,10 @@ class GameplayTracker:
             # Count non-transparent pixels if alpha channel exists
             if image.get_flags() & pg.SRCALPHA:
                 try:
-                    pixel_array = pg.surfarray.pixels_alpha(image)
-                    signature["non_transparent_count"] = int((pixel_array > 0).sum())
+                    mask = pg.mask.from_surface(image)
+                    signature["non_transparent_count"] = mask.count()
                 except Exception:
-                    pass  # Graceful degradation if surfarray fails
+                    pass
             
             # Sample RGBA at specific points for verification
             for sx, sy in sample_points[:5]:
@@ -375,8 +415,8 @@ class GameplayTracker:
             # Check 1: Non-transparent pixel count (should be similar)
             if current_image.get_flags() & pg.SRCALPHA:
                 try:
-                    pixel_array = pg.surfarray.pixels_alpha(current_image)
-                    current_count = int((pixel_array > 0).sum())
+                    mask = pg.mask.from_surface(current_image)
+                    current_count = mask.count()
                     cached_count = cached["non_transparent_count"]
                     
                     # Allow ±10% variance
@@ -392,6 +432,61 @@ class GameplayTracker:
                         result["verified"] = False
                 except Exception:
                     pass  # Graceful degradation
+            
+            # Check 2: Color samples (should match cached sample points)
+            if "sample_points" in cached and cached["sample_points"]:
+                result["checks"]["color_samples"] = {
+                    "passed": True,
+                    "details": []
+                }
+                curr_w, curr_h = current_image.get_size()
+                for sample in cached["sample_points"]:
+                    sx, sy = sample["x"], sample["y"]
+                    # If flipped, map coordinate horizontally
+                    if is_flipped:
+                        sx = curr_w - 1 - sx
+                    
+                    try:
+                        current_color = current_image.get_at((sx, sy))
+                        current_rgba = list(current_color[:4]) if len(current_color) >= 4 else list(current_color)
+                        cached_rgba = sample["rgba"]
+                        
+                        # Compare colors with absolute tolerance of 2 per channel
+                        color_match = all(abs(c - r) <= 2 for c, r in zip(current_rgba, cached_rgba))
+                        
+                        result["checks"]["color_samples"]["details"].append({
+                            "x": sx,
+                            "y": sy,
+                            "cached_rgba": cached_rgba,
+                            "current_rgba": current_rgba,
+                            "passed": color_match
+                        })
+                        
+                        if not color_match:
+                            result["checks"]["color_samples"]["passed"] = False
+                            result["verified"] = False
+                    except IndexError:
+                        result["checks"]["color_samples"]["details"].append({
+                            "x": sx,
+                            "y": sy,
+                            "passed": False,
+                            "reason": "out of bounds"
+                        })
+                        result["checks"]["color_samples"]["passed"] = False
+                        result["verified"] = False
+
+            # Check 3: Bounding box size match
+            if "bounding_box" in cached:
+                cached_box = cached["bounding_box"]
+                curr_w, curr_h = current_image.get_size()
+                box_match = (curr_w == cached_box[2] and curr_h == cached_box[3])
+                result["checks"]["bounding_box_size"] = {
+                    "cached_size": [cached_box[2], cached_box[3]],
+                    "current_size": [curr_w, curr_h],
+                    "passed": box_match
+                }
+                if not box_match:
+                    result["verified"] = False
             
             return result
         except Exception as e:

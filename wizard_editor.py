@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 wizard_editor.py
-An interactive, dark-themed configuration editor and animation visualizer/simulator for the Fire Wizard boss.
+An interactive, dark-themed configuration editor, animation visualizer,
+and telemetry-based AI difficulty scaling manager for the Fire Wizard boss.
 """
 
 import os
@@ -11,13 +12,20 @@ import random
 import pygame as pg
 from typing import Any, Optional, Dict, List
 
+# Add path mapping to allow importing from src package
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+from src.game.debug.telemetry_log_parser import TelemetryLogParser
+from src.game.boss.difficulty_manager import DifficultyManager
+from src.game.editor.preview_scaler import PreviewScaler
+
 # Initialize Pygame and font systems
 pg.init()
 pg.font.init()
 
 SCREEN_W, SCREEN_H = 1280, 720
 screen = pg.display.set_mode((SCREEN_W, SCREEN_H))
-pg.display.set_caption("Fire Wizard Boss: AI Configurator & Animator")
+pg.display.set_caption("Fire Wizard Boss: AI Configurator & Telemetry Plugin")
 
 # Load Fonts
 try:
@@ -187,31 +195,88 @@ class WizardEditorApp:
         # Interactive Mode State
         # "REVIEW" - Loop single animation.
         # "SIMULATION" - Run wizard AI loop against a mock player.
+        # "ANALYTICS" - View telemetry dashboards & auto-tune difficulty.
         self.mode = "REVIEW"
         self.init_simulation_state()
 
-        # Review Control UI Elements
+        # Review Control UI Elements (Adjusted Y to fit the new mode selector)
         self.review_buttons = [
-            Button("IDLE", 450, 520, 100, 35, lambda: self.set_review_state("IDLE")),
-            Button("CHASE", 560, 520, 100, 35, lambda: self.set_review_state("CHASE")),
-            Button("ATTACK", 670, 520, 100, 35, lambda: self.set_review_state("ATTACK")),
-            Button("HURT", 780, 520, 100, 35, lambda: self.set_review_state("HURT")),
-            Button("DEATH", 890, 520, 100, 35, lambda: self.set_review_state("DEATH")),
+            Button("IDLE", 450, 560, 100, 35, lambda: self.set_review_state("IDLE")),
+            Button("CHASE", 560, 560, 100, 35, lambda: self.set_review_state("CHASE")),
+            Button("ATTACK", 670, 560, 100, 35, lambda: self.set_review_state("ATTACK")),
+            Button("HURT", 780, 560, 100, 35, lambda: self.set_review_state("HURT")),
+            Button("DEATH", 890, 560, 100, 35, lambda: self.set_review_state("DEATH")),
         ]
         self.update_review_buttons()
 
-        # Mode Buttons
+        # Mode Buttons (Y adjusted to 500, horizontally aligned)
         self.mode_buttons = [
-            Button("ANIMATION LOOP", 450, 600, 200, 40, lambda: self.set_mode("REVIEW")),
-            Button("AI FLOW SIMULATION", 680, 600, 200, 40, lambda: self.set_mode("SIMULATION")),
+            Button("ANIMATION LOOP", 430, 500, 220, 40, lambda: self.set_mode("REVIEW")),
+            Button("AI FLOW SIMULATION", 670, 500, 220, 40, lambda: self.set_mode("SIMULATION")),
+            Button("DIFFICULTY TUNER", 910, 500, 220, 40, lambda: self.set_mode("ANALYTICS")),
         ]
         self.update_mode_buttons()
 
-        self.restart_sim_btn = Button("RESTART SIMULATION", 450, 650, 200, 35, self.request_sim_reset)
+        self.restart_sim_btn = Button("RESTART SIMULATION", 450, 560, 200, 35, self.request_sim_reset)
 
         # Visualizer Play/Pause & Scale Sliders
         self.preview_scale_slider = Slider("scale", "Preview Scale", 920, 610, 300, 1.0, 6.0, self.preview_scale, is_float=True, format_str="{val}x")
         self.playback_speed_slider = Slider("speed", "Playback Speed", 920, 670, 300, 0.2, 3.0, self.play_speed, is_float=True, format_str="{val}x")
+
+        # Telemetry & Difficulty scaling system properties
+        self.log_parser = TelemetryLogParser()
+        self.difficulty_manager = DifficultyManager()
+        self.recent_sessions_analytics = {}
+        self.latest_session_name = "None"
+        self.parsed_files_count = 0
+
+        # Auto-Fit Scaling System (ON by default)
+        self.auto_fit_enabled = True
+        self.autofit_btn = Button("AUTO-FIT: ON", 920, 560, 145, 30, self.toggle_autofit, active=True)
+        self.apply_fit_btn = Button("APPLY TO SLIDER", 1075, 560, 145, 30, self.apply_fit_to_slider)
+
+        # Analytics Dashboard Preset Buttons
+        self.analytics_buttons = [
+            Button("REFRESH LOGS", 430, 560, 150, 35, self.refresh_analytics),
+            Button("APPLY EASY", 600, 560, 130, 35, lambda: self.apply_preset("EASY")),
+            Button("APPLY MEDIUM", 740, 560, 130, 35, lambda: self.apply_preset("MEDIUM")),
+            Button("APPLY HARD", 880, 560, 130, 35, lambda: self.apply_preset("HARD")),
+            Button("APPLY NIGHTMARE", 1020, 560, 150, 35, lambda: self.apply_preset("NIGHTMARE")),
+        ]
+
+        # Initial fetch of telemetry logs
+        self.refresh_analytics()
+
+    def toggle_autofit(self):
+        self.auto_fit_enabled = not self.auto_fit_enabled
+        self.autofit_btn.text = f"AUTO-FIT: {'ON' if self.auto_fit_enabled else 'OFF'}"
+        self.autofit_btn.active = self.auto_fit_enabled
+        self.preview_scale_slider.dragging = False
+
+    def apply_fit_to_slider(self):
+        self.preview_scale_slider.val = self.preview_scale
+        self.toast_message = "Applied Fit Scale to Slider"
+        self.toast_timer = 1.5
+
+    def refresh_analytics(self):
+        recent = self.log_parser.get_recent_sessions(limit=5)
+        sessions_data = []
+        for sid, paths in recent:
+            sessions_data.append(self.log_parser.parse_session(paths))
+        self.recent_sessions_analytics = self.difficulty_manager.evaluate_sessions(sessions_data)
+        latest = self.log_parser.get_latest_session()
+        self.latest_session_name = latest[0] if latest else "None"
+        self.parsed_files_count = sum(len(paths) for _, paths in recent)
+        self.toast_message = "Telemetry Logs Refreshed!"
+        self.toast_timer = 2.0
+
+    def apply_preset(self, preset_name: str):
+        preset_config = self.difficulty_manager.get_preset_config(preset_name)
+        for key, val in preset_config.items():
+            if key in self.sliders:
+                self.sliders[key].val = val
+        self.toast_message = f"{preset_name} Preset Applied (Unsaved)"
+        self.toast_timer = 2.0
 
     def load_config(self):
         defaults = {
@@ -256,6 +321,18 @@ class WizardEditorApp:
             self.sliders["attack_cooldown_max"].val = self.config["attack_cooldown_min"]
 
         os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        # Create timestamped backup of current file
+        if os.path.exists(self.config_path):
+            try:
+                import shutil
+                from datetime import datetime
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_path = f"game_data/boss_wizard_config.backup_{ts}.json"
+                shutil.copy2(self.config_path, backup_path)
+                print(f"[INFO] Created config backup at {backup_path}")
+            except Exception as e:
+                print(f"[WARNING] Failed to create backup: {e}")
+
         try:
             with open(self.config_path, "w") as f:
                 json.dump(self.config, f, indent=2)
@@ -265,21 +342,10 @@ class WizardEditorApp:
         except Exception as e:
             self.toast_message = "Save Failed!"
             self.toast_timer = 2.0
-            print("[ERROR] Failed to save config: {e}")
+            print(f"[ERROR] Failed to save config: {e}")
 
     def reset_defaults(self):
-        defaults = {
-            "max_mana": 100.0,
-            "spell_mana_cost": 35.0,
-            "stagnant_duration": 3.0,
-            "teleport_dist_min": 380,
-            "teleport_dist_max": 450,
-            "mana_recharge_rate": 50.0,
-            "chase_delay_duration": 0.8,
-            "attack_cooldown_min": 1.2,
-            "attack_cooldown_max": 2.0
-        }
-        for k, v in defaults.items():
+        for k, v in self.difficulty_manager.BASELINE_CONFIG.items():
             if k in self.sliders:
                 self.sliders[k].val = v
         self.toast_message = "Defaults Loaded (Press Save)"
@@ -321,6 +387,8 @@ class WizardEditorApp:
         self.update_mode_buttons()
         if mode == "SIMULATION":
             self.init_simulation_state()
+        elif mode == "ANALYTICS":
+            self.refresh_analytics()
 
     def update_review_buttons(self):
         for btn in self.review_buttons:
@@ -332,11 +400,12 @@ class WizardEditorApp:
                 btn.active = True
             elif btn.text == "AI FLOW SIMULATION" and self.mode == "SIMULATION":
                 btn.active = True
+            elif btn.text == "DIFFICULTY TUNER" and self.mode == "ANALYTICS":
+                btn.active = True
             else:
                 btn.active = False
 
     def init_simulation_state(self):
-        # Simulation entities
         self.sim_player_x = 100
         self.sim_boss_x = 400
         self.sim_boss_state = "CHASE"
@@ -352,12 +421,8 @@ class WizardEditorApp:
         self.sim_boss_teleport_after_hurt = False
         self.sim_boss_has_cast = False
         self.sim_boss_facing_left = False
-        
-        # Log of events in simulator
-        self.sim_events: List[str] = ["Simulation started."]
-        
-        # Fireballs spawned during simulation
-        self.sim_fireballs: List[Dict[str, Any]] = []
+        self.sim_events = ["Simulation started."]
+        self.sim_fireballs = []
 
     def add_sim_log(self, text: str):
         self.sim_events.append(text)
@@ -365,7 +430,6 @@ class WizardEditorApp:
             self.sim_events.pop(0)
 
     def update_simulation(self, dt: float):
-        # Gather latest parameters from sliders
         max_mana = self.sliders["max_mana"].val
         spell_cost = self.sliders["spell_mana_cost"].val
         stagnant_duration = self.sliders["stagnant_duration"].val
@@ -379,14 +443,11 @@ class WizardEditorApp:
         # Update fireball movements
         for fb in list(self.sim_fireballs):
             fb["x"] += fb["speed"] * dt * fb["dir"]
-            # remove out of bounds
             if abs(fb["x"] - self.sim_boss_x) > 600:
                 self.sim_fireballs.remove(fb)
-            # Collision with mock player
             elif abs(fb["x"] - self.sim_player_x) < 20:
                 self.sim_fireballs.remove(fb)
                 self.add_sim_log("Fireball HIT mock player!")
-                # Stagger the player (mock visual effect)
 
         # Decrement cooldowns & timers
         if self.sim_boss_attack_cooldown > 0.0:
@@ -400,7 +461,6 @@ class WizardEditorApp:
         if self.sim_boss_is_stagnant:
             self.sim_boss_stagnant_timer = max(0.0, self.sim_boss_stagnant_timer - dt)
             if self.sim_boss_stagnant_timer <= 0.0:
-                # Timer expired! Teleport anyway to recharge
                 self.trigger_sim_teleport()
 
         # Handle recharge logic
@@ -416,7 +476,6 @@ class WizardEditorApp:
         if self.frame_index >= frames_count:
             self.frame_index = 0.0
             if self.sim_boss_state == "ATTACK":
-                # attack anim finished
                 self.sim_boss_state = "IDLE"
                 self.sim_boss_has_cast = False
                 self.sim_boss_attack_cooldown = random.uniform(cd_min, cd_max)
@@ -441,11 +500,8 @@ class WizardEditorApp:
                 self.add_sim_log(f"Fireball cast! Mana consumed (-{spell_cost:.1f}). Remaining: {self.sim_boss_mana:.1f}")
 
         # AI State Machine Decision Tree
-        if self.sim_boss_state == "ATTACK":
-            return # Locked in attack animation
-
-        if self.sim_boss_state == "HURT":
-            return # Locked in hurt animation
+        if self.sim_boss_state == "ATTACK" or self.sim_boss_state == "HURT":
+            return
 
         # 1. Low mana stagnant check
         if self.sim_boss_mana < spell_cost and not self.sim_boss_is_recharging and not self.sim_boss_is_stagnant:
@@ -457,7 +513,6 @@ class WizardEditorApp:
 
         if self.sim_boss_is_stagnant:
             self.sim_boss_state = "IDLE"
-            # Random player attack simulation during stagnant phase (e.g. 1.5% chance per frame)
             if random.random() < 0.015:
                 self.add_sim_log("Player attacked boss while stagnant!")
                 self.sim_boss_state = "HURT"
@@ -469,7 +524,6 @@ class WizardEditorApp:
             self.sim_boss_state = "IDLE"
             return
 
-        # Regular combat movement & sweet-spot
         dist_x = self.sim_boss_x - self.sim_player_x
         abs_dist_x = abs(dist_x)
         self.sim_boss_facing_left = (dist_x > 0)
@@ -477,7 +531,6 @@ class WizardEditorApp:
         # Sweet spot check (between 120 and 260px)
         if 120 <= abs_dist_x <= 260:
             if self.sim_boss_attack_cooldown <= 0.0 and self.sim_boss_mana >= spell_cost:
-                # Begin attack!
                 self.sim_boss_state = "ATTACK"
                 self.frame_index = 0.0
                 self.sim_boss_chase_delay_active = False
@@ -495,12 +548,10 @@ class WizardEditorApp:
                 self.sim_boss_x = int(self.sim_boss_x + retreat_speed * dt)
             else:
                 self.sim_boss_x = int(self.sim_boss_x - retreat_speed * dt)
-            # Clamp limits
             self.sim_boss_x = max(100, min(1180, self.sim_boss_x))
 
         # Chase if player is too far
         elif abs_dist_x > 260:
-            # Player ran away: trigger Chase Delay
             if self.sim_boss_state == "IDLE" and not self.sim_boss_chase_delay_active:
                 self.sim_boss_chase_delay_timer = chase_delay
                 self.sim_boss_chase_delay_active = True
@@ -528,7 +579,6 @@ class WizardEditorApp:
         self.sim_boss_is_recharging = True
         self.sim_boss_teleport_flash_timer = 0.6
         
-        # Teleport offset
         dist_offset = random.randint(int(teleport_min), int(teleport_max))
         if self.sim_boss_x > self.sim_player_x:
             target_x = self.sim_player_x + dist_offset
@@ -539,6 +589,109 @@ class WizardEditorApp:
         self.sim_boss_state = "IDLE"
         self.frame_index = 0.0
         self.add_sim_log(f"TELEPORTED to x={self.sim_boss_x}! Starting mana recharge.")
+
+    def draw_analytics_dashboard(self, surface: pg.Surface, rect: pg.Rect):
+        margin_x = 25
+        margin_y = 20
+        start_x = rect.x + margin_x
+        start_y = rect.y + margin_y
+
+        txt_sess = ui_font.render(f"Latest Session ID: {self.latest_session_name}", True, ACCENT_CYAN)
+        txt_chunks = value_font.render(f"Parsed rotated files: {self.parsed_files_count}", True, TEXT_MUTED)
+        surface.blit(txt_sess, (start_x, start_y))
+        surface.blit(txt_chunks, (rect.right - margin_x - txt_chunks.get_width(), start_y))
+        
+        divider_y = start_y + 35
+        pg.draw.line(surface, BORDER_COLOR, (start_x, divider_y), (rect.right - margin_x, divider_y), 1)
+
+        analytics = self.recent_sessions_analytics
+        if not analytics or analytics.get("valid_session_count", 0) == 0:
+            txt_nodata = title_font.render("Insufficient telemetry data for reliable recommendation.", True, (231, 76, 60))
+            txt_nodata_rect = txt_nodata.get_rect(centerx=rect.centerx, centery=rect.centery)
+            surface.blit(txt_nodata, txt_nodata_rect)
+
+            txt_hint = ui_font.render("Ensure session duration is at least 60 seconds with active combat events.", True, TEXT_MUTED)
+            txt_hint_rect = txt_hint.get_rect(centerx=rect.centerx, y=txt_nodata_rect.bottom + 15)
+            surface.blit(txt_hint, txt_hint_rect)
+            return
+
+        col1_x = start_x
+        col2_x = rect.x + 420
+        content_y = divider_y + 20
+
+        metrics = analytics["metrics"]
+        dur = metrics.get("duration_sec", 0.0)
+        fps = metrics.get("avg_fps", 0.0)
+        
+        col1_lines = [
+            ("Session Duration", f"{dur:.1f} seconds"),
+            ("Average FPS", f"{fps:.1f} FPS"),
+            ("Total Frame Samples", f"{int(metrics.get('total_frames', 0))}"),
+            ("Player Damage Taken", f"{metrics.get('player_damage_taken', 0.0):.1f} hp"),
+            ("Boss Damage Taken", f"{metrics.get('boss_damage_taken', 0.0):.1f} hp"),
+            ("Player Hit Count", f"{int(metrics.get('player_hits_received', 0))}"),
+            ("Boss Hit Count", f"{int(metrics.get('boss_hits_received', 0))}"),
+            ("Wizard Attack Count", f"{int(metrics.get('boss_attacks', 0))}"),
+        ]
+
+        curr_y = content_y
+        col1_header = ui_font.render("COMBAT & PERFORMANCE METRICS", True, (255, 255, 255))
+        surface.blit(col1_header, (col1_x, curr_y))
+        curr_y += 30
+
+        for label, val in col1_lines:
+            txt_lbl = value_font.render(label, True, TEXT_MUTED)
+            txt_val = value_font.render(val, True, TEXT_COLOR)
+            surface.blit(txt_lbl, (col1_x, curr_y))
+            surface.blit(txt_val, (col1_x + 220, curr_y))
+            curr_y += 24
+
+        accuracies = analytics["accuracies"]
+        col2_lines = [
+            ("Detection Accuracy", f"{accuracies.get('detection_accuracy', 0.0):.1f}%"),
+            ("Attack Accuracy", f"{accuracies.get('attack_accuracy', 0.0):.1f}%"),
+            ("Bad Attacks (Out of range)", f"{int(accuracies.get('bad_attacks', 0))}"),
+            ("Missed Opportunities", f"{int(accuracies.get('missed_opportunities', 0))} frames"),
+        ]
+
+        curr_y = content_y
+        col2_header = ui_font.render("AI DETECTION & RANGE ACCURACY", True, (255, 255, 255))
+        surface.blit(col2_header, (col2_x, curr_y))
+        curr_y += 30
+
+        for label, val in col2_lines:
+            txt_lbl = value_font.render(label, True, TEXT_MUTED)
+            txt_val = value_font.render(val, True, TEXT_COLOR)
+            surface.blit(txt_lbl, (col2_x, curr_y))
+            surface.blit(txt_val, (col2_x + 240, curr_y))
+            curr_y += 24
+
+        divider2_y = content_y + 230
+        pg.draw.line(surface, BORDER_COLOR, (start_x, divider2_y), (rect.right - margin_x, divider2_y), 1)
+
+        rec_y = divider2_y + 15
+        rec_diff = analytics["recommended_difficulty"]
+        confidence = analytics["confidence"]
+        description = analytics["description"]
+
+        rec_color = ACCENT_CYAN
+        if rec_diff == "EASY":
+            rec_color = (46, 204, 113)
+        elif rec_diff == "HARD":
+            rec_color = (241, 196, 15)
+        elif rec_diff == "NIGHTMARE":
+            rec_color = (231, 76, 60)
+
+        txt_rec_title = ui_font.render("RECOMMENDED TUNING PRESET: ", True, TEXT_MUTED)
+        txt_rec_val = ui_font.render(f"{rec_diff}", True, rec_color)
+        txt_conf = value_font.render(f"(Confidence: {confidence})", True, ACCENT_BLUE if confidence == "High" else TEXT_MUTED)
+
+        surface.blit(txt_rec_title, (start_x, rec_y))
+        surface.blit(txt_rec_val, (start_x + txt_rec_title.get_width(), rec_y))
+        surface.blit(txt_conf, (start_x + txt_rec_title.get_width() + txt_rec_val.get_width() + 10, rec_y + 2))
+
+        txt_desc = help_font.render(description, True, TEXT_COLOR)
+        surface.blit(txt_desc, (start_x, rec_y + 25))
 
     def run(self):
         while self.running:
@@ -608,18 +761,30 @@ class WizardEditorApp:
                     slider.handle_event(event)
                 for btn in self.action_buttons:
                     btn.handle_event(event)
-                for btn in self.review_buttons:
-                    btn.handle_event(event)
                 for btn in self.mode_buttons:
                     btn.handle_event(event)
-                if self.mode == "SIMULATION":
+
+                # Mode dependent control inputs
+                if self.mode == "REVIEW":
+                    for btn in self.review_buttons:
+                        btn.handle_event(event)
+                elif self.mode == "SIMULATION":
                     self.restart_sim_btn.handle_event(event)
-                self.preview_scale_slider.handle_event(event)
+                elif self.mode == "ANALYTICS":
+                    for btn in self.analytics_buttons:
+                        btn.handle_event(event)
+
+                self.autofit_btn.handle_event(event)
+                self.apply_fit_btn.handle_event(event)
+
+                if not self.auto_fit_enabled:
+                    self.preview_scale_slider.handle_event(event)
                 self.playback_speed_slider.handle_event(event)
 
             # Update live settings if not in modal
             if not self.confirming_save and not self.confirming_sim_reset:
-                self.preview_scale = self.preview_scale_slider.val
+                if not self.auto_fit_enabled:
+                    self.preview_scale = self.preview_scale_slider.val
                 self.play_speed = self.playback_speed_slider.val
 
             # 2. Update logic based on Mode
@@ -629,13 +794,10 @@ class WizardEditorApp:
                     self.frame_index += self.play_speed * 10 * dt
                     if self.frame_index >= frames_count:
                         self.frame_index = 0.0
-                else:
-                    # Interactive mock player control using mouse in preview container
+                elif self.mode == "SIMULATION":
                     m_pos = pg.mouse.get_pos()
-                    # If mouse inside preview rect (x: 430-1250, y: 80-480)
                     if 430 <= m_pos[0] <= 1250 and 80 <= m_pos[1] <= 480:
                         self.sim_player_x = int((m_pos[0] - 430) / (820 / 1200))
-                        
                     self.update_simulation(dt)
 
             # 3. Drawing
@@ -661,123 +823,141 @@ class WizardEditorApp:
             pg.draw.rect(screen, BORDER_COLOR, preview_rect, width=2, border_radius=8)
 
             # Title of Preview
-            txt_preview_title = title_font.render(
-                "ANIMATION PREVIEW LOOP" if self.mode == "REVIEW" else "BOSS AI BEHAVIOR SIMULATOR",
-                True, TEXT_COLOR
-            )
+            if self.mode == "REVIEW":
+                title_str = "ANIMATION PREVIEW LOOP"
+            elif self.mode == "SIMULATION":
+                title_str = "BOSS AI BEHAVIOR SIMULATOR"
+            else:
+                title_str = "TELEMETRY LOG ANALYTICS & DIFFICULTY TUNER"
+            txt_preview_title = title_font.render(title_str, True, TEXT_COLOR)
             screen.blit(txt_preview_title, (430, 35))
 
-            # Render the Wizard sprite
-            state_key = self.current_state if self.mode == "REVIEW" else self.sim_boss_state
-            frames = self.animations[state_key]
-            current_frame = frames[min(int(self.frame_index), len(frames) - 1)]
+            if self.mode in ("REVIEW", "SIMULATION"):
+                state_key = self.current_state if self.mode == "REVIEW" else self.sim_boss_state
+                frames = self.animations[state_key]
+                current_frame = frames[min(int(self.frame_index), len(frames) - 1)]
 
-            # Apply scale transformation
-            w, h = current_frame.get_size()
-            scaled_w = int(w * self.preview_scale)
-            scaled_h = int(h * self.preview_scale)
-            scaled_frame = pg.transform.scale(current_frame, (scaled_w, scaled_h))
+                # Auto-Fit scaling vs manual scaling
+                if self.auto_fit_enabled:
+                    fit = PreviewScaler.calculate_auto_fit(current_frame, preview_rect, floor_y=420)
+                    self.preview_scale = fit["scale"]
+                    scaled_w = fit["scaled_width"]
+                    scaled_h = fit["scaled_height"]
+                    
+                    if self.mode == "REVIEW":
+                        px_x = fit["x_pos_centered"] + scaled_w // 2
+                        px_y = fit["y_pos"]
+                    else:
+                        px_x = int(430 + (self.sim_boss_x / 1200) * 820)
+                        px_y = fit["y_pos"]
+                else:
+                    w, h = current_frame.get_size()
+                    scaled_w = int(w * self.preview_scale)
+                    scaled_h = int(h * self.preview_scale)
+                    px_x = 840 if self.mode == "REVIEW" else int(430 + (self.sim_boss_x / 1200) * 820)
+                    px_y = 420 - int(scaled_h * 0.72)
 
-            # Mirror based on direction
-            if self.mode == "SIMULATION" and self.sim_boss_facing_left:
-                scaled_frame = pg.transform.flip(scaled_frame, True, False)
+                scaled_frame = pg.transform.scale(current_frame, (scaled_w, scaled_h))
 
-            # Get target drawing position (floor aligned)
-            # Floor visual y = 420
-            floor_y = 420
-            px_x = 840 if self.mode == "REVIEW" else int(430 + (self.sim_boss_x / 1200) * 820)
-            px_y = floor_y - int(scaled_h * 0.72) # offset origin
+                if self.mode == "SIMULATION" and self.sim_boss_facing_left:
+                    scaled_frame = pg.transform.flip(scaled_frame, True, False)
 
-            # Draw visual floor line in preview
-            pg.draw.line(screen, (75, 75, 100), (430, floor_y), (1250, floor_y), 3)
+                # Draw floor
+                pg.draw.line(screen, (75, 75, 100), (430, 420), (1250, 420), 3)
 
-            # Teleport flash transparency
-            if self.mode == "SIMULATION" and self.sim_boss_teleport_flash_timer > 0.0:
-                alpha = 80 if int(self.sim_boss_teleport_flash_timer * 30) % 2 == 0 else 180
-                scaled_frame.set_alpha(alpha)
-            else:
-                scaled_frame.set_alpha(255)
+                if self.mode == "SIMULATION" and self.sim_boss_teleport_flash_timer > 0.0:
+                    alpha = 80 if int(self.sim_boss_teleport_flash_timer * 30) % 2 == 0 else 180
+                    scaled_frame.set_alpha(alpha)
+                else:
+                    scaled_frame.set_alpha(255)
 
-            # Blit Wizard
-            screen.blit(scaled_frame, (px_x - scaled_w // 2, px_y))
+                screen.blit(scaled_frame, (px_x - scaled_w // 2, px_y))
 
-            # Draw recharge aura if recharging
-            if self.mode == "SIMULATION" and self.sim_boss_is_recharging:
-                glow_radius = int(55 + 5 * random.random())
-                # transparent cyan circle overlay
-                aura = pg.Surface((glow_radius * 2, glow_radius * 2), pg.SRCALPHA)
-                pg.draw.circle(aura, (0, 229, 255, 60), (glow_radius, glow_radius), glow_radius)
-                screen.blit(aura, (px_x - glow_radius, floor_y - int(scaled_h * 0.36) - glow_radius))
+                if self.mode == "SIMULATION" and self.sim_boss_is_recharging:
+                    glow_radius = int(55 + 5 * random.random())
+                    aura = pg.Surface((glow_radius * 2, glow_radius * 2), pg.SRCALPHA)
+                    pg.draw.circle(aura, (0, 229, 255, 60), (glow_radius, glow_radius), glow_radius)
+                    screen.blit(aura, (px_x - glow_radius, 420 - int(scaled_h * 0.36) - glow_radius))
 
-            # Render Mock Player in Simulation mode
-            if self.mode == "SIMULATION":
-                p_px_x = int(430 + (self.sim_player_x / 1200) * 820)
-                # simple player avatar
-                pg.draw.circle(screen, (100, 255, 100), (p_px_x, floor_y - 35), 18)
-                pg.draw.rect(screen, (80, 200, 80), (p_px_x - 6, floor_y - 20, 12, 20))
-                # Label
-                txt_lbl = help_font.render("PLAYER (MOUSE)", True, (100, 255, 100))
-                screen.blit(txt_lbl, (p_px_x - txt_lbl.get_width() // 2, floor_y - 70))
+                if self.mode == "SIMULATION":
+                    p_px_x = int(430 + (self.sim_player_x / 1200) * 820)
+                    pg.draw.circle(screen, (100, 255, 100), (p_px_x, 420 - 35), 18)
+                    pg.draw.rect(screen, (80, 200, 80), (p_px_x - 6, 420 - 20, 12, 20))
+                    txt_lbl = help_font.render("PLAYER (MOUSE)", True, (100, 255, 100))
+                    screen.blit(txt_lbl, (p_px_x - txt_lbl.get_width() // 2, 420 - 70))
 
-                # Draw simulated Fireballs
-                for fb in self.sim_fireballs:
-                    fb_x = int(430 + (fb["x"] / 1200) * 820)
-                    pg.draw.circle(screen, (255, 100, 0), (fb_x, fb["y"]), 8)
-                    pg.draw.circle(screen, (255, 200, 0), (fb_x, fb["y"]), 5)
+                    for fb in self.sim_fireballs:
+                        fb_x = int(430 + (fb["x"] / 1200) * 820)
+                        pg.draw.circle(screen, (255, 100, 0), (fb_x, fb["y"]), 8)
+                        pg.draw.circle(screen, (255, 200, 0), (fb_x, fb["y"]), 5)
 
-                # Render health/mana bars above boss
-                bar_w = 80
-                bar_h = 6
-                bx_y = floor_y - scaled_h - 20
-                # health bar (mock full)
-                pg.draw.rect(screen, (255, 50, 50), (px_x - bar_w // 2, bx_y, bar_w, bar_h), border_radius=3)
-                # mana bar
-                mana_ratio = self.sim_boss_mana / self.sliders["max_mana"].val
-                pg.draw.rect(screen, (33, 150, 243), (px_x - bar_w // 2, bx_y + 9, int(bar_w * mana_ratio), bar_h), border_radius=3)
-                pg.draw.rect(screen, (60, 60, 60), (px_x - bar_w // 2, bx_y + 9, bar_w, bar_h), width=1, border_radius=3)
+                    bar_w = 80
+                    bar_h = 6
+                    bx_y = 420 - scaled_h - 20
+                    pg.draw.rect(screen, (255, 50, 50), (px_x - bar_w // 2, bx_y, bar_w, bar_h), border_radius=3)
+                    mana_ratio = self.sim_boss_mana / self.sliders["max_mana"].val
+                    pg.draw.rect(screen, (33, 150, 243), (px_x - bar_w // 2, bx_y + 9, int(bar_w * mana_ratio), bar_h), border_radius=3)
+                    pg.draw.rect(screen, (60, 60, 60), (px_x - bar_w // 2, bx_y + 9, bar_w, bar_h), width=1, border_radius=3)
 
-                # Draw telemetry logs
-                log_y = 95
-                for ev in self.sim_events:
-                    txt_ev = help_font.render(ev, True, ACCENT_CYAN if "TELEPORTED" in ev or "recharged" in ev else TEXT_COLOR)
-                    screen.blit(txt_ev, (450, log_y))
-                    log_y += 18
+                    log_y = 95
+                    for ev in self.sim_events:
+                        txt_ev = help_font.render(ev, True, ACCENT_CYAN if "TELEPORTED" in ev or "recharged" in ev else TEXT_COLOR)
+                        screen.blit(txt_ev, (450, log_y))
+                        log_y += 18
 
-                # Draw sweet spot bounds lines
-                bound_1 = int(px_x - 260 * (820 / 1200))
-                bound_2 = int(px_x - 120 * (820 / 1200))
-                bound_3 = int(px_x + 120 * (820 / 1200))
-                bound_4 = int(px_x + 260 * (820 / 1200))
-                
-                pg.draw.line(screen, (60, 60, 80), (bound_1, floor_y - 15), (bound_1, floor_y + 15), 1)
-                pg.draw.line(screen, (60, 60, 80), (bound_2, floor_y - 15), (bound_2, floor_y + 15), 1)
-                pg.draw.line(screen, (60, 60, 80), (bound_3, floor_y - 15), (bound_3, floor_y + 15), 1)
-                pg.draw.line(screen, (60, 60, 80), (bound_4, floor_y - 15), (bound_4, floor_y + 15), 1)
+                    bound_1 = int(px_x - 260 * (820 / 1200))
+                    bound_2 = int(px_x - 120 * (820 / 1200))
+                    bound_3 = int(px_x + 120 * (820 / 1200))
+                    bound_4 = int(px_x + 260 * (820 / 1200))
+                    pg.draw.line(screen, (60, 60, 80), (bound_1, 420 - 15), (bound_1, 420 + 15), 1)
+                    pg.draw.line(screen, (60, 60, 80), (bound_2, 420 - 15), (bound_2, 420 + 15), 1)
+                    pg.draw.line(screen, (60, 60, 80), (bound_3, 420 - 15), (bound_3, 420 + 15), 1)
+                    pg.draw.line(screen, (60, 60, 80), (bound_4, 420 - 15), (bound_4, 420 + 15), 1)
 
-            # Draw panel controls depending on Mode
+            elif self.mode == "ANALYTICS":
+                self.draw_analytics_dashboard(screen, preview_rect)
+
+            # Draw bottom controls depending on mode
             if self.mode == "REVIEW":
                 for btn in self.review_buttons:
                     btn.draw(screen)
-            else:
+            elif self.mode == "SIMULATION":
                 self.restart_sim_btn.draw(screen)
+            elif self.mode == "ANALYTICS":
+                for btn in self.analytics_buttons:
+                    btn.draw(screen)
+
+            # Draw Mode Switcher Buttons
             for btn in self.mode_buttons:
                 btn.draw(screen)
 
-            # Draw scale & speed sliders
-            self.preview_scale_slider.draw(screen)
+            # Draw Auto-Fit options & Sliders
+            self.autofit_btn.draw(screen)
+            self.apply_fit_btn.draw(screen)
+            
             self.playback_speed_slider.draw(screen)
 
-            # Draw Toast Messages if active
+            if self.auto_fit_enabled:
+                val_display = f"{round(self.preview_scale, 2)}x [AUTO]"
+                txt_label = ui_font.render("Preview Scale", True, TEXT_MUTED)
+                txt_val = value_font.render(val_display, True, TEXT_MUTED)
+                screen.blit(txt_label, (920, 610 - 22))
+                screen.blit(txt_val, (1220 - txt_val.get_width(), 610 - 22))
+                pg.draw.rect(screen, (30, 30, 35), (920, 610, 300, 8), border_radius=4)
+            else:
+                self.preview_scale_slider.draw(screen)
+
+            # Toast messages
             if self.toast_timer > 0.0:
                 self.toast_timer -= dt
                 toast_surf = pg.Surface((320, 45), pg.SRCALPHA)
-                pg.draw.rect(toast_surf, (24, 40, 24, 220) if "Saved" in self.toast_message or "Loaded" in self.toast_message else (40, 24, 24, 220), (0, 0, 320, 45), border_radius=6)
-                pg.draw.rect(toast_surf, (46, 204, 113) if "Saved" in self.toast_message or "Loaded" in self.toast_message else (231, 76, 60), (0, 0, 320, 45), width=1, border_radius=6)
+                pg.draw.rect(toast_surf, (24, 40, 24, 220) if "Saved" in self.toast_message or "Applied" in self.toast_message or "Refreshed" in self.toast_message else (40, 24, 24, 220), (0, 0, 320, 45), border_radius=6)
+                pg.draw.rect(toast_surf, (46, 204, 113) if "Saved" in self.toast_message or "Applied" in self.toast_message or "Refreshed" in self.toast_message else (231, 76, 60), (0, 0, 320, 45), width=1, border_radius=6)
                 txt_toast = ui_font.render(self.toast_message, True, (255, 255, 255))
                 toast_surf.blit(txt_toast, txt_toast.get_rect(center=(160, 22)))
                 screen.blit(toast_surf, (910, 20))
 
-            # Render Confirmation Overlays
+            # Render Confirmation overlays
             if self.confirming_save or self.confirming_sim_reset:
                 overlay = pg.Surface((SCREEN_W, SCREEN_H), pg.SRCALPHA)
                 overlay.fill((10, 10, 15, 220))

@@ -360,5 +360,45 @@ class TestStoryStateWiring(unittest.TestCase):
             self.assertIsNotNone(getattr(self.story_state, '_black_overlay', None))
 
 
+class TestFireWizardWiring(unittest.TestCase):
+    """Verify FireWizard initializes correctly and performs dt normalization."""
+
+    @classmethod
+    def setUpClass(cls):
+        from src.game.entities.fire_wizard import FireWizard
+        from src.game.entities.player import Player
+        cls.FireWizard = FireWizard
+        cls.audio = _make_mock_audio_manager()
+        
+        with patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_texture") as mock_tex:
+            mock_tex.return_value = pg.Surface((32, 32))
+            cls.player = Player(200, 600, cls.audio)
+            cls.wizard = FireWizard(
+                x=400,
+                y=600,
+                player=cls.player,
+                tier="boss",
+                sprite_root="assets/wizard/",
+                custom_scale=4.11,
+                custom_health=100.0
+            )
+
+    def test_dt_normalization_milliseconds(self):
+        """Passing a millisecond-based dt (e.g. 16.0) should normalize to seconds (0.016)."""
+        self.wizard._stagnant_timer = 4.0
+        # Call update with millisecond dt
+        self.wizard.update(16.0)
+        # Should decrement by 0.016, so stagnant_timer is approx 3.984
+        self.assertAlmostEqual(self.wizard._stagnant_timer, 3.984, places=3)
+
+    def test_dt_normalization_seconds(self):
+        """Passing a second-based dt (e.g. 1.0 / 60.0) should remain as-is."""
+        self.wizard._stagnant_timer = 4.0
+        # Call update with second dt
+        self.wizard.update(1.0 / 60.0)
+        # Should decrement by 0.01666..., so stagnant_timer is approx 3.98333...
+        self.assertAlmostEqual(self.wizard._stagnant_timer, 4.0 - (1.0 / 60.0), places=5)
+
+
 if __name__ == "__main__":
     unittest.main()

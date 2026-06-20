@@ -1,0 +1,17 @@
+{
+  "session_timestamp": "20260620_061043",
+  "session_start": "2026-06-20T06:10:43.532162",
+  "latest_file": "custom_logs/session_20260620_061043_001.jsonl",
+  "total_log_files": 1,
+  "frame_count": 0,
+  "event_count": 0,
+  "config": {
+    "enabled": true,
+    "sample_every_n_frames": 5,
+    "log_dir": "custom_logs",
+    "max_file_size_mb": 10,
+    "pixel_signatures_enabled": true,
+    "event_logging_enabled": true,
+    "console_output": false
+  }
+}

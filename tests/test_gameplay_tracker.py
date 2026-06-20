@@ -33,7 +33,7 @@ class TestGameplayTrackerConfig(unittest.TestCase):
         """Test that default config is applied when none provided."""
         tracker = GameplayTracker()
         self.assertFalse(tracker.enabled)
-        self.assertEqual(tracker.sample_every_n_frames, 10)
+        self.assertEqual(tracker.sample_every_n_frames, 1)
         self.assertEqual(tracker.log_dir, Path("logs/gameplay_tracking"))
         self.assertEqual(tracker.max_file_size_bytes, 5 * 1024 * 1024)
     
@@ -56,7 +56,7 @@ class TestGameplayTrackerConfig(unittest.TestCase):
         partial_config = {"enabled": True}
         tracker = GameplayTracker(config=partial_config)
         self.assertTrue(tracker.enabled)
-        self.assertEqual(tracker.sample_every_n_frames, 10)  # Default
+        self.assertEqual(tracker.sample_every_n_frames, 1)  # Default
 
 
 class TestGameplayTrackerSessionManagement(unittest.TestCase):
@@ -218,6 +218,34 @@ class TestGameplayTrackerFrameSampling(unittest.TestCase):
         self.assertEqual(entry["frame"], 50)
         self.assertAlmostEqual(entry["fps"], 59.5)
         self.assertIn("timestamp_ms", entry)
+        
+    def test_frame_entity_serialization(self):
+        """Test that passing a complex entity to sample_frame serializes it cleanly to JSON."""
+        class MockPlayer:
+            def __init__(self):
+                self.rect = pg.Rect(10, 20, 30, 40)
+                self.health = 80.0
+                self.facing_left = True
+                self.state = MagicMock()
+                self.state.name = "RUN"
+                self.animation_index = 2.0
+                self.velocity = pg.math.Vector2(5.5, -2.0)
+                self.is_invincible = True
+
+        player_mock = MockPlayer()
+        self.tracker.sample_frame(
+            frame=1,
+            player=player_mock
+        )
+        
+        with open(self.tracker.current_file_path, "r") as f:
+            line = f.readline()
+            
+        entry = json.loads(line)
+        self.assertEqual(entry["player"]["class"], "MockPlayer")
+        self.assertEqual(entry["player"]["health"], 80.0)
+        self.assertEqual(entry["player"]["position"], [10, 20, 30, 40])
+        self.assertEqual(entry["player"]["state"], "run")
 
 
 @unittest.skipUnless(PYGAME_AVAILABLE, "pygame not available")

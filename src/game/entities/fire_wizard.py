@@ -348,29 +348,35 @@ class FireWizard(Actor):
             self._chase_delay_active = False
 
     def update(self, dt: Optional[float] = None, scroll_speed: int = 0) -> None:
-        if dt is None: dt = 1.0 / 60.0
+        if dt is None:
+            dt_sec = 1.0 / 60.0
+        elif dt > 0.5:
+            dt_sec = dt / 1000.0
+        else:
+            dt_sec = dt
+
         self.rect.x -= scroll_speed
         
         self._apply_gravity()
         
         # Decrement cooldowns and timers
         if self._chase_cooldown > 0.0:
-            self._chase_cooldown = max(0.0, self._chase_cooldown - dt)
+            self._chase_cooldown = max(0.0, self._chase_cooldown - dt_sec)
         if self._attack_cooldown > 0.0:
-            self._attack_cooldown = max(0.0, self._attack_cooldown - dt)
+            self._attack_cooldown = max(0.0, self._attack_cooldown - dt_sec)
         if self._chase_delay_timer > 0.0:
-            self._chase_delay_timer = max(0.0, self._chase_delay_timer - dt)
+            self._chase_delay_timer = max(0.0, self._chase_delay_timer - dt_sec)
         if self._teleport_flash_timer > 0.0:
-            self._teleport_flash_timer = max(0.0, self._teleport_flash_timer - dt)
+            self._teleport_flash_timer = max(0.0, self._teleport_flash_timer - dt_sec)
         if self._stagnant_timer > 0.0:
-            self._stagnant_timer = max(0.0, self._stagnant_timer - dt)
+            self._stagnant_timer = max(0.0, self._stagnant_timer - dt_sec)
             if self._stagnant_timer <= 0.0:
                 if self._is_stagnant:
                     self._trigger_teleport_recharge()
             
         # Mana recharge logic
         if self._is_recharging:
-            self._mana = min(self._max_mana, self._mana + self._mana_recharge_rate * dt)
+            self._mana = min(self._max_mana, self._mana + self._mana_recharge_rate * dt_sec)
             if self._mana >= self._max_mana:
                 self._is_recharging = False
             
@@ -383,7 +389,7 @@ class FireWizard(Actor):
             
         self._update_ai()
         
-        super().update(dt)
+        super().update(dt_sec)
         
         if self._teleport_after_hurt and self.state == FireWizardState.IDLE:
             self._teleport_after_hurt = False

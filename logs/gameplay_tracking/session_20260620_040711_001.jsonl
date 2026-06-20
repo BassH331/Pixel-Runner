@@ -1,0 +1,118 @@
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 5187, "old_state": "jump_up", "new_state": "jump_down", "frame": 27, "world_distance": 0.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 5736, "old_state": "jump_down", "new_state": "idle", "frame": 61, "world_distance": 0.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 6044, "old_state": "idle", "new_state": "run", "frame": 80, "world_distance": 0.0}
+{"type": "FireWizard", "event_type": "entity_spawn", "timestamp_ms": 7722, "entity_id": 138580844266080, "event_id": 8, "frame": 180, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 7760, "old_state": "idle", "new_state": "chase", "frame": 181, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 8095, "old_state": "run", "new_state": "idle", "frame": 202, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 12961, "old_state": "chase", "new_state": "attack", "frame": 504, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_received", "timestamp_ms": 13510, "attacker": "FireWizard", "attacker_is_boss": true, "damage": 7.5, "player_health_before": 100, "player_health_after": 93, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 13510, "old_state": "idle", "new_state": "hurt", "frame": 538, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_spawn", "timestamp_ms": 13511, "entity_id": 138580847547008, "event_id": null, "frame": 538, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_despawn", "timestamp_ms": 13526, "entity_id": 138580847547008, "event_id": null, "frame": 539, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 13992, "old_state": "hurt", "new_state": "idle", "frame": 568, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 14024, "old_state": "attack", "new_state": "idle", "frame": 570, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 14056, "old_state": "idle", "new_state": "chase", "frame": 572, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 14104, "old_state": "chase", "new_state": "attack", "frame": 575, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_received", "timestamp_ms": 14655, "attacker": "FireWizard", "attacker_is_boss": true, "damage": 7.5, "player_health_before": 93, "player_health_after": 86, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 14655, "old_state": "idle", "new_state": "hurt", "frame": 609, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_spawn", "timestamp_ms": 14655, "entity_id": 138580852180800, "event_id": null, "frame": 609, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_despawn", "timestamp_ms": 14670, "entity_id": 138580852180800, "event_id": null, "frame": 610, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 15138, "old_state": "hurt", "new_state": "idle", "frame": 639, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 15171, "old_state": "attack", "new_state": "idle", "frame": 641, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 15236, "old_state": "idle", "new_state": "chase", "frame": 645, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 16175, "old_state": "chase", "new_state": "attack", "frame": 703, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_received", "timestamp_ms": 16723, "attacker": "FireWizard", "attacker_is_boss": true, "damage": 7.5, "player_health_before": 86, "player_health_after": 79, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 16723, "old_state": "idle", "new_state": "hurt", "frame": 737, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_spawn", "timestamp_ms": 16724, "entity_id": 138580852180800, "event_id": null, "frame": 737, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_despawn", "timestamp_ms": 16740, "entity_id": 138580852180800, "event_id": null, "frame": 738, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 17206, "old_state": "hurt", "new_state": "idle", "frame": 767, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 17237, "old_state": "attack", "new_state": "idle", "frame": 769, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 17271, "old_state": "idle", "new_state": "chase", "frame": 771, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 17334, "old_state": "chase", "new_state": "attack", "frame": 775, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 17676, "old_state": "idle", "new_state": "attack_power", "frame": 796, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 17885, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 7.5, "target_health_before": 100.0, "target_health_after": 92.5, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 17885, "old_state": "attack", "new_state": "hurt", "frame": 809, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_spawn", "timestamp_ms": 17885, "entity_id": 138580844117120, "event_id": null, "frame": 809, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 17901, "old_state": "attack_power", "new_state": "hurt", "frame": 810, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_despawn", "timestamp_ms": 17901, "entity_id": 138580844117120, "event_id": null, "frame": 810, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_received", "timestamp_ms": 17901, "attacker": "Environment", "attacker_is_boss": false, "damage": 7, "player_health_before": 79, "player_health_after": 72, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 18322, "old_state": "hurt", "new_state": "idle", "frame": 836, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 18385, "old_state": "idle", "new_state": "chase", "frame": 840, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 18658, "old_state": "hurt", "new_state": "idle", "frame": 857, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 19048, "old_state": "idle", "new_state": "attack_power", "frame": 881, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 19257, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 7.5, "target_health_before": 92.5, "target_health_after": 85.0, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 19257, "old_state": "chase", "new_state": "hurt", "frame": 894, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 19692, "old_state": "hurt", "new_state": "idle", "frame": 921, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 19709, "old_state": "idle", "new_state": "attack", "frame": 922, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 19820, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 12.5, "target_health_before": 85.0, "target_health_after": 72.5, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 19820, "old_state": "attack", "new_state": "hurt", "frame": 929, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 20256, "old_state": "hurt", "new_state": "idle", "frame": 956, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 20272, "old_state": "idle", "new_state": "attack", "frame": 957, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_received", "timestamp_ms": 20821, "attacker": "FireWizard", "attacker_is_boss": true, "damage": 7.5, "player_health_before": 72, "player_health_after": 65, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 20821, "old_state": "attack_power", "new_state": "hurt", "frame": 991, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_spawn", "timestamp_ms": 20821, "entity_id": 138580844112800, "event_id": null, "frame": 991, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_despawn", "timestamp_ms": 20837, "entity_id": 138580844112800, "event_id": null, "frame": 992, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 21305, "old_state": "hurt", "new_state": "idle", "frame": 1021, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 21338, "old_state": "attack", "new_state": "idle", "frame": 1023, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 21369, "old_state": "idle", "new_state": "chase", "frame": 1025, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 21417, "old_state": "chase", "new_state": "attack", "frame": 1028, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 21578, "old_state": "idle", "new_state": "attack_smash", "frame": 1038, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 21789, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 7.5, "target_health_before": 72.5, "target_health_after": 65.0, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 21789, "old_state": "attack", "new_state": "hurt", "frame": 1051, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 22228, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 12.5, "target_health_before": 65.0, "target_health_after": 52.5, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 22647, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 5.0, "target_health_before": 52.5, "target_health_after": 52.5, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 22662, "old_state": "hurt", "new_state": "idle", "frame": 1105, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 22679, "old_state": "idle", "new_state": "attack", "frame": 1106, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 23192, "old_state": "attack_smash", "new_state": "idle", "frame": 1138, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_received", "timestamp_ms": 23224, "attacker": "FireWizard", "attacker_is_boss": true, "damage": 7.5, "player_health_before": 65, "player_health_after": 58, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 23224, "old_state": "idle", "new_state": "hurt", "frame": 1140, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_spawn", "timestamp_ms": 23224, "entity_id": 138580844112800, "event_id": null, "frame": 1140, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_despawn", "timestamp_ms": 23241, "entity_id": 138580844112800, "event_id": null, "frame": 1141, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 23711, "old_state": "hurt", "new_state": "idle", "frame": 1170, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 23743, "old_state": "attack", "new_state": "idle", "frame": 1172, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 23807, "old_state": "idle", "new_state": "chase", "frame": 1176, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 24292, "old_state": "idle", "new_state": "run", "frame": 1206, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 24917, "old_state": "run", "new_state": "idle", "frame": 1245, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 24949, "old_state": "idle", "new_state": "attack_smash", "frame": 1247, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 25161, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 7.5, "target_health_before": 52.5, "target_health_after": 45.0, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 25161, "old_state": "chase", "new_state": "hurt", "frame": 1260, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 25596, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 12.5, "target_health_before": 45.0, "target_health_after": 32.5, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 26019, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 5.0, "target_health_before": 32.5, "target_health_after": 32.5, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 26033, "old_state": "hurt", "new_state": "idle", "frame": 1314, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 26065, "old_state": "idle", "new_state": "chase", "frame": 1316, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 26147, "old_state": "chase", "new_state": "attack", "frame": 1321, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 26566, "old_state": "attack_smash", "new_state": "idle", "frame": 1347, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 26614, "old_state": "idle", "new_state": "attack_smash", "frame": 1350, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_received", "timestamp_ms": 26694, "attacker": "FireWizard", "attacker_is_boss": true, "damage": 7.5, "player_health_before": 58, "player_health_after": 51, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 26694, "old_state": "attack_smash", "new_state": "hurt", "frame": 1355, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_spawn", "timestamp_ms": 26694, "entity_id": 138580844266512, "event_id": null, "frame": 1355, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_despawn", "timestamp_ms": 26710, "entity_id": 138580844266512, "event_id": null, "frame": 1356, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 27175, "old_state": "hurt", "new_state": "idle", "frame": 1385, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 27191, "old_state": "idle", "new_state": "attack_smash", "frame": 1386, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 27207, "old_state": "attack", "new_state": "idle", "frame": 1387, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 27239, "old_state": "idle", "new_state": "chase", "frame": 1389, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 27288, "old_state": "chase", "new_state": "attack", "frame": 1392, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 27400, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 7.5, "target_health_before": 32.5, "target_health_after": 25.0, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 27401, "old_state": "attack", "new_state": "hurt", "frame": 1399, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 27834, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 12.5, "target_health_before": 25.0, "target_health_after": 12.5, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 28255, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 5.0, "target_health_before": 12.5, "target_health_after": 12.5, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 28271, "old_state": "hurt", "new_state": "idle", "frame": 1453, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 28286, "old_state": "idle", "new_state": "attack", "frame": 1454, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 28805, "old_state": "attack_smash", "new_state": "idle", "frame": 1486, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 28821, "old_state": "idle", "new_state": "attack_power", "frame": 1487, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_received", "timestamp_ms": 28837, "attacker": "FireWizard", "attacker_is_boss": true, "damage": 7.5, "player_health_before": 51, "player_health_after": 44, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 28837, "old_state": "attack_power", "new_state": "hurt", "frame": 1488, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_spawn", "timestamp_ms": 28837, "entity_id": 138580844116064, "event_id": null, "frame": 1488, "world_distance": 500.0}
+{"type": "Fireball", "event_type": "entity_despawn", "timestamp_ms": 28853, "entity_id": 138580844116064, "event_id": null, "frame": 1489, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 29322, "old_state": "hurt", "new_state": "idle", "frame": 1518, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 29355, "old_state": "attack", "new_state": "idle", "frame": 1520, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 29404, "old_state": "idle", "new_state": "attack_power", "frame": 1523, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 29419, "old_state": "idle", "new_state": "chase", "frame": 1524, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 29612, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 7.5, "target_health_before": 12.5, "target_health_after": 5.0, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 29612, "old_state": "chase", "new_state": "hurt", "frame": 1536, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 30046, "old_state": "hurt", "new_state": "idle", "frame": 1563, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 30078, "old_state": "idle", "new_state": "chase", "frame": 1565, "world_distance": 500.0}
+{"type": "event", "event_type": "damage_dealt", "timestamp_ms": 30176, "attacker": "player", "target": "FireWizard", "target_is_boss": true, "damage": 12.5, "target_health_before": 5.0, "target_health_after": 0, "world_distance": 500.0}
+{"type": "event", "event_type": "boss_state_changed", "timestamp_ms": 30180, "old_state": "chase", "new_state": "none", "frame": 1571, "world_distance": 500.0}
+{"type": "FireWizard", "event_type": "entity_despawn", "timestamp_ms": 32015, "entity_id": 138580844266080, "event_id": 8, "frame": 1598, "world_distance": 500.0}
+{"type": "event", "event_type": "player_state_changed", "timestamp_ms": 32915, "old_state": "attack_power", "new_state": "idle", "frame": 1654, "world_distance": 500.0}

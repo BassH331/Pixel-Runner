@@ -126,6 +126,19 @@ class StateConfig:
 
 
 class Player(Actor):
+    def to_dict(self) -> dict:
+        """Return a JSON‑serializable representation of the player."""
+        return {
+            "health": self.health,
+            "max_health": self.max_health,
+            "state": self.state.name if self.state else None,
+            "position": (self.rect.x, self.rect.y),
+            "is_invincible": self.is_invincible,
+            "is_dead": self.is_dead,
+            "is_running": self.is_running,
+            "direction": self._direction,
+        }
+
     """
     Player character with state machine-driven animation and frame-based combat.
     

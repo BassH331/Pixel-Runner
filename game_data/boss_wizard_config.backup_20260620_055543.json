@@ -1,0 +1,11 @@
+{
+  "max_mana": 100.0,
+  "spell_mana_cost": 35.0,
+  "stagnant_duration": 3.95,
+  "teleport_dist_min": 380,
+  "teleport_dist_max": 450,
+  "mana_recharge_rate": 50.0,
+  "chase_delay_duration": 1.03,
+  "attack_cooldown_min": 1.71,
+  "attack_cooldown_max": 3.88
+}
