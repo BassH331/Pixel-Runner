@@ -700,7 +700,7 @@ class WizardEditorApp:
             txt_nodata_rect = txt_nodata.get_rect(centerx=rect.centerx, centery=rect.centery)
             surface.blit(txt_nodata, txt_nodata_rect)
 
-            txt_hint = ui_font.render("Ensure session duration is at least 60 seconds with active combat events.", True, TEXT_MUTED)
+            txt_hint = ui_font.render("Ensure session duration is at least 60 seconds OR the boss was defeated.", True, TEXT_MUTED)
             txt_hint_rect = txt_hint.get_rect(centerx=rect.centerx, y=txt_nodata_rect.bottom + 15)
             surface.blit(txt_hint, txt_hint_rect)
             return

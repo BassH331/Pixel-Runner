@@ -56,10 +56,10 @@
         "scale": 3.17
     },
     "boss:wizard": {
-        "left": 65,
-        "right": 65,
-        "top": 20,
-        "bottom": 143,
+        "left": 211,
+        "right": 242,
+        "top": 177,
+        "bottom": 180,
         "ground_offset": 35,
         "scale": 4.11
     }
