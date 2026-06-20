@@ -111,3 +111,54 @@ class TestDifficultyPlugin(unittest.TestCase):
         # Bottom of visible bounding box is exactly at floor_y
         visible_bottom_y = fit["y_pos"] + (fit["visible_rect"][1] + fit["visible_rect"][3]) * fit["scale"]
         self.assertAlmostEqual(visible_bottom_y, floor_y, delta=1.5)
+
+    def test_short_session_defeat(self) -> None:
+        # Create a mock session where the boss is defeated in 15 seconds
+        parsed = {
+            "session_id": "session_20260620_150000",
+            "files_parsed": ["file.jsonl"],
+            "total_valid_events": 10,
+            "malformed_lines": 0,
+            "duration_sec": 15.0,
+            "active_combat_duration_sec": 15.0,
+            "total_frames": 900,
+            "avg_fps": 60.0,
+            "player_damage_taken": 0.0,
+            "boss_damage_taken": 100.0,
+            "player_hits_received": 0,
+            "boss_hits_received": 5,
+            "boss_attacks": 0,
+            "successful_boss_attacks": 0,
+            "boss_spell_casts": 0,
+            "projectile_hits": 0,
+            "projectile_misses": 0,
+            "time_in_detection_range_frames": 100,
+            "time_in_attack_range_frames": 50,
+            "boss_detected_in_range_frames": 0,
+            "boss_attacked_in_range_attacks": 0,
+            "bad_attacks": 0,
+            "missed_opportunities": 0,
+            "boss_defeated": True
+        }
+
+        # Evaluate session metrics (should bypass 60-second limit and recommend Nightmare)
+        eval_result = self.manager.evaluate_sessions([parsed])
+        self.assertEqual(eval_result["valid_session_count"], 1)
+        self.assertEqual(eval_result["recommended_difficulty"], "NIGHTMARE")
+        self.assertEqual(eval_result["confidence"], "low")
+
+    def test_adjust_difficulty_level(self) -> None:
+        # Start with medium configuration
+        cfg = self.manager.get_preset_config("MEDIUM")
+        
+        # Raise difficulty
+        harder = self.manager.adjust_difficulty_level(cfg, 1)
+        self.assertGreater(harder["max_mana"], cfg["max_mana"])
+        self.assertLess(harder["stagnant_duration"], cfg["stagnant_duration"])
+        self.assertLessEqual(harder["teleport_dist_min"], cfg["teleport_dist_min"])
+
+        # Lower difficulty
+        easier = self.manager.adjust_difficulty_level(cfg, -1)
+        self.assertLess(easier["max_mana"], cfg["max_mana"])
+        self.assertGreater(easier["stagnant_duration"], cfg["stagnant_duration"])
+

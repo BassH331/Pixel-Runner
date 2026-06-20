@@ -83,10 +83,10 @@ class DifficultyManager:
 
     def evaluate_sessions(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Analyzes a list of session metrics and generates a difficulty recommendation."""
-        # Filter valid sessions: at least 60 seconds of active combat time
+        # Filter valid sessions: at least 60 seconds of active combat time OR boss was defeated
         valid_sessions = [
             s for s in sessions 
-            if s.get("active_combat_duration_sec", 0.0) >= 60.0 and s.get("total_frames", 0) > 0
+            if (s.get("active_combat_duration_sec", 0.0) >= 60.0 or s.get("boss_defeated")) and s.get("total_frames", 0) > 0
         ]
 
         if not valid_sessions:
@@ -122,6 +122,7 @@ class DifficultyManager:
             "bad_attacks": sum(s["bad_attacks"] for s in valid_sessions) / num_sessions,
             "missed_opportunities": sum(s["missed_opportunities"] for s in valid_sessions) / num_sessions,
             "malformed_lines": sum(s.get("malformed_lines", 0) for s in valid_sessions) / num_sessions,
+            "boss_defeated": sum(1 if s.get("boss_defeated") else 0 for s in valid_sessions) / num_sessions,
         }
 
         # Normalize metrics to per-minute values based on active combat time
@@ -136,8 +137,17 @@ class DifficultyManager:
         # Formula: player_damage_taken_per_min + player_hits_received_per_min + successful_boss_attacks_per_min - boss_damage_taken_per_min - boss_hits_received_per_min
         pressure_score = (player_damage_per_min + player_hits_per_min + successful_boss_attacks_per_min) - (boss_damage_per_min + boss_hits_per_min)
 
-        # Recommendation logic
-        if pressure_score > 15.0:
+        # Recommendation logic (including quick defeats checks)
+        avg_defeated = sum(1 for s in valid_sessions if s.get("boss_defeated"))
+        avg_active_dur = avg_metrics["active_combat_duration_sec"]
+
+        if avg_defeated > 0 and avg_active_dur < 30.0:
+            rec = "NIGHTMARE"
+            desc = f"Player defeated the boss in under 30s ({avg_active_dur:.1f}s). Recommend raising to Nightmare!"
+        elif avg_defeated > 0 and avg_active_dur < 60.0:
+            rec = "HARD"
+            desc = f"Player defeated the boss quickly ({avg_active_dur:.1f}s). Suggest raising to Hard."
+        elif pressure_score > 15.0:
             rec = "EASY"
             desc = f"Boss pressure is extremely high ({pressure_score:.1f} pts/min). Suggest lowering difficulty to Easy."
         elif -10.0 <= pressure_score <= 15.0:
@@ -183,6 +193,67 @@ class DifficultyManager:
             "accuracies": accuracies,
             "warning": ""
         }
+
+    def adjust_difficulty_level(self, current_config: Dict[str, Any], direction: int) -> Dict[str, Any]:
+        """Adjusts the difficulty values of current_config dynamically.
+        
+        direction = -1: Lower difficulty (make boss easier)
+        direction = +1: Raise difficulty (make boss harder)
+        """
+        adjusted = {**current_config}
+
+        # Step changes based on baseline config values
+        # To make boss harder (direction = +1):
+        # - max_mana increases by +10% of baseline (10.0)
+        # - mana_recharge_rate increases by +10% of baseline (5.0)
+        # - spell_mana_cost decreases by -10% of baseline (3.5)
+        # - stagnant_duration decreases by -10% of baseline (0.3)
+        # - chase_delay_duration decreases by -10% of baseline (0.08)
+        # - attack_cooldown_min decreases by -10% of baseline (0.12)
+        # - attack_cooldown_max decreases by -10% of baseline (0.2)
+        # - teleport_dist_min decreases by -10% of baseline (38) (boss stays closer/aggressive)
+        # - teleport_dist_max decreases by -10% of baseline (45)
+
+        # Map each parameter change
+        steps = {
+            "max_mana": (10.0, 1),           # step value, positive means harder
+            "mana_recharge_rate": (5.0, 1),
+            "spell_mana_cost": (3.5, -1),     # negative means lower is harder
+            "stagnant_duration": (0.3, -1),
+            "chase_delay_duration": (0.08, -1),
+            "attack_cooldown_min": (0.12, -1),
+            "attack_cooldown_max": (0.2, -1),
+            "teleport_dist_min": (38.0, -1),
+            "teleport_dist_max": (45.0, -1)
+        }
+
+        for key, (step, sign) in steps.items():
+            if key in adjusted:
+                # Delta is direction * step * sign
+                delta = direction * step * sign
+                val = adjusted[key] + delta
+                
+                # Clamp to slider bounds
+                min_b, max_b = self.SLIDER_BOUNDS[key]
+                val = max(min_b, min(max_b, val))
+                
+                # Apply extra safety limits
+                if key == "spell_mana_cost":
+                    val = max(1.0, val)
+                elif key == "stagnant_duration":
+                    val = max(0.5, val)
+                elif key == "attack_cooldown_min":
+                    val = max(0.2, val)
+                
+                adjusted[key] = val
+
+        # Ensure correct ordering
+        if adjusted["teleport_dist_max"] < adjusted["teleport_dist_min"]:
+            adjusted["teleport_dist_max"] = adjusted["teleport_dist_min"]
+        if adjusted["attack_cooldown_max"] < adjusted["attack_cooldown_min"]:
+            adjusted["attack_cooldown_max"] = adjusted["attack_cooldown_min"]
+
+        return adjusted
 
     def get_preset_config(self, preset_name: str) -> Dict[str, Any]:
         """Returns the cloned and clamped configuration for a given preset."""

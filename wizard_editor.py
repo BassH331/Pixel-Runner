@@ -201,11 +201,11 @@ class WizardEditorApp:
 
         # Review Control UI Elements (Adjusted Y to fit the new mode selector)
         self.review_buttons = [
-            Button("IDLE", 450, 560, 100, 35, lambda: self.set_review_state("IDLE")),
-            Button("CHASE", 560, 560, 100, 35, lambda: self.set_review_state("CHASE")),
-            Button("ATTACK", 670, 560, 100, 35, lambda: self.set_review_state("ATTACK")),
-            Button("HURT", 780, 560, 100, 35, lambda: self.set_review_state("HURT")),
-            Button("DEATH", 890, 560, 100, 35, lambda: self.set_review_state("DEATH")),
+            Button("IDLE", 450, 560, 80, 35, lambda: self.set_review_state("IDLE")),
+            Button("CHASE", 540, 560, 80, 35, lambda: self.set_review_state("CHASE")),
+            Button("ATTACK", 630, 560, 80, 35, lambda: self.set_review_state("ATTACK")),
+            Button("HURT", 720, 560, 80, 35, lambda: self.set_review_state("HURT")),
+            Button("DEATH", 810, 560, 80, 35, lambda: self.set_review_state("DEATH")),
         ]
         self.update_review_buttons()
 
@@ -235,14 +235,31 @@ class WizardEditorApp:
         self.autofit_btn = Button("AUTO-FIT: ON", 920, 560, 145, 30, self.toggle_autofit, active=True)
         self.apply_fit_btn = Button("APPLY TO SLIDER", 1075, 560, 145, 30, self.apply_fit_to_slider)
 
-        # Analytics Dashboard Preset Buttons
+        # Presets Slot Path & Active State
+        self.presets_path = "game_data/wizard_presets.json"
+        self.active_preset_slot = 1
+        self.presets_data = {}
+        self.load_presets()
+
+        # Analytics Dashboard Preset Buttons:
+        # 1. REFRESH LOGS
+        # 2. Left Arrow [ < LOWER ]
+        # 3. Right Arrow [ HIGHER > ]
+        # 4. PRESET 1
+        # 5. PRESET 2
+        # 6. PRESET 3
+        # 7. SAVE PRESET
         self.analytics_buttons = [
-            Button("REFRESH LOGS", 430, 560, 150, 35, self.refresh_analytics),
-            Button("APPLY EASY", 600, 560, 130, 35, lambda: self.apply_preset("EASY")),
-            Button("APPLY MEDIUM", 740, 560, 130, 35, lambda: self.apply_preset("MEDIUM")),
-            Button("APPLY HARD", 880, 560, 130, 35, lambda: self.apply_preset("HARD")),
-            Button("APPLY NIGHTMARE", 1020, 560, 150, 35, lambda: self.apply_preset("NIGHTMARE")),
+            Button("REFRESH LOGS", 430, 560, 130, 35, self.refresh_analytics),
+            Button("[ < LOWER ]", 570, 640, 100, 42, lambda: self.adjust_difficulty(-1)),
+            Button("[ HIGHER > ]", 680, 640, 100, 42, lambda: self.adjust_difficulty(1)),
+            Button("[ AUTO-TUNING ]", 790, 640, 140, 42, self.apply_recommended_difficulty),
+            Button("PRESET 1", 790, 560, 95, 35, lambda: self.apply_preset_slot(1)),
+            Button("PRESET 2", 895, 560, 95, 35, lambda: self.apply_preset_slot(2)),
+            Button("PRESET 3", 1000, 560, 95, 35, lambda: self.apply_preset_slot(3)),
+            Button("SAVE PRESET", 1105, 560, 120, 35, self.save_to_active_preset),
         ]
+        self.update_preset_buttons()
 
         # Initial fetch of telemetry logs
         self.refresh_analytics()
@@ -258,6 +275,85 @@ class WizardEditorApp:
         self.toast_message = "Applied Fit Scale to Slider"
         self.toast_timer = 1.5
 
+    def load_presets(self):
+        defaults = {
+            "1": self.difficulty_manager.get_preset_config("MEDIUM"),
+            "2": self.difficulty_manager.get_preset_config("HARD"),
+            "3": self.difficulty_manager.get_preset_config("NIGHTMARE")
+        }
+        if os.path.exists(self.presets_path):
+            try:
+                with open(self.presets_path, "r") as f:
+                    self.presets_data = json.load(f)
+                    for slot in ("1", "2", "3"):
+                        if slot not in self.presets_data:
+                            self.presets_data[slot] = defaults[slot].copy()
+            except Exception:
+                self.presets_data = defaults
+        else:
+            self.presets_data = defaults
+
+    def update_preset_buttons(self):
+        if len(self.analytics_buttons) >= 7:
+            self.analytics_buttons[4].active = (self.active_preset_slot == 1)
+            self.analytics_buttons[5].active = (self.active_preset_slot == 2)
+            self.analytics_buttons[6].active = (self.active_preset_slot == 3)
+
+    def apply_preset_slot(self, slot: int):
+        self.active_preset_slot = slot
+        self.update_preset_buttons()
+        preset_config = self.presets_data.get(str(slot))
+        if preset_config:
+            for key, val in preset_config.items():
+                if key in self.sliders:
+                    self.sliders[key].val = val
+            self.toast_message = f"Preset {slot} Loaded!"
+            self.toast_timer = 1.5
+
+    def save_to_active_preset(self):
+        current_config = {}
+        for k, slider in self.sliders.items():
+            current_config[k] = slider.val
+        
+        self.presets_data[str(self.active_preset_slot)] = current_config
+        
+        try:
+            os.makedirs(os.path.dirname(self.presets_path), exist_ok=True)
+            with open(self.presets_path, "w") as f:
+                json.dump(self.presets_data, f, indent=4)
+            self.toast_message = f"Saved to Preset {self.active_preset_slot}!"
+            self.toast_timer = 2.0
+        except Exception as e:
+            self.toast_message = f"Error: {e}"
+            self.toast_timer = 2.0
+
+    def apply_recommended_difficulty(self):
+        if not self.recent_sessions_analytics or self.recent_sessions_analytics.get("valid_session_count", 0) == 0:
+            self.toast_message = "No recommendation available!"
+            self.toast_timer = 2.0
+            return
+        
+        rec_diff = self.recent_sessions_analytics.get("recommended_difficulty")
+        if rec_diff in ("EASY", "MEDIUM", "HARD", "NIGHTMARE"):
+            preset_config = self.difficulty_manager.get_preset_config(rec_diff)
+            for key, val in preset_config.items():
+                if key in self.sliders:
+                    self.sliders[key].val = val
+            self.toast_message = f"Applied Recommended {rec_diff} Preset!"
+            self.toast_timer = 2.0
+        else:
+            self.toast_message = "Invalid recommended difficulty!"
+            self.toast_timer = 2.0
+
+    def adjust_difficulty(self, direction: int):
+        current_config = {k: slider.val for k, slider in self.sliders.items()}
+        new_config = self.difficulty_manager.adjust_difficulty_level(current_config, direction)
+        for k, val in new_config.items():
+            if k in self.sliders:
+                self.sliders[k].val = val
+        self.toast_message = "Difficulty " + ("Increased" if direction > 0 else "Decreased")
+        self.toast_timer = 1.5
+
     def refresh_analytics(self):
         recent = self.log_parser.get_recent_sessions(limit=5)
         sessions_data = []
@@ -268,14 +364,6 @@ class WizardEditorApp:
         self.latest_session_name = latest[0] if latest else "None"
         self.parsed_files_count = sum(len(paths) for _, paths in recent)
         self.toast_message = "Telemetry Logs Refreshed!"
-        self.toast_timer = 2.0
-
-    def apply_preset(self, preset_name: str):
-        preset_config = self.difficulty_manager.get_preset_config(preset_name)
-        for key, val in preset_config.items():
-            if key in self.sliders:
-                self.sliders[key].val = val
-        self.toast_message = f"{preset_name} Preset Applied (Unsaved)"
         self.toast_timer = 2.0
 
     def load_config(self):
@@ -597,11 +685,13 @@ class WizardEditorApp:
         start_y = rect.y + margin_y
 
         txt_sess = ui_font.render(f"Latest Session ID: {self.latest_session_name}", True, ACCENT_CYAN)
+        txt_active_preset = ui_font.render(f"Active Preset Slot: Preset {self.active_preset_slot}", True, ACCENT_PURPLE)
         txt_chunks = value_font.render(f"Parsed rotated files: {self.parsed_files_count}", True, TEXT_MUTED)
         surface.blit(txt_sess, (start_x, start_y))
         surface.blit(txt_chunks, (rect.right - margin_x - txt_chunks.get_width(), start_y))
+        surface.blit(txt_active_preset, (start_x, start_y + 24))
         
-        divider_y = start_y + 35
+        divider_y = start_y + 55
         pg.draw.line(surface, BORDER_COLOR, (start_x, divider_y), (rect.right - margin_x, divider_y), 1)
 
         analytics = self.recent_sessions_analytics
@@ -684,7 +774,7 @@ class WizardEditorApp:
 
         txt_rec_title = ui_font.render("RECOMMENDED TUNING PRESET: ", True, TEXT_MUTED)
         txt_rec_val = ui_font.render(f"{rec_diff}", True, rec_color)
-        txt_conf = value_font.render(f"(Confidence: {confidence})", True, ACCENT_BLUE if confidence == "High" else TEXT_MUTED)
+        txt_conf = value_font.render(f"(Confidence: {confidence.capitalize()})", True, ACCENT_BLUE if confidence.lower() == "high" else TEXT_MUTED)
 
         surface.blit(txt_rec_title, (start_x, rec_y))
         surface.blit(txt_rec_val, (start_x + txt_rec_title.get_width(), rec_y))
@@ -774,12 +864,13 @@ class WizardEditorApp:
                     for btn in self.analytics_buttons:
                         btn.handle_event(event)
 
-                self.autofit_btn.handle_event(event)
-                self.apply_fit_btn.handle_event(event)
+                if self.mode != "ANALYTICS":
+                    self.autofit_btn.handle_event(event)
+                    self.apply_fit_btn.handle_event(event)
 
-                if not self.auto_fit_enabled:
-                    self.preview_scale_slider.handle_event(event)
-                self.playback_speed_slider.handle_event(event)
+                    if not self.auto_fit_enabled:
+                        self.preview_scale_slider.handle_event(event)
+                    self.playback_speed_slider.handle_event(event)
 
             # Update live settings if not in modal
             if not self.confirming_save and not self.confirming_sim_reset:
@@ -932,20 +1023,21 @@ class WizardEditorApp:
                 btn.draw(screen)
 
             # Draw Auto-Fit options & Sliders
-            self.autofit_btn.draw(screen)
-            self.apply_fit_btn.draw(screen)
-            
-            self.playback_speed_slider.draw(screen)
+            if self.mode != "ANALYTICS":
+                self.autofit_btn.draw(screen)
+                self.apply_fit_btn.draw(screen)
+                
+                self.playback_speed_slider.draw(screen)
 
-            if self.auto_fit_enabled:
-                val_display = f"{round(self.preview_scale, 2)}x [AUTO]"
-                txt_label = ui_font.render("Preview Scale", True, TEXT_MUTED)
-                txt_val = value_font.render(val_display, True, TEXT_MUTED)
-                screen.blit(txt_label, (920, 610 - 22))
-                screen.blit(txt_val, (1220 - txt_val.get_width(), 610 - 22))
-                pg.draw.rect(screen, (30, 30, 35), (920, 610, 300, 8), border_radius=4)
-            else:
-                self.preview_scale_slider.draw(screen)
+                if self.auto_fit_enabled:
+                    val_display = f"{round(self.preview_scale, 2)}x [AUTO]"
+                    txt_label = ui_font.render("Preview Scale", True, TEXT_MUTED)
+                    txt_val = value_font.render(val_display, True, TEXT_MUTED)
+                    screen.blit(txt_label, (920, 610 - 22))
+                    screen.blit(txt_val, (1220 - txt_val.get_width(), 610 - 22))
+                    pg.draw.rect(screen, (30, 30, 35), (920, 610, 300, 8), border_radius=4)
+                else:
+                    self.preview_scale_slider.draw(screen)
 
             # Toast messages
             if self.toast_timer > 0.0:

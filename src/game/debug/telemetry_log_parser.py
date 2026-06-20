@@ -97,6 +97,7 @@ class TelemetryLogParser:
             "average_horizontal_distance": 0.0,
             "average_vertical_distance": 0.0,
             "average_player_boss_distance": 0.0,
+            "boss_defeated": False,
         }
 
         if file_paths:
@@ -150,6 +151,11 @@ class TelemetryLogParser:
                                 if isinstance(ts, (int, float)):
                                     active_timestamps.append(int(ts))
 
+                                b_health = boss.get("health", 100.0)
+                                b_state = boss.get("state", "").lower()
+                                if b_health <= 0.0 or b_state == "death":
+                                    metrics["boss_defeated"] = True
+
                                 p_pos = player.get("position")
                                 b_pos = boss.get("position")
 
@@ -200,7 +206,9 @@ class TelemetryLogParser:
                             elif ev_type == "boss_state_changed":
                                 metrics["state_changes"] += 1
                                 new_s = data.get("new_state", "").lower()
-                                if new_s == "attack":
+                                if new_s == "death":
+                                    metrics["boss_defeated"] = True
+                                elif new_s == "attack":
                                     metrics["boss_attacks"] += 1
                                     
                                     if metrics["player_boss_distances"]:
