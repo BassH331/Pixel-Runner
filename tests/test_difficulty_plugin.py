@@ -162,3 +162,68 @@ class TestDifficultyPlugin(unittest.TestCase):
         self.assertLess(easier["max_mana"], cfg["max_mana"])
         self.assertGreater(easier["stagnant_duration"], cfg["stagnant_duration"])
 
+    def test_playstyle_metrics_and_advisory(self) -> None:
+        log_file = Path(self.test_dir) / "session_20260620_140000_001.jsonl"
+        
+        events = [
+            {"type": "frame_sample", "timestamp_ms": 1000, "fps": 60.0, "player": {"state": "idle", "velocity": [0.0, 0.0], "position": [100, 100, 32, 64]}, "boss": {"position": [200, 100, 64, 64]}},
+            {"type": "frame_sample", "timestamp_ms": 2000, "fps": 60.0, "player": {"state": "defend", "velocity": [0.0, 0.0], "position": [100, 100, 32, 64]}, "boss": {"position": [200, 100, 64, 64]}},
+            {"type": "frame_sample", "timestamp_ms": 3000, "fps": 60.0, "player": {"state": "jump_up", "velocity": [0.0, 10.0], "position": [100, 100, 32, 64]}, "boss": {"position": [200, 100, 64, 64]}},
+            {"type": "frame_sample", "timestamp_ms": 4000, "fps": 60.0, "player": {"state": "run", "velocity": [5.0, 0.0], "position": [300, 100, 32, 64]}, "boss": {"position": [200, 100, 64, 64]}},
+            {"type": "event", "event_type": "projectile_hit", "timestamp_ms": 4100},
+            {"type": "event", "event_type": "projectile_miss", "timestamp_ms": 4200},
+            {"type": "event", "event_type": "projectile_miss", "timestamp_ms": 4300},
+            {"type": "frame_sample", "timestamp_ms": 16000, "fps": 60.0, "player": {"state": "idle", "velocity": [0.0, 0.0], "position": [300, 100, 32, 64]}, "boss": {"position": [200, 100, 64, 64]}},
+        ]
+        
+        with open(log_file, "w") as f:
+            for ev in events:
+                f.write(json.dumps(ev) + "\n")
+                
+        parsed = self.parser.parse_session([log_file])
+        
+        self.assertEqual(parsed["player_defend_frames"], 1)
+        self.assertEqual(parsed["player_standing_frames"], 3)
+        self.assertEqual(parsed["player_jumps"], 1)
+        self.assertEqual(parsed["player_side_swaps"], 1)
+        
+        eval_result = self.manager.evaluate_sessions([parsed])
+        dynamics = eval_result["combat_dynamics"]
+        
+        self.assertAlmostEqual(dynamics["player_defensive_ratio"], (1.0 / 5.0) * 100.0)
+        self.assertAlmostEqual(dynamics["player_standing_ratio"], (3.0 / 5.0) * 100.0)
+        self.assertAlmostEqual(dynamics["boss_spell_accuracy"], (1.0 / 3.0) * 100.0)
+        self.assertTrue(any("stagnant_duration" in adv for adv in dynamics["advisory"]))
+
+    def test_spidey_sense_dodge_and_counter(self) -> None:
+        from src.game.entities.fire_wizard import FireWizard, FireWizardState
+        
+        class MockPlayer:
+            def __init__(self):
+                self.rect = pg.Rect(100, 100, 32, 64)
+                self.facing_left = True
+        
+        player = MockPlayer()
+        wizard = FireWizard(200, 600, player, tier="boss", custom_scale=1.0, custom_health=100.0)  # type: ignore
+        
+        # Test 1: Spidey Sense is 0.0 (Off)
+        wizard._spidey_sense = 0.0
+        self.assertEqual(wizard.health, 100.0)
+        wizard.take_damage(10.0)
+        self.assertEqual(wizard.health, 90.0)
+        
+        # Reset health
+        wizard._health = 100.0
+        
+        # Test 2: Spidey Sense is 1.0 (God Mode)
+        wizard._spidey_sense = 1.0
+        wizard.set_state(FireWizardState.IDLE, force=True)
+        player.facing_left = True
+        player.rect.centerx = 500
+        
+        wizard.take_damage(10.0)
+        self.assertEqual(wizard.health, 100.0)
+        self.assertEqual(wizard.state, FireWizardState.ATTACK)
+        self.assertEqual(wizard.rect.centerx, 680)
+        self.assertTrue(wizard.facing_left)
+

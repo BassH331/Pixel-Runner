@@ -72,7 +72,19 @@ class Slider:
 
     def draw(self, surface: pg.Surface):
         # Label & Value text
-        val_display = self.format_str.format(val=round(self.val, 2) if self.is_float else int(self.val))
+        if self.key == "spidey_sense":
+            if self.val <= 0.05:
+                val_display = "Off"
+            elif self.val <= 0.2:
+                val_display = "Weak"
+            elif self.val <= 0.5:
+                val_display = "Standard"
+            elif self.val <= 0.8:
+                val_display = "Strong"
+            else:
+                val_display = "God Mode"
+        else:
+            val_display = self.format_str.format(val=round(self.val, 2) if self.is_float else int(self.val))
         txt_label = ui_font.render(self.label, True, TEXT_COLOR)
         txt_val = value_font.render(val_display, True, ACCENT_CYAN)
         
@@ -158,15 +170,16 @@ class WizardEditorApp:
 
         # Build Sliders for AI Configurations
         self.sliders: Dict[str, Slider] = {
-            "max_mana": Slider("max_mana", "Max Mana Pool", 40, 100, 320, 50, 200, self.config["max_mana"], is_float=True, format_str="{val} mp"),
-            "spell_mana_cost": Slider("spell_mana_cost", "Spell Cost", 40, 160, 320, 10, 100, self.config["spell_mana_cost"], is_float=True, format_str="{val} mp"),
-            "stagnant_duration": Slider("stagnant_duration", "Stagnant/Exhausted Time", 40, 220, 320, 0.5, 6.0, self.config["stagnant_duration"], is_float=True, format_str="{val} sec"),
-            "teleport_dist_min": Slider("teleport_dist_min", "Teleport Min Dist", 40, 280, 320, 100, 600, self.config["teleport_dist_min"], is_float=False, format_str="{val} px"),
-            "teleport_dist_max": Slider("teleport_dist_max", "Teleport Max Dist", 40, 340, 320, 400, 1000, self.config["teleport_dist_max"], is_float=False, format_str="{val} px"),
-            "mana_recharge_rate": Slider("mana_recharge_rate", "Mana Recharge Rate", 40, 400, 320, 10, 100, self.config["mana_recharge_rate"], is_float=True, format_str="{val}/sec"),
-            "chase_delay_duration": Slider("chase_delay_duration", "Chase Delay Window", 40, 460, 320, 0.0, 3.0, self.config["chase_delay_duration"], is_float=True, format_str="{val} sec"),
-            "attack_cooldown_min": Slider("attack_cooldown_min", "Min Spell Cooldown", 40, 520, 320, 0.5, 4.0, self.config["attack_cooldown_min"], is_float=True, format_str="{val} sec"),
-            "attack_cooldown_max": Slider("attack_cooldown_max", "Max Spell Cooldown", 40, 580, 320, 1.0, 6.0, self.config["attack_cooldown_max"], is_float=True, format_str="{val} sec"),
+            "max_mana": Slider("max_mana", "Max Mana Pool", 40, 80, 320, 50, 200, self.config["max_mana"], is_float=True, format_str="{val} mp"),
+            "spell_mana_cost": Slider("spell_mana_cost", "Spell Cost", 40, 132, 320, 10, 100, self.config["spell_mana_cost"], is_float=True, format_str="{val} mp"),
+            "stagnant_duration": Slider("stagnant_duration", "Stagnant/Exhausted Time", 40, 184, 320, 0.5, 6.0, self.config["stagnant_duration"], is_float=True, format_str="{val} sec"),
+            "teleport_dist_min": Slider("teleport_dist_min", "Teleport Min Dist", 40, 236, 320, 100, 600, self.config["teleport_dist_min"], is_float=False, format_str="{val} px"),
+            "teleport_dist_max": Slider("teleport_dist_max", "Teleport Max Dist", 40, 288, 320, 400, 1000, self.config["teleport_dist_max"], is_float=False, format_str="{val} px"),
+            "mana_recharge_rate": Slider("mana_recharge_rate", "Mana Recharge Rate", 40, 340, 320, 10, 100, self.config["mana_recharge_rate"], is_float=True, format_str="{val}/sec"),
+            "chase_delay_duration": Slider("chase_delay_duration", "Chase Delay Window", 40, 392, 320, 0.0, 3.0, self.config["chase_delay_duration"], is_float=True, format_str="{val} sec"),
+            "attack_cooldown_min": Slider("attack_cooldown_min", "Min Spell Cooldown", 40, 444, 320, 0.5, 4.0, self.config["attack_cooldown_min"], is_float=True, format_str="{val} sec"),
+            "attack_cooldown_max": Slider("attack_cooldown_max", "Max Spell Cooldown", 40, 496, 320, 1.0, 6.0, self.config["attack_cooldown_max"], is_float=True, format_str="{val} sec"),
+            "spidey_sense": Slider("spidey_sense", "Spidey Sense / Counter Dodge", 40, 548, 320, 0.0, 1.0, self.config["spidey_sense"], is_float=True, format_str="{val}"),
         }
 
         # Action Buttons
@@ -362,7 +375,7 @@ class WizardEditorApp:
         self.recent_sessions_analytics = self.difficulty_manager.evaluate_sessions(sessions_data)
         latest = self.log_parser.get_latest_session()
         self.latest_session_name = latest[0] if latest else "None"
-        self.parsed_files_count = sum(len(paths) for _, paths in recent)
+        self.parsed_files_count = len(latest[1]) if latest else 0
         self.toast_message = "Telemetry Logs Refreshed!"
         self.toast_timer = 2.0
 
@@ -376,7 +389,8 @@ class WizardEditorApp:
             "mana_recharge_rate": 50.0,
             "chase_delay_duration": 0.8,
             "attack_cooldown_min": 1.2,
-            "attack_cooldown_max": 2.0
+            "attack_cooldown_max": 2.0,
+            "spidey_sense": 0.0
         }
         if os.path.exists(self.config_path):
             try:
@@ -754,12 +768,34 @@ class WizardEditorApp:
             txt_val = value_font.render(val, True, TEXT_COLOR)
             surface.blit(txt_lbl, (col2_x, curr_y))
             surface.blit(txt_val, (col2_x + 240, curr_y))
-            curr_y += 24
+            curr_y += 20
 
-        divider2_y = content_y + 230
+        # Render player style & combat dynamics section
+        curr_y += 10
+        col2_header2 = ui_font.render("PLAYER STYLE & COMBAT DYNAMICS", True, (255, 255, 255))
+        surface.blit(col2_header2, (col2_x, curr_y))
+        curr_y += 24
+
+        dynamics = analytics.get("combat_dynamics", {})
+        col2_lines2 = [
+            ("Player Defensive Ratio", f"{dynamics.get('player_defensive_ratio', 0.0):.1f}%"),
+            ("Player Stand Still Ratio", f"{dynamics.get('player_standing_ratio', 0.0):.1f}%"),
+            ("Player Jumps / Min", f"{dynamics.get('player_jumps_per_min', 0.0):.1f}"),
+            ("Player Side Swaps / Min", f"{dynamics.get('player_side_swaps_per_min', 0.0):.1f}"),
+            ("Boss Spell Accuracy", f"{dynamics.get('boss_spell_accuracy', 0.0):.1f}%"),
+        ]
+
+        for label, val in col2_lines2:
+            txt_lbl = value_font.render(label, True, TEXT_MUTED)
+            txt_val = value_font.render(val, True, TEXT_COLOR)
+            surface.blit(txt_lbl, (col2_x, curr_y))
+            surface.blit(txt_val, (col2_x + 240, curr_y))
+            curr_y += 18
+
+        divider2_y = content_y + 250
         pg.draw.line(surface, BORDER_COLOR, (start_x, divider2_y), (rect.right - margin_x, divider2_y), 1)
 
-        rec_y = divider2_y + 15
+        rec_y = divider2_y + 10
         rec_diff = analytics["recommended_difficulty"]
         confidence = analytics["confidence"]
         description = analytics["description"]
@@ -781,7 +817,17 @@ class WizardEditorApp:
         surface.blit(txt_conf, (start_x + txt_rec_title.get_width() + txt_rec_val.get_width() + 10, rec_y + 2))
 
         txt_desc = help_font.render(description, True, TEXT_COLOR)
-        surface.blit(txt_desc, (start_x, rec_y + 25))
+        surface.blit(txt_desc, (start_x, rec_y + 22))
+
+        # Render playstyle tuning advisory notes
+        advisory_notes = dynamics.get("advisory", [])
+        if advisory_notes:
+            adv_y = rec_y + 36
+            txt_adv_hdr = help_font.render("AI Suggestion: ", True, ACCENT_CYAN)
+            surface.blit(txt_adv_hdr, (start_x, adv_y))
+            adv_text = " | ".join(advisory_notes)
+            txt_adv = help_font.render(adv_text, True, TEXT_COLOR)
+            surface.blit(txt_adv, (start_x + txt_adv_hdr.get_width(), adv_y))
 
     def run(self):
         while self.running:

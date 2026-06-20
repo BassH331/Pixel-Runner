@@ -98,6 +98,11 @@ class TelemetryLogParser:
             "average_vertical_distance": 0.0,
             "average_player_boss_distance": 0.0,
             "boss_defeated": False,
+            "player_defend_frames": 0,
+            "player_standing_frames": 0,
+            "player_jumps": 0,
+            "player_side_swaps": 0,
+            "total_active_combat_frames": 0,
         }
 
         if file_paths:
@@ -111,6 +116,9 @@ class TelemetryLogParser:
         first_timestamp: Optional[int] = None
         last_timestamp: Optional[int] = None
         active_timestamps: List[int] = []
+
+        prev_diff_x = None
+        prev_p_state = None
 
         for path in file_paths:
             if not path.exists():
@@ -148,6 +156,7 @@ class TelemetryLogParser:
 
                             if player and boss:
                                 # Count this frame as active combat/tracking data
+                                metrics["total_active_combat_frames"] += 1
                                 if isinstance(ts, (int, float)):
                                     active_timestamps.append(int(ts))
 
@@ -155,6 +164,21 @@ class TelemetryLogParser:
                                 b_state = boss.get("state", "").lower()
                                 if b_health <= 0.0 or b_state == "death":
                                     metrics["boss_defeated"] = True
+
+                                p_state = player.get("state", "").lower()
+                                if "defend" in p_state:
+                                    metrics["player_defend_frames"] += 1
+
+                                p_vel = player.get("velocity", [0.0, 0.0])
+                                if (p_vel == [0.0, 0.0] or p_vel is None) and p_state in ("idle", "defend"):
+                                    metrics["player_standing_frames"] += 1
+
+                                if prev_p_state is not None:
+                                    is_curr_jump = "jump" in p_state
+                                    is_prev_jump = "jump" in prev_p_state
+                                    if is_curr_jump and not is_prev_jump:
+                                        metrics["player_jumps"] += 1
+                                prev_p_state = p_state
 
                                 p_pos = player.get("position")
                                 b_pos = boss.get("position")
@@ -164,6 +188,12 @@ class TelemetryLogParser:
                                     p_cy = p_pos[1] + p_pos[3] / 2 if len(p_pos) >= 4 else p_pos[1]
                                     b_cx = b_pos[0] + b_pos[2] / 2 if len(b_pos) >= 4 else b_pos[0]
                                     b_cy = b_pos[1] + b_pos[3] / 2 if len(b_pos) >= 4 else b_pos[1]
+
+                                    diff_x = p_cx - b_cx
+                                    if prev_diff_x is not None:
+                                        if diff_x * prev_diff_x < 0:
+                                            metrics["player_side_swaps"] += 1
+                                    prev_diff_x = diff_x
 
                                     dist_x = abs(b_cx - p_cx)
                                     dist_y = abs(b_cy - p_cy)
@@ -203,10 +233,12 @@ class TelemetryLogParser:
                             elif ev_type == "damage_dealt":
                                 metrics["boss_hits_received"] += 1
                                 metrics["boss_damage_taken"] += float(data.get("damage", 0.0))
+                                if data.get("target_is_boss") and float(data.get("target_health_after", 100.0)) <= 0.0:
+                                    metrics["boss_defeated"] = True
                             elif ev_type == "boss_state_changed":
                                 metrics["state_changes"] += 1
                                 new_s = data.get("new_state", "").lower()
-                                if new_s == "death":
+                                if new_s in ("death", "none"):
                                     metrics["boss_defeated"] = True
                                 elif new_s == "attack":
                                     metrics["boss_attacks"] += 1

@@ -8,5 +8,5 @@
   "chase_delay_duration": 0.5,
   "attack_cooldown_min": 0.8,
   "attack_cooldown_max": 1.5,
-  "spidey_sense": 0.47
+  "spidey_sense": 1.0
 }

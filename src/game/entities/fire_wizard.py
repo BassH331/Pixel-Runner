@@ -157,6 +157,7 @@ class FireWizard(Actor):
         self._chase_delay_duration: float = 0.8
         self._attack_cooldown_min: float = 1.2
         self._attack_cooldown_max: float = 2.0
+        self._spidey_sense: float = 0.0
         
         config_path = "game_data/boss_wizard_config.json"
         if os.path.exists(config_path):
@@ -172,6 +173,7 @@ class FireWizard(Actor):
                     self._chase_delay_duration = float(config.get("chase_delay_duration", 0.8))
                     self._attack_cooldown_min = float(config.get("attack_cooldown_min", 1.2))
                     self._attack_cooldown_max = float(config.get("attack_cooldown_max", 2.0))
+                    self._spidey_sense = float(config.get("spidey_sense", 0.0))
             except Exception as e:
                 print(f"[WARNING] Error loading wizard config: {e}")
                 
@@ -457,6 +459,42 @@ class FireWizard(Actor):
     def take_damage(self, amount: float = 0.5) -> None:
         if self.state in (FireWizardState.HURT, FireWizardState.DEATH):
             return
+            
+        # Check Spidey Sense dodge probability
+        if self._spidey_sense > 0.0 and random.random() < self._spidey_sense:
+            print(f"[SPIDEY SENSE] Dodged player attack! (Setting: {self._spidey_sense:.2f})")
+            if self._spidey_sense >= 0.8:
+                # GOD MODE: know all moves and how to counter!
+                # Teleport behind the player and counter-attack immediately
+                if self._player is not None:
+                    player_rect = self._player.rect
+                    if self._player.facing_left:
+                        target_x = player_rect.centerx + 180
+                        self.facing_left = True
+                    else:
+                        target_x = player_rect.centerx - 180
+                        self.facing_left = False
+                        
+                    target_x = max(50, min(1200, target_x))
+                    self.rect.centerx = target_x
+                    self.rect.bottom = self._ground_y
+                    self._gravity = 0.0
+                    
+                    # Recharge enough mana to cast counter spell
+                    self._mana = max(self._mana, self._spell_mana_cost)
+                    self._teleport_flash_timer = 0.6
+                    self._chase_cooldown = 1.0
+                    
+                    # Trigger immediate counter attack
+                    self._has_spawned_attack_effect = False
+                    self.set_state(FireWizardState.ATTACK, force=True)
+                    self._attack_cooldown = random.uniform(self._attack_cooldown_min, self._attack_cooldown_max)
+                    print("[SPIDEY SENSE] COUNTER-ATTACK INITIATED!")
+                    return
+            else:
+                # Standard spidey sense: teleport away to safety
+                self._trigger_teleport_recharge()
+                return
             
         self._health = max(0, self._health - amount)
         self.attack_state.end()

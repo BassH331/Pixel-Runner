@@ -17,7 +17,8 @@ class DifficultyManager:
         "mana_recharge_rate": 50.0,
         "chase_delay_duration": 0.8,
         "attack_cooldown_min": 1.2,
-        "attack_cooldown_max": 2.0
+        "attack_cooldown_max": 2.0,
+        "spidey_sense": 0.0
     }
 
     # Preset scaling rules
@@ -31,7 +32,8 @@ class DifficultyManager:
             "mana_recharge_rate": 35.0,
             "chase_delay_duration": 1.5,
             "attack_cooldown_min": 2.0,
-            "attack_cooldown_max": 3.5
+            "attack_cooldown_max": 3.5,
+            "spidey_sense": 0.0
         },
         "MEDIUM": {
             "max_mana": 100.0,
@@ -42,7 +44,8 @@ class DifficultyManager:
             "mana_recharge_rate": 50.0,
             "chase_delay_duration": 0.8,
             "attack_cooldown_min": 1.2,
-            "attack_cooldown_max": 2.0
+            "attack_cooldown_max": 2.0,
+            "spidey_sense": 0.2
         },
         "HARD": {
             "max_mana": 120.0,
@@ -53,7 +56,8 @@ class DifficultyManager:
             "mana_recharge_rate": 70.0,
             "chase_delay_duration": 0.5,
             "attack_cooldown_min": 0.8,
-            "attack_cooldown_max": 1.5
+            "attack_cooldown_max": 1.5,
+            "spidey_sense": 0.6
         },
         "NIGHTMARE": {
             "max_mana": 150.0,
@@ -64,7 +68,8 @@ class DifficultyManager:
             "mana_recharge_rate": 90.0,
             "chase_delay_duration": 0.2,
             "attack_cooldown_min": 0.5,
-            "attack_cooldown_max": 1.0
+            "attack_cooldown_max": 1.0,
+            "spidey_sense": 1.0
         }
     }
 
@@ -78,15 +83,16 @@ class DifficultyManager:
         "mana_recharge_rate": (10.0, 100.0),
         "chase_delay_duration": (0.0, 3.0),
         "attack_cooldown_min": (0.5, 4.0),
-        "attack_cooldown_max": (1.0, 6.0)
+        "attack_cooldown_max": (1.0, 6.0),
+        "spidey_sense": (0.0, 1.0)
     }
 
     def evaluate_sessions(self, sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Analyzes a list of session metrics and generates a difficulty recommendation."""
-        # Filter valid sessions: at least 60 seconds of active combat time OR boss was defeated
+        # Filter valid sessions: at least 15 seconds of active combat time OR boss was defeated
         valid_sessions = [
             s for s in sessions 
-            if (s.get("active_combat_duration_sec", 0.0) >= 60.0 or s.get("boss_defeated")) and s.get("total_frames", 0) > 0
+            if (s.get("active_combat_duration_sec", 0.0) >= 15.0 or s.get("boss_defeated")) and s.get("total_frames", 0) > 0
         ]
 
         if not valid_sessions:
@@ -96,7 +102,15 @@ class DifficultyManager:
                 "confidence": "none",
                 "description": "Insufficient telemetry data for reliable recommendation.",
                 "metrics": {},
-                "warning": "Insufficient telemetry data for reliable recommendation."
+                "warning": "Insufficient telemetry data for reliable recommendation.",
+                "combat_dynamics": {
+                    "player_defensive_ratio": 0.0,
+                    "player_standing_ratio": 0.0,
+                    "player_jumps_per_min": 0.0,
+                    "player_side_swaps_per_min": 0.0,
+                    "boss_spell_accuracy": 0.0,
+                    "advisory": []
+                }
             }
 
         # Average metrics across valid sessions
@@ -123,6 +137,11 @@ class DifficultyManager:
             "missed_opportunities": sum(s["missed_opportunities"] for s in valid_sessions) / num_sessions,
             "malformed_lines": sum(s.get("malformed_lines", 0) for s in valid_sessions) / num_sessions,
             "boss_defeated": sum(1 if s.get("boss_defeated") else 0 for s in valid_sessions) / num_sessions,
+            "player_defend_frames": sum(s.get("player_defend_frames", 0) for s in valid_sessions) / num_sessions,
+            "player_standing_frames": sum(s.get("player_standing_frames", 0) for s in valid_sessions) / num_sessions,
+            "player_jumps": sum(s.get("player_jumps", 0) for s in valid_sessions) / num_sessions,
+            "player_side_swaps": sum(s.get("player_side_swaps", 0) for s in valid_sessions) / num_sessions,
+            "total_active_combat_frames": sum(s.get("total_active_combat_frames", 0) for s in valid_sessions) / num_sessions,
         }
 
         # Normalize metrics to per-minute values based on active combat time
@@ -183,6 +202,35 @@ class DifficultyManager:
             "missed_opportunities": avg_metrics["missed_opportunities"]
         }
 
+        # Calculate playstyle & combat dynamics
+        total_combat_f = max(1.0, avg_metrics.get("total_active_combat_frames", 1.0))
+        player_defensive_ratio = (avg_metrics.get("player_defend_frames", 0.0) / total_combat_f) * 100.0
+        player_standing_ratio = (avg_metrics.get("player_standing_frames", 0.0) / total_combat_f) * 100.0
+        player_jumps_per_min = avg_metrics.get("player_jumps", 0.0) / min_factor
+        player_side_swaps_per_min = avg_metrics.get("player_side_swaps", 0.0) / min_factor
+        
+        total_shots = avg_metrics.get("projectile_hits", 0.0) + avg_metrics.get("projectile_misses", 0.0)
+        boss_spell_accuracy = (avg_metrics.get("projectile_hits", 0.0) / max(1.0, total_shots)) * 100.0
+
+        advisory = []
+        if player_defensive_ratio > 25.0:
+            advisory.append("Defensive player (blocks frequently). Suggest lowering 'spell_mana_cost' to break defense.")
+        if player_standing_ratio > 35.0:
+            advisory.append("Player stands still often. Suggest lowering 'stagnant_duration' to pressure them.")
+        if player_side_swaps_per_min > 5.0:
+            advisory.append("Agile player (frequent side swaps). Suggest lowering teleport cooldowns or min distance.")
+        if boss_spell_accuracy < 30.0 and total_shots > 0:
+            advisory.append("Boss spell accuracy is low. Suggest lowering 'spell_mana_cost' to increase cast frequency.")
+
+        combat_dynamics = {
+            "player_defensive_ratio": min(100.0, player_defensive_ratio),
+            "player_standing_ratio": min(100.0, player_standing_ratio),
+            "player_jumps_per_min": player_jumps_per_min,
+            "player_side_swaps_per_min": player_side_swaps_per_min,
+            "boss_spell_accuracy": min(100.0, boss_spell_accuracy),
+            "advisory": advisory
+        }
+
         return {
             "valid_session_count": num_sessions,
             "recommended_difficulty": rec,
@@ -191,6 +239,7 @@ class DifficultyManager:
             "pressure_score": pressure_score,
             "metrics": avg_metrics,
             "accuracies": accuracies,
+            "combat_dynamics": combat_dynamics,
             "warning": ""
         }
 
@@ -224,7 +273,8 @@ class DifficultyManager:
             "attack_cooldown_min": (0.12, -1),
             "attack_cooldown_max": (0.2, -1),
             "teleport_dist_min": (38.0, -1),
-            "teleport_dist_max": (45.0, -1)
+            "teleport_dist_max": (45.0, -1),
+            "spidey_sense": (0.1, 1)
         }
 
         for key, (step, sign) in steps.items():
