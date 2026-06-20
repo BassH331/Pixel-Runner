@@ -702,11 +702,12 @@ class PlayerEditorApp:
         modifier = modifiers_dict.get(str(frame), 1.0)
         
         # Hitbox sliders are only interactive/enabled when Is Hit Frame is checked
+        # Max bounds increased to 1500 to support engine-scaled absolute coordinate space
         self.frame_sliders = [
-            Slider("offset_x", "Hitbox Offset X", 320, 445, 200, -400.0, 400.0, float(offset_x), is_float=False, enabled=is_hit),
-            Slider("offset_y", "Hitbox Offset Y", 540, 445, 200, -400.0, 400.0, float(offset_y), is_float=False, enabled=is_hit),
-            Slider("width", "Hitbox Width", 320, 495, 200, 10.0, 800.0, float(width), is_float=False, enabled=is_hit),
-            Slider("height", "Hitbox Height", 540, 495, 200, 10.0, 800.0, float(height), is_float=False, enabled=is_hit),
+            Slider("offset_x", "Hitbox Offset X", 320, 445, 200, -1500.0, 1500.0, float(offset_x), is_float=False, enabled=is_hit),
+            Slider("offset_y", "Hitbox Offset Y", 540, 445, 200, -1500.0, 1500.0, float(offset_y), is_float=False, enabled=is_hit),
+            Slider("width", "Hitbox Width", 320, 495, 200, 10.0, 1500.0, float(width), is_float=False, enabled=is_hit),
+            Slider("height", "Hitbox Height", 540, 495, 200, 10.0, 1500.0, float(height), is_float=False, enabled=is_hit),
             Slider("modifier", "Frame Damage Modifier", 320, 545, 420, 0.0, 2.0, float(modifier), is_float=True, enabled=is_hit)
         ]
 
@@ -1216,11 +1217,20 @@ class PlayerEditorApp:
                     width = hb_dict.get("width", 50)
                     height = hb_dict.get("height", 50)
 
-                    # Scale hitbox offsets & size
-                    scaled_offset_x = int(offset_x * self.preview_scale)
-                    scaled_offset_y = int(offset_y * self.preview_scale)
-                    scaled_width = int(width * self.preview_scale)
-                    scaled_height = int(height * self.preview_scale)
+                    # The coordinates in the config are strictly ENGINE SCALE (3.0x base)
+                    # and offset_y is relative to the `entity_rect` (which is 75 engine-pixels below the image center).
+                    # We need to map these back to the preview's arbitrary draw scale.
+                    engine_scale = 3.0
+                    draw_scale = self.preview_scale / engine_scale
+                    
+                    # Convert engine Y-offset (relative to entity_rect) to image-center relative offset
+                    image_offset_y_engine = offset_y + 75
+                    
+                    # Scale to preview dimensions
+                    scaled_offset_x = int(offset_x * draw_scale)
+                    scaled_offset_y = int(image_offset_y_engine * draw_scale)
+                    scaled_width = int(width * draw_scale)
+                    scaled_height = int(height * draw_scale)
 
                     # Offset depending on flip facing
                     if self.flip_preview:
