@@ -292,7 +292,7 @@
       }
     },
     "ROLL": {
-      "animation_speed": 1.0,
+      "animation_speed": 0.52,
       "loops": false,
       "interruptible": false,
       "grants_invincibility": true,
@@ -300,14 +300,14 @@
       "locks_input": true,
       "next_state": "IDLE",
       "frame_speeds": {
-        "0": 0.3,
-        "1": 0.39,
-        "2": 0.45,
-        "3": 0.5,
-        "4": 0.56,
-        "5": 0.6,
-        "6": 0.62,
-        "7": 0.45
+        "0": 0.22,
+        "1": 0.28,
+        "2": 0.34,
+        "3": 0.38,
+        "4": 0.42,
+        "5": 0.44,
+        "6": 0.39,
+        "7": 0.28
       }
     },
     "DASH": {

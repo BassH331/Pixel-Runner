@@ -150,5 +150,42 @@ class TestPlayerEditor(unittest.TestCase):
         self.assertEqual(saved_atk["hitbox_data"]["3"]["offset_x"], 190)
         self.assertEqual(saved_atk["hitbox_data"]["3"]["width"], 300)
 
+    def test_speed_curve_modification_and_isolation(self):
+        """Test that speed curve overrides are saved per-frame and do not bleed to adjacent frames on transition."""
+        self.app.mode = "SPEED_CURVES"
+        self.app.load_speed_curve_parameters("RUN")
+        
+        # Verify frame 0 starts with no override
+        self.assertEqual(self.app.selected_speed_curve_frame, 0)
+        self.assertFalse(self.app.frame_override_cb.val)
+        
+        # Enable override for frame 0 and set speed to 0.45
+        self.app.frame_override_cb.val = True
+        self.app.frame_speed_slider.val = 0.45
+        self.app.save_current_speed_curve_parameters()
+        
+        # Advance timeline slider to frame 1 and trigger frame change logic
+        self.app.timeline_slider.val = 1.0
+        self.app.check_speed_curve_frame_change()
+        
+        # Verify new selected frame is 1
+        self.assertEqual(self.app.selected_speed_curve_frame, 1)
+        # Verify frame 1 has no override (does not inherit frame 0's speed/override!)
+        self.assertFalse(self.app.frame_override_cb.val)
+        
+        # Enable override for frame 1 and set speed to 0.75
+        self.app.frame_override_cb.val = True
+        self.app.frame_speed_slider.val = 0.75
+        self.app.save_current_speed_curve_parameters()
+        
+        # Go back to frame 0
+        self.app.timeline_slider.val = 0.0
+        self.app.check_speed_curve_frame_change()
+        
+        # Verify frame 0 still has its override and correct speed value
+        self.assertEqual(self.app.selected_speed_curve_frame, 0)
+        self.assertTrue(self.app.frame_override_cb.val)
+        self.assertEqual(self.app.frame_speed_slider.val, 0.45)
+
 if __name__ == "__main__":
     unittest.main()

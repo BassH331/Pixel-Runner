@@ -8,17 +8,7 @@
       "locks_movement": true,
       "locks_input": true,
       "next_state": null,
-      "frame_speeds": {
-        "1": 0.15,
-        "2": 0.17,
-        "3": 0.21,
-        "4": 0.15,
-        "5": 0.15,
-        "6": 0.18,
-        "7": 0.2,
-        "8": 0.22,
-        "9": 0.16
-      }
+      "frame_speeds": {}
     },
     "DEFEND": {
       "animation_speed": 0.18,
@@ -28,14 +18,7 @@
       "locks_movement": true,
       "locks_input": false,
       "next_state": "IDLE",
-      "frame_speeds": {
-        "0": 0.08,
-        "2": 0.14,
-        "3": 0.11,
-        "4": 0.12,
-        "5": 0.15,
-        "6": 0.15
-      }
+      "frame_speeds": {}
     },
     "HURT": {
       "animation_speed": 0.2,
@@ -63,14 +46,14 @@
       "locks_input": false,
       "next_state": "IDLE",
       "frame_speeds": {
-        "0": 0.19,
-        "1": 0.24,
-        "2": 0.19,
-        "3": 0.16,
-        "4": 0.19,
-        "5": 0.18,
-        "6": 0.24,
-        "7": 0.28,
+        "0": 0.12,
+        "1": 0.12,
+        "2": 0.4,
+        "3": 0.28,
+        "4": 0.28,
+        "5": 0.2,
+        "6": 0.2,
+        "7": 0.15,
         "8": 0.15
       }
     },
@@ -144,9 +127,7 @@
       "locks_movement": false,
       "locks_input": false,
       "next_state": null,
-      "frame_speeds": {
-        "1": 0.13
-      }
+      "frame_speeds": {}
     },
     "JUMP_DOWN": {
       "animation_speed": 0.22,
@@ -156,9 +137,7 @@
       "locks_movement": false,
       "locks_input": false,
       "next_state": null,
-      "frame_speeds": {
-        "1": 0.16
-      }
+      "frame_speeds": {}
     },
     "RUN": {
       "animation_speed": 0.24,
@@ -292,46 +271,24 @@
       }
     },
     "ROLL": {
-      "animation_speed": 1.0,
+      "animation_speed": 0.3,
       "loops": false,
       "interruptible": false,
       "grants_invincibility": true,
       "locks_movement": true,
       "locks_input": true,
       "next_state": "IDLE",
-      "frame_speeds": {
-        "0": 0.3,
-        "1": 0.39,
-        "2": 0.45,
-        "3": 0.5,
-        "4": 0.56,
-        "5": 0.6,
-        "6": 0.62,
-        "7": 0.45
-      }
+      "frame_speeds": {}
     },
     "DASH": {
-      "animation_speed": 0.53,
+      "animation_speed": 0.32,
       "loops": false,
       "interruptible": false,
       "grants_invincibility": false,
       "locks_movement": true,
       "locks_input": true,
       "next_state": "IDLE",
-      "frame_speeds": {
-        "0": 0.17,
-        "1": 0.22,
-        "3": 0.33,
-        "4": 0.37,
-        "5": 0.41,
-        "6": 0.44,
-        "7": 0.42,
-        "8": 0.38,
-        "9": 0.37,
-        "11": 0.29,
-        "10": 0.32,
-        "2": 0.29
-      }
+      "frame_speeds": {}
     }
   },
   "attacks": {

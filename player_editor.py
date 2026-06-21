@@ -580,12 +580,17 @@ class PlayerEditorApp:
 
         # Action Buttons will be set dynamically per mode
         self.action_buttons: List[Button] = []
-        
+        # Speed curves configurator sliders/checkboxes
+        self.frame_override_cb: Checkbox = Checkbox("override", "Enable Speed Override for Selected Frame", 320, 175, False)
+        self.frame_speed_slider: Slider = Slider("frame_speed", "Frame Override Speed", 320, 240, 420, 0.01, 1.0, 0.2, is_float=True)
+        self.timeline_slider: Slider = Slider("timeline", "Scrub Timeline Frame", 320, 310, 420, 0.0, 11.0, 0.0, is_float=False)
+        self.selected_speed_curve_frame: int = 0
+
         # Setup Main Menu Buttons
         self.menu_buttons = [
             Button("1. EDIT STATE MACHINE CONFIGS", SCREEN_W // 2 - 220, 180, 440, 60, lambda: self.enter_mode("STATES")),
             Button("2. EDIT ATTACK HITBOX & COMBAT CONFIGS", SCREEN_W // 2 - 220, 270, 440, 60, lambda: self.enter_mode("ATTACKS")),
-            Button("3. EDIT ANIMATION SPEED CURVES", SCREEN_W // 2 - 220, 360, 440, 60, self.launch_speed_editor),
+            Button("3. EDIT ANIMATION SPEED CURVES", SCREEN_W // 2 - 220, 360, 440, 60, lambda: self.enter_mode("SPEED_CURVES")),
             Button("4. EXIT EDITOR", SCREEN_W // 2 - 220, 450, 440, 60, self.exit_app)
         ]
         # Toast Message system
@@ -596,39 +601,58 @@ class PlayerEditorApp:
         self.animation_cache: Dict[str, Dict[str, List[pg.Surface]]] = {"std": {}, "enh": {}}
         self.load_all_animations()
 
-    def launch_speed_editor(self):
-        import subprocess
-        # Save current changes
-        if self.mode == "STATES":
-            self.save_current_state_parameters()
-        elif self.mode == "ATTACKS":
-            self.save_current_attack_parameters()
-            
-        combined_data = {
-            "states": self.config,
-            "attacks": self.attack_config
-        }
-        with open(self.config_path, "w") as f:
-            json.dump(combined_data, f, indent=2)
-            
-        self.show_toast("Launching Animation Speed Editor...")
-        self.draw()
-        pg.display.flip()
+    def load_speed_curve_parameters(self, state: str):
+        cfg = self.config[state]
+        self.anim_speed_slider.val = cfg["animation_speed"]
         
-        # Run speed editor subprocess
-        subprocess.run([sys.executable, "animation_speed_editor.py"])
+        # Get frame count
+        frame_count = self.get_current_frame_count()
+        self.timeline_slider.max_val = float(frame_count - 1)
+        self.timeline_slider.val = 0.0
+        self.selected_speed_curve_frame = 0
         
-        # Reload
-        self.load_config()
-        self.scan_backups()
-        if self.mode == "STATES":
-            self.load_state_parameters(self.selected_state)
-            self.rebuild_state_buttons()
-        elif self.mode == "ATTACKS":
-            self.load_attack_parameters(self.selected_attack)
-            self.rebuild_attack_buttons()
-            
-        self.show_toast("Reloaded from Speed Editor!")
+        self.load_speed_curve_frame_parameters(0)
+
+    def load_speed_curve_frame_parameters(self, frame_idx: int):
+        cfg = self.config[self.selected_state]
+        frame_speeds = cfg.setdefault("frame_speeds", {})
+        
+        frame_key = str(frame_idx)
+        if frame_key in frame_speeds:
+            self.frame_override_cb.val = True
+            self.frame_speed_slider.val = float(frame_speeds[frame_key])
+            self.frame_speed_slider.enabled = True
+        else:
+            self.frame_override_cb.val = False
+            self.frame_speed_slider.val = cfg["animation_speed"]
+            self.frame_speed_slider.enabled = False
+
+    def save_current_speed_curve_parameters(self):
+        state = self.selected_state
+        cfg = self.config[state]
+        cfg["animation_speed"] = self.anim_speed_slider.val
+        
+        frame_idx = self.selected_speed_curve_frame
+        frame_key = str(frame_idx)
+        frame_speeds = cfg.setdefault("frame_speeds", {})
+        
+        if self.frame_override_cb.val:
+            frame_speeds[frame_key] = self.frame_speed_slider.val
+        else:
+            if frame_key in frame_speeds:
+                del frame_speeds[frame_key]
+
+    def reset_speed_curve_defaults(self):
+        self.config[self.selected_state] = json.loads(json.dumps(DEFAULT_PLAYER_CONFIGS[self.selected_state]))
+        self.load_speed_curve_parameters(self.selected_state)
+        self.show_toast("Reset state speed curve to default")
+
+    def get_current_frame_count(self) -> int:
+        assets = STATE_ASSETS.get(self.selected_state)
+        if not assets:
+            return 1
+        std_pat, std_count, enh_pat, enh_count = assets
+        return enh_count if (self.enhanced_preview and enh_pat) else std_count
 
     def enter_mode(self, mode: str):
         self.mode = mode
@@ -641,6 +665,15 @@ class PlayerEditorApp:
             self.action_buttons = [
                 Button("SAVE & MENU", 320, 640, 140, 40, self.request_save_config, active=True),
                 Button("RESET DEFAULTS", 475, 640, 140, 40, self.reset_defaults),
+                Button("ROLLBACK", 940, 640, 130, 40, self.rollback_config),
+                Button("BACK TO MENU", 630, 640, 140, 40, lambda: self.enter_mode("MENU"))
+            ]
+        elif mode == "SPEED_CURVES":
+            self.load_speed_curve_parameters(self.selected_state)
+            self.rebuild_state_buttons()
+            self.action_buttons = [
+                Button("SAVE & MENU", 320, 640, 140, 40, self.request_save_config, active=True),
+                Button("RESET DEFAULTS", 475, 640, 140, 40, self.reset_speed_curve_defaults),
                 Button("ROLLBACK", 940, 640, 130, 40, self.rollback_config),
                 Button("BACK TO MENU", 630, 640, 140, 40, lambda: self.enter_mode("MENU"))
             ]
@@ -890,10 +923,19 @@ class PlayerEditorApp:
             y += 44
 
     def select_state(self, state: str):
-        self.save_current_state_parameters()
+        if self.mode == "STATES":
+            self.save_current_state_parameters()
+        elif self.mode == "SPEED_CURVES":
+            self.save_current_speed_curve_parameters()
+            
         self.selected_state = state
         self.frame_index = 0.0
-        self.load_state_parameters(state)
+        
+        if self.mode == "STATES":
+            self.load_state_parameters(state)
+        elif self.mode == "SPEED_CURVES":
+            self.load_speed_curve_parameters(state)
+            
         self.rebuild_state_buttons()
 
     def select_attack(self, attack: str):
@@ -906,6 +948,8 @@ class PlayerEditorApp:
     def request_save_config(self):
         if self.mode == "STATES":
             self.save_current_state_parameters()
+        elif self.mode == "SPEED_CURVES":
+            self.save_current_speed_curve_parameters()
         elif self.mode == "ATTACKS":
             self.save_current_attack_parameters()
             
@@ -1370,6 +1414,178 @@ class PlayerEditorApp:
             screen.blit(txt_hl, (info_rect.x + 15, y_hl))
             y_hl += 25
 
+    def draw_speed_curves(self):
+        cfg = self.config[self.selected_state]
+        base_speed = self.anim_speed_slider.val
+        frame_speeds = cfg.setdefault("frame_speeds", {})
+
+        # 1. Left Sidebar (State list)
+        sidebar_rect = pg.Rect(20, 60, 260, 640)
+        pg.draw.rect(screen, PANEL_BG, sidebar_rect, border_radius=8)
+        pg.draw.rect(screen, BORDER_COLOR, sidebar_rect, width=1, border_radius=8)
+        for btn in self.state_buttons:
+            btn.draw(screen)
+
+        # 2. Middle Configuration Panel
+        param_panel = pg.Rect(300, 60, 460, 640)
+        pg.draw.rect(screen, PANEL_BG, param_panel, border_radius=8)
+        pg.draw.rect(screen, BORDER_COLOR, param_panel, width=1, border_radius=8)
+        
+        subtitle = title_font.render(f"SPEED CURVE: {self.selected_state}", True, ACCENT_CYAN)
+        screen.blit(subtitle, (320, 75))
+
+        self.anim_speed_slider.draw(screen)
+        self.frame_override_cb.draw(screen)
+        self.frame_speed_slider.draw(screen)
+        self.timeline_slider.draw(screen)
+
+        # Draw Speed Curve Graph
+        graph_rect = pg.Rect(320, 360, 420, 180)
+        pg.draw.rect(screen, PREVIEW_BG, graph_rect, border_radius=6)
+        pg.draw.rect(screen, BORDER_COLOR, graph_rect, width=1, border_radius=6)
+
+        # Render graph grid lines and bars
+        frames_count = self.get_current_frame_count()
+        if frames_count > 0:
+
+            # Grid lines
+            for val in [0.25, 0.5, 0.75, 1.0]:
+                y_val = graph_rect.bottom - int(val * 140)
+                pg.draw.line(screen, (32, 32, 44), (graph_rect.x, y_val), (graph_rect.right, y_val))
+                lbl_val = help_font.render(str(val), True, TEXT_MUTED)
+                screen.blit(lbl_val, (graph_rect.x + 5, y_val - 12))
+
+            # Bars/Points plotting
+            bar_w = max(4, int(280 / frames_count))
+            gap = max(2, int(80 / frames_count))
+            total_w = frames_count * bar_w + (frames_count - 1) * gap
+            start_x = graph_rect.centerx - total_w // 2
+
+            active_frame = int(self.frame_index) % frames_count
+
+            for i in range(frames_count):
+                frame_key = str(i)
+                has_override = frame_key in frame_speeds
+                speed = float(frame_speeds[frame_key]) if has_override else base_speed
+                
+                # Map speed value to graph Y space
+                bar_h = int(speed * 140)
+                bx = start_x + i * (bar_w + gap)
+                by = graph_rect.bottom - bar_h
+
+                bar_rect = pg.Rect(bx, by, bar_w, bar_h)
+                
+                # Colors
+                if i == active_frame:
+                    color = ACCENT_CYAN
+                    pg.draw.rect(screen, (255, 255, 255), bar_rect.inflate(2, 2), width=1, border_radius=2)
+                elif has_override:
+                    color = ACCENT_GREEN
+                else:
+                    color = ACCENT_BLUE
+
+                pg.draw.rect(screen, color, bar_rect, border_radius=2)
+
+                # Label frame index
+                if frames_count <= 20 or i % 5 == 0 or i == active_frame:
+                    lbl_fr = help_font.render(str(i), True, TEXT_COLOR if i == active_frame else TEXT_MUTED)
+                    screen.blit(lbl_fr, (bx + bar_w//2 - lbl_fr.get_width()//2, graph_rect.bottom + 4))
+
+        # Legend
+        pg.draw.rect(screen, ACCENT_BLUE, (320, 555, 12, 12), border_radius=2)
+        lbl_std = help_font.render("Base Speed", True, TEXT_COLOR)
+        screen.blit(lbl_std, (338, 553))
+
+        pg.draw.rect(screen, ACCENT_GREEN, (450, 555, 12, 12), border_radius=2)
+        lbl_ovr = help_font.render("Override Speed", True, TEXT_COLOR)
+        screen.blit(lbl_ovr, (468, 553))
+
+        pg.draw.rect(screen, ACCENT_CYAN, (590, 555, 12, 12), border_radius=2)
+        lbl_act = help_font.render("Selected Frame", True, TEXT_COLOR)
+        screen.blit(lbl_act, (608, 553))
+
+        # Draw Action buttons
+        for btn in self.action_buttons:
+            btn.draw(screen)
+
+        # 3. Right Visualizer Panel
+        preview_panel = pg.Rect(780, 60, 480, 640)
+        pg.draw.rect(screen, PANEL_BG, preview_panel, border_radius=8)
+        pg.draw.rect(screen, BORDER_COLOR, preview_panel, width=1, border_radius=8)
+
+        preview_title = title_font.render("ANIMATION PREVIEW", True, ACCENT_GREEN)
+        screen.blit(preview_title, (800, 75))
+
+        # Playback Viewport
+        view_box = pg.Rect(800, 115, 440, 320)
+        pg.draw.rect(screen, PREVIEW_BG, view_box, border_radius=6)
+        pg.draw.rect(screen, BORDER_COLOR, view_box, width=1, border_radius=6)
+
+        cache_key = "enh" if self.enhanced_preview else "std"
+        frames = self.animation_cache[cache_key].get(self.selected_state, [])
+        
+        if frames:
+            frame_idx = int(self.frame_index) % len(frames)
+            active_surf = frames[frame_idx]
+            
+            if self.flip_preview:
+                active_surf = pg.transform.flip(active_surf, True, False)
+                
+            self.preview_scale = self.preview_scale_slider.val
+            new_w = int(active_surf.get_width() * self.preview_scale)
+            new_h = int(active_surf.get_height() * self.preview_scale)
+            scaled_surf = pg.transform.scale(active_surf, (new_w, new_h))
+            
+            surf_rect = scaled_surf.get_rect(center=view_box.center)
+            
+            screen.set_clip(view_box)
+            screen.blit(scaled_surf, surf_rect)
+            screen.set_clip(None)
+
+            txt_fr = value_font.render(f"Frame: {frame_idx + 1} / {len(frames)}", True, TEXT_MUTED)
+            screen.blit(txt_fr, (view_box.x + 10, view_box.bottom - 22))
+
+            # Speed tooltip
+            frame_key = str(frame_idx)
+            spd = float(frame_speeds[frame_key]) if frame_key in frame_speeds else base_speed
+            txt_spd = value_font.render(f"Frame Speed: {spd:.2f}", True, ACCENT_GREEN if frame_key in frame_speeds else ACCENT_BLUE)
+            screen.blit(txt_spd, (view_box.right - txt_spd.get_width() - 10, view_box.bottom - 22))
+
+        # Checkboxes below viewport
+        enh_cb_rect = pg.Rect(800, 455, 20, 20)
+        pg.draw.rect(screen, (40, 40, 55), enh_cb_rect, border_radius=4)
+        if self.enhanced_preview:
+            pg.draw.rect(screen, ACCENT_CYAN, pg.Rect(804, 459, 12, 12), border_radius=2)
+        txt_enh = ui_font.render("Enhanced / Shadow Form", True, TEXT_COLOR)
+        screen.blit(txt_enh, (830, 455))
+
+        flip_cb_rect = pg.Rect(1050, 455, 20, 20)
+        pg.draw.rect(screen, (40, 40, 55), flip_cb_rect, border_radius=4)
+        if self.flip_preview:
+            pg.draw.rect(screen, ACCENT_CYAN, pg.Rect(1054, 459, 12, 12), border_radius=2)
+        txt_flip = ui_font.render("Flip Facing Left", True, TEXT_COLOR)
+        screen.blit(txt_flip, (1080, 455))
+
+        self.preview_scale_slider.draw(screen)
+        self.playback_speed_slider.draw(screen)
+
+        # Help Guide Panel
+        help_rect = pg.Rect(800, 570, 440, 115)
+        pg.draw.rect(screen, PREVIEW_BG, help_rect, border_radius=6)
+        pg.draw.rect(screen, BORDER_COLOR, help_rect, width=1, border_radius=6)
+        
+        help_lines = [
+            "Use the timeline slider to scrub frames manually.",
+            "Toggle speed override and set a custom value for that frame.",
+            "Overridden frames will render in GREEN on the speed curve graph.",
+            "Press [SPACE] to play/pause the preview animation loop."
+        ]
+        y_hl = help_rect.y + 8
+        for hl in help_lines:
+            txt_hl = help_font.render(hl, True, TEXT_MUTED)
+            screen.blit(txt_hl, (help_rect.x + 15, y_hl))
+            y_hl += 25
+
     def draw(self):
         if self.mode == "MENU":
             self.draw_menu()
@@ -1382,12 +1598,19 @@ class PlayerEditorApp:
                 pg.draw.line(screen, (24, 24, 34), (0, y), (SCREEN_W, y))
 
             # Header title
-            title_text = "PLAYER ANIMATION CONFIGURATOR & COMMIT MANAGER" if self.mode == "STATES" else "PLAYER ATTACK CONFIGURATOR & HITBOX TUNER"
+            if self.mode == "STATES":
+                title_text = "PLAYER ANIMATION CONFIGURATOR & COMMIT MANAGER"
+            elif self.mode == "SPEED_CURVES":
+                title_text = "PLAYER ANIMATION SPEED CURVE EDITOR"
+            else:
+                title_text = "PLAYER ATTACK CONFIGURATOR & HITBOX TUNER"
             title_surf = title_font.render(title_text, True, TEXT_COLOR)
             screen.blit(title_surf, (30, 22))
 
             if self.mode == "STATES":
                 self.draw_states()
+            elif self.mode == "SPEED_CURVES":
+                self.draw_speed_curves()
             elif self.mode == "ATTACKS":
                 self.draw_attacks()
 
@@ -1397,6 +1620,15 @@ class PlayerEditorApp:
             toast_box = pg.Rect(SCREEN_W // 2 - toast_surf.get_width() // 2 - 20, 10, toast_surf.get_width() + 40, 40)
             pg.draw.rect(screen, (40, 180, 80) if "Saved" in self.toast_msg or "Rolled" in self.toast_msg else (200, 50, 50), toast_box, border_radius=20)
             screen.blit(toast_surf, (toast_box.centerx - toast_surf.get_width() // 2, toast_box.centery - toast_surf.get_height() // 2))
+
+    def check_speed_curve_frame_change(self):
+        new_frame = int(self.timeline_slider.val)
+        if new_frame != self.selected_speed_curve_frame:
+            self.save_current_speed_curve_parameters()
+            self.selected_speed_curve_frame = new_frame
+            self.load_speed_curve_frame_parameters(new_frame)
+            # Sync animation frame index to frame selector
+            self.frame_index = float(new_frame)
 
     def check_frame_slider_change(self):
         if self.attack_frame_slider is None:
@@ -1423,6 +1655,23 @@ class PlayerEditorApp:
             if self.mode == "STATES":
                 speed = self.anim_speed_slider.val * self.playback_speed_slider.val
                 self.frame_index += speed
+            elif self.mode == "SPEED_CURVES":
+                frames_count = self.get_current_frame_count()
+                if frames_count > 0:
+                    frame_idx = int(self.frame_index) % frames_count
+                    cfg = self.config[self.selected_state]
+                    frame_speeds = cfg.setdefault("frame_speeds", {})
+                    frame_key = str(frame_idx)
+                    
+                    speed = float(frame_speeds[frame_key]) if frame_key in frame_speeds else self.anim_speed_slider.val
+                    self.frame_index = (self.frame_index + speed * self.playback_speed_slider.val) % frames_count
+                    
+                    # Sync timeline slider and selected frame without auto-saving
+                    new_idx = int(self.frame_index)
+                    if new_idx != self.selected_speed_curve_frame:
+                        self.selected_speed_curve_frame = new_idx
+                        self.timeline_slider.val = float(new_idx)
+                        self.load_speed_curve_frame_parameters(new_idx)
             elif self.mode == "ATTACKS":
                 # Average speed for attack playback
                 speed = 0.20 * self.playback_speed_slider.val
@@ -1467,6 +1716,25 @@ class PlayerEditorApp:
                         if 0 <= clicked_idx < len(self.backups[:5]):
                             self.selected_backup_index = clicked_idx
 
+                elif self.mode == "SPEED_CURVES":
+                    # Check clicked frame on the visual speed curves graph
+                    graph_rect = pg.Rect(320, 360, 420, 180)
+                    if graph_rect.collidepoint(event.pos):
+                        frames_count = self.get_current_frame_count()
+                        if frames_count > 0:
+                            bar_w = max(4, int(280 / frames_count))
+                            gap = max(2, int(80 / frames_count))
+                            total_w = frames_count * bar_w + (frames_count - 1) * gap
+                            start_x = graph_rect.centerx - total_w // 2
+                            
+                            clicked_x = event.pos[0] - start_x
+                            if clicked_x >= 0:
+                                clicked_frame = clicked_x // (bar_w + gap)
+                                if 0 <= clicked_frame < frames_count:
+                                    self.is_playing = False
+                                    self.timeline_slider.val = float(clicked_frame)
+                                    self.check_speed_curve_frame_change()
+
                 elif self.mode == "ATTACKS":
                     # Check mutual exclusive role checkboxes
                     clicked_role = None
@@ -1490,6 +1758,40 @@ class PlayerEditorApp:
                 self.playback_speed_slider.handle_event(event)
                 for cb in self.checkboxes:
                     cb.handle_event(event)
+                for btn in self.state_buttons:
+                    btn.handle_event(event)
+                for btn in self.action_buttons:
+                    btn.handle_event(event)
+
+            elif self.mode == "SPEED_CURVES":
+                was_base = self.anim_speed_slider.val
+                self.anim_speed_slider.handle_event(event)
+                if self.anim_speed_slider.val != was_base or self.anim_speed_slider.dragging:
+                    self.save_current_speed_curve_parameters()
+
+                self.preview_scale_slider.handle_event(event)
+                self.playback_speed_slider.handle_event(event)
+                
+                # Handle timeline scrubber changes
+                was_scrub = self.timeline_slider.val
+                self.timeline_slider.handle_event(event)
+                if self.timeline_slider.val != was_scrub or self.timeline_slider.dragging:
+                    self.is_playing = False
+                    self.check_speed_curve_frame_change()
+
+                # Handle override checkbox
+                if self.frame_override_cb.handle_event(event):
+                    self.frame_speed_slider.enabled = self.frame_override_cb.val
+                    if self.frame_override_cb.val and self.frame_speed_slider.val == self.anim_speed_slider.val:
+                        self.frame_speed_slider.val = self.anim_speed_slider.val
+                    self.save_current_speed_curve_parameters()
+
+                if self.frame_speed_slider.enabled:
+                    was_val = self.frame_speed_slider.val
+                    self.frame_speed_slider.handle_event(event)
+                    if self.frame_speed_slider.val != was_val or self.frame_speed_slider.dragging:
+                        self.save_current_speed_curve_parameters()
+
                 for btn in self.state_buttons:
                     btn.handle_event(event)
                 for btn in self.action_buttons:
