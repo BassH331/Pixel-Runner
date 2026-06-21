@@ -364,6 +364,106 @@ DEFAULT_ATTACK_CONFIGS = {
         },
         "startup_frames": [0, 1, 2, 3, 4, 5],
         "recovery_frames": []
+    },
+    "ENHANCED_THRUST_ATTACK_CONFIG": {
+        "hit_frames": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        "base_damage": 20.0,
+        "knockback_force": 10.0,
+        "knockback_angle": 30.0,
+        "hit_stop_frames": 4,
+        "can_hit_multiple": True,
+        "max_hits_per_target": 1,
+        "frame_damage_modifiers": {},
+        "hitbox_data": {
+            "2": {"offset_x": -30, "offset_y": 12, "width": 252, "height": 198},
+            "3": {"offset_x": -36, "offset_y": 27, "width": 291, "height": 168},
+            "4": {"offset_x": -72, "offset_y": 15, "width": 297, "height": 192},
+            "5": {"offset_x": -60, "offset_y": -9, "width": 258, "height": 243},
+            "6": {"offset_x": 129, "offset_y": -51, "width": 498, "height": 324},
+            "7": {"offset_x": 159, "offset_y": -24, "width": 483, "height": 270},
+            "8": {"offset_x": 141, "offset_y": -21, "width": 522, "height": 264},
+            "9": {"offset_x": 177, "offset_y": -21, "width": 462, "height": 267},
+            "10": {"offset_x": 177, "offset_y": -24, "width": 462, "height": 270},
+            "11": {"offset_x": 108, "offset_y": -24, "width": 603, "height": 270},
+            "12": {"offset_x": -63, "offset_y": -24, "width": 288, "height": 273}
+        },
+        "startup_frames": [0, 1],
+        "recovery_frames": [13]
+    },
+    "ENHANCED_SMASH_ATTACK_CONFIG": {
+        "hit_frames": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+        "base_damage": 35.0,
+        "knockback_force": 18.0,
+        "knockback_angle": 45.0,
+        "hit_stop_frames": 6,
+        "can_hit_multiple": True,
+        "max_hits_per_target": 2,
+        "frame_damage_modifiers": {},
+        "hitbox_data": {
+            "2": {"offset_x": -30, "offset_y": 12, "width": 252, "height": 198},
+            "3": {"offset_x": -36, "offset_y": 27, "width": 291, "height": 168},
+            "4": {"offset_x": -72, "offset_y": 15, "width": 297, "height": 192},
+            "5": {"offset_x": -60, "offset_y": -9, "width": 258, "height": 243},
+            "6": {"offset_x": 129, "offset_y": -51, "width": 498, "height": 324},
+            "7": {"offset_x": 159, "offset_y": -24, "width": 483, "height": 270},
+            "8": {"offset_x": 141, "offset_y": -21, "width": 522, "height": 264},
+            "9": {"offset_x": 153, "offset_y": -21, "width": 510, "height": 267},
+            "10": {"offset_x": 141, "offset_y": -24, "width": 534, "height": 270},
+            "11": {"offset_x": 138, "offset_y": -24, "width": 543, "height": 270},
+            "12": {"offset_x": -30, "offset_y": 9, "width": 207, "height": 159},
+            "13": {"offset_x": 144, "offset_y": -12, "width": 516, "height": 249},
+            "14": {"offset_x": 84, "offset_y": -15, "width": 639, "height": 252},
+            "15": {"offset_x": 141, "offset_y": -9, "width": 537, "height": 243},
+            "16": {"offset_x": 165, "offset_y": -30, "width": 495, "height": 285},
+            "17": {"offset_x": 144, "offset_y": -12, "width": 516, "height": 249},
+            "18": {"offset_x": 78, "offset_y": -15, "width": 648, "height": 252},
+            "19": {"offset_x": 81, "offset_y": -9, "width": 654, "height": 243},
+            "20": {"offset_x": 138, "offset_y": -57, "width": 546, "height": 339}
+        },
+        "startup_frames": [0, 1],
+        "recovery_frames": [21]
+    },
+    "ENHANCED_POWER_ATTACK_CONFIG": {
+        "hit_frames": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33],
+        "base_damage": 40.0,
+        "knockback_force": 20.0,
+        "knockback_angle": 45.0,
+        "hit_stop_frames": 8,
+        "can_hit_multiple": True,
+        "max_hits_per_target": 1,
+        "frame_damage_modifiers": {},
+        "hitbox_data": {
+            "6": {"offset_x": 129, "offset_y": -51, "width": 498, "height": 324},
+            "7": {"offset_x": 159, "offset_y": -24, "width": 483, "height": 270},
+            "8": {"offset_x": 141, "offset_y": -21, "width": 522, "height": 264},
+            "9": {"offset_x": 153, "offset_y": -21, "width": 510, "height": 267},
+            "10": {"offset_x": 141, "offset_y": -24, "width": 534, "height": 270},
+            "11": {"offset_x": 138, "offset_y": -24, "width": 543, "height": 270},
+            "12": {"offset_x": -30, "offset_y": 9, "width": 207, "height": 159},
+            "13": {"offset_x": 144, "offset_y": -12, "width": 516, "height": 249},
+            "14": {"offset_x": 84, "offset_y": -15, "width": 639, "height": 252},
+            "15": {"offset_x": 141, "offset_y": -9, "width": 537, "height": 243},
+            "16": {"offset_x": 165, "offset_y": -30, "width": 495, "height": 285},
+            "17": {"offset_x": 144, "offset_y": -12, "width": 516, "height": 249},
+            "18": {"offset_x": 78, "offset_y": -15, "width": 648, "height": 252},
+            "19": {"offset_x": 108, "offset_y": -9, "width": 600, "height": 243},
+            "20": {"offset_x": 162, "offset_y": 0, "width": 498, "height": 222},
+            "21": {"offset_x": 126, "offset_y": 12, "width": 564, "height": 198},
+            "22": {"offset_x": -36, "offset_y": 27, "width": 291, "height": 168},
+            "23": {"offset_x": -72, "offset_y": 15, "width": 297, "height": 192},
+            "24": {"offset_x": -3, "offset_y": -39, "width": 348, "height": 300},
+            "25": {"offset_x": 42, "offset_y": -72, "width": 324, "height": 369},
+            "26": {"offset_x": 153, "offset_y": -51, "width": 546, "height": 327},
+            "27": {"offset_x": 144, "offset_y": 3, "width": 528, "height": 216},
+            "28": {"offset_x": 114, "offset_y": 27, "width": 465, "height": 171},
+            "29": {"offset_x": 84, "offset_y": 27, "width": 405, "height": 171},
+            "30": {"offset_x": 84, "offset_y": 27, "width": 408, "height": 171},
+            "31": {"offset_x": 90, "offset_y": 21, "width": 324, "height": 180},
+            "32": {"offset_x": -84, "offset_y": 30, "width": 324, "height": 165},
+            "33": {"offset_x": -27, "offset_y": -57, "width": 216, "height": 339}
+        },
+        "startup_frames": [0, 1, 2, 3, 4, 5],
+        "recovery_frames": [34]
     }
 }
 
@@ -751,23 +851,30 @@ class PlayerEditorApp:
             self.config[state][cb.key] = cb.val
 
     def get_attack_state_and_frames(self) -> tuple[str, int]:
-        if self.selected_attack == "THRUST_ATTACK_CONFIG":
-            return "ATTACK_THRUST", 9
-        elif self.selected_attack == "SMASH_ATTACK_CONFIG":
-            return "ATTACK_SMASH", 17
-        elif self.selected_attack == "POWER_ATTACK_CONFIG":
-            return "ATTACK_POWER", 23
-        elif self.selected_attack == "SPECIAL_ATTACK_CONFIG":
-            return "SPECIAL_ATTACK", 34
-        elif self.selected_attack == "ENHANCED_SPECIAL_ATTACK_CONFIG":
-            return "SPECIAL_ATTACK", 19
-        return "IDLE", 1
+        if self.selected_attack in ("THRUST_ATTACK_CONFIG", "ENHANCED_THRUST_ATTACK_CONFIG"):
+            state = "ATTACK_THRUST"
+        elif self.selected_attack in ("SMASH_ATTACK_CONFIG", "ENHANCED_SMASH_ATTACK_CONFIG"):
+            state = "ATTACK_SMASH"
+        elif self.selected_attack in ("POWER_ATTACK_CONFIG", "ENHANCED_POWER_ATTACK_CONFIG"):
+            state = "ATTACK_POWER"
+        elif self.selected_attack in ("SPECIAL_ATTACK_CONFIG", "ENHANCED_SPECIAL_ATTACK_CONFIG"):
+            state = "SPECIAL_ATTACK"
+        else:
+            return "IDLE", 1
+
+        assets = STATE_ASSETS.get(state)
+        if not assets:
+            return state, 1
+        std_pat, std_count, enh_pat, enh_count = assets
+        is_enhanced = "ENHANCED_" in self.selected_attack
+        count = enh_count if (is_enhanced and enh_pat) else std_count
+        return state, count
 
     def load_attack_parameters(self, attack: str):
-        # Auto swap enhanced form checkbox to match selected special variant
-        if attack == "ENHANCED_SPECIAL_ATTACK_CONFIG":
+        # Auto swap enhanced form checkbox to match selected variant
+        if "ENHANCED_" in attack:
             self.enhanced_preview = True
-        elif attack == "SPECIAL_ATTACK_CONFIG":
+        else:
             self.enhanced_preview = False
 
         atk = self.attack_config[attack]
@@ -885,6 +992,8 @@ class PlayerEditorApp:
                 del modifiers_dict[str(frame)]
 
     def save_current_attack_parameters(self):
+        if not self.attack_sliders:
+            return
         atk = self.attack_config[self.selected_attack]
         atk["base_damage"] = self.attack_sliders[0].val
         atk["knockback_force"] = self.attack_sliders[1].val
@@ -911,8 +1020,11 @@ class PlayerEditorApp:
         y = 70
         attacks = [
             "THRUST_ATTACK_CONFIG",
+            "ENHANCED_THRUST_ATTACK_CONFIG",
             "SMASH_ATTACK_CONFIG",
+            "ENHANCED_SMASH_ATTACK_CONFIG",
             "POWER_ATTACK_CONFIG",
+            "ENHANCED_POWER_ATTACK_CONFIG",
             "SPECIAL_ATTACK_CONFIG",
             "ENHANCED_SPECIAL_ATTACK_CONFIG"
         ]

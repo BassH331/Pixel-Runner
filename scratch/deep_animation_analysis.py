@@ -8,6 +8,7 @@ Examines every frame of every animation pixel-by-pixel to map:
 """
 import os
 import json
+from typing import Any
 import pygame as pg
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
@@ -82,7 +83,7 @@ def compute_frame_delta(prev_img, curr_img):
     return changed, total_checked
 
 
-results = {}
+results: dict[str, dict[str, Any]] = {}
 
 for anim_name in ACTIVE_ANIMS:
     anim_path = os.path.join(BASE, anim_name)
@@ -100,7 +101,7 @@ for anim_name in ACTIVE_ANIMS:
     for f in files:
         images.append(pg.image.load(os.path.join(anim_path, f)))
 
-    frames_data = []
+    frames_data: list[dict[str, Any]] = []
     for idx, img in enumerate(images):
         metrics = analyze_frame(img)
         if metrics is None:

@@ -543,6 +543,112 @@ class Player(Actor):
         startup_frames=frozenset([0, 1, 2, 3, 4, 5]),
         recovery_frames=frozenset([]),
     )
+
+    # Enhanced Thrust Attack
+    ENHANCED_THRUST_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
+        hit_frames=frozenset([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+        base_damage=20.0,
+        knockback_force=10.0,
+        knockback_angle=30.0,
+        hit_stop_frames=4,
+        can_hit_multiple=True,
+        max_hits_per_target=1,
+        frame_damage_modifiers={},
+        hitbox_data={
+            2: HitboxData(offset_x=-30, offset_y=12, width=252, height=198),
+            3: HitboxData(offset_x=-36, offset_y=27, width=291, height=168),
+            4: HitboxData(offset_x=-72, offset_y=15, width=297, height=192),
+            5: HitboxData(offset_x=-60, offset_y=-9, width=258, height=243),
+            6: HitboxData(offset_x=129, offset_y=-51, width=498, height=324),
+            7: HitboxData(offset_x=159, offset_y=-24, width=483, height=270),
+            8: HitboxData(offset_x=141, offset_y=-21, width=522, height=264),
+            9: HitboxData(offset_x=177, offset_y=-21, width=462, height=267),
+            10: HitboxData(offset_x=177, offset_y=-24, width=462, height=270),
+            11: HitboxData(offset_x=108, offset_y=-24, width=603, height=270),
+            12: HitboxData(offset_x=-63, offset_y=-24, width=288, height=273),
+        },
+        startup_frames=frozenset([0, 1]),
+        recovery_frames=frozenset([13]),
+    )
+
+    # Enhanced Smash Attack
+    ENHANCED_SMASH_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
+        hit_frames=frozenset([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]),
+        base_damage=35.0,
+        knockback_force=18.0,
+        knockback_angle=45.0,
+        hit_stop_frames=6,
+        can_hit_multiple=True,
+        max_hits_per_target=2,
+        frame_damage_modifiers={},
+        hitbox_data={
+            2: HitboxData(offset_x=-30, offset_y=12, width=252, height=198),
+            3: HitboxData(offset_x=-36, offset_y=27, width=291, height=168),
+            4: HitboxData(offset_x=-72, offset_y=15, width=297, height=192),
+            5: HitboxData(offset_x=-60, offset_y=-9, width=258, height=243),
+            6: HitboxData(offset_x=129, offset_y=-51, width=498, height=324),
+            7: HitboxData(offset_x=159, offset_y=-24, width=483, height=270),
+            8: HitboxData(offset_x=141, offset_y=-21, width=522, height=264),
+            9: HitboxData(offset_x=153, offset_y=-21, width=510, height=267),
+            10: HitboxData(offset_x=141, offset_y=-24, width=534, height=270),
+            11: HitboxData(offset_x=138, offset_y=-24, width=543, height=270),
+            12: HitboxData(offset_x=-30, offset_y=9, width=207, height=159),
+            13: HitboxData(offset_x=144, offset_y=-12, width=516, height=249),
+            14: HitboxData(offset_x=84, offset_y=-15, width=639, height=252),
+            15: HitboxData(offset_x=141, offset_y=-9, width=537, height=243),
+            16: HitboxData(offset_x=165, offset_y=-30, width=495, height=285),
+            17: HitboxData(offset_x=144, offset_y=-12, width=516, height=249),
+            18: HitboxData(offset_x=78, offset_y=-15, width=648, height=252),
+            19: HitboxData(offset_x=81, offset_y=-9, width=654, height=243),
+            20: HitboxData(offset_x=138, offset_y=-57, width=546, height=339),
+        },
+        startup_frames=frozenset([0, 1]),
+        recovery_frames=frozenset([21]),
+    )
+
+    # Enhanced Power Attack
+    ENHANCED_POWER_ATTACK_CONFIG: Final[AttackConfig] = AttackConfig(
+        hit_frames=frozenset([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]),
+        base_damage=40.0,
+        knockback_force=20.0,
+        knockback_angle=45.0,
+        hit_stop_frames=8,
+        can_hit_multiple=True,
+        max_hits_per_target=1,
+        frame_damage_modifiers={},
+        hitbox_data={
+            6: HitboxData(offset_x=129, offset_y=-51, width=498, height=324),
+            7: HitboxData(offset_x=159, offset_y=-24, width=483, height=270),
+            8: HitboxData(offset_x=141, offset_y=-21, width=522, height=264),
+            9: HitboxData(offset_x=153, offset_y=-21, width=510, height=267),
+            10: HitboxData(offset_x=141, offset_y=-24, width=534, height=270),
+            11: HitboxData(offset_x=138, offset_y=-24, width=543, height=270),
+            12: HitboxData(offset_x=-30, offset_y=9, width=207, height=159),
+            13: HitboxData(offset_x=144, offset_y=-12, width=516, height=249),
+            14: HitboxData(offset_x=84, offset_y=-15, width=639, height=252),
+            15: HitboxData(offset_x=141, offset_y=-9, width=537, height=243),
+            16: HitboxData(offset_x=165, offset_y=-30, width=495, height=285),
+            17: HitboxData(offset_x=144, offset_y=-12, width=516, height=249),
+            18: HitboxData(offset_x=78, offset_y=-15, width=648, height=252),
+            19: HitboxData(offset_x=108, offset_y=-9, width=600, height=243),
+            20: HitboxData(offset_x=162, offset_y=0, width=498, height=222),
+            21: HitboxData(offset_x=126, offset_y=12, width=564, height=198),
+            22: HitboxData(offset_x=-36, offset_y=27, width=291, height=168),
+            23: HitboxData(offset_x=-72, offset_y=15, width=297, height=192),
+            24: HitboxData(offset_x=-3, offset_y=-39, width=348, height=300),
+            25: HitboxData(offset_x=42, offset_y=-72, width=324, height=369),
+            26: HitboxData(offset_x=153, offset_y=-51, width=546, height=327),
+            27: HitboxData(offset_x=144, offset_y=3, width=528, height=216),
+            28: HitboxData(offset_x=114, offset_y=27, width=465, height=171),
+            29: HitboxData(offset_x=84, offset_y=27, width=405, height=171),
+            30: HitboxData(offset_x=84, offset_y=27, width=408, height=171),
+            31: HitboxData(offset_x=90, offset_y=21, width=324, height=180),
+            32: HitboxData(offset_x=-84, offset_y=30, width=324, height=165),
+            33: HitboxData(offset_x=-27, offset_y=-57, width=216, height=339),
+        },
+        startup_frames=frozenset([0, 1, 2, 3, 4, 5]),
+        recovery_frames=frozenset([34]),
+    )
     
     # Physics constants
     _GRAVITY_ACCELERATION: Final[float] = 0.8
@@ -588,6 +694,9 @@ class Player(Actor):
         self.power_attack_config = self.POWER_ATTACK_CONFIG
         self.special_attack_config = self.SPECIAL_ATTACK_CONFIG
         self.enhanced_special_attack_config = self.ENHANCED_SPECIAL_ATTACK_CONFIG
+        self.enhanced_thrust_attack_config = self.ENHANCED_THRUST_ATTACK_CONFIG
+        self.enhanced_smash_attack_config = self.ENHANCED_SMASH_ATTACK_CONFIG
+        self.enhanced_power_attack_config = self.ENHANCED_POWER_ATTACK_CONFIG
         
         try:
             config_path = "game_data/player_config.json"
@@ -681,6 +790,12 @@ class Player(Actor):
                             self.special_attack_config = config_obj
                         elif attack_key == "ENHANCED_SPECIAL_ATTACK_CONFIG":
                             self.enhanced_special_attack_config = config_obj
+                        elif attack_key == "ENHANCED_THRUST_ATTACK_CONFIG":
+                            self.enhanced_thrust_attack_config = config_obj
+                        elif attack_key == "ENHANCED_SMASH_ATTACK_CONFIG":
+                            self.enhanced_smash_attack_config = config_obj
+                        elif attack_key == "ENHANCED_POWER_ATTACK_CONFIG":
+                            self.enhanced_power_attack_config = config_obj
                     except Exception as ex:
                         print(f"[PLAYER ATTACK CONFIG ERROR] Failed to load attack override {attack_key}: {ex}")
         except Exception as e:
@@ -1169,8 +1284,9 @@ class Player(Actor):
         self._transition_to(PlayerState.ATTACK_THRUST)
         
         # Initialize attack state with thrust configuration
-        self.attack_state.begin(self.thrust_attack_config)
-        self._current_attack_config = self.thrust_attack_config
+        cfg = self.enhanced_thrust_attack_config if self._is_enhanced else self.thrust_attack_config
+        self.attack_state.begin(cfg)
+        self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("thrust")
         return True
@@ -1194,8 +1310,9 @@ class Player(Actor):
         self._transition_to(PlayerState.ATTACK_SMASH)
         
         # Initialize attack state with smash configuration
-        self.attack_state.begin(self.smash_attack_config)
-        self._current_attack_config = self.smash_attack_config
+        cfg = self.enhanced_smash_attack_config if self._is_enhanced else self.smash_attack_config
+        self.attack_state.begin(cfg)
+        self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("smash")
         return True
@@ -1219,8 +1336,9 @@ class Player(Actor):
         self._transition_to(PlayerState.ATTACK_POWER)
         
         # Initialize attack state with thrust configuration
-        self.attack_state.begin(self.power_attack_config)
-        self._current_attack_config = self.power_attack_config
+        cfg = self.enhanced_power_attack_config if self._is_enhanced else self.power_attack_config
+        self.attack_state.begin(cfg)
+        self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._audio_manager.play_sound("thrust")
         return True

@@ -14,6 +14,9 @@ configs = {
     "SPECIAL_ATTACK_CONFIG": {"dir": "sp_atk", "hit_frames": list(range(14, 34)), "startup_frames": list(range(14)), "recovery_frames": []},
     
     # Enhanced Shadow Form Configs
+    "ENHANCED_THRUST_ATTACK_CONFIG": {"dir": "e_1_atk", "hit_frames": list(range(2, 13)), "startup_frames": [0, 1], "recovery_frames": [13]},
+    "ENHANCED_SMASH_ATTACK_CONFIG": {"dir": "e_2_atk", "hit_frames": list(range(2, 21)), "startup_frames": [0, 1], "recovery_frames": [21]},
+    "ENHANCED_POWER_ATTACK_CONFIG": {"dir": "e_3_atk", "hit_frames": list(range(6, 34)), "startup_frames": list(range(6)), "recovery_frames": [34]},
     "ENHANCED_SPECIAL_ATTACK_CONFIG": {"dir": "e_sp_atk", "hit_frames": list(range(6, 19)), "startup_frames": list(range(6)), "recovery_frames": []},
 }
 

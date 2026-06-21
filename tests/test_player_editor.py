@@ -186,6 +186,34 @@ class TestPlayerEditor(unittest.TestCase):
         self.assertEqual(self.app.selected_speed_curve_frame, 0)
         self.assertTrue(self.app.frame_override_cb.val)
         self.assertEqual(self.app.frame_speed_slider.val, 0.45)
+    def test_enhanced_attack_resolution(self):
+        """Test that the three new enhanced attack configurations resolve correctly."""
+        # Check that they exist in attack_config
+        self.assertIn("ENHANCED_THRUST_ATTACK_CONFIG", self.app.attack_config)
+        self.assertIn("ENHANCED_SMASH_ATTACK_CONFIG", self.app.attack_config)
+        self.assertIn("ENHANCED_POWER_ATTACK_CONFIG", self.app.attack_config)
+
+        # Select enhanced thrust
+        self.app.mode = "ATTACKS"
+        self.app.select_attack("ENHANCED_THRUST_ATTACK_CONFIG")
+        self.assertEqual(self.app.selected_attack, "ENHANCED_THRUST_ATTACK_CONFIG")
+        self.assertTrue(self.app.enhanced_preview)
+
+        state, frames = self.app.get_attack_state_and_frames()
+        self.assertEqual(state, "ATTACK_THRUST")
+        self.assertEqual(frames, 14) # e_1_atk has 14 frames
+
+        # Select enhanced smash
+        self.app.select_attack("ENHANCED_SMASH_ATTACK_CONFIG")
+        state, frames = self.app.get_attack_state_and_frames()
+        self.assertEqual(state, "ATTACK_SMASH")
+        self.assertEqual(frames, 22) # e_2_atk has 22 frames
+
+        # Select enhanced power
+        self.app.select_attack("ENHANCED_POWER_ATTACK_CONFIG")
+        state, frames = self.app.get_attack_state_and_frames()
+        self.assertEqual(state, "ATTACK_POWER")
+        self.assertEqual(frames, 35) # e_3_atk has 35 frames
 
 if __name__ == "__main__":
     unittest.main()
