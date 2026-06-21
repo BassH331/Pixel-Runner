@@ -48,24 +48,27 @@ TEXT_MUTED = (140, 140, 160)
 BORDER_COLOR = (48, 48, 64)
 
 # Default configuration dictionary matching player.py _STATE_CONFIGS
+# Default configuration dictionary matching player.py _STATE_CONFIGS [ignoring loop detection]
 DEFAULT_PLAYER_CONFIGS = {
     "DEATH": {
-        "animation_speed": 0.15,
+        "animation_speed": 0.12,
         "loops": False,
         "interruptible": False,
         "grants_invincibility": True,
         "locks_movement": True,
         "locks_input": True,
-        "next_state": None
+        "next_state": None,
+        "frame_speeds": {}
     },
     "DEFEND": {
-        "animation_speed": 0.24,
+        "animation_speed": 0.18,
         "loops": False,
         "interruptible": False,
         "grants_invincibility": True,
         "locks_movement": True,
         "locks_input": False,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {}
     },
     "HURT": {
         "animation_speed": 0.20,
@@ -74,7 +77,11 @@ DEFAULT_PLAYER_CONFIGS = {
         "grants_invincibility": True,
         "locks_movement": True,
         "locks_input": True,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {
+            "0": 0.30, "1": 0.30, "2": 0.30,
+            "3": 0.10, "4": 0.10, "5": 0.20
+        }
     },
     "ATTACK_THRUST": {
         "animation_speed": 0.24,
@@ -83,7 +90,12 @@ DEFAULT_PLAYER_CONFIGS = {
         "grants_invincibility": False,
         "locks_movement": True,
         "locks_input": False,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {
+            "0": 0.12, "1": 0.12, "2": 0.40,
+            "3": 0.28, "4": 0.28, "5": 0.20,
+            "6": 0.20, "7": 0.15, "8": 0.15
+        }
     },
     "ATTACK_SMASH": {
         "animation_speed": 0.24,
@@ -92,7 +104,13 @@ DEFAULT_PLAYER_CONFIGS = {
         "grants_invincibility": False,
         "locks_movement": True,
         "locks_input": False,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {
+            "0": 0.12, "1": 0.12, "2": 0.35, "3": 0.35, "4": 0.35,
+            "5": 0.15, "6": 0.15, "7": 0.32, "8": 0.32, "9": 0.32,
+            "10": 0.22, "11": 0.22, "12": 0.22, "13": 0.18, "14": 0.18,
+            "15": 0.14, "16": 0.14
+        }
     },
     "ATTACK_POWER": {
         "animation_speed": 0.24,
@@ -101,43 +119,54 @@ DEFAULT_PLAYER_CONFIGS = {
         "grants_invincibility": False,
         "locks_movement": True,
         "locks_input": False,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {
+            "0": 0.10, "1": 0.10, "2": 0.10, "3": 0.10, "4": 0.10, "5": 0.10,
+            "6": 0.30, "7": 0.30, "8": 0.30, "9": 0.30, "10": 0.30,
+            "11": 0.18, "12": 0.18, "13": 0.18, "14": 0.18,
+            "15": 0.35, "16": 0.35, "17": 0.35, "18": 0.35, "19": 0.35,
+            "20": 0.35, "21": 0.35, "22": 0.12
+        }
     },
     "JUMP_UP": {
-        "animation_speed": 0.27,
+        "animation_speed": 0.20,
         "loops": True,
         "interruptible": True,
         "grants_invincibility": False,
         "locks_movement": False,
         "locks_input": False,
-        "next_state": None
+        "next_state": None,
+        "frame_speeds": {}
     },
     "JUMP_DOWN": {
-        "animation_speed": 0.27,
+        "animation_speed": 0.22,
         "loops": True,
         "interruptible": True,
         "grants_invincibility": False,
         "locks_movement": False,
         "locks_input": False,
-        "next_state": None
+        "next_state": None,
+        "frame_speeds": {}
     },
     "RUN": {
-        "animation_speed": 0.27,
+        "animation_speed": 0.22,
         "loops": True,
         "interruptible": True,
         "grants_invincibility": False,
         "locks_movement": False,
         "locks_input": False,
-        "next_state": None
+        "next_state": None,
+        "frame_speeds": {}
     },
     "IDLE": {
-        "animation_speed": 0.27,
+        "animation_speed": 0.15,
         "loops": True,
         "interruptible": True,
         "grants_invincibility": False,
         "locks_movement": False,
         "locks_input": False,
-        "next_state": None
+        "next_state": None,
+        "frame_speeds": {}
     },
     "SPECIAL_ATTACK": {
         "animation_speed": 0.20,
@@ -146,7 +175,15 @@ DEFAULT_PLAYER_CONFIGS = {
         "grants_invincibility": True,
         "locks_movement": True,
         "locks_input": True,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {
+            "0": 0.14, "1": 0.14, "2": 0.14, "3": 0.14, "4": 0.14, "5": 0.14,
+            "6": 0.18, "7": 0.18, "8": 0.18, "9": 0.18, "10": 0.18, "11": 0.18,
+            "12": 0.18, "13": 0.18, "14": 0.25, "15": 0.25, "16": 0.25,
+            "17": 0.30, "18": 0.30, "19": 0.30, "20": 0.30, "21": 0.30, "22": 0.30,
+            "23": 0.30, "24": 0.30, "25": 0.30, "26": 0.30, "27": 0.16, "28": 0.16,
+            "29": 0.16, "30": 0.16, "31": 0.16, "32": 0.16, "33": 0.16
+        }
     },
     "TRANSFORM": {
         "animation_speed": 0.18,
@@ -155,25 +192,35 @@ DEFAULT_PLAYER_CONFIGS = {
         "grants_invincibility": True,
         "locks_movement": True,
         "locks_input": True,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {
+            "0": 0.14, "1": 0.14, "2": 0.14, "3": 0.14, "4": 0.14, "5": 0.14,
+            "6": 0.22, "7": 0.22, "8": 0.22, "9": 0.22, "10": 0.22, "11": 0.22,
+            "12": 0.22, "13": 0.30, "14": 0.30, "15": 0.30, "16": 0.30, "17": 0.30,
+            "18": 0.30, "19": 0.30, "20": 0.30, "21": 0.30, "22": 0.25, "23": 0.25,
+            "24": 0.25, "25": 0.25, "26": 0.25, "27": 0.25, "28": 0.25, "29": 0.16,
+            "30": 0.16, "31": 0.16, "32": 0.16, "33": 0.16, "34": 0.16
+        }
     },
     "ROLL": {
-        "animation_speed": 0.25,
+        "animation_speed": 0.30,
         "loops": False,
         "interruptible": False,
         "grants_invincibility": True,
         "locks_movement": True,
         "locks_input": True,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {}
     },
     "DASH": {
-        "animation_speed": 0.25,
+        "animation_speed": 0.32,
         "loops": False,
         "interruptible": False,
         "grants_invincibility": False,
         "locks_movement": True,
         "locks_input": True,
-        "next_state": "IDLE"
+        "next_state": "IDLE",
+        "frame_speeds": {}
     }
 }
 
@@ -536,11 +583,11 @@ class PlayerEditorApp:
         
         # Setup Main Menu Buttons
         self.menu_buttons = [
-            Button("1. EDIT STATE MACHINE CONFIGS", SCREEN_W // 2 - 220, 220, 440, 60, lambda: self.enter_mode("STATES")),
-            Button("2. EDIT ATTACK HITBOX & COMBAT CONFIGS", SCREEN_W // 2 - 220, 310, 440, 60, lambda: self.enter_mode("ATTACKS")),
-            Button("3. EXIT EDITOR", SCREEN_W // 2 - 220, 400, 440, 60, self.exit_app)
+            Button("1. EDIT STATE MACHINE CONFIGS", SCREEN_W // 2 - 220, 180, 440, 60, lambda: self.enter_mode("STATES")),
+            Button("2. EDIT ATTACK HITBOX & COMBAT CONFIGS", SCREEN_W // 2 - 220, 270, 440, 60, lambda: self.enter_mode("ATTACKS")),
+            Button("3. EDIT ANIMATION SPEED CURVES", SCREEN_W // 2 - 220, 360, 440, 60, self.launch_speed_editor),
+            Button("4. EXIT EDITOR", SCREEN_W // 2 - 220, 450, 440, 60, self.exit_app)
         ]
-
         # Toast Message system
         self.toast_msg = ""
         self.toast_timer = 0.0
@@ -548,6 +595,40 @@ class PlayerEditorApp:
         # Animation Cache
         self.animation_cache: Dict[str, Dict[str, List[pg.Surface]]] = {"std": {}, "enh": {}}
         self.load_all_animations()
+
+    def launch_speed_editor(self):
+        import subprocess
+        # Save current changes
+        if self.mode == "STATES":
+            self.save_current_state_parameters()
+        elif self.mode == "ATTACKS":
+            self.save_current_attack_parameters()
+            
+        combined_data = {
+            "states": self.config,
+            "attacks": self.attack_config
+        }
+        with open(self.config_path, "w") as f:
+            json.dump(combined_data, f, indent=2)
+            
+        self.show_toast("Launching Animation Speed Editor...")
+        self.draw()
+        pg.display.flip()
+        
+        # Run speed editor subprocess
+        subprocess.run([sys.executable, "animation_speed_editor.py"])
+        
+        # Reload
+        self.load_config()
+        self.scan_backups()
+        if self.mode == "STATES":
+            self.load_state_parameters(self.selected_state)
+            self.rebuild_state_buttons()
+        elif self.mode == "ATTACKS":
+            self.load_attack_parameters(self.selected_attack)
+            self.rebuild_attack_buttons()
+            
+        self.show_toast("Reloaded from Speed Editor!")
 
     def enter_mode(self, mode: str):
         self.mode = mode

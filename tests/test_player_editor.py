@@ -40,7 +40,7 @@ class TestPlayerEditor(unittest.TestCase):
     def test_default_config_loading(self):
         """Test that default player configurations are correctly initialized."""
         self.assertEqual(len(self.app.config), len(DEFAULT_PLAYER_CONFIGS))
-        self.assertEqual(self.app.config["IDLE"]["animation_speed"], 0.27)
+        self.assertEqual(self.app.config["IDLE"]["animation_speed"], 0.15)
         self.assertEqual(len(self.app.attack_config), len(DEFAULT_ATTACK_CONFIGS))
 
     def test_save_and_backup_transaction(self):
@@ -113,7 +113,7 @@ class TestPlayerEditor(unittest.TestCase):
         """Test resetting configurations to baseline defaults."""
         self.app.config["IDLE"]["animation_speed"] = 0.99
         self.app.reset_defaults()
-        self.assertEqual(self.app.config["IDLE"]["animation_speed"], 0.27)
+        self.assertEqual(self.app.config["IDLE"]["animation_speed"], 0.15)
 
     def test_attack_config_modification_and_saving(self):
         """Test that attack configurator values can be modified and saved."""

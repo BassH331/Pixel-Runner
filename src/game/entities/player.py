@@ -44,7 +44,7 @@ External systems should use the following pattern:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Final, Optional, cast
 
@@ -114,6 +114,10 @@ class StateConfig:
     
     Attributes:
         animation_speed: Frame advancement rate per update (0.1 = slow, 0.5 = fast).
+        frame_speeds: Per-frame speed overrides. Maps frame index → speed.
+            When present, the engine uses this speed for the given frame,
+            falling back to animation_speed for unlisted frames.
+            This enables anticipation/release/recovery rhythm curves.
         loops: Whether animation loops or plays once.
         next_state: State to transition to when animation completes (if not looping).
         interruptible: Whether this state can be cancelled by player input.
@@ -123,6 +127,7 @@ class StateConfig:
     """
     
     animation_speed: float = 0.2
+    frame_speeds: dict[int, float] = field(default_factory=dict)
     loops: bool = True
     next_state: Optional[PlayerState] = None
     interruptible: bool = True
@@ -184,7 +189,7 @@ class Player(Actor):
     
     _STATE_CONFIGS: Final[dict[Enum, StateConfig]] = {
         PlayerState.DEATH: StateConfig(
-            animation_speed=0.15,
+            animation_speed=0.12,  # Slow, weighty death
             loops=False,
             next_state=None,
             interruptible=False,
@@ -193,7 +198,7 @@ class Player(Actor):
             locks_input=True,
         ),
         PlayerState.DEFEND: StateConfig(
-            animation_speed=0.24,
+            animation_speed=0.18,  # Deliberate shield raise
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -203,6 +208,11 @@ class Player(Actor):
         ),
         PlayerState.HURT: StateConfig(
             animation_speed=0.20,
+            frame_speeds={
+                0: 0.30, 1: 0.30, 2: 0.30,  # Violent impact reaction
+                3: 0.10, 4: 0.10,              # Stagger freeze — sell the hit
+                5: 0.20,                        # Recovery
+            },
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -210,8 +220,17 @@ class Player(Actor):
             locks_movement=True,
             locks_input=True,
         ),
+        # ── THRUST ATTACK (9 frames) ──
+        # Wind-up → Explosive Strike → Follow-through → Recovery
         PlayerState.ATTACK_THRUST: StateConfig(
             animation_speed=0.24,
+            frame_speeds={
+                0: 0.12, 1: 0.12,              # Slow wind-up (anticipation crouch)
+                2: 0.40,                         # EXPLOSIVE forward release (+52px CoM)
+                3: 0.28, 4: 0.28,               # Sustain at peak extension
+                5: 0.20, 6: 0.20,               # Controlled retraction
+                7: 0.15, 8: 0.15,               # Slow recovery (punishable)
+            },
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -219,8 +238,19 @@ class Player(Actor):
             locks_movement=True,
             locks_input=False,
         ),
+        # ── SMASH ATTACK (17 frames) ──
+        # Wind-up → First Swing → Breathing Pause → Second Swing → Recovery
         PlayerState.ATTACK_SMASH: StateConfig(
             animation_speed=0.24,
+            frame_speeds={
+                0: 0.12, 1: 0.12,               # Anticipation
+                2: 0.35, 3: 0.35, 4: 0.35,      # First swing burst
+                5: 0.15, 6: 0.15,                # Mid-attack pause (breathe between hits)
+                7: 0.32, 8: 0.32, 9: 0.32,      # Second swing burst
+                10: 0.22, 11: 0.22, 12: 0.22,   # Sustain/hold
+                13: 0.18, 14: 0.18,              # Retraction
+                15: 0.14, 16: 0.14,              # Slow recovery
+            },
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -228,8 +258,22 @@ class Player(Actor):
             locks_movement=True,
             locks_input=False,
         ),
+        # ── POWER ATTACK (23 frames) ──
+        # Deep Wind-up → Release Wave → Energy Build → Climax Explosion → Recovery
         PlayerState.ATTACK_POWER: StateConfig(
             animation_speed=0.24,
+            frame_speeds={
+                0: 0.10, 1: 0.10, 2: 0.10,      # Deep deliberate wind-up
+                3: 0.10, 4: 0.10, 5: 0.10,      # Player commits — slow anticipation
+                6: 0.30, 7: 0.30, 8: 0.30,      # First release wave
+                9: 0.30, 10: 0.30,               # Continuation
+                11: 0.18, 12: 0.18,              # Building tension
+                13: 0.18, 14: 0.18,              # Energy gathering
+                15: 0.35, 16: 0.35, 17: 0.35,   # Climax explosion
+                18: 0.35, 19: 0.35, 20: 0.35,   # Full power
+                21: 0.35,                         # Peak
+                22: 0.12,                         # Heavy recovery
+            },
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -238,35 +282,52 @@ class Player(Actor):
             locks_input=False,
         ),
         PlayerState.JUMP_UP: StateConfig(
-            animation_speed=0.27,
+            animation_speed=0.20,  # Slightly slower for floatiness
             loops=True,
             interruptible=True,
             grants_invincibility=False,
             locks_movement=False,
         ),
         PlayerState.JUMP_DOWN: StateConfig(
-            animation_speed=0.27,
+            animation_speed=0.22,  # Slightly faster than up for weight
             loops=True,
             interruptible=True,
             grants_invincibility=False,
             locks_movement=False,
         ),
         PlayerState.RUN: StateConfig(
-            animation_speed=0.27,
+            animation_speed=0.22,  # Snappy but not a blur
             loops=True,
             interruptible=True,
             grants_invincibility=False,
             locks_movement=False,
         ),
         PlayerState.IDLE: StateConfig(
-            animation_speed=0.27,
+            animation_speed=0.15,  # Contemplative, weighty stance
             loops=True,
             interruptible=True,
             grants_invincibility=False,
             locks_movement=False,
         ),
+        # ── SPECIAL ATTACK (34 frames) ──
+        # Conjuration → Channel → Initial Release → Full Power → Elegant Fade
         PlayerState.SPECIAL_ATTACK: StateConfig(
             animation_speed=0.20,
+            frame_speeds={
+                0: 0.14, 1: 0.14, 2: 0.14,     # Mystical anticipation
+                3: 0.14, 4: 0.14, 5: 0.14,
+                6: 0.18, 7: 0.18, 8: 0.18,      # Channeling
+                9: 0.18, 10: 0.18, 11: 0.18,
+                12: 0.18, 13: 0.18,
+                14: 0.25, 15: 0.25, 16: 0.25,   # Initial burst
+                17: 0.30, 18: 0.30, 19: 0.30,   # Full power
+                20: 0.30, 21: 0.30, 22: 0.30,
+                23: 0.30, 24: 0.30, 25: 0.30,
+                26: 0.30,
+                27: 0.16, 28: 0.16, 29: 0.16,   # Elegant fade
+                30: 0.16, 31: 0.16, 32: 0.16,
+                33: 0.16,
+            },
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -274,8 +335,25 @@ class Player(Actor):
             locks_movement=True,
             locks_input=True,
         ),
+        # ── TRANSFORM (37 frames) ──
+        # Channel → Energy Release → Shadow Eruption → Power Cycling → Settling
         PlayerState.TRANSFORM: StateConfig(
             animation_speed=0.18,
+            frame_speeds={
+                0: 0.14, 1: 0.14, 2: 0.14,     # Initial channeling
+                3: 0.14, 4: 0.14, 5: 0.14,
+                6: 0.22, 7: 0.22, 8: 0.22,      # Energy release
+                9: 0.22, 10: 0.22, 11: 0.22,
+                12: 0.22,
+                13: 0.30, 14: 0.30, 15: 0.30,   # Shadow form eruption
+                16: 0.30, 17: 0.30, 18: 0.30,
+                19: 0.30, 20: 0.30, 21: 0.30,
+                22: 0.25, 23: 0.25, 24: 0.25,   # Power cycling
+                25: 0.25, 26: 0.25, 27: 0.25,
+                28: 0.25,
+                29: 0.16, 30: 0.16, 31: 0.16,   # Settling into form
+                32: 0.16, 33: 0.16, 34: 0.16,
+            },
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -284,7 +362,7 @@ class Player(Actor):
             locks_input=True,
         ),
         PlayerState.ROLL: StateConfig(
-            animation_speed=0.25,
+            animation_speed=0.30,  # Fast and snappy
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -293,7 +371,7 @@ class Player(Actor):
             locks_input=True,
         ),
         PlayerState.DASH: StateConfig(
-            animation_speed=0.25,
+            animation_speed=0.32,  # Explosive movement
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
@@ -536,8 +614,13 @@ class Player(Actor):
                                 next_state_val = PlayerState[cfg_dict["next_state"]]
                             except KeyError:
                                 pass
+                        # Parse frame_speeds if present in the config
+                        frame_speeds_raw = cfg_dict.get("frame_speeds", {})
+                        frame_speeds_parsed = {int(k): float(v) for k, v in frame_speeds_raw.items()} if frame_speeds_raw else dict(orig_cfg.frame_speeds)
+                        
                         self.state_configs[state_enum] = StateConfig(
                             animation_speed=cfg_dict.get("animation_speed", orig_cfg.animation_speed),
+                            frame_speeds=frame_speeds_parsed,
                             loops=cfg_dict.get("loops", orig_cfg.loops),
                             next_state=next_state_val,
                             interruptible=cfg_dict.get("interruptible", orig_cfg.interruptible),
