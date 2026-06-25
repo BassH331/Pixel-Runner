@@ -123,6 +123,7 @@ class TestPlayerEditor(unittest.TestCase):
         # Modify general attack sliders
         self.app.attack_sliders[0].val = 99.0  # base damage
         self.app.attack_sliders[1].val = 25.0  # knockback force
+        assert self.app.attack_can_hit_multiple_cb is not None
         self.app.attack_can_hit_multiple_cb.val = False
         
         # Modify active frame timeline role & hitbox

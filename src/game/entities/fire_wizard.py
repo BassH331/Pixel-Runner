@@ -66,18 +66,44 @@ class Fireball(pg.sprite.Sprite):
         
         # Destroy if way off screen
         if self.rect.right < -200 or self.rect.left > 2000:
+            from src.game.debug.gameplay_tracker import GameplayTracker
+            tracker = GameplayTracker.get_instance()
+            if tracker and tracker.enabled:
+                tracker.log_event("projectile_miss", {
+                    "projectile_type": "fireball",
+                    "frame": getattr(tracker, "frame_count", 0),
+                    "world_distance": getattr(tracker, "last_world_distance", 0.0)
+                })
             self.kill()
             return
             
         # Collision detection with player
         if self.rect.colliderect(self._player.rect):
             if not self._player.is_invincible:
+                player_health_before = self._player.health
                 damage_applied = self._player.take_damage(self.damage)
-                if damage_applied and self.knockback > 0:
-                    apply_kb = getattr(self._player, 'apply_knockback', None)
-                    if apply_kb:
-                        kb_dir = -1 if self.rect.centerx > self._player.rect.centerx else 1
-                        apply_kb(self.knockback * kb_dir)
+                if damage_applied:
+                    from src.game.debug.gameplay_tracker import GameplayTracker
+                    tracker = GameplayTracker.get_instance()
+                    if tracker and tracker.enabled:
+                        tracker.log_event("projectile_hit", {
+                            "projectile_type": "fireball",
+                            "frame": getattr(tracker, "frame_count", 0),
+                            "world_distance": getattr(tracker, "last_world_distance", 0.0)
+                        })
+                        tracker.log_event("damage_received", {
+                            "attacker": "Fireball",
+                            "attacker_is_boss": False,
+                            "damage": self.damage,
+                            "player_health_before": player_health_before,
+                            "player_health_after": self._player.health,
+                            "world_distance": getattr(tracker, "last_world_distance", 0.0)
+                        })
+                    if self.knockback > 0:
+                        apply_kb = getattr(self._player, 'apply_knockback', None)
+                        if apply_kb:
+                            kb_dir = -1 if self.rect.centerx > self._player.rect.centerx else 1
+                            apply_kb(self.knockback * kb_dir)
             self.kill()
 
     def draw(self, surface: pg.Surface) -> None:
@@ -415,6 +441,15 @@ class FireWizard(Actor):
         spawn_x = self.rect.left if self.facing_left else self.rect.right
         spawn_y = self.rect.centery
         
+        from src.game.debug.gameplay_tracker import GameplayTracker
+        tracker = GameplayTracker.get_instance()
+        if tracker and tracker.enabled:
+            tracker.log_event("spell_cast", {
+                "spell_type": "fireball",
+                "frame": getattr(tracker, "frame_count", 0),
+                "world_distance": getattr(tracker, "last_world_distance", 0.0)
+            })
+            
         damage = self.current_attack_config.base_damage if self.current_attack_config else 2.5
         knockback = self.current_attack_config.knockback_force if self.current_attack_config else 7.0
         

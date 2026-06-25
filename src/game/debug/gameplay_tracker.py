@@ -83,7 +83,13 @@ class GameplayTracker:
         "event_logging_enabled": True,
         "console_output": False,
     }
+    _instance: Optional[GameplayTracker] = None
     
+    @classmethod
+    def get_instance(cls) -> Optional[GameplayTracker]:
+        """Return the current active instance of the tracker."""
+        return cls._instance
+
     def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
         """Initialize the gameplay tracker.
         
@@ -124,6 +130,10 @@ class GameplayTracker:
         
         # Manifest file for session tracking
         self.manifest_path = self.log_dir / "latest_session.json"
+        
+        self.last_world_distance = 0.0
+        self.damage_logged_this_frame = False
+        GameplayTracker._instance = self
         
         if self.enabled:
             self._initialize_session()
@@ -226,6 +236,9 @@ class GameplayTracker:
             event_type.value if isinstance(event_type, EventType) else event_type
         )
         
+        if event_type_str == "damage_received":
+            self.damage_logged_this_frame = True
+            
         entry = {
             "type": "event",
             "event_type": event_type_str,

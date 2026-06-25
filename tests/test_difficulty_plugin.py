@@ -227,3 +227,54 @@ class TestDifficultyPlugin(unittest.TestCase):
         self.assertEqual(wizard.rect.centerx, 680)
         self.assertTrue(wizard.facing_left)
 
+    def test_fireball_projectile_telemetry(self) -> None:
+        from src.game.entities.fire_wizard import FireWizard, FireWizardState, Fireball
+        from src.game.debug.gameplay_tracker import GameplayTracker
+        
+        # Enable pygame display dummy
+        if not pg.display.get_init():
+            pg.display.init()
+            pg.display.set_mode((1, 1))
+            
+        tracker = GameplayTracker({"enabled": True, "log_dir": self.test_dir})
+        
+        class MockPlayer:
+            def __init__(self):
+                self.rect = pg.Rect(100, 100, 32, 64)
+                self.facing_left = True
+                self.health = 100.0
+                self.is_invincible = False
+            def take_damage(self, damage):
+                self.health -= damage
+                return True
+                
+        player = MockPlayer()
+        wizard = FireWizard(200, 600, player, tier="boss", custom_scale=1.0, custom_health=100.0) # type: ignore
+        
+        # Spawn fireball (should log spell_cast)
+        wizard._spawn_fireball()
+        
+        # Instantiate one manually for testing hit
+        fireball = Fireball(
+            x=100, y=100, direction=-1, scale=1.0, damage=10.0, knockback=5.0, player=player # type: ignore
+        )
+        # Projectile hit (collides with player)
+        fireball.update(dt=0.016)
+        
+        # Projectile miss (goes off-screen)
+        missed_fireball = Fireball(
+            x=-300, y=600, direction=-1, scale=1.0, damage=10.0, knockback=5.0, player=player # type: ignore
+        )
+        missed_fireball.update(dt=0.016)
+        
+        tracker.close()
+        
+        # Parse the generated log
+        log_files = list(Path(self.test_dir).glob("*.jsonl"))
+        parsed = self.parser.parse_session(log_files)
+        
+        self.assertEqual(parsed["boss_spell_casts"], 1)
+        self.assertEqual(parsed["projectile_hits"], 1)
+        self.assertEqual(parsed["projectile_misses"], 1)
+
+

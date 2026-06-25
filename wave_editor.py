@@ -248,6 +248,8 @@ class WaveEditorApp:
 
     def _read(self) -> dict:
         ui = self.s3_ui
+        if not ui or not all(k in ui for k in ("min", "max", "count", "delay", "required_kills")):
+            return {}
         mn, mx = int(ui["min"].val), int(ui["max"].val)
         if mx <= mn: mx = mn + 100
         r: dict = {"min_dist": mn, "max_dist": mx,
@@ -262,12 +264,16 @@ class WaveEditorApp:
 
     def submit(self):
         z = self._read()
+        if not z:
+            return
         if self.s3_mode == "create": self.pending.append(z)
         else: self.pending[self.s3_idx] = z
         self.go2()
 
     def simulate(self):
         z = self._read()
+        if not z:
+            return
         temp_pending = list(self.pending)
         if self.s3_mode == "create":
             temp_pending.append(z)

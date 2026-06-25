@@ -165,7 +165,7 @@ class WizardEditorApp:
         self.clock = pg.time.Clock()
         self.running = True
         
-        self.config_path = "game_data/boss_wizard_config.json"
+        self.config_path: str = "game_data/boss_wizard_config.json"
         self.load_config()
 
         # Build Sliders for AI Configurations

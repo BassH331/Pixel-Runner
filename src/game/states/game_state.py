@@ -1563,6 +1563,11 @@ class GameState(State):
         # Telemetry Tracking & Logging System
         # ─────────────────────────────────────────────────────────────────────
         if self.tracker.enabled:
+            self.tracker.last_world_distance = self.world_distance
+            if getattr(self.tracker, "damage_logged_this_frame", False):
+                self._logged_damage_this_tick = True
+                self.tracker.damage_logged_this_frame = False
+                
             # 1. Update FPS clock
             self._fps_clock.tick()
             fps = self._fps_clock.get_fps()
@@ -1649,7 +1654,7 @@ class GameState(State):
             self._logged_damage_this_tick = False
             
             # 6. Periodic frame sampling
-            sample_n = int(self.tracker.config["sample_every_n_frames"])
+            sample_n = self.tracker.config["sample_every_n_frames"]
             if self._frame_count % sample_n == 0:
                 self.tracker.sample_frame(
                     frame=self._frame_count,

@@ -7,8 +7,17 @@ from unittest.mock import MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pygame as pg
-pg.init()
-pg.display.set_mode((1280, 720))
+
+def _ensure_pygame_init():
+    if not pg.get_init():
+        pg.init()
+    if not pg.font.get_init():
+        pg.font.init()
+    if not pg.display.get_init() or pg.display.get_surface() is None:
+        pg.display.init()
+        pg.display.set_mode((1280, 720))
+
+_ensure_pygame_init()
 
 from src.game.entities.player import Player, PlayerState
 
@@ -22,6 +31,7 @@ def _make_mock_audio_manager():
 
 class TestPlayerMoves(unittest.TestCase):
     def setUp(self):
+        _ensure_pygame_init()
         self.audio = _make_mock_audio_manager()
         self.player = Player(200, 600, self.audio)
 
@@ -48,7 +58,7 @@ class TestPlayerMoves(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(self.player.state, PlayerState.SPECIAL_ATTACK)
         self.assertTrue(self.player.is_invincible)
-        self.assertEqual(self.player._current_attack_config, Player.SPECIAL_ATTACK_CONFIG)
+        self.assertEqual(self.player._current_attack_config, self.player.special_attack_config)
 
     def test_transform_enhanced_flow(self):
         self.player.set_state(PlayerState.IDLE, force=True)
@@ -67,13 +77,13 @@ class TestPlayerMoves(unittest.TestCase):
 
         # Scale factor check
         # When enhanced, get_current_attack_damage should be scaled (SPECIAL_ATTACK_CONFIG base is 35.0)
-        self.player.attack_state.begin(Player.SPECIAL_ATTACK_CONFIG)
+        self.player.attack_state.begin(self.player.special_attack_config)
         self.assertEqual(self.player.get_current_attack_damage(), 52.5)
 
         # Special attack should use ENHANCED_SPECIAL_ATTACK_CONFIG now
         self.player.set_state(PlayerState.IDLE, force=True)
         self.player.special_attack()
-        self.assertEqual(self.player._current_attack_config, Player.ENHANCED_SPECIAL_ATTACK_CONFIG)
+        self.assertEqual(self.player._current_attack_config, self.player.enhanced_special_attack_config)
 
         # Transform again to toggle back to normal
         self.player.set_state(PlayerState.IDLE, force=True)

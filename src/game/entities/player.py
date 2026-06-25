@@ -404,7 +404,7 @@ class Player(Actor):
         hit_stop_frames=3,
         can_hit_multiple=True,
         max_hits_per_target=1,
-        frame_damage_modifiers={'2': 0.3, '3': 0.5, '4': 0.8, '5': 1.0, '6': 0.6, '7': 0.4},
+        frame_damage_modifiers={2: 0.3, 3: 0.5, 4: 0.8, 5: 1.0, 6: 0.6, 7: 0.4},
         hitbox_data={
             2: HitboxData(offset_x=108, offset_y=45, width=399, height=135),
             3: HitboxData(offset_x=114, offset_y=30, width=396, height=162),
@@ -426,7 +426,7 @@ class Player(Actor):
         hit_stop_frames=11,
         can_hit_multiple=True,
         max_hits_per_target=3,
-        frame_damage_modifiers={'2': 0.2, '7': 1.0, '13': 0.5},
+        frame_damage_modifiers={2: 0.2, 7: 1.0, 13: 0.5},
         hitbox_data={
             2: HitboxData(offset_x=108, offset_y=45, width=399, height=135),
             3: HitboxData(offset_x=114, offset_y=30, width=396, height=162),
@@ -455,7 +455,7 @@ class Player(Actor):
         hit_stop_frames=19,
         can_hit_multiple=True,
         max_hits_per_target=2,
-        frame_damage_modifiers={'6': 0.5, '11': 0.8, '16': 1.2, '20': 1.5},
+        frame_damage_modifiers={6: 0.5, 11: 0.8, 16: 1.2, 20: 1.5},
         hitbox_data={
             6: HitboxData(offset_x=138, offset_y=6, width=336, height=213),
             7: HitboxData(offset_x=102, offset_y=0, width=432, height=222),
@@ -1078,7 +1078,7 @@ class Player(Actor):
         
         return cast(
             Optional[pg.Rect],
-            self.attack_state.get_current_hitbox(self.rect, self.facing_left)
+            self.attack_state.get_current_hitbox(self.rect, self.facing_left)  # type: ignore
         )
     
     def try_register_hit(self, target_id: int) -> bool:
@@ -1207,9 +1207,9 @@ class Player(Actor):
         """
         return CombatProcessor.process_attack_against_targets(
             attack_state=self.attack_state,
-            attacker_rect=self.rect,
+            attacker_rect=self.rect,  # type: ignore
             attacker_facing_left=self.facing_left,
-            targets=targets,
+            targets=targets,  # type: ignore
         )
     
     # ─────────────────────────────────────────────────────────────────────────
@@ -1537,6 +1537,17 @@ class Player(Actor):
             return pg.joystick.Joystick(0)
         return None
     
+    def _safe_get_axis(self, joystick: Optional[pg.joystick.JoystickType], axis_idx: int) -> float:
+        """Query joystick axis index safely, avoiding invalid axis crashes."""
+        if joystick is None:
+            return 0.0
+        try:
+            if axis_idx < joystick.get_numaxes():
+                return joystick.get_axis(axis_idx)
+        except Exception:
+            pass
+        return 0.0
+
     def _process_movement_input(
         self,
         keys: pg.key.ScancodeWrapper,
@@ -1544,8 +1555,8 @@ class Player(Actor):
     ) -> None:
         """Process horizontal movement input."""
         # Determine direction from input
-        move_left = keys[pg.K_LEFT] or (joystick and joystick.get_axis(0) < -0.5)
-        move_right = keys[pg.K_RIGHT] or (joystick and joystick.get_axis(0) > 0.5)
+        move_left = keys[pg.K_LEFT] or (self._safe_get_axis(joystick, 0) < -0.5)
+        move_right = keys[pg.K_RIGHT] or (self._safe_get_axis(joystick, 0) > 0.5)
         
         if move_left:
             self._direction = -1
@@ -1571,7 +1582,7 @@ class Player(Actor):
             R     / Gamepad R2 (axis 5)       →  defend()
         """
         # ── Jump  (SPACE | gamepad btn 0 | left-stick up) ─────────────────────
-        stick_y = joystick.get_axis(1) if joystick else 0
+        stick_y = self._safe_get_axis(joystick, 1)
         jump_pressed = (
             keys[pg.K_SPACE] or
             (joystick and joystick.get_button(0)) or
@@ -1593,7 +1604,7 @@ class Player(Actor):
             self.attack_power()
 
         # ── Defend         (R | gamepad R2 trigger, axis 5 > 0.5) ─────────────
-        r2_trigger = (joystick and joystick.get_axis(5) > 0.5)  # R2 is axis 5
+        r2_trigger = self._safe_get_axis(joystick, 5) > 0.5
         defend_pressed = keys[pg.K_r] or r2_trigger
         if defend_pressed:
             if self.state != PlayerState.DEFEND:   # don't re-trigger mid-defend
@@ -1609,7 +1620,7 @@ class Player(Actor):
             self.dash()
 
         # ── Special Attack (F | gamepad L2 trigger, axis 4 > 0.5) ─────────────
-        l2_trigger = joystick and joystick.get_axis(4) > 0.5 if joystick else False
+        l2_trigger = self._safe_get_axis(joystick, 4) > 0.5
         if keys[pg.K_f] or l2_trigger:
             self.special_attack()
 
@@ -1738,7 +1749,7 @@ class Player(Actor):
         # Check if defend button is still held
         keys = pg.key.get_pressed()
         joystick = self._get_joystick()
-        r2_trigger = joystick and joystick.get_axis(5) > 0.5 if joystick else False
+        r2_trigger = self._safe_get_axis(joystick, 5) > 0.5
         defend_held = keys[pg.K_r] or r2_trigger
 
         current_frame = int(self.animation_index)

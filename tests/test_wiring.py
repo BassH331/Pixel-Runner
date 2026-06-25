@@ -19,8 +19,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # We MUST init pygame before importing anything that touches pg.display / pg.mixer
 import pygame as pg
-pg.init()
-pg.display.set_mode((1280, 720))
+
+def _ensure_pygame_init():
+    if not pg.get_init():
+        pg.init()
+    if not pg.font.get_init():
+        pg.font.init()
+    if not pg.display.get_init() or pg.display.get_surface() is None:
+        pg.display.init()
+        pg.display.set_mode((1280, 720))
+
+_ensure_pygame_init()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -75,6 +84,7 @@ class TestPlayerWiring(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Create a Player instance with mocked audio."""
+        _ensure_pygame_init()
         from src.game.entities.player import Player
         cls.Player = Player
         cls.audio = _make_mock_audio_manager()
@@ -207,6 +217,7 @@ class TestSkeletonWiring(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        _ensure_pygame_init()
         with patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_texture") as mock_tex:
             mock_tex.return_value = pg.Surface((32, 32))
             from src.game.entities.player import Player
@@ -256,6 +267,7 @@ class TestGameStateWiring(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        _ensure_pygame_init()
         with patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_texture") as mock_tex, \
              patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_sound") as mock_snd:
             mock_tex.return_value = pg.Surface((32, 32))
@@ -322,6 +334,7 @@ class TestStoryStateWiring(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        _ensure_pygame_init()
         with patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_texture") as mock_tex, \
              patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_sound") as mock_snd, \
              patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_font") as mock_font, \
@@ -365,6 +378,7 @@ class TestFireWizardWiring(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        _ensure_pygame_init()
         from src.game.entities.fire_wizard import FireWizard
         from src.game.entities.player import Player
         cls.FireWizard = FireWizard

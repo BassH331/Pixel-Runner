@@ -633,7 +633,7 @@ class PlayerEditorApp:
         self.mode = "MENU"
         
         self.config_dir = "game_data"
-        self.config_path = os.path.join(self.config_dir, "player_config.json")
+        self.config_path: str = os.path.join(self.config_dir, "player_config.json")
         self.config: Dict[str, Dict[str, Any]] = {}
         self.attack_config: Dict[str, Dict[str, Any]] = {}
         self.load_config()
@@ -728,6 +728,12 @@ class PlayerEditorApp:
             self.frame_speed_slider.enabled = False
 
     def save_current_speed_curve_parameters(self):
+        if not hasattr(self, "anim_speed_slider") or self.anim_speed_slider is None:
+            return
+        if not hasattr(self, "frame_override_cb") or self.frame_override_cb is None:
+            return
+        if not hasattr(self, "frame_speed_slider") or self.frame_speed_slider is None:
+            return
         state = self.selected_state
         cfg = self.config[state]
         cfg["animation_speed"] = self.anim_speed_slider.val
@@ -845,6 +851,10 @@ class PlayerEditorApp:
         ]
 
     def save_current_state_parameters(self):
+        if not hasattr(self, "anim_speed_slider") or self.anim_speed_slider is None:
+            return
+        if not hasattr(self, "checkboxes") or not self.checkboxes:
+            return
         state = self.selected_state
         self.config[state]["animation_speed"] = self.anim_speed_slider.val
         for cb in self.checkboxes:
@@ -933,6 +943,10 @@ class PlayerEditorApp:
         ]
 
     def save_current_frame_parameters(self):
+        if not hasattr(self, "frame_role_checkboxes") or not self.frame_role_checkboxes or len(self.frame_role_checkboxes) < 3:
+            return
+        if not hasattr(self, "frame_sliders") or not self.frame_sliders or len(self.frame_sliders) < 5:
+            return
         atk = self.attack_config[self.selected_attack]
         frame = self.selected_attack_frame
         
