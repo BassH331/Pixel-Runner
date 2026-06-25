@@ -1709,8 +1709,8 @@ class GameState(State):
         for point in self.interaction_group:
             point.draw(surface)
 
-        # Ambient creatures
-        for ambient in self.ambient_group:
+        # Ambient creatures (sorted by scale so further ones are drawn behind closer ones)
+        for ambient in sorted(self.ambient_group, key=lambda a: getattr(a, 'depth_scale_factor', 1.0)):
             ambient.draw(surface)
 
         # Player (drawn after NPCs so player appears in front)
