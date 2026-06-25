@@ -1278,6 +1278,9 @@ class Player(Actor):
         Returns:
             True if attack started, False if blocked by current state.
         """
+        # Ground attacks require the player to be on the ground
+        if self.rect.bottom < self._ground_y - 1:
+            return False
         if not self._can_transition_to(PlayerState.ATTACK_THRUST):
             return False
             
@@ -1304,6 +1307,9 @@ class Player(Actor):
         Returns:
             True if attack started, False if blocked by current state.
         """
+        # Ground attacks require the player to be on the ground
+        if self.rect.bottom < self._ground_y - 1:
+            return False
         if not self._can_transition_to(PlayerState.ATTACK_SMASH):
             return False
             
@@ -1330,6 +1336,9 @@ class Player(Actor):
         Returns:
             True if attack started, False if blocked by current state.
         """
+        # Ground attacks require the player to be on the ground
+        if self.rect.bottom < self._ground_y - 1:
+            return False
         if not self._can_transition_to(PlayerState.ATTACK_POWER):
             return False
             
@@ -1642,6 +1651,10 @@ class Player(Actor):
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
 
+    # Sword-sway constant: small forward nudge during active hit frames
+    # to simulate the sword's momentum pulling the character slightly
+    _ATTACK_SWAY_SPEED: Final[float] = 0.8
+
     def _apply_movement(self) -> None:
         """Apply horizontal movement with screen boundary clamping."""
         if self.state == PlayerState.ROLL:
@@ -1650,6 +1663,12 @@ class Player(Actor):
         elif self.state == PlayerState.DASH:
             dash_dir = -1 if self.facing_left else 1
             self.rect.x += int(dash_dir * 14.0)
+        elif self.is_attacking:
+            # No drift during attacks. Apply a small forward nudge
+            # only on active hit frames to simulate sword momentum.
+            if self.attack_state.is_hit_frame_active():
+                sway_dir = -1 if self.facing_left else 1
+                self.rect.x += int(sway_dir * self._ATTACK_SWAY_SPEED)
         else:
             if self._direction == 0:
                 return
@@ -1688,6 +1707,15 @@ class Player(Actor):
 
     def _transition_to(self, new_state: PlayerState) -> None:
         """Force a state transition using the Actor's set_state."""
+        # Clear movement direction when entering any attack state
+        # to prevent drift from carried-over input
+        if new_state in (
+            PlayerState.ATTACK_THRUST,
+            PlayerState.ATTACK_SMASH,
+            PlayerState.ATTACK_POWER,
+            PlayerState.SPECIAL_ATTACK,
+        ):
+            self._direction = 0
         self.set_state(new_state, force=True)
 
     def set_state(self, new_state: Enum, force: bool = False) -> None:

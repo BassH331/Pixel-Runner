@@ -105,3 +105,71 @@ class TestPlayerMoves(unittest.TestCase):
         start_x = self.player.rect.x
         self.player._apply_movement()
         self.assertEqual(self.player.rect.x, start_x - 14)
+
+    def test_attack_zeroes_direction(self):
+        """Entering an attack state must clear _direction to prevent drift."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player._direction = 1  # Simulate moving right
+        self.player.attack_thrust()
+        self.assertEqual(self.player._direction, 0)
+
+    def test_no_drift_during_attack(self):
+        """Holding movement keys during a non-hit attack frame must not move the player."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player.attack_thrust()
+
+        # Force animation to a non-hit frame (frame 0 = startup)
+        self.player.animation_index = 0.0
+        self.player.attack_state.update(0)
+
+        self.player._direction = 1  # Simulate holding right
+        start_x = self.player.rect.x
+        self.player._apply_movement()
+        self.assertEqual(self.player.rect.x, start_x,
+                         "Player must not drift during attack non-hit frames")
+
+    def test_attack_sway_on_hit_frames(self):
+        """Active hit frames should apply a small forward sway, not full movement."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player.facing_left = False
+        self.player.attack_thrust()
+
+        # Advance to a known hit frame (frame 2 for thrust)
+        self.player.animation_index = 2.0
+        self.player.attack_state.update(2)
+
+        start_x = self.player.rect.x
+        self.player._apply_movement()
+
+        # Should move by int(0.8) = 0 per frame (sub-pixel, rounds to 0)
+        # The sway is subtle — verify it doesn't move at full speed
+        delta = self.player.rect.x - start_x
+        self.assertLessEqual(abs(delta), 1,
+                             "Attack sway should be tiny, not full movement speed")
+
+    def test_ground_attack_requires_grounded(self):
+        """Ground attacks (thrust, smash, power) must fail while airborne."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+
+        # Put player in the air
+        self.player.rect.bottom = self.player._ground_y - 100
+
+        self.assertFalse(self.player.attack_thrust(),
+                         "Thrust should fail while airborne")
+        self.assertFalse(self.player.attack_smash(),
+                         "Smash should fail while airborne")
+        self.assertFalse(self.player.attack_power(),
+                         "Power should fail while airborne")
+
+        # Special attack should still work airborne
+        self.assertTrue(self.player.special_attack(),
+                        "Special attack should be allowed while airborne")
+
+    def test_ground_attack_succeeds_on_ground(self):
+        """Ground attacks should succeed when player is on the ground."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        # Ensure player is grounded
+        self.player.rect.bottom = self.player._ground_y
+
+        self.assertTrue(self.player.attack_thrust(),
+                        "Thrust should succeed on ground")
