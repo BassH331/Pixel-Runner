@@ -1,7 +1,7 @@
 {
-  "session_timestamp": "20260625_235207",
-  "session_start": "2026-06-25T23:52:07.900848",
-  "latest_file": "logs/gameplay_tracking/session_20260625_235207_001.jsonl",
+  "session_timestamp": "20260626_005600",
+  "session_start": "2026-06-26T00:56:00.606421",
+  "latest_file": "logs/gameplay_tracking/session_20260626_005600_001.jsonl",
   "total_log_files": 1,
   "frame_count": 0,
   "event_count": 0,

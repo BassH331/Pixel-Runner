@@ -1,8 +1,8 @@
 # Pixel-Runner Wave Simulation Report
 
 **Overall Status:** FAILED ❌
-**Final Distance:** 750.0
-**Simulation Duration:** 2515.0ms
+**Final Distance:** 590.0
+**Simulation Duration:** 6000.0ms
 **Dynamic Enemies Spawned:** 0
 
 ## Issues Found

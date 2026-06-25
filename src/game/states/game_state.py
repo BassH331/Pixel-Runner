@@ -213,7 +213,8 @@ class GameState(State):
         self._last_log_time = pg.time.get_ticks()
         self._frame_count = 0
         
-        self.level_data = WorldLoader.load_json(os.path.join("game_data", "level_1.json"))
+        level_path = os.environ.get("GAME_LEVEL_PATH", os.path.join("game_data", "level_1.json"))
+        self.level_data = WorldLoader.load_json(level_path)
         
         if self.level_data:
             self.BAT_GROUP_MIN_DELAY = self.level_data.get("spawn_rate_min", 5000)
@@ -463,7 +464,7 @@ class GameState(State):
             self.audio_manager.play_sound("bats")
         elif enemy_type == "skeleton":
             for _ in range(count):
-                self.spawn_skeleton()
+                self.spawn_skeleton(params)
 
     def _handle_boss_spawn(self, params: dict) -> None:
         """Handler for 'boss' events."""

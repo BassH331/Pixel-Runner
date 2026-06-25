@@ -90,10 +90,13 @@ def main():
     parser.add_argument("--start-dist", type=float, default=None)
     parser.add_argument("--dev", action="store_true", default=False, help="Launch directly into the game scene, bypassing intro scenes")
     parser.add_argument("--track", action="store_true", default=False, help="Enable gameplay telemetry tracking")
+    parser.add_argument("--level", type=str, default=None, help="Path to level configuration JSON")
     args, _ = parser.parse_known_args()
 
     if args.track:
         os.environ["TRACKER_ENABLED"] = "1"
+    if args.level:
+        os.environ["GAME_LEVEL_PATH"] = args.level
 
     init_state = SplashState
     if args.start_dist is not None or args.dev:

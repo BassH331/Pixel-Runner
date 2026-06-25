@@ -5,28 +5,11 @@
     "spawn_rate_max": 15000,
     "spawn_zones": [
         {
-            "min_dist": 980,
-            "max_dist": 1470,
-            "max_skeletons": 4,
-            "delay": 880,
-            "required_kills": 3,
-            "tier": "minion",
-            "sprite_root": "assets/skeleton",
-            "behaviour_map": {
-                "Skeleton_01_White_Attack1": "attack",
-                "Skeleton_01_White_Attack2": "attack",
-                "Skeleton_01_White_Die": "death",
-                "Skeleton_01_White_Hurt": "hurt",
-                "Skeleton_01_White_Idle": "idle",
-                "Skeleton_01_White_Walk": "chase"
-            }
-        },
-        {
-            "min_dist": 3080,
-            "max_dist": 3570,
-            "max_skeletons": 6,
-            "delay": 797,
-            "required_kills": 5,
+            "min_dist": 790,
+            "max_dist": 1130,
+            "max_skeletons": 3,
+            "delay": 6402,
+            "required_kills": 4,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {
@@ -36,6 +19,22 @@
                 "Skeleton_01_White_Hurt": "hurt",
                 "Skeleton_01_White_Idle": "idle",
                 "Skeleton_01_White_Walk": "walk"
+            }
+        },
+        {
+            "min_dist": 1500,
+            "max_dist": 1710,
+            "max_skeletons": 3,
+            "delay": 4000,
+            "required_kills": 5,
+            "tier": "minion",
+            "sprite_root": "assets/graphics/Goblin",
+            "behaviour_map": {
+                "Attack": "attack",
+                "Death": "death",
+                "Idle": "idle",
+                "Run": "chase",
+                "Take_hit": "hurt"
             }
         }
     ],
@@ -60,24 +59,11 @@
     "world_events": [
         {
             "id": 1,
-            "distance": 174,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Masked Stranger",
-                "text": "The path ahead grows darker, traveler. Beware the skeletal warriors \u2014 they strike in groups and show no mercy.",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/masked_man",
-                "scale": 4.5
-            }
-        },
-        {
-            "id": 8,
-            "distance": 500,
+            "distance": 7663,
             "type": "boss",
             "params": {
                 "title": "Mini Boss",
-                "scale": 3.6,
+                "scale": 4.11,
                 "health": 100.0,
                 "tier": "boss",
                 "sprite_dir": "assets/wizard",
@@ -86,43 +72,8 @@
                     "Death": "death",
                     "Idle": "idle",
                     "Move": "walk",
-                    "Take Hit": "attack"
+                    "Take Hit": "hurt"
                 }
-            }
-        },
-        {
-            "id": 4,
-            "distance": 1200,
-            "type": "npc",
-            "params": {
-                "npc_type": "wizard",
-                "title": "Wizard",
-                "text": "Halt, traveler! The ancient wards grow weak. Dark sorcery fuels the undead horde \u2014 without my barrier they would overrun these lands. Press on, and may my magic shield your path.",
-                "radius": 180,
-                "scale": 1.6
-            }
-        },
-        {
-            "id": 7,
-            "distance": 2145,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Moon Tower",
-                "text": "The blight has began, go forth brave warrior",
-                "radius": 160,
-                "scale": 2.0,
-                "sprite_dir": "assets/graphics/RedMoonTower"
-            }
-        },
-        {
-            "id": 2,
-            "distance": 3000,
-            "type": "interaction",
-            "params": {
-                "title": "Wandering Merchant",
-                "radius": 160,
-                "text": "I've seen many come this way, but few return. The undead grow stronger the further you venture. Steel your resolve!"
             }
         }
     ]

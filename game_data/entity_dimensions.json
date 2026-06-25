@@ -39,14 +39,6 @@
         "ground_offset": 34,
         "scale": 1.0
     },
-    "generic_npc_masked_man": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 29,
-        "scale": 4.5
-    },
     "generic_npc_goblin": {
         "left": 0,
         "right": 0,

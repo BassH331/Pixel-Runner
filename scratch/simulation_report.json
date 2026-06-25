@@ -1,9 +1,9 @@
 {
     "status": "FAILED",
-    "timestamp": 2548,
-    "duration_ms": 2515.0,
-    "start_distance": 750.0,
-    "final_distance": 750.0,
+    "timestamp": 8646,
+    "duration_ms": 6000.00000000002,
+    "start_distance": 590.0,
+    "final_distance": 590.0,
     "scroll_speed": 5,
     "type": "wave",
     "enemies": []
