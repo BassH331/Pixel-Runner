@@ -684,6 +684,7 @@ class Player(Actor):
         super().__init__(x, y)
         
         self._audio_manager: AudioManager = audio_manager
+        self._joystick: Optional[pg.joystick.JoystickType] = None
         
         # State machine configuration (from static registry, dynamically overridden from config if present)
         self.state_configs = dict(self._STATE_CONFIGS)
@@ -1543,7 +1544,16 @@ class Player(Actor):
     def _get_joystick(self) -> Optional[pg.joystick.JoystickType]:
         """Get the first connected joystick, if any."""
         if pg.joystick.get_count() > 0:
-            return pg.joystick.Joystick(0)
+            if self._joystick is None:
+                try:
+                    self._joystick = pg.joystick.Joystick(0)
+                    if not self._joystick.get_init():
+                        self._joystick.init()
+                except pg.error:
+                    self._joystick = None
+            return self._joystick
+        else:
+            self._joystick = None
         return None
     
     def _safe_get_axis(self, joystick: Optional[pg.joystick.JoystickType], axis_idx: int) -> float:

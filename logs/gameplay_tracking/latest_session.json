@@ -1,12 +1,12 @@
 {
-  "session_timestamp": "20260625_165400",
-  "session_start": "2026-06-25T16:54:00.471342",
-  "latest_file": "logs/gameplay_tracking/session_20260625_165400_001.jsonl",
+  "session_timestamp": "20260625_180848",
+  "session_start": "2026-06-25T18:08:48.349404",
+  "latest_file": "logs/gameplay_tracking/session_20260625_180848_001.jsonl",
   "total_log_files": 1,
   "frame_count": 0,
   "event_count": 0,
   "config": {
-    "enabled": true,
+    "enabled": false,
     "sample_every_n_frames": 1,
     "log_dir": "logs/gameplay_tracking",
     "max_file_size_mb": 5,

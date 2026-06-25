@@ -12,12 +12,15 @@ from src.game.states.game_state import GameState
 BASE_WIDTH, BASE_HEIGHT = 1280, 720
 
 def init_joystick():
-    pg.joystick.init()
-    if pg.joystick.get_count() > 0:
-        joystick = pg.joystick.Joystick(0)
-        joystick.init()
-        print(f"Joystick detected: {joystick.get_name()}")
-        return joystick
+    try:
+        pg.joystick.init()
+        if pg.joystick.get_count() > 0:
+            joystick = pg.joystick.Joystick(0)
+            joystick.init()
+            print(f"Joystick detected: {joystick.get_name()}")
+            return joystick
+    except pg.error as e:
+        print(f"Warning: Could not initialize joystick: {e}")
     return None
 
 def get_story_panels(width, height):

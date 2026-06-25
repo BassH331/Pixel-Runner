@@ -651,17 +651,17 @@ class GameState(State):
         self.bg_x1 -= scroll_delta
         self.bg_x2 -= scroll_delta
         
-        # Wrap background images for infinite scroll
+        # Wrap background images for infinite scroll, maintaining perfect contiguity
         if scroll_delta > 0:
             if self.bg_x1 <= -self.width:
-                self.bg_x1 = self.width
+                self.bg_x1 = self.bg_x2 + self.width
             if self.bg_x2 <= -self.width:
-                self.bg_x2 = self.width
+                self.bg_x2 = self.bg_x1 + self.width
         elif scroll_delta < 0:
             if self.bg_x1 >= self.width:
-                self.bg_x1 = -self.width
+                self.bg_x1 = self.bg_x2 - self.width
             if self.bg_x2 >= self.width:
-                self.bg_x2 = -self.width
+                self.bg_x2 = self.bg_x1 - self.width
     
     # ─────────────────────────────────────────────────────────────────────────
     # Combat Collision Detection
