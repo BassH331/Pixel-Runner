@@ -173,3 +173,93 @@ class HitboxRegistry:
         if not cls._cached_config:
             cls._load_config()
         cls._cached_config[entity_name] = margins
+
+    @classmethod
+    def sync_with_level_config(cls, level_data: dict) -> None:
+        """Scan level_data world_events for 'npc' and 'boss' types. If a scale is defined,
+        ensure that it matches what's in the registry. If not, update the registry's scale
+        to match it, and save the registry.
+        """
+        if not cls._cached_config:
+            cls._load_config()
+
+        modified = False
+        events = level_data.get("world_events", [])
+        for ev in events:
+            etype = ev.get("type")
+            if etype not in ("npc", "boss"):
+                continue
+            params = ev.get("params", {})
+            if "scale" not in params:
+                continue
+            try:
+                json_scale = float(params["scale"])
+            except (ValueError, TypeError):
+                continue
+
+            # Determine registry key
+            if etype == "npc":
+                ntype = params.get("npc_type", "generic")
+                if ntype == "wizard":
+                    reg_key = "wizard_npc"
+                else:
+                    sprite_dir = params.get("sprite_dir", "")
+                    folder_name = os.path.basename(sprite_dir.rstrip("/"))
+                    if folder_name.lower() == "idle":
+                        parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                        folder_name = os.path.basename(parent_dir)
+                    reg_key = f"generic_npc_{folder_name.lower()}"
+            else:  # boss
+                sprite_dir = params.get("sprite_dir", "")
+                if sprite_dir:
+                    reg_key = f"boss:{os.path.basename(sprite_dir.rstrip('/')).lower()}"
+                else:
+                    reg_key = "boss"
+
+            # Check if key already exists (case-insensitive)
+            existing_key = None
+            existing_margins = None
+            for k, v in cls._cached_config.items():
+                if k.lower() == reg_key.lower():
+                    existing_key = k
+                    existing_margins = v
+                    break
+
+            if existing_margins and existing_key:
+                if abs(existing_margins.scale - json_scale) > 0.01:
+                    existing_margins.scale = json_scale
+                    modified = True
+            else:
+                # Add default entry with specified scale
+                default_margins = cls.DEFAULTS.get(reg_key)
+                if not default_margins:
+                    # Look up by case-insensitive key in DEFAULTS
+                    for dk, dv in cls.DEFAULTS.items():
+                        if dk.lower() == reg_key.lower():
+                            default_margins = dv
+                            break
+
+                if not default_margins:
+                    if reg_key.lower().startswith("generic_npc_"):
+                        default_margins = HitboxMargins(0, 0, 0, 0, 34, scale=json_scale)
+                    elif reg_key.lower().startswith("boss:") or reg_key.lower() == "boss":
+                        skeleton = cls.get_margins("skeleton")
+                        default_margins = HitboxMargins(
+                            left=skeleton.left,
+                            right=skeleton.right,
+                            top=skeleton.top,
+                            bottom=skeleton.bottom,
+                            ground_offset=skeleton.ground_offset,
+                            scale=json_scale
+                        )
+                    else:
+                        default_margins = HitboxMargins(0, 0, 0, 0, 0, scale=json_scale)
+                else:
+                    default_margins = copy.deepcopy(default_margins)
+                    default_margins.scale = json_scale
+
+                cls._cached_config[reg_key] = default_margins
+                modified = True
+
+        if modified:
+            cls.save_all()

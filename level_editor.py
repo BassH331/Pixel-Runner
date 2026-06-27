@@ -396,17 +396,20 @@ class App:
         self.scan()
 
     def scan(self):
-        gd = "game_data"
-        self.level_files = sorted(
-            os.path.join(gd, f) for f in os.listdir(gd)
-            if f.startswith("level_") and f.endswith(".json")
-        ) if os.path.isdir(gd) else []
+        files = []
+        for folder in ["game_data", "storyline"]:
+            if os.path.isdir(folder):
+                for f in os.listdir(folder):
+                    if (f.startswith("level_") or f.startswith("prologue_")) and f.endswith(".json"):
+                        files.append(os.path.join(folder, f))
+        self.level_files = sorted(files)
 
     def load(self, idx: int):
         self.active_idx = idx
         with open(self.level_files[idx], "r") as fh:
             fcntl.flock(fh, fcntl.LOCK_EX)
             self.level_data = json.load(fh)
+        HitboxRegistry.sync_with_level_config(self.level_data)
         self.level_data.setdefault("world_events", [])
         self.level_backup = copy.deepcopy(self.level_data)
         self.pending = copy.deepcopy(self.level_data["world_events"])
@@ -788,6 +791,7 @@ class App:
                     elif ev.key in (pg.K_ESCAPE, pg.K_n):
                         if self.modal.cancel_cb: self.modal.cancel_cb()
                 continue
+            if self._topback: self._topback.on(ev)
             if ev.type == pg.KEYDOWN and ev.key == pg.K_ESCAPE:
                 {1: self.running.__class__, 2: self.go1, 3: self.go2}.get(self.stage, self.go2)()
                 if self.stage == 1: self.running = False; return

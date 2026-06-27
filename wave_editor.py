@@ -183,19 +183,22 @@ class WaveEditorApp:
         self._topback: Optional[Button] = None
         self.scan()
 
-    # I/O
     def scan(self):
-        gd = "game_data"
-        self.level_files = sorted(
-            os.path.join(gd, f) for f in os.listdir(gd)
-            if f.startswith("level_") and f.endswith(".json")
-        ) if os.path.isdir(gd) else []
+        files = []
+        for folder in ["game_data", "storyline"]:
+            if os.path.isdir(folder):
+                for f in os.listdir(folder):
+                    if (f.startswith("level_") or f.startswith("prologue_")) and f.endswith(".json"):
+                        files.append(os.path.join(folder, f))
+        self.level_files = sorted(files)
 
     def load(self, idx: int):
         self.active_idx = idx
         with open(self.level_files[idx]) as fh:
             fcntl.flock(fh, fcntl.LOCK_EX)
             self.level_data = json.load(fh)
+        from src.game.entities.hitbox_registry import HitboxRegistry
+        HitboxRegistry.sync_with_level_config(self.level_data)
         self.level_data.setdefault("spawn_zones", [])
         self.level_backup = copy.deepcopy(self.level_data)
         self.pending = copy.deepcopy(self.level_data["spawn_zones"])

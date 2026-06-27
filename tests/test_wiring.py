@@ -12,6 +12,8 @@ import os
 import sys
 import inspect
 import unittest
+import tempfile
+import shutil
 from unittest.mock import MagicMock, patch
 
 # Ensure project root is on the path
@@ -268,8 +270,26 @@ class TestGameStateWiring(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         _ensure_pygame_init()
+        # Create a temp file to avoid modifying the production config
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        cls.temp_config_path = os.path.join(cls.temp_dir.name, "entity_dimensions.json")
+        
+        # Copy the current production file to temp if it exists
+        if os.path.exists("game_data/entity_dimensions.json"):
+            shutil.copy("game_data/entity_dimensions.json", cls.temp_config_path)
+        else:
+            with open(cls.temp_config_path, "w") as f:
+                import json
+                json.dump({}, f)
+
+        # Import registry and clear the cached configurations before loading GameState
+        from src.game.entities.hitbox_registry import HitboxRegistry
+        HitboxRegistry._cached_config = {}
+        HitboxRegistry._rollback_checkpoint = {}
+
         with patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_texture") as mock_tex, \
-             patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_sound") as mock_snd:
+             patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_sound") as mock_snd, \
+             patch("src.game.entities.hitbox_registry.CONFIG_PATH", cls.temp_config_path):
             mock_tex.return_value = pg.Surface((32, 32))
             mock_snd.return_value = None
             _configure_test_theme()
@@ -283,6 +303,13 @@ class TestGameStateWiring(unittest.TestCase):
             except Exception as e:
                 cls.game_state = None
                 cls.init_error = e
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp_dir.cleanup()
+        from src.game.entities.hitbox_registry import HitboxRegistry
+        HitboxRegistry._cached_config = {}
+        HitboxRegistry._rollback_checkpoint = {}
 
     def test_init_succeeds(self):
         if self.init_error:

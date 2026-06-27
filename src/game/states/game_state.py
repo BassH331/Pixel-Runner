@@ -213,10 +213,15 @@ class GameState(State):
         self._last_log_time = pg.time.get_ticks()
         self._frame_count = 0
         
-        level_path = os.environ.get("GAME_LEVEL_PATH", os.path.join("game_data", "level_1.json"))
+        default_level = os.path.join("storyline", "prologue_covenant_of_ash.json")
+        if not os.path.exists(default_level):
+            default_level = os.path.join("game_data", "level_1.json")
+        level_path = os.environ.get("GAME_LEVEL_PATH", default_level)
         self.level_data = WorldLoader.load_json(level_path)
         
         if self.level_data:
+            from src.game.entities.hitbox_registry import HitboxRegistry
+            HitboxRegistry.sync_with_level_config(self.level_data)
             self.BAT_GROUP_MIN_DELAY = self.level_data.get("spawn_rate_min", 5000)
             self.BAT_GROUP_MAX_DELAY = self.level_data.get("spawn_rate_max", 15000)
 
@@ -1174,12 +1179,14 @@ class GameState(State):
                 
                 # === Consistency Check 5: Scrolling behavior ===
                 if len(positions) >= 5:
-                    moved_left = positions[-1][0] < positions[0][0]
-                    if not moved_left:
-                        npc_res["issues"].append(
-                            f"NPC did not scroll left: start_x={positions[0][0]}, "
-                            f"end_x={positions[-1][0]}"
-                        )
+                    total_scrolled = self.world_distance - spawned_data["spawn_distance"]
+                    if total_scrolled > 10:
+                        moved_left = positions[-1][0] < positions[0][0]
+                        if not moved_left:
+                            npc_res["issues"].append(
+                                f"NPC did not scroll left: start_x={positions[0][0]}, "
+                                f"end_x={positions[-1][0]}"
+                            )
                     
                     # Calculate actual scroll rate
                     x_delta = positions[0][0] - positions[-1][0]
@@ -1332,12 +1339,17 @@ class GameState(State):
         # Enemy spawning
         self.spawn_enemies(current_time)
         
-        # Calculate scroll speed based on player movement
+        # Update player first so we have their new position for the current frame
+        self.player.update()
         player_sprite = self.player.sprite
-        if player_sprite.is_running and not self._is_boss_active():
-            self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
-        else:
-            self.bg_scroll_speed = 0
+
+        # Calculate scroll speed based on player movement crossing the scroll boundary
+        self.bg_scroll_speed = 0
+        if player_sprite and not player_sprite.is_dead and not self._is_boss_active():
+            SCROLL_BOUNDARY_RIGHT = 450
+            if player_sprite.rect.right > SCROLL_BOUNDARY_RIGHT:
+                self.bg_scroll_speed = player_sprite.rect.right - SCROLL_BOUNDARY_RIGHT
+                player_sprite.rect.right = SCROLL_BOUNDARY_RIGHT
 
         # Track travel distance
         self.world_distance += self.bg_scroll_speed
@@ -1360,7 +1372,6 @@ class GameState(State):
         # Update systems
         self.update_background(self.bg_scroll_speed)
         self.player_ui.update()
-        self.player.update()
         self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
