@@ -654,23 +654,78 @@ class BossEditorApp:
             self.toast_message = f"Error: {e}"
             self.toast_timer = 2.0
 
+    def apply_non_wizard_preset(self, difficulty_name: str):
+        # Multipliers based on difficulty
+        multipliers = {
+            "EASY": {
+                "max_health": 0.7,
+                "speed": 0.8,
+                "damage_scale": 0.7,
+                "knockback_scale": 0.7,
+                "detection_range": 0.7,
+                "attack_range": 0.9,
+                "vertical_tolerance": 0.8,
+                "scale": 0.8
+            },
+            "MEDIUM": {
+                "max_health": 1.0,
+                "speed": 1.0,
+                "damage_scale": 1.0,
+                "knockback_scale": 1.0,
+                "detection_range": 1.0,
+                "attack_range": 1.0,
+                "vertical_tolerance": 1.0,
+                "scale": 1.0
+            },
+            "HARD": {
+                "max_health": 1.3,
+                "speed": 1.2,
+                "damage_scale": 1.3,
+                "knockback_scale": 1.3,
+                "detection_range": 1.3,
+                "attack_range": 1.1,
+                "vertical_tolerance": 1.2,
+                "scale": 1.3
+            },
+            "NIGHTMARE": {
+                "max_health": 1.6,
+                "speed": 1.4,
+                "damage_scale": 1.6,
+                "knockback_scale": 1.6,
+                "detection_range": 1.6,
+                "attack_range": 1.2,
+                "vertical_tolerance": 1.5,
+                "scale": 1.6
+            }
+        }
+        
+        mults = multipliers.get(difficulty_name.upper(), multipliers["MEDIUM"])
+        schema = self.bosses[self.selected_boss]["schema"]
+        defaults = schema["defaults"]
+        
+        # Apply the scaling to each slider if applicable, clamping to the slider bounds
+        for key, mult in mults.items():
+            if key in self.sliders:
+                slider = self.sliders[key]
+                base_val = defaults.get(key, slider.min_val)
+                new_val = base_val * mult
+                slider.val = max(slider.min_val, min(slider.max_val, new_val))
+
     def apply_recommended_difficulty(self):
-        if self.selected_boss != "wizard":
-            self.toast_message = "Recommendations only for Wizard boss"
-            self.toast_timer = 2.0
-            return
-            
         if not self.recent_sessions_analytics or self.recent_sessions_analytics.get("valid_session_count", 0) == 0:
             self.toast_message = "No recommendation available!"
             self.toast_timer = 2.0
             return
-        
+            
         rec_diff = self.recent_sessions_analytics.get("recommended_difficulty")
         if rec_diff in ("EASY", "MEDIUM", "HARD", "NIGHTMARE"):
-            preset_config = self.difficulty_manager.get_preset_config(rec_diff)
-            for key, val in preset_config.items():
-                if key in self.sliders:
-                    self.sliders[key].val = val
+            if self.selected_boss == "wizard":
+                preset_config = self.difficulty_manager.get_preset_config(rec_diff)
+                for key, val in preset_config.items():
+                    if key in self.sliders:
+                        self.sliders[key].val = val
+            else:
+                self.apply_non_wizard_preset(rec_diff)
             self.toast_message = f"Applied Recommended {rec_diff} Preset!"
             self.toast_timer = 2.0
         else:
@@ -678,16 +733,28 @@ class BossEditorApp:
             self.toast_timer = 2.0
 
     def adjust_difficulty(self, direction: int):
-        if self.selected_boss != "wizard":
-            self.toast_message = "Tuning only supported on Wizard boss"
-            self.toast_timer = 1.5
-            return
+        if self.selected_boss == "wizard":
+            current_config = {k: slider.val for k, slider in self.sliders.items()}
+            new_config = self.difficulty_manager.adjust_difficulty_level(current_config, direction)
+            for k, val in new_config.items():
+                if k in self.sliders:
+                    self.sliders[k].val = val
+        else:
+            schema = self.bosses[self.selected_boss]["schema"]
+            defaults = schema["defaults"]
             
-        current_config = {k: slider.val for k, slider in self.sliders.items()}
-        new_config = self.difficulty_manager.adjust_difficulty_level(current_config, direction)
-        for k, val in new_config.items():
-            if k in self.sliders:
-                self.sliders[k].val = val
+            # Parameters to adjust (handles generic skeleton bosses/minions and bats)
+            keys_to_adjust = ["max_health", "speed", "damage_scale", "knockback_scale", "detection_range", "attack_range", "vertical_tolerance", "scale"]
+            
+            for key in keys_to_adjust:
+                if key in self.sliders:
+                    slider = self.sliders[key]
+                    base_val = defaults.get(key, slider.min_val)
+                    # Adjust by direction * 10% of the default/baseline value
+                    delta = direction * 0.1 * base_val
+                    new_val = slider.val + delta
+                    slider.val = max(slider.min_val, min(slider.max_val, new_val))
+                    
         self.toast_message = "Difficulty " + ("Increased" if direction > 0 else "Decreased")
         self.toast_timer = 1.5
 

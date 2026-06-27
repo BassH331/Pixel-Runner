@@ -66,7 +66,7 @@
     "boss:bloodZombie": {
         "left": 87,
         "right": 191,
-        "top": 132,
+        "top": 135,
         "bottom": 31,
         "ground_offset": 35,
         "scale": 2.0
