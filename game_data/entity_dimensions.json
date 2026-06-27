@@ -40,9 +40,9 @@
         "scale": 1.0
     },
     "generic_npc_goblin": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
+        "left": 198,
+        "right": 196,
+        "top": 208,
         "bottom": 154,
         "ground_offset": 34,
         "scale": 3.17
@@ -54,5 +54,45 @@
         "bottom": 180,
         "ground_offset": 35,
         "scale": 4.11
+    },
+    "generic_npc_masked_man": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "boss:bloodZombie": {
+        "left": 87,
+        "right": 191,
+        "top": 132,
+        "bottom": 31,
+        "ground_offset": 35,
+        "scale": 2.0
+    },
+    "blood_zombie": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 0,
+        "scale": 1.62
+    },
+    "skeleton_zombie": {
+        "left": 21,
+        "right": 55,
+        "top": 44,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 1.0
+    },
+    "green_monster": {
+        "left": 168,
+        "right": 159,
+        "top": 75,
+        "bottom": 30,
+        "ground_offset": 35,
+        "scale": 2.41
     }
 }

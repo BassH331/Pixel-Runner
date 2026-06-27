@@ -199,6 +199,11 @@ class Skeleton(Actor):
             self._speed = 3.2
             damage_scale = 3.0
             knockback_scale = 1.8
+            
+            # Additional boss AI fields
+            self._detection_range = 3000
+            self._attack_range = 80
+            self._vertical_tolerance = 500
         elif self.tier == "elite":
             if not sprite_root and not self._scale_is_explicit:
                 self.scale *= 1.3
@@ -220,11 +225,57 @@ class Skeleton(Actor):
             self._speed = 3.2
             damage_scale = 1.6
             knockback_scale = 1.3
+            self._detection_range = 2000
+            self._attack_range = 70
+            self._vertical_tolerance = 300
         else:  # minion
             self._max_health = custom_health if custom_health is not None else 30.0
             self._speed = 2.5
             damage_scale = 1.0
             knockback_scale = 1.0
+            self._detection_range = 1000
+            self._attack_range = 60
+            self._vertical_tolerance = 100
+            
+        self._attack_hitbox_width = 60
+        self._attack_hitbox_height = 80
+
+        # Determine dynamic config path based on sprite root or tier
+        import json
+        import os
+        config_path = None
+        if sprite_root:
+            sprite_lower = sprite_root.lower()
+            if "goblin" in sprite_lower:
+                config_path = "game_data/enemy_goblin_config.json"
+            elif "green_monster" in sprite_lower:
+                config_path = "game_data/enemy_green_monster_config.json"
+            elif "bloodzombie" in sprite_lower:
+                config_path = "game_data/enemy_blood_zombie_config.json"
+            elif "skeletonzombie" in sprite_lower or "zombie" in sprite_lower:
+                config_path = "game_data/enemy_skeleton_zombie_config.json"
+        
+        if config_path is None:
+            if self.tier == "boss":
+                config_path = "game_data/boss_skeleton_config.json"
+            elif self.tier == "minion":
+                config_path = "game_data/enemy_skeleton_minion_config.json"
+
+        if config_path and os.path.exists(config_path):
+            try:
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                    self._max_health = float(config.get("max_health", self._max_health))
+                    self._speed = float(config.get("speed", self._speed))
+                    damage_scale = float(config.get("damage_scale", damage_scale))
+                    knockback_scale = float(config.get("knockback_scale", knockback_scale))
+                    self._detection_range = int(config.get("detection_range", self._detection_range))
+                    self._attack_range = int(config.get("attack_range", self._attack_range))
+                    self._vertical_tolerance = int(config.get("vertical_tolerance", self._vertical_tolerance))
+                    self._attack_hitbox_width = int(config.get("attack_hitbox_width", 60))
+                    self._attack_hitbox_height = int(config.get("attack_hitbox_height", 80))
+            except Exception as e:
+                print(f"[WARNING] Error loading skeleton config from {config_path}: {e}")
             
         self._health: float = self._max_health
         
@@ -256,9 +307,12 @@ class Skeleton(Actor):
         self._ground_y: int = height - margins.ground_offset
         
         # AI configuration
-        self._detection_range: int = 3000 if self.tier == "boss" else 1000
-        self._attack_range: int = 60
-        self._vertical_tolerance: int = 500 if self.tier == "boss" else 100
+        if not hasattr(self, "_detection_range"):
+            self._detection_range = 3000 if self.tier == "boss" else 1000
+        if not hasattr(self, "_attack_range"):
+            self._attack_range = 60
+        if not hasattr(self, "_vertical_tolerance"):
+            self._vertical_tolerance = 500 if self.tier == "boss" else 100
         self.spawn_zone: Optional[dict] = None
         
     def _load_frames(
@@ -345,8 +399,9 @@ class Skeleton(Actor):
         """Return the attack hitbox based on skeleton facing and position."""
         if not self.should_deal_damage():
             return None
-        # Simple forward hitbox in front of the skeleton
-        hitbox_w, hitbox_h = 60, 80
+        # Scale the attack hitbox dimensions dynamically based on entity scale
+        hitbox_w = int(self._attack_hitbox_width * self.scale)
+        hitbox_h = int(self._attack_hitbox_height * self.scale)
         if self.facing_left:
             hitbox_x = self.rect.left - hitbox_w
         else:

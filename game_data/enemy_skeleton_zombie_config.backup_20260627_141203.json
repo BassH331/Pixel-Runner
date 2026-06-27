@@ -1,0 +1,11 @@
+{
+  "max_health": 35.0,
+  "speed": 2.0,
+  "damage_scale": 1.0,
+  "knockback_scale": 1.0,
+  "detection_range": 1000,
+  "attack_range": 60,
+  "vertical_tolerance": 100,
+  "attack_hitbox_width": 60,
+  "attack_hitbox_height": 80
+}

@@ -186,6 +186,8 @@ class FireWizard(Actor):
         self._attack_cooldown_min: float = 1.2
         self._attack_cooldown_max: float = 2.0
         self._spidey_sense: float = 0.0
+        self._attack_hitbox_width: int = 55
+        self._attack_hitbox_height: int = 45
         
         config_path = "game_data/boss_wizard_config.json"
         if os.path.exists(config_path):
@@ -202,6 +204,8 @@ class FireWizard(Actor):
                     self._attack_cooldown_min = float(config.get("attack_cooldown_min", 1.2))
                     self._attack_cooldown_max = float(config.get("attack_cooldown_max", 2.0))
                     self._spidey_sense = float(config.get("spidey_sense", 0.0))
+                    self._attack_hitbox_width = int(config.get("attack_hitbox_width", 55))
+                    self._attack_hitbox_height = int(config.get("attack_hitbox_height", 45))
             except Exception as e:
                 print(f"[WARNING] Error loading wizard config: {e}")
                 
@@ -350,9 +354,9 @@ class FireWizard(Actor):
         """Return a magic blast spell reach hitbox extending in front of the wizard."""
         if not self.should_deal_damage():
             return None
-        # Mathematically aligned to the visual fire blast asset size (55x45 frame pixels)
-        hitbox_w = int(55 * self.scale)
-        hitbox_h = int(45 * self.scale)
+        # Mathematically aligned to the visual fire blast asset size
+        hitbox_w = int(self._attack_hitbox_width * self.scale)
+        hitbox_h = int(self._attack_hitbox_height * self.scale)
         if self.facing_left:
             hitbox_x = self.rect.left - hitbox_w
         else:

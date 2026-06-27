@@ -292,6 +292,75 @@ class HitboxEditorApp:
                     }
                 }
             })
+        if "skeleton_zombie" not in added_keys:
+            self.entity_configs.append({
+                "key": "skeleton_zombie",
+                "label": "Skeleton Zombie",
+                "type": "skeleton",
+                "params": {
+                    "sprite_root": "assets/graphics/SkeletonZombie",
+                    "tier": "minion",
+                    "behaviour_map": {
+                        "Idle": "idle",
+                        "Chase": "walk",
+                        "Attack": "attack",
+                        "Hurt": "hurt"
+                    }
+                }
+            })
+        if "blood_zombie" not in added_keys:
+            self.entity_configs.append({
+                "key": "blood_zombie",
+                "label": "Blood Zombie",
+                "type": "skeleton",
+                "params": {
+                    "sprite_root": "assets/graphics/bloodZombie",
+                    "tier": "minion",
+                    "behaviour_map": {
+                        "Attack1": "attack",
+                        "Attack2": "attack",
+                        "Death": "death",
+                        "Idle": "idle",
+                        "Move": "walk"
+                    }
+                }
+            })
+        if "green_monster" not in added_keys:
+            self.entity_configs.append({
+                "key": "green_monster",
+                "label": "Green Monster",
+                "type": "skeleton",
+                "params": {
+                    "sprite_root": "assets/graphics/green_monster",
+                    "tier": "minion",
+                    "behaviour_map": {
+                        "idle": "idle",
+                        "walk": "walk",
+                        "1atk": "attack",
+                        "2atk": "attack",
+                        "hurt": "hurt",
+                        "death": "death"
+                    }
+                }
+            })
+        if "skeleton_minion" not in added_keys:
+            self.entity_configs.append({
+                "key": "skeleton_minion",
+                "label": "Skeleton Minion",
+                "type": "skeleton",
+                "params": {
+                    "sprite_root": "assets/skeleton",
+                    "tier": "minion",
+                    "behaviour_map": {
+                        "Skeleton_01_White_Attack1": "attack",
+                        "Skeleton_01_White_Attack2": "attack",
+                        "Skeleton_01_White_Die": "death",
+                        "Skeleton_01_White_Hurt": "hurt",
+                        "Skeleton_01_White_Idle": "idle",
+                        "Skeleton_01_White_Walk": "walk"
+                    }
+                }
+            })
 
     def reload_entity(self):
         config = self.entity_configs[self.active_index]
@@ -308,7 +377,12 @@ class HitboxEditorApp:
             self.entity = Player(640, 480, mock_audio)
         elif ent_type == "skeleton":
             dummy_player = Player(640, 480, mock_audio)
-            self.entity = Skeleton(640, 480, dummy_player)
+            self.entity = Skeleton(
+                640, 480, dummy_player,
+                sprite_root=params.get("sprite_root"),
+                behaviour_map=params.get("behaviour_map"),
+                tier=params.get("tier", "minion")
+            )
         elif ent_type == "enemy":
             self.entity = Enemy()
             self.entity.rect.midbottom = (640, 480)

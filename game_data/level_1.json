@@ -58,14 +58,33 @@
     ],
     "world_events": [
         {
+            "id": 2,
+            "distance": 4084,
+            "type": "boss",
+            "params": {
+                "title": "Elise the Apostate",
+                "scale": 2.0,
+                "health": 100.0,
+                "tier": "boss",
+                "sprite_dir": "assets/graphics/bloodZombie",
+                "behaviour_map": {
+                    "Attack1": "attack",
+                    "Attack2": "attack",
+                    "Death": "death",
+                    "Idle": "idle",
+                    "Move": "walk"
+                }
+            }
+        },
+        {
             "id": 1,
             "distance": 7663,
             "type": "boss",
             "params": {
-                "title": "Mini Boss",
+                "title": "Blight Arbitor",
                 "scale": 4.11,
                 "health": 100.0,
-                "tier": "boss",
+                "tier": "elite",
                 "sprite_dir": "assets/wizard",
                 "behaviour_map": {
                     "Attack": "attack",
