@@ -711,34 +711,33 @@ class GameState(State):
             return
         
         # Check against all obstacles
+        colliderect = attack_hitbox.colliderect
+        try_register_hit = player.try_register_hit
+        
         for obstacle in self.obstacle_group:
             # Skip dead enemies
-            if hasattr(obstacle, 'is_dead') and obstacle.is_dead:
+            if getattr(obstacle, "is_dead", False):
                 continue
             
             # Skip invincible enemies
-            if hasattr(obstacle, 'is_invincible') and obstacle.is_invincible:
+            if getattr(obstacle, "is_invincible", False):
                 continue
             
             # Get enemy hitbox (prefer .hitbox, fallback to .rect)
-            target_hitbox = (
-                obstacle.hitbox
-                if hasattr(obstacle, 'hitbox')
-                else obstacle.rect
-            )
+            target_hitbox = getattr(obstacle, "low_hitbox", None) or getattr(obstacle, "hitbox", obstacle.rect)
+            if target_hitbox is None:
+                continue
             
             # Gate 2: Check hitbox collision
-            if not attack_hitbox.colliderect(target_hitbox):
+            if not colliderect(target_hitbox):
                 continue
             
             # Gate 3: Check if already hit this attack (prevent duplicates)
-            target_id = (
-                obstacle.entity_id
-                if hasattr(obstacle, 'entity_id')
-                else id(obstacle)
-            )
+            target_id = getattr(obstacle, "entity_id", None)
+            if target_id is None:
+                target_id = id(obstacle)
             
-            if not player.try_register_hit(target_id):
+            if not try_register_hit(target_id):
                 continue
             
             # ─────────────────────────────────────────────────────────────────
@@ -897,11 +896,8 @@ class GameState(State):
             skeleton: Attacking skeleton/wizard instance.
         """
         # Gate 1: Entity must be in attack state
-        is_attacking = False
-        if hasattr(skeleton, "state") and skeleton.state is not None:
-            if hasattr(skeleton.state, "name") and "ATTACK" in skeleton.state.name:
-                is_attacking = True
-        if not is_attacking:
+        state = getattr(skeleton, "state", None)
+        if state is None or "ATTACK" not in getattr(state, "name", ""):
             return
         
         # Gate 2: Must be on a hit frame and not already registered
@@ -909,15 +905,13 @@ class GameState(State):
             return 
         
         # Gate 3: Check hitbox collision (use skeleton's attack hitbox if available)
-        skeleton_hitbox = (
-            skeleton.get_attack_hitbox()
-            if hasattr(skeleton, 'get_attack_hitbox')
-            else skeleton.rect
-        )
-        
-        player_hitbox = player.rect
-        
-        if skeleton_hitbox and not skeleton_hitbox.colliderect(player_hitbox):
+        skeleton_hitbox = getattr(skeleton, 'get_attack_hitbox', None)
+        if skeleton_hitbox is not None:
+            skeleton_hitbox = skeleton_hitbox()
+        else:
+            skeleton_hitbox = skeleton.rect
+            
+        if skeleton_hitbox is None or not skeleton_hitbox.colliderect(player.rect):
             return
         
         # Always register the hit attempt to prevent multi-hit exploitation.

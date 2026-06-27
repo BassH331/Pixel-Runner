@@ -277,6 +277,8 @@ class Skeleton(Actor):
             except Exception as e:
                 print(f"[WARNING] Error loading skeleton config from {config_path}: {e}")
             
+        if custom_health is not None:
+            self._max_health = custom_health
         self._health: float = self._max_health
         
         self.attack1_config = AttackConfig(
