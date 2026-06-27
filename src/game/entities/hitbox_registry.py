@@ -109,16 +109,36 @@ class HitboxRegistry:
         """Retrieves the margins config for a given entity type."""
         if not cls._cached_config:
             cls._load_config()
-        if entity_name in cls._cached_config:
-            return cls._cached_config[entity_name]
-        if entity_name in cls.DEFAULTS:
-            return cls.DEFAULTS[entity_name]
+            
+        name_lower = entity_name.lower()
+        
+        # 1. Direct case-insensitive match in cached config
+        for k, v in cls._cached_config.items():
+            if k.lower() == name_lower:
+                return v
+                
+        # 2. Case-insensitive match for skeleton name fallback to generic NPC
+        if name_lower.startswith("skeleton_"):
+            base_name = name_lower.replace("skeleton_", "", 1)
+            alt_key = f"generic_npc_{base_name}"
+            for k, v in cls._cached_config.items():
+                if k.lower() == alt_key:
+                    return v
+                    
+        # 3. Direct case-insensitive match in Defaults
+        for k, v in cls.DEFAULTS.items():
+            if k.lower() == name_lower:
+                return v
         
         # Dynamic fallback for generic NPCs
-        if entity_name.startswith("generic_npc_"):
+        if name_lower.startswith("generic_npc_"):
             return HitboxMargins(0, 0, 0, 0, 34, scale=2.0)
-        if entity_name.startswith("boss:") or entity_name == "boss":
+        if name_lower.startswith("boss:") or name_lower == "boss":
             skeleton_margins = cls.DEFAULTS.get("skeleton") or HitboxMargins(65, 65, 20, 0, 127, scale=2.0)
+            for k, v in cls._cached_config.items():
+                if k.lower() == "skeleton":
+                    skeleton_margins = v
+                    break
             return copy.deepcopy(skeleton_margins)
         return HitboxMargins(0, 0, 0, 0, 0, scale=1.0)
 
@@ -130,7 +150,20 @@ class HitboxRegistry:
         try:
             with open(CONFIG_PATH, "r") as f:
                 data = json.load(f)
-            return entity_name in data
+            name_lower = entity_name.lower()
+            
+            # Direct case-insensitive match
+            if any(k.lower() == name_lower for k in data.keys()):
+                return True
+                
+            # Fallback mapping check for skeleton
+            if name_lower.startswith("skeleton_"):
+                base_name = name_lower.replace("skeleton_", "", 1)
+                alt_key = f"generic_npc_{base_name}"
+                if any(k.lower() == alt_key for k in data.keys()):
+                    return True
+                    
+            return False
         except Exception:
             return False
 

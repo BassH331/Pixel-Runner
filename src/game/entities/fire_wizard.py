@@ -296,6 +296,10 @@ class FireWizard(Actor):
         self._vertical_tolerance: int = 500 if self.tier == "boss" else 100
         self.spawn_zone: Optional[dict] = None
         
+        # Precalculate scaled hitbox dimensions for high-performance updates
+        self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
+        self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
+        
     def _load_frames(
         self,
         path_pattern: str,
@@ -354,9 +358,8 @@ class FireWizard(Actor):
         """Return a magic blast spell reach hitbox extending in front of the wizard."""
         if not self.should_deal_damage():
             return None
-        # Mathematically aligned to the visual fire blast asset size
-        hitbox_w = int(self._attack_hitbox_width * self.scale)
-        hitbox_h = int(self._attack_hitbox_height * self.scale)
+        hitbox_w = self._scaled_hitbox_w
+        hitbox_h = self._scaled_hitbox_h
         if self.facing_left:
             hitbox_x = self.rect.left - hitbox_w
         else:
