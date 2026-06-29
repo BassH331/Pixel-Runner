@@ -1179,14 +1179,12 @@ class GameState(State):
                 
                 # === Consistency Check 5: Scrolling behavior ===
                 if len(positions) >= 5:
-                    total_scrolled = self.world_distance - spawned_data["spawn_distance"]
-                    if total_scrolled > 10:
-                        moved_left = positions[-1][0] < positions[0][0]
-                        if not moved_left:
-                            npc_res["issues"].append(
-                                f"NPC did not scroll left: start_x={positions[0][0]}, "
-                                f"end_x={positions[-1][0]}"
-                            )
+                    moved_left = positions[-1][0] < positions[0][0]
+                    if not moved_left:
+                        npc_res["issues"].append(
+                            f"NPC did not scroll left: start_x={positions[0][0]}, "
+                            f"end_x={positions[-1][0]}"
+                        )
                     
                     # Calculate actual scroll rate
                     x_delta = positions[0][0] - positions[-1][0]
@@ -1339,17 +1337,12 @@ class GameState(State):
         # Enemy spawning
         self.spawn_enemies(current_time)
         
-        # Update player first so we have their new position for the current frame
-        self.player.update()
+        # Calculate scroll speed based on player movement
         player_sprite = self.player.sprite
-
-        # Calculate scroll speed based on player movement crossing the scroll boundary
-        self.bg_scroll_speed = 0
-        if player_sprite and not player_sprite.is_dead and not self._is_boss_active():
-            SCROLL_BOUNDARY_RIGHT = 450
-            if player_sprite.rect.right > SCROLL_BOUNDARY_RIGHT:
-                self.bg_scroll_speed = player_sprite.rect.right - SCROLL_BOUNDARY_RIGHT
-                player_sprite.rect.right = SCROLL_BOUNDARY_RIGHT
+        if player_sprite.is_running and not self._is_boss_active():
+            self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
+        else:
+            self.bg_scroll_speed = 0
 
         # Track travel distance
         self.world_distance += self.bg_scroll_speed
@@ -1372,6 +1365,7 @@ class GameState(State):
         # Update systems
         self.update_background(self.bg_scroll_speed)
         self.player_ui.update()
+        self.player.update()
         self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
