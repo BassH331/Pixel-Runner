@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 from .local_cache import LocalCache
 
 # Default API URL. Can be overridden via environment variable.
-API_BASE_URL = os.environ.get("PIXEL_RUNNER_API_URL", "https://xwanefzznstvmclrmrnd.vercel.app")
+API_BASE_URL = os.environ.get("PIXEL_RUNNER_API_URL", "https://pixel-runner-wheat.vercel.app")
 
 class TelemetryClient:
     """Asynchronous telemetry client that submits gameplay tracking metrics, events,
