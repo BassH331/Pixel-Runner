@@ -18,6 +18,7 @@ from pathlib import Path
 from enum import Enum
 
 import pygame as pg
+from ..services import TelemetryClient
 
 
 class EventType(Enum):
@@ -119,11 +120,36 @@ class GameplayTracker:
         # Session state
         self.session_start_time = datetime.now()
         self.session_timestamp = self.session_start_time.strftime("%Y%m%d_%H%M%S")
+        self.session_id = f"session_{self.session_timestamp}"
         self.current_file_index = 1
         self.current_file_path: Optional[Path] = None
         self.current_file_size = 0
         self.frame_count = 0
         self.event_count = 0
+        
+        # In-memory telemetry aggregator counters
+        self.player_damage_taken = 0.0
+        self.boss_damage_taken = 0.0
+        self.player_hits_received = 0
+        self.boss_hits_received = 0
+        self.boss_attacks = 0
+        self.successful_boss_attacks = 0
+        self.boss_spell_casts = 0
+        self.projectile_hits = 0
+        self.projectile_misses = 0
+        self.boss_defeated = False
+        self.player_jumps = 0
+        self.total_frames_sampled = 0
+        self.fps_sum = 0.0
+        self.horizontal_distances = []
+        self.vertical_distances = []
+        self.player_boss_distances = []
+        self.player_defend_frames = 0
+        self.player_standing_frames = 0
+        self.player_side_swaps = 0
+        self.active_combat_frames = 0
+        self._last_player_facing_left = None
+        self._last_player_state = None
         
         # Pixel signature cache: entity_id -> {frame_data}
         self.pixel_signatures: dict[str, dict[str, Any]] = {}
@@ -137,6 +163,8 @@ class GameplayTracker:
         
         if self.enabled:
             self._initialize_session()
+            # Retry any pending telemetry from offline cache in the background
+            TelemetryClient.retry_pending_telemetry()
     
     # ─────────────────────────────────────────────────────────────────────────
     # Session Management
@@ -238,6 +266,28 @@ class GameplayTracker:
         
         if event_type_str == "damage_received":
             self.damage_logged_this_frame = True
+            self.player_damage_taken += float(data.get("damage", 0.0))
+            self.player_hits_received += 1
+        elif event_type_str == "damage_dealt":
+            self.boss_damage_taken += float(data.get("damage", 0.0))
+            self.boss_hits_received += 1
+            if data.get("target_is_boss") and data.get("target_health_after", 1.0) <= 0.0:
+                self.boss_defeated = True
+        elif event_type_str == "boss_state_changed":
+            if data.get("new") == "attack":
+                self.boss_attacks += 1
+            elif data.get("new") == "spell_cast" or data.get("new") == "cast":
+                self.boss_spell_casts += 1
+        elif event_type_str == "spell_cast":
+            self.boss_spell_casts += 1
+        elif event_type_str == "projectile_hit":
+            self.projectile_hits += 1
+        elif event_type_str == "projectile_miss":
+            self.projectile_misses += 1
+        elif event_type_str == "boss_defeated":
+            self.boss_defeated = True
+        elif event_type_str == "boss_attack_hit_player":
+            self.successful_boss_attacks += 1
             
         entry = {
             "type": "event",
@@ -245,6 +295,15 @@ class GameplayTracker:
             "timestamp_ms": pg.time.get_ticks(),
             **data,
         }
+        
+        # Submit to remote telemetry
+        telemetry_item = {
+            "session_id": self.session_id,
+            "timestamp_ms": entry["timestamp_ms"],
+            "event_type": event_type_str,
+            "event_data": data
+        }
+        TelemetryClient.submit_events([telemetry_item])
         
         self._write_entry(entry)
     
@@ -351,11 +410,85 @@ class GameplayTracker:
             else:
                 processed_kwargs[k] = v
                 
+        # Aggregate frame statistics
+        self.total_frames_sampled += 1
+        fps_val = processed_kwargs.get("fps")
+        fps_num = float(fps_val) if isinstance(fps_val, (int, float)) else 60.0
+        self.fps_sum += fps_num
+        
+        player_data = processed_kwargs.get("player")
+        boss_data = processed_kwargs.get("boss")
+        
+        is_player_attacking = False
+        if player_data:
+            state = player_data.get("state")
+            if state:
+                if self._last_player_state != state:
+                    if state in ("jump_up", "jump_down") and self._last_player_state not in ("jump_up", "jump_down"):
+                        self.player_jumps += 1
+                    self._last_player_state = state
+                
+                if "defend" in state:
+                    self.player_defend_frames += 1
+                elif "idle" in state:
+                    self.player_standing_frames += 1
+            
+            facing_left = player_data.get("facing_left")
+            if facing_left is not None:
+                if self._last_player_facing_left is not None and self._last_player_facing_left != facing_left:
+                    self.player_side_swaps += 1
+                self._last_player_facing_left = facing_left
+                
+            is_player_attacking = player_data.get("is_attacking", False)
+            
+        is_boss_attacking = False
+        if boss_data:
+            boss_state = boss_data.get("state", "")
+            is_boss_attacking = "attack" in boss_state or "cast" in boss_state or "spell" in boss_state
+            
+        if is_player_attacking or is_boss_attacking:
+            self.active_combat_frames += 1
+            
+        if player_data and boss_data:
+            p_pos = player_data.get("position")
+            b_pos = boss_data.get("position")
+            if p_pos and b_pos:
+                px, py = p_pos[0], p_pos[1]
+                bx, by = b_pos[0], b_pos[1]
+                h_dist = abs(px - bx)
+                v_dist = abs(py - by)
+                pb_dist = (h_dist**2 + v_dist**2)**0.5
+                self.horizontal_distances.append(h_dist)
+                self.vertical_distances.append(v_dist)
+                self.player_boss_distances.append(pb_dist)
+                
         entry = {
             "type": "frame_sample",
             "timestamp_ms": pg.time.get_ticks(),
             **processed_kwargs,
         }
+        
+        # Submit to remote telemetry
+        frame_val = processed_kwargs.get("frame")
+        frame_num = int(frame_val) if isinstance(frame_val, (int, float)) else self.frame_count
+        
+        dist_val = processed_kwargs.get("world_distance")
+        dist_num = float(dist_val) if isinstance(dist_val, (int, float)) else self.last_world_distance
+        
+        entities_val = processed_kwargs.get("active_entities")
+        entities_num = int(entities_val) if isinstance(entities_val, (int, float)) else 0
+        
+        frame_payload = {
+            "session_id": self.session_id,
+            "timestamp_ms": entry["timestamp_ms"],
+            "frame_number": frame_num,
+            "fps": fps_num,
+            "world_distance": dist_num,
+            "player": player_data,
+            "boss": boss_data,
+            "active_entities": entities_num
+        }
+        TelemetryClient.submit_frames([frame_payload])
         
         self._write_entry(entry)
     
@@ -570,6 +703,40 @@ class GameplayTracker:
         """Flush and finalize logging (call on session exit)."""
         if self.enabled:
             self._write_manifest()
+            
+            # Submit final session metrics
+            avg_fps = self.fps_sum / max(self.total_frames_sampled, 1)
+            avg_h_dist = sum(self.horizontal_distances) / max(len(self.horizontal_distances), 1) if self.horizontal_distances else None
+            avg_v_dist = sum(self.vertical_distances) / max(len(self.vertical_distances), 1) if self.vertical_distances else None
+            avg_pb_dist = sum(self.player_boss_distances) / max(len(self.player_boss_distances), 1) if self.player_boss_distances else None
+            
+            session_payload = {
+                "session_id": self.session_id,
+                "started_at": self.session_start_time.isoformat(),
+                "ended_at": datetime.now().isoformat(),
+                "duration_seconds": float((datetime.now() - self.session_start_time).total_seconds()),
+                "total_frames": int(self.frame_count),
+                "average_fps": float(avg_fps),
+                "player_damage_taken": float(self.player_damage_taken),
+                "boss_damage_taken": float(self.boss_damage_taken),
+                "player_hits_received": int(self.player_hits_received),
+                "boss_hits_received": int(self.boss_hits_received),
+                "boss_attacks": int(self.boss_attacks),
+                "successful_boss_attacks": int(self.successful_boss_attacks),
+                "boss_spell_casts": int(self.boss_spell_casts),
+                "projectile_hits": int(self.projectile_hits),
+                "projectile_misses": int(self.projectile_misses),
+                "boss_defeated": bool(self.boss_defeated),
+                "average_horizontal_distance": avg_h_dist,
+                "average_vertical_distance": avg_v_dist,
+                "average_player_boss_distance": avg_pb_dist,
+                "player_defend_frames": int(self.player_defend_frames),
+                "player_standing_frames": int(self.player_standing_frames),
+                "player_jumps": int(self.player_jumps),
+                "total_active_combat_frames": int(self.active_combat_frames)
+            }
+            TelemetryClient.submit_session(session_payload)
+            
             if self.console_output:
                 print(
                     f"[TRACKER] Session ended. "

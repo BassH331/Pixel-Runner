@@ -16,6 +16,7 @@ import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from .hitbox_registry import HitboxRegistry
+from ..services import ConfigClient
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -240,42 +241,39 @@ class Skeleton(Actor):
         self._attack_hitbox_width = 60
         self._attack_hitbox_height = 80
 
-        # Determine dynamic config path based on sprite root or tier
-        import json
-        import os
-        config_path = None
+        # Determine config type based on sprite root or tier
+        config_type = None
         if sprite_root:
             sprite_lower = sprite_root.lower()
             if "goblin" in sprite_lower:
-                config_path = "game_data/enemy_goblin_config.json"
+                config_type = "enemy_goblin"
             elif "green_monster" in sprite_lower:
-                config_path = "game_data/enemy_green_monster_config.json"
+                config_type = "enemy_green_monster"
             elif "bloodzombie" in sprite_lower:
-                config_path = "game_data/enemy_blood_zombie_config.json"
+                config_type = "enemy_blood_zombie"
             elif "skeletonzombie" in sprite_lower or "zombie" in sprite_lower:
-                config_path = "game_data/enemy_skeleton_zombie_config.json"
+                config_type = "enemy_skeleton_zombie"
         
-        if config_path is None:
+        if config_type is None:
             if self.tier == "boss":
-                config_path = "game_data/boss_skeleton_config.json"
-            elif self.tier == "minion":
-                config_path = "game_data/enemy_skeleton_minion_config.json"
+                config_type = "boss_skeleton"
+            else:
+                config_type = "enemy_skeleton_minion"
 
-        if config_path and os.path.exists(config_path):
-            try:
-                with open(config_path, "r") as f:
-                    config = json.load(f)
-                    self._max_health = float(config.get("max_health", self._max_health))
-                    self._speed = float(config.get("speed", self._speed))
-                    damage_scale = float(config.get("damage_scale", damage_scale))
-                    knockback_scale = float(config.get("knockback_scale", knockback_scale))
-                    self._detection_range = int(config.get("detection_range", self._detection_range))
-                    self._attack_range = int(config.get("attack_range", self._attack_range))
-                    self._vertical_tolerance = int(config.get("vertical_tolerance", self._vertical_tolerance))
-                    self._attack_hitbox_width = int(config.get("attack_hitbox_width", 60))
-                    self._attack_hitbox_height = int(config.get("attack_hitbox_height", 80))
-            except Exception as e:
-                print(f"[WARNING] Error loading skeleton config from {config_path}: {e}")
+        try:
+            config = ConfigClient.fetch_config(config_type)
+            if config:
+                self._max_health = float(config.get("max_health", self._max_health))
+                self._speed = float(config.get("speed", self._speed))
+                damage_scale = float(config.get("damage_scale", damage_scale))
+                knockback_scale = float(config.get("knockback_scale", knockback_scale))
+                self._detection_range = int(config.get("detection_range", self._detection_range))
+                self._attack_range = int(config.get("attack_range", self._attack_range))
+                self._vertical_tolerance = int(config.get("vertical_tolerance", self._vertical_tolerance))
+                self._attack_hitbox_width = int(config.get("attack_hitbox_width", 60))
+                self._attack_hitbox_height = int(config.get("attack_hitbox_height", 80))
+        except Exception as e:
+            print(f"[WARNING] Error loading skeleton config for {config_type}: {e}")
             
         if custom_health is not None:
             self._max_health = custom_health

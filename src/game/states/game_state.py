@@ -517,6 +517,8 @@ class GameState(State):
         if self.bg_music_channel_id is not None:
             self.audio_manager.stop_sound(self.bg_music_channel_id)
             self.bg_music_channel_id = None
+        if self.tracker is not None:
+            self.tracker.close()
         
     def handle_event(self, event: pg.event.Event) -> None:
         """

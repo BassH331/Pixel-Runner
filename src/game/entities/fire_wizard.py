@@ -15,6 +15,7 @@ import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from .hitbox_registry import HitboxRegistry
+from ..services import ConfigClient
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -189,25 +190,23 @@ class FireWizard(Actor):
         self._attack_hitbox_width: int = 55
         self._attack_hitbox_height: int = 45
         
-        config_path = "game_data/boss_wizard_config.json"
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r") as f:
-                    config = json.load(f)
-                    self._max_mana = float(config.get("max_mana", 100.0))
-                    self._spell_mana_cost = float(config.get("spell_mana_cost", 35.0))
-                    self._stagnant_duration = float(config.get("stagnant_duration", 3.0))
-                    self._teleport_dist_min = int(config.get("teleport_dist_min", 380))
-                    self._teleport_dist_max = int(config.get("teleport_dist_max", 450))
-                    self._mana_recharge_rate = float(config.get("mana_recharge_rate", 50.0))
-                    self._chase_delay_duration = float(config.get("chase_delay_duration", 0.8))
-                    self._attack_cooldown_min = float(config.get("attack_cooldown_min", 1.2))
-                    self._attack_cooldown_max = float(config.get("attack_cooldown_max", 2.0))
-                    self._spidey_sense = float(config.get("spidey_sense", 0.0))
-                    self._attack_hitbox_width = int(config.get("attack_hitbox_width", 55))
-                    self._attack_hitbox_height = int(config.get("attack_hitbox_height", 45))
-            except Exception as e:
-                print(f"[WARNING] Error loading wizard config: {e}")
+        try:
+            config = ConfigClient.fetch_config("boss_wizard")
+            if config:
+                self._max_mana = float(config.get("max_mana", 100.0))
+                self._spell_mana_cost = float(config.get("spell_mana_cost", 35.0))
+                self._stagnant_duration = float(config.get("stagnant_duration", 3.0))
+                self._teleport_dist_min = int(config.get("teleport_dist_min", 380))
+                self._teleport_dist_max = int(config.get("teleport_dist_max", 450))
+                self._mana_recharge_rate = float(config.get("mana_recharge_rate", 50.0))
+                self._chase_delay_duration = float(config.get("chase_delay_duration", 0.8))
+                self._attack_cooldown_min = float(config.get("attack_cooldown_min", 1.2))
+                self._attack_cooldown_max = float(config.get("attack_cooldown_max", 2.0))
+                self._spidey_sense = float(config.get("spidey_sense", 0.0))
+                self._attack_hitbox_width = int(config.get("attack_hitbox_width", 55))
+                self._attack_hitbox_height = int(config.get("attack_hitbox_height", 45))
+        except Exception as e:
+            print(f"[WARNING] Error loading wizard config: {e}")
                 
         self._mana: float = self._max_mana
         self._is_recharging: bool = False

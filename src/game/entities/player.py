@@ -54,6 +54,7 @@ import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Actor, FootstepController
 from .hitbox_registry import HitboxRegistry
+from ..services import ConfigClient
 from v3x_zulfiqar_gideon import (
     AttackConfig,
     AttackState,
@@ -700,11 +701,8 @@ class Player(Actor):
         self.enhanced_power_attack_config = self.ENHANCED_POWER_ATTACK_CONFIG
         
         try:
-            config_path = "game_data/player_config.json"
-            if os.path.exists(config_path):
-                with open(config_path, "r") as f:
-                    overrides = json.load(f)
-                
+            overrides = ConfigClient.fetch_config("player")
+            if overrides:
                 # Check for new nested format vs legacy format
                 if isinstance(overrides, dict) and ("states" in overrides or "attacks" in overrides):
                     states_overrides = overrides.get("states", {})

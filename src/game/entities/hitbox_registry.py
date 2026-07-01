@@ -31,19 +31,32 @@ class HitboxRegistry:
 
     @classmethod
     def _load_config(cls) -> None:
-        """Loads dimensions from JSON or populates with defaults if not present/file missing."""
-        if not os.path.exists(CONFIG_PATH):
-            cls._cached_config = dict(cls.DEFAULTS)
-            cls.save_all()
-            cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
-            return
+        """Loads dimensions from ConfigClient, falling back to local JSON or defaults."""
+        data = None
+        try:
+            from ..services import ConfigClient
+            data = ConfigClient.fetch_config("entity_dimensions")
+        except Exception as e:
+            print(f"[CACHE NOTE] Could not fetch hitbox config from client services: {e}")
+
+        if not data:
+            if not os.path.exists(CONFIG_PATH):
+                cls._cached_config = dict(cls.DEFAULTS)
+                cls.save_all()
+                cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
+                return
+
+            try:
+                with open(CONFIG_PATH, "r") as f:
+                    fcntl.flock(f, fcntl.LOCK_EX)
+                    data = json.load(f)
+            except Exception as e:
+                print(f"Error loading local {CONFIG_PATH}: {e}. Falling back to default margins.")
+                cls._cached_config = dict(cls.DEFAULTS)
+                cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
+                return
 
         try:
-            with open(CONFIG_PATH, "r") as f:
-                # Exclusive lock during reading to ensure integrity
-                fcntl.flock(f, fcntl.LOCK_EX)
-                data = json.load(f)
-            
             # Map raw JSON data back to HitboxMargins objects, falling back to defaults if keys are missing
             cls._cached_config = {}
             for name, item in data.items():
@@ -66,7 +79,7 @@ class HitboxRegistry:
             
             cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
         except Exception as e:
-            print(f"Error loading {CONFIG_PATH}: {e}. Falling back to default margins.")
+            print(f"Error parsing hitbox dimensions: {e}. Falling back to default margins.")
             cls._cached_config = dict(cls.DEFAULTS)
             cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
 
