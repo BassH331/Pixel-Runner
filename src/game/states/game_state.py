@@ -22,6 +22,7 @@ from src.game.entities.generic_npc import GenericNPC
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
 from src.game.entities.fire_wizard import FireWizard, FireWizardState
+from src.game.entities.green_monster import GreenMonster
 from src.game.entities.boss_manager import BossManager
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
 from v3x_zulfiqar_gideon import AssetManager, State
@@ -912,10 +913,10 @@ class GameState(State):
             
         # Process attacks from all obstacles that can attack
         for obstacle in self.obstacle_group:
-            if isinstance(obstacle, (Skeleton, FireWizard)):
+            if isinstance(obstacle, (Skeleton, FireWizard, GreenMonster)):
                 self._handle_skeleton_attack(player, obstacle)
-                
-    def _handle_skeleton_attack(self, player: Player, skeleton: Skeleton | FireWizard) -> None:
+
+    def _handle_skeleton_attack(self, player: Player, skeleton: Skeleton | FireWizard | GreenMonster) -> None:
         """
         Handle skeleton attack collision with frame-precise damage.
         
@@ -1431,6 +1432,10 @@ class GameState(State):
         # Sync UI with player state
         self.player_ui.current_health = player_sprite.health
         self.player_ui.distance = self.max_distance_reached
+        self.player_ui.current_mana = player_sprite.mana
+        self.player_ui.max_mana = player_sprite.max_mana
+        self.player_ui.current_stamina = player_sprite.stamina
+        self.player_ui.max_stamina = player_sprite.max_stamina
         
         # Combat resolution
         self._handle_combat_collisions()

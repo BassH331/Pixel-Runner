@@ -58,14 +58,26 @@
     ],
     "world_events": [
         {
-            "id": 2,
-            "distance": 4084,
+            "id": 1,
+            "distance": 3400,
             "type": "boss",
             "params": {
-                "title": "Elise the Apostate",
+                "title": "The Gatekeeper",
+                "scale": 2.2,
+                "health": 70.0,
+                "tier": "elite",
+                "sprite_dir": "assets/graphics/green_monster"
+            }
+        },
+        {
+            "id": 2,
+            "distance": 5400,
+            "type": "boss",
+            "params": {
+                "title": "The Blight Incarnate",
                 "scale": 2.0,
                 "health": 100.0,
-                "tier": "boss",
+                "tier": "elite",
                 "sprite_dir": "assets/graphics/bloodZombie",
                 "behaviour_map": {
                     "Attack1": "attack",
@@ -77,14 +89,14 @@
             }
         },
         {
-            "id": 1,
+            "id": 3,
             "distance": 7663,
             "type": "boss",
             "params": {
-                "title": "Blight Arbitor",
+                "title": "The Fabricator's Enforcer",
                 "scale": 4.11,
                 "health": 100.0,
-                "tier": "elite",
+                "tier": "boss",
                 "sprite_dir": "assets/wizard",
                 "behaviour_map": {
                     "Attack": "attack",

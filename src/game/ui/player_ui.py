@@ -5,24 +5,34 @@ class PlayerUI:
     def __init__(self):
         self.max_health = 100
         self.current_health = 100
+        self.max_mana = 100.0
+        self.current_mana = 100.0
+        self.max_stamina = 100.0
+        self.current_stamina = 100.0
         self.relics = 0
         self.distance: float = 0.0
         self.start_time = 0
         self.power_ups = []
-        
+
         # Load dragon HP bar sprite frames (0 = full, 7 = empty)
         self.health_frames = []
         for i in range(8):
             frame = AssetManager.get_texture(f"assets/dragonhpbar/health_bar_{i}.png")
             scaled = pg.transform.scale(frame, (frame.get_width() * 3, frame.get_height() * 3))
             self.health_frames.append(scaled)
-        
+
         self.health_bar_pos = (20, 10)
         bar_h = self.health_frames[0].get_height()
-        self.relic_icon_pos = (20, self.health_bar_pos[1] + bar_h + 8)
+
+        # Slim mana/stamina bars stacked directly under the health bar
+        self.mana_bar_pos = (24, self.health_bar_pos[1] + bar_h + 4)
+        self.stamina_bar_pos = (24, self.mana_bar_pos[1] + 16)
+        self._resource_bar_size = (140, 11)
+
+        self.relic_icon_pos = (20, self.stamina_bar_pos[1] + 22)
         self.power_up_icon_pos = (20, self.relic_icon_pos[1] + 35)
         self.time_pos = (pg.display.Info().current_w - 150, 20)
-        
+
         self.relic_icon = self.load_icon("assets/graphics/ui/relic_icon.png", (30, 30))
         self.power_up_icons = {
             "double_jump": self.load_icon("assets/graphics/ui/powerup_doublejump.png", (30, 30)),
@@ -33,8 +43,11 @@ class PlayerUI:
         # Placeholder icons drawn in code (no dedicated art asset exists yet for these).
         self.time_icon = self._make_clock_icon((22, 22))
         self.dist_icon = self._make_flag_icon((22, 22))
+        self.mana_icon = self._make_mana_icon((14, 14))
+        self.stamina_icon = self._make_stamina_icon((14, 14))
 
         self.font = AssetManager.get_font('assets/graphics/Darinia/Darinia.ttf', 30)
+        self.small_font = AssetManager.get_font('assets/graphics/Darinia/Darinia.ttf', 16)
 
     def load_icon(self, path, size):
         try:
@@ -66,7 +79,23 @@ class PlayerUI:
         flag_points = [(pole_x, 2), (w - 2, h * 0.32), (pole_x, h * 0.58)]
         pg.draw.polygon(surface, (255, 255, 255), flag_points)
         return surface
-    
+
+    def _make_mana_icon(self, size):
+        """Small droplet placeholder icon for the Mana bar."""
+        surface = pg.Surface(size, pg.SRCALPHA)
+        w, h = size
+        points = [(w / 2, 0), (w - 1, h * 0.62), (w / 2, h - 1), (1, h * 0.62)]
+        pg.draw.polygon(surface, (90, 160, 255), points)
+        return surface
+
+    def _make_stamina_icon(self, size):
+        """Small lightning-bolt placeholder icon for the Stamina bar."""
+        surface = pg.Surface(size, pg.SRCALPHA)
+        w, h = size
+        points = [(w * 0.55, 0), (0, h * 0.6), (w * 0.4, h * 0.6), (w * 0.35, h), (w, h * 0.35), (w * 0.55, h * 0.35)]
+        pg.draw.polygon(surface, (140, 230, 90), points)
+        return surface
+
     def start_timer(self):
         self.start_time = pg.time.get_ticks()
     
@@ -96,13 +125,40 @@ class PlayerUI:
         self.power_ups = [pu for pu in self.power_ups 
                          if current_time - pu["start_time"] < pu["duration"]]
     
+    def _draw_resource_bar(self, surface, pos, icon, current, maximum, fill_color, bg_color):
+        """Draw a small icon + outlined bar, used for mana and stamina."""
+        icon_rect = icon.get_rect(midleft=(pos[0], pos[1] + self._resource_bar_size[1] // 2))
+        surface.blit(icon, icon_rect)
+
+        bar_x = icon_rect.right + 6
+        bar_w, bar_h = self._resource_bar_size
+        bg_rect = pg.Rect(bar_x, pos[1], bar_w, bar_h)
+        pg.draw.rect(surface, bg_color, bg_rect, border_radius=3)
+
+        ratio = max(0.0, min(1.0, current / maximum)) if maximum > 0 else 0.0
+        if ratio > 0:
+            fill_rect = pg.Rect(bar_x, pos[1], int(bar_w * ratio), bar_h)
+            pg.draw.rect(surface, fill_color, fill_rect, border_radius=3)
+        pg.draw.rect(surface, (0, 0, 0, 120), bg_rect, width=1, border_radius=3)
+
     def draw(self, surface):
         # Select the correct dragon HP bar frame based on health ratio
         health_ratio = max(0.0, min(1.0, self.current_health / self.max_health))
         frame_index = round((1.0 - health_ratio) * 7)  # 0 = full, 7 = empty
         frame_index = max(0, min(7, frame_index))
         surface.blit(self.health_frames[frame_index], self.health_bar_pos)
-        
+
+        self._draw_resource_bar(
+            surface, self.mana_bar_pos, self.mana_icon,
+            self.current_mana, self.max_mana,
+            fill_color=(70, 130, 220), bg_color=(20, 25, 45),
+        )
+        self._draw_resource_bar(
+            surface, self.stamina_bar_pos, self.stamina_icon,
+            self.current_stamina, self.max_stamina,
+            fill_color=(110, 200, 70), bg_color=(20, 35, 20),
+        )
+
         surface.blit(self.relic_icon, self.relic_icon_pos)
         relic_text = self.font.render(f"x {self.relics}", True, (255, 255, 255))
         surface.blit(relic_text, (self.relic_icon_pos[0] + 35, self.relic_icon_pos[1]))

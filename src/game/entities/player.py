@@ -661,8 +661,32 @@ class Player(Actor):
     _MOVE_SPEED: Final[float] = 3.4
     _AIR_MOVE_SPEED: Final[float] = 5.0  # Reduced speed while in the air
     _SCREEN_BOUND_LEFT: Final[int] = 0
-    _SCREEN_BOUND_RIGHT: Final[int] = 1600
-    
+    # Cap how far right the player can wander as a fraction of screen width so
+    # they sit further from the trailing edge while the world scrolls past.
+    _RUN_RIGHT_BOUND_RATIO: Final[float] = 0.65
+
+    # Mana: gates the demon transformation. Drains continuously while
+    # enhanced (the demon form is a spent resource, not a toggle) and only
+    # regenerates while human, so time spent as the demon is finite.
+    _MAX_MANA: Final[float] = 100.0
+    _TRANSFORM_MANA_COST: Final[float] = 40.0
+    _ENHANCED_MANA_DRAIN_RATE: Final[float] = 4.0  # per second while enhanced
+    _MANA_REGEN_RATE: Final[float] = 8.0  # per second while human
+
+    # Stamina: gates roll/dash/special-attack so the player can't spam them.
+    # Regen pauses briefly after each use before resuming.
+    _MAX_STAMINA: Final[float] = 100.0
+    _STAMINA_REGEN_RATE: Final[float] = 25.0  # per second
+    _STAMINA_REGEN_DELAY: Final[float] = 0.5  # seconds of no regen after a spend
+    _ROLL_STAMINA_COST: Final[float] = 15.0
+    _DASH_STAMINA_COST: Final[float] = 15.0
+    _SPECIAL_ATTACK_STAMINA_COST: Final[float] = 30.0
+    # Basic attacks tax stamina too but are never blocked by it -- only the
+    # dodge/dash/special "special moves" hard-gate on an empty bar.
+    _THRUST_STAMINA_COST: Final[float] = 5.0
+    _SMASH_STAMINA_COST: Final[float] = 8.0
+    _POWER_STAMINA_COST: Final[float] = 12.0
+
     _ATTACK_AUDIO_FRAME_SOUNDS: Final[dict[Enum, dict[int, str]]] = {
         PlayerState.ATTACK_SMASH: {
             3: "smash_phase_1",
@@ -852,7 +876,14 @@ class Player(Actor):
         # Combat state
         self._max_health: int = 100
         self._health: int = self._max_health
-        
+
+        # Mana (demon transform) and stamina (roll/dash/special) resources
+        self._max_mana: float = self._MAX_MANA
+        self._mana: float = self._max_mana
+        self._max_stamina: float = self._MAX_STAMINA
+        self._stamina: float = self._max_stamina
+        self._stamina_regen_delay_timer: float = 0.0
+
         # Entity ID for combat system (used by hit registration)
         self._entity_id: int = id(self)
 
@@ -999,6 +1030,16 @@ class Player(Actor):
     def health(self) -> int: return self._health
     @property
     def max_health(self) -> int: return self._max_health
+    @property
+    def mana(self) -> float: return self._mana
+    @property
+    def max_mana(self) -> float: return self._max_mana
+    @property
+    def stamina(self) -> float: return self._stamina
+    @property
+    def max_stamina(self) -> float: return self._max_stamina
+    @property
+    def is_enhanced(self) -> bool: return self._is_enhanced
     @property
     def entity_id(self) -> int: return id(self)
     @property
@@ -1284,15 +1325,16 @@ class Player(Actor):
             return False
             
         self._transition_to(PlayerState.ATTACK_THRUST)
-        
+
         # Initialize attack state with thrust configuration
         cfg = self.enhanced_thrust_attack_config if self._is_enhanced else self.thrust_attack_config
         self.attack_state.begin(cfg)
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
+        self._spend_stamina(self._THRUST_STAMINA_COST)
         self._audio_manager.play_sound("thrust")
         return True
-    
+
     def attack_smash(self) -> bool:
         """
         Initiate smash attack.
@@ -1319,6 +1361,7 @@ class Player(Actor):
         self.attack_state.begin(cfg)
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
+        self._spend_stamina(self._SMASH_STAMINA_COST)
         self._audio_manager.play_sound("smash")
         return True
 
@@ -1348,6 +1391,7 @@ class Player(Actor):
         self.attack_state.begin(cfg)
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
+        self._spend_stamina(self._POWER_STAMINA_COST)
         self._audio_manager.play_sound("thrust")
         return True
 
@@ -1355,7 +1399,7 @@ class Player(Actor):
         """
         Initiate defend action.
 
-        Button: ``R`` (keyboard) / Gamepad R2 trigger (axis 5 > 0.5)
+        Button: ``R`` (keyboard) / Gamepad R2 trigger (button 7)
 
         Returns:
             True if defend started, False if not allowed in current state.
@@ -1367,6 +1411,11 @@ class Player(Actor):
         self._audio_manager.play_sound("defend")
         return True
 
+    def _spend_stamina(self, cost: float) -> None:
+        """Deduct stamina and pause its regen briefly (see update())."""
+        self._stamina = max(0.0, self._stamina - cost)
+        self._stamina_regen_delay_timer = self._STAMINA_REGEN_DELAY
+
     def roll(self) -> bool:
         """
         Initiate dodge roll.
@@ -1376,11 +1425,14 @@ class Player(Actor):
         Returns:
             True if roll started, False if blocked.
         """
+        if self._stamina < self._ROLL_STAMINA_COST:
+            return False
         if not self._can_transition_to(PlayerState.ROLL):
             return False
         on_ground = self.rect.bottom >= self._ground_y - 1
         if not on_ground:
             return False
+        self._spend_stamina(self._ROLL_STAMINA_COST)
         self._transition_to(PlayerState.ROLL)
         self._audio_manager.play_sound("roll")
         return True
@@ -1394,8 +1446,11 @@ class Player(Actor):
         Returns:
             True if dash started, False if blocked.
         """
+        if self._stamina < self._DASH_STAMINA_COST:
+            return False
         if not self._can_transition_to(PlayerState.DASH):
             return False
+        self._spend_stamina(self._DASH_STAMINA_COST)
         self._transition_to(PlayerState.DASH)
         self._audio_manager.play_sound("dash")
         return True
@@ -1409,11 +1464,14 @@ class Player(Actor):
         Returns:
             True if attack started, False if blocked.
         """
+        if self._stamina < self._SPECIAL_ATTACK_STAMINA_COST:
+            return False
         if not self._can_transition_to(PlayerState.SPECIAL_ATTACK):
             return False
-            
+
         cfg = self.enhanced_special_attack_config if self._is_enhanced else self.special_attack_config
         self._current_attack_config = cfg
+        self._spend_stamina(self._SPECIAL_ATTACK_STAMINA_COST)
         self._transition_to(PlayerState.SPECIAL_ATTACK)
         self.attack_state.begin(cfg)
         self._attack_audio_frames_played.clear()
@@ -1429,8 +1487,12 @@ class Player(Actor):
         Returns:
             True if transformation started, False if blocked.
         """
+        if not self._is_enhanced and self._mana < self._TRANSFORM_MANA_COST:
+            return False
         if not self._can_transition_to(PlayerState.TRANSFORM):
             return False
+        if not self._is_enhanced:
+            self._mana = max(0.0, self._mana - self._TRANSFORM_MANA_COST)
         self._transition_to(PlayerState.TRANSFORM)
         self._audio_manager.play_sound("transform")
         return True
@@ -1565,6 +1627,19 @@ class Player(Actor):
             pass
         return 0.0
 
+    def _safe_get_button(self, joystick: Optional[pg.joystick.JoystickType], button_idx: int) -> bool:
+        """Query joystick button index safely. A controller with fewer
+        buttons than button_idx would otherwise raise pygame.error and
+        silently drop every subsequent check in the same input poll."""
+        if joystick is None:
+            return False
+        try:
+            if button_idx < joystick.get_numbuttons():
+                return joystick.get_button(button_idx)
+        except Exception:
+            pass
+        return False
+
     def _process_movement_input(
         self,
         keys: pg.key.ScancodeWrapper,
@@ -1596,32 +1671,39 @@ class Player(Actor):
             Q     / Gamepad btn 2             →  attack_thrust()
             E     / Gamepad btn 1             →  attack_smash()
             W     / Gamepad btn 3             →  attack_power()
-            R     / Gamepad R2 (axis 5)       →  defend()
+            R     / Gamepad R2 (button 7)     →  defend()
+            LSHIFT/ Gamepad btn 4 (L1)        →  roll()
+            LCTRL / Gamepad btn 5 (R1)        →  dash()
+            F     / Gamepad L2 (button 6)     →  special_attack()
+            T     / Gamepad btn 8             →  transform()
         """
         # ── Jump  (SPACE | gamepad btn 0 | left-stick up) ─────────────────────
         stick_y = self._safe_get_axis(joystick, 1)
         jump_pressed = (
             keys[pg.K_SPACE] or
-            (joystick and joystick.get_button(0)) or
+            self._safe_get_button(joystick, 0) or
             stick_y < -0.9
         )
         if jump_pressed:
             self.jump()
 
         # ── Thrust attack  (Q | gamepad btn 2) ────────────────────────────────
-        if keys[pg.K_q] or (joystick and joystick.get_button(2)):
+        if keys[pg.K_q] or self._safe_get_button(joystick, 2):
             self.attack_thrust()
 
         # ── Smash attack   (E | gamepad btn 1) ────────────────────────────────
-        if keys[pg.K_e] or (joystick and joystick.get_button(1)):
+        if keys[pg.K_e] or self._safe_get_button(joystick, 1):
             self.attack_smash()
 
         # ── Power attack   (W | gamepad btn 3) ────────────────────────────────
-        if keys[pg.K_w] or (joystick and joystick.get_button(3)):
+        if keys[pg.K_w] or self._safe_get_button(joystick, 3):
             self.attack_power()
 
-        # ── Defend         (R | gamepad R2 trigger, axis 5 > 0.5) ─────────────
-        r2_trigger = self._safe_get_axis(joystick, 5) > 0.5
+        # ── Defend         (R | gamepad R2 trigger, button 7) ─────────────────
+        # Digital button index, not the analog axis: trigger axes idle at
+        # -1.0 on some controllers/drivers (e.g. PS4/PS5 on Linux) and at 0.0
+        # on others, so a fixed axis threshold isn't reliable cross-platform.
+        r2_trigger = self._safe_get_button(joystick, 7)
         defend_pressed = keys[pg.K_r] or r2_trigger
         if defend_pressed:
             if self.state != PlayerState.DEFEND:   # don't re-trigger mid-defend
@@ -1629,20 +1711,20 @@ class Player(Actor):
         # Note: button-release logic is handled inside _update_defend_logic()
 
         # ── Roll           (LSHIFT | gamepad btn 4 / L1) ──────────────────────
-        if keys[pg.K_LSHIFT] or (joystick and joystick.get_button(4)):
+        if keys[pg.K_LSHIFT] or self._safe_get_button(joystick, 4):
             self.roll()
 
         # ── Dash           (LCTRL | gamepad btn 5 / R1) ───────────────────────
-        if keys[pg.K_LCTRL] or (joystick and joystick.get_button(5)):
+        if keys[pg.K_LCTRL] or self._safe_get_button(joystick, 5):
             self.dash()
 
-        # ── Special Attack (F | gamepad L2 trigger, axis 4 > 0.5) ─────────────
-        l2_trigger = self._safe_get_axis(joystick, 4) > 0.5
+        # ── Special Attack (F | gamepad L2 trigger, button 6) ─────────────────
+        l2_trigger = self._safe_get_button(joystick, 6)
         if keys[pg.K_f] or l2_trigger:
             self.special_attack()
 
         # ── Transform      (T | gamepad btn 8) ────────────────────────────────
-        if keys[pg.K_t] or (joystick and joystick.get_button(8)):
+        if keys[pg.K_t] or self._safe_get_button(joystick, 8):
             self.transform()
     
     # ─────────────────────────────────────────────────────────────────────────
@@ -1693,7 +1775,7 @@ class Player(Actor):
         screen_surf = pg.display.get_surface()
         screen_w = screen_surf.get_width() if screen_surf else 1280
         self.rect.left = max(self.rect.left, self._SCREEN_BOUND_LEFT)
-        self.rect.right = min(self.rect.right, screen_w)
+        self.rect.right = min(self.rect.right, int(screen_w * self._RUN_RIGHT_BOUND_RATIO))
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Transition Helpers
@@ -1785,7 +1867,7 @@ class Player(Actor):
         # Check if defend button is still held
         keys = pg.key.get_pressed()
         joystick = self._get_joystick()
-        r2_trigger = self._safe_get_axis(joystick, 5) > 0.5
+        r2_trigger = self._safe_get_button(joystick, 7)
         defend_held = keys[pg.K_r] or r2_trigger
 
         current_frame = int(self.animation_index)
@@ -1815,11 +1897,30 @@ class Player(Actor):
     # Main Update Loop
     # ─────────────────────────────────────────────────────────────────────────
     
+    def _update_resources(self, dt: float) -> None:
+        """Drain/regen mana and stamina. The demon form is a spent resource:
+        mana only regenerates while human, and depleting it mid-transform
+        forces an automatic revert."""
+        if self._is_enhanced:
+            self._mana = max(0.0, self._mana - self._ENHANCED_MANA_DRAIN_RATE * dt)
+            if self._mana <= 0.0 and self.state != PlayerState.TRANSFORM:
+                self.set_state(PlayerState.TRANSFORM, force=True)
+                self._audio_manager.play_sound("transform")
+        else:
+            self._mana = min(self._max_mana, self._mana + self._MANA_REGEN_RATE * dt)
+
+        if self._stamina_regen_delay_timer > 0.0:
+            self._stamina_regen_delay_timer = max(0.0, self._stamina_regen_delay_timer - dt)
+        else:
+            self._stamina = min(self._max_stamina, self._stamina + self._STAMINA_REGEN_RATE * dt)
+
     def update(self, dt: Optional[float] = None) -> None:
         if dt is None: dt = 1.0 / 60.0
-        
+
         if self._invincibility_timer > 0:
             self._invincibility_timer -= dt
+
+        self._update_resources(dt)
 
         self.player_input()
         self._apply_gravity()

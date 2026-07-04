@@ -9,6 +9,7 @@ import pygame as pg
 from v3x_zulfiqar_gideon import Actor
 from src.game.entities.skeleton import Skeleton
 from src.game.entities.fire_wizard import FireWizard
+from src.game.entities.green_monster import GreenMonster
 
 
 class BossManager:
@@ -22,6 +23,7 @@ class BossManager:
     # Add new boss classes to this dictionary to integrate them seamlessly.
     _BOSS_REGISTRY: Dict[str, Type[Actor]] = {
         "wizard": FireWizard,
+        "green_monster": GreenMonster,
         "skeleton": Skeleton,
     }
     
@@ -95,7 +97,13 @@ class BossManager:
         setattr(boss, "tier", tier)
         setattr(boss, "event_id", params.get("_event_id"))
         setattr(boss, "event_distance", params.get("_event_distance"))
-        setattr(boss, "boss_key", "boss_wizard" if boss_class is FireWizard else "boss_skeleton")
+        if boss_class is FireWizard:
+            boss_key = "boss_wizard"
+        elif boss_class is GreenMonster:
+            boss_key = "boss_gatekeeper"
+        else:
+            boss_key = "boss_skeleton"
+        setattr(boss, "boss_key", boss_key)
         
         return boss
 

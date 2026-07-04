@@ -1,67 +1,10 @@
 {
-    "status": "PASSED",
-    "timestamp": 12739,
-    "duration_ms": 10016.66666666666,
-    "start_distance": 4000.0,
-    "final_distance": 4086.0,
+    "status": "FAILED",
+    "timestamp": 13887,
+    "duration_ms": 5000.000000000002,
+    "start_distance": 3300.0,
+    "final_distance": 3400.0,
     "scroll_speed": 5,
-    "npcs": [
-        {
-            "id": 2,
-            "type": "boss",
-            "title": "Elise the Apostate",
-            "registry_key": "boss:bloodzombie",
-            "json_distance": 4084.0,
-            "json_scale": 2.0,
-            "json_radius": 160.0,
-            "registry_scale": 2.0,
-            "registry_ground_offset": 35,
-            "spawned": true,
-            "status": "PASSED",
-            "issues": [],
-            "actual_spawn_distance": 4086.0,
-            "actual_scale": 2.0,
-            "actual_radius": 160.0,
-            "actual_width": 384,
-            "actual_height": 288,
-            "initial_screen_x": 2010,
-            "initial_screen_y": 781,
-            "first_physical_collision": null,
-            "first_proximity_collision": null,
-            "total_frames_tracked": 549,
-            "total_x_scrolled": 0,
-            "avg_scroll_per_frame": 0.0,
-            "position_samples": [
-                {
-                    "frame": 0,
-                    "x": 2010,
-                    "y": 781
-                },
-                {
-                    "frame": 274,
-                    "x": 2010,
-                    "y": 846
-                },
-                {
-                    "frame": 548,
-                    "x": 2010,
-                    "y": 846
-                }
-            ]
-        },
-        {
-            "id": 1,
-            "type": "boss",
-            "title": "Blight Arbitor",
-            "registry_key": "boss:wizard",
-            "json_distance": 7663.0,
-            "json_scale": 4.11,
-            "json_radius": 160.0,
-            "registry_scale": 4.11,
-            "registry_ground_offset": 35,
-            "spawned": false,
-            "status": "SKIPPED (not reached)",
-            "issues": []
-        }
-    ]
+    "type": "wave",
+    "enemies": []
 }
