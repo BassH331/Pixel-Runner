@@ -95,6 +95,7 @@ class BossManager:
         setattr(boss, "tier", tier)
         setattr(boss, "event_id", params.get("_event_id"))
         setattr(boss, "event_distance", params.get("_event_distance"))
+        setattr(boss, "boss_key", "boss_wizard" if boss_class is FireWizard else "boss_skeleton")
         
         return boss
 
@@ -125,7 +126,6 @@ class BossManager:
         surface: pg.Surface,
         obstacle_group: pg.sprite.Group,
         screen_width: int,
-        screen_height: int
     ) -> None:
         """
         Render a premium boss health bar overlay if a boss is active.
@@ -143,7 +143,7 @@ class BossManager:
         bar_w = 600
         bar_h = 24
         bar_x = (screen_width - bar_w) // 2
-        bar_y = screen_height - 80
+        bar_y = 10  # Aligned with the player health bar (see PlayerUI.health_bar_pos)
         
         # Draw shadows/glow
         glow_rect = pg.Rect(bar_x - 3, bar_y - 3, bar_w + 6, bar_h + 6)

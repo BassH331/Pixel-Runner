@@ -50,3 +50,28 @@ def invalidate_cached_config(config_type: str) -> None:
         redis_client.delete(key)
     except Exception as e:
         print(f"Cache invalidate error for {config_type}: {e}")
+
+def get_cached_difficulty(boss_key: str) -> Optional[Dict[str, Any]]:
+    """Retrieve a difficulty recommendation from Redis cache."""
+    if not redis_client:
+        return None
+    try:
+        key = f"pixel_runner:difficulty:{boss_key}"
+        val = redis_client.get(key)
+        if val:
+            if isinstance(val, bytes):
+                val = val.decode("utf-8")
+            return json.loads(val)
+    except Exception as e:
+        print(f"Cache read error for difficulty {boss_key}: {e}")
+    return None
+
+def set_cached_difficulty(boss_key: str, data: Dict[str, Any], ttl: int = 120) -> None:
+    """Save a difficulty recommendation to Redis cache with a TTL (default 2 minutes)."""
+    if not redis_client:
+        return
+    try:
+        key = f"pixel_runner:difficulty:{boss_key}"
+        redis_client.set(key, json.dumps(data), ex=ttl)
+    except Exception as e:
+        print(f"Cache write error for difficulty {boss_key}: {e}")

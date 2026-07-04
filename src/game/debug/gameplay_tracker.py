@@ -91,6 +91,11 @@ class GameplayTracker:
         """Return the current active instance of the tracker."""
         return cls._instance
 
+    def set_boss_key(self, boss_key: Optional[str]) -> None:
+        """Record which boss type is associated with the current session, so
+        it's included in telemetry for cloud-aggregated difficulty analysis."""
+        self.current_boss_key = boss_key
+
     def __init__(self, config: Optional[dict[str, Any]] = None) -> None:
         """Initialize the gameplay tracker.
         
@@ -148,6 +153,7 @@ class GameplayTracker:
         self.player_standing_frames = 0
         self.player_side_swaps = 0
         self.active_combat_frames = 0
+        self.current_boss_key: Optional[str] = None
         self._last_player_facing_left = None
         self._last_player_state = None
         
@@ -712,6 +718,7 @@ class GameplayTracker:
             
             session_payload = {
                 "session_id": self.session_id,
+                "boss_key": self.current_boss_key,
                 "started_at": self.session_start_time.isoformat(),
                 "ended_at": datetime.now().isoformat(),
                 "duration_seconds": float((datetime.now() - self.session_start_time).total_seconds()),
@@ -733,6 +740,7 @@ class GameplayTracker:
                 "player_defend_frames": int(self.player_defend_frames),
                 "player_standing_frames": int(self.player_standing_frames),
                 "player_jumps": int(self.player_jumps),
+                "player_side_swaps": int(self.player_side_swaps),
                 "total_active_combat_frames": int(self.active_combat_frames)
             }
             TelemetryClient.submit_session(session_payload)

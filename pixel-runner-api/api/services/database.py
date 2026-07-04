@@ -153,3 +153,15 @@ def insert_frame_samples(frame_samples: List[Dict[str, Any]]) -> List[Dict[str, 
     except Exception as e:
         print(f"Error inserting frame samples: {e}")
         raise e
+
+def get_recent_sessions(boss_key: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+    """Retrieve the most recent sessions from pixel_runner.sessions, optionally filtered by boss_key."""
+    try:
+        query = supabase.schema("pixel_runner").table("sessions").select("*")
+        if boss_key:
+            query = query.eq("boss_key", boss_key)
+        response = query.order("ended_at", desc=True).limit(limit).execute()
+        return response.data or []
+    except Exception as e:
+        print(f"Error fetching recent sessions for boss_key {boss_key}: {e}")
+        return []

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 # Local services
 from .services import database as db
 from .services import cache
+from .services import difficulty
 
 app = FastAPI(
     title="Pixel-Runner Cloud API",
@@ -26,6 +27,7 @@ class ConfigPayload(BaseModel):
 
 class SessionPayload(BaseModel):
     session_id: str
+    boss_key: Optional[str] = None
     started_at: Optional[str] = None
     ended_at: Optional[str] = None
     duration_seconds: Optional[float] = None
@@ -142,6 +144,37 @@ def get_config_versions(config_type: str):
     """List all versions of a configuration type."""
     versions = db.get_config_versions(config_type)
     return versions
+
+@app.get("/api/difficulty/{boss_key}")
+def get_difficulty_recommendation(boss_key: str, limit: int = 20):
+    """Return an aggregated difficulty recommendation for a boss type, computed
+    from recent telemetry sessions across all players. Always returns 200 --
+    falls back to BASELINE_CONFIG with confidence "none" if there's no data yet,
+    so the client can always safely apply the response."""
+    cached = cache.get_cached_difficulty(boss_key)
+    if cached:
+        return cached
+
+    rows = db.get_recent_sessions(boss_key=boss_key, limit=limit)
+    session_dicts = [difficulty.row_to_evaluation_dict(r) for r in rows]
+    manager = difficulty.DifficultyManager()
+    evaluation = manager.evaluate_sessions(session_dicts)
+
+    recommended = evaluation.get("recommended_difficulty", "None")
+    if recommended == "None":
+        config = difficulty.DifficultyManager.BASELINE_CONFIG
+    else:
+        config = manager.get_preset_config(recommended)
+
+    result = {
+        "boss_key": boss_key,
+        "recommended_difficulty": recommended,
+        "confidence": evaluation.get("confidence", "none"),
+        "valid_session_count": evaluation.get("valid_session_count", 0),
+        "config": config,
+    }
+    cache.set_cached_difficulty(boss_key, result)
+    return result
 
 @app.post("/api/configs/{config_type}", status_code=status.HTTP_201_CREATED)
 def create_config(

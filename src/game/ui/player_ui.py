@@ -29,9 +29,13 @@ class PlayerUI:
             "speed_boost": self.load_icon("assets/graphics/ui/powerup_speed.png", (30, 30)),
             "invincibility": self.load_icon("assets/graphics/ui/powerup_invincible.png", (30, 30))
         }
-        
+
+        # Placeholder icons drawn in code (no dedicated art asset exists yet for these).
+        self.time_icon = self._make_clock_icon((22, 22))
+        self.dist_icon = self._make_flag_icon((22, 22))
+
         self.font = AssetManager.get_font('assets/graphics/Darinia/Darinia.ttf', 30)
-    
+
     def load_icon(self, path, size):
         try:
             icon = AssetManager.get_texture(path)
@@ -40,6 +44,28 @@ class PlayerUI:
             surface = pg.Surface(size, pg.SRCALPHA)
             pg.draw.rect(surface, (255, 0, 0), (0, 0, *size))
             return surface
+
+    def _make_clock_icon(self, size):
+        """Simple clock-face placeholder icon (circle + hands) for the Time display."""
+        surface = pg.Surface(size, pg.SRCALPHA)
+        w, h = size
+        center = (w // 2, h // 2)
+        radius = min(w, h) // 2 - 1
+        pg.draw.circle(surface, (255, 255, 255), center, radius, width=2)
+        # Hour hand (pointing up-right) and minute hand (pointing up)
+        pg.draw.line(surface, (255, 255, 255), center, (center[0], center[1] - radius + 2), 2)
+        pg.draw.line(surface, (255, 255, 255), center, (center[0] + radius // 2, center[1]), 2)
+        return surface
+
+    def _make_flag_icon(self, size):
+        """Simple checkpoint-flag placeholder icon for the Distance display."""
+        surface = pg.Surface(size, pg.SRCALPHA)
+        w, h = size
+        pole_x = 3
+        pg.draw.line(surface, (255, 255, 255), (pole_x, 1), (pole_x, h - 1), 2)
+        flag_points = [(pole_x, 2), (w - 2, h * 0.32), (pole_x, h * 0.58)]
+        pg.draw.polygon(surface, (255, 255, 255), flag_points)
+        return surface
     
     def start_timer(self):
         self.start_time = pg.time.get_ticks()
@@ -96,9 +122,13 @@ class PlayerUI:
         elapsed_seconds = self.get_elapsed_time()
         time_text = self.font.render(f"Time: {self.format_time(elapsed_seconds)}", True, (255, 255, 255))
         time_rect = time_text.get_rect(topright=self.time_pos)
+        time_icon_rect = self.time_icon.get_rect(midright=(time_rect.left - 8, time_rect.centery))
+        surface.blit(self.time_icon, time_icon_rect)
         surface.blit(time_text, time_rect)
 
         # Distance display (right below time)
         dist_text = self.font.render(f"Dist: {int(self.distance)}", True, (255, 255, 255))
         dist_rect = dist_text.get_rect(topright=(self.time_pos[0], time_rect.bottom + 4))
+        dist_icon_rect = self.dist_icon.get_rect(midright=(dist_rect.left - 8, dist_rect.centery))
+        surface.blit(self.dist_icon, dist_icon_rect)
         surface.blit(dist_text, dist_rect)

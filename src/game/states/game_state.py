@@ -89,6 +89,11 @@ class GameState(State):
         # Gameplay Telemetry Tracker
         from src.game.debug.gameplay_tracker import GameplayTracker
         self.tracker = GameplayTracker()
+
+        # Cloud-aggregated boss difficulty recommendation (fetched async at boss spawn)
+        self._pending_difficulty_fetch: Optional[Any] = None
+        self._pending_difficulty_boss: Optional[Any] = None
+
         self._prev_player_state: Optional[Any] = None
         self._prev_boss_state: Optional[Any] = None
         self._prev_entities_ids: set[tuple[int, str, Optional[int]]] = set()
@@ -480,13 +485,26 @@ class GameState(State):
         boss = BossManager.spawn_boss(params, player_sprite, self.width, self.height)
         self.obstacle_group.add(boss)
         self.audio_manager.play_sound("skeleton_spawn")
-        
+
         # Draw target text banner when boss spawns
         title = params.get("title", "Boss")
         self.notification_banner.show(
             f"WARNING: {title.upper()} APPROACHING!",
             notification="yellow"
         )
+
+        # Kick off a non-blocking fetch for a cloud-aggregated difficulty
+        # recommendation. The boss spawns off-screen with several seconds of
+        # lead time before the fight starts, giving this time to complete; if
+        # it doesn't, the boss just keeps the config it already loaded at
+        # construction (see update() for where the result gets applied).
+        boss_key = getattr(boss, "boss_key", None)
+        if boss_key and hasattr(boss, "apply_config"):
+            from src.game.services import DifficultyClient
+            self._pending_difficulty_fetch = DifficultyClient.fetch_recommendation_async(boss_key)
+            self._pending_difficulty_boss = boss
+        if self.tracker.enabled and boss_key:
+            self.tracker.set_boss_key(boss_key)
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Lifecycle
@@ -540,10 +558,13 @@ class GameState(State):
                 self.objective_display.dismiss()
             return
 
-        # Check for interaction input (ENTER / gamepad X)
+        # Check for interaction input (ENTER / gamepad btn 6).
+        # Note: btn 2 is already bound to thrust-attack in Player._process_action_input,
+        # so interact must use a different button or pressing it near an NPC would
+        # simultaneously open dialogue and swing the sword.
         interact_pressed = (
             (event.type == pg.KEYDOWN and event.key == pg.K_RETURN) or
-            (event.type == pg.JOYBUTTONDOWN and event.button == 2)
+            (event.type == pg.JOYBUTTONDOWN and event.button == 6)
         )
         if interact_pressed:
             for point in self.interaction_group:
@@ -1334,6 +1355,20 @@ class GameState(State):
         # Update notification banner (runs independently of gameplay freeze)
         self.notification_banner.update(dt)
 
+        # Apply a cloud-aggregated difficulty recommendation once it's ready
+        # (kicked off in _handle_boss_spawn). Fails silently -- if it's not
+        # ready or the fetch failed, the boss just keeps its current config.
+        if self._pending_difficulty_fetch is not None:
+            if self._pending_difficulty_fetch.is_done():
+                result = self._pending_difficulty_fetch.result()
+                boss = self._pending_difficulty_boss
+                if result is not None and boss is not None and hasattr(boss, "apply_config"):
+                    boss.apply_config(result)
+                    if hasattr(boss, "_max_mana"):
+                        boss._mana = boss._max_mana
+                self._pending_difficulty_fetch = None
+                self._pending_difficulty_boss = None
+
         current_time = pg.time.get_ticks()
         
         # Enemy spawning
@@ -1740,7 +1775,7 @@ class GameState(State):
 
     def _draw_boss_health_bar(self, surface: pg.Surface) -> None:
         """Render a premium boss health bar overlay if a boss is active."""
-        BossManager.draw_boss_health_bar(surface, self.obstacle_group, self.width, self.height)
+        BossManager.draw_boss_health_bar(surface, self.obstacle_group, self.width)
     
     def _draw_debug_info(self, surface: pg.Surface) -> None:
         """

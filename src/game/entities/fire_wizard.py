@@ -193,21 +193,10 @@ class FireWizard(Actor):
         try:
             config = ConfigClient.fetch_config("boss_wizard")
             if config:
-                self._max_mana = float(config.get("max_mana", 100.0))
-                self._spell_mana_cost = float(config.get("spell_mana_cost", 35.0))
-                self._stagnant_duration = float(config.get("stagnant_duration", 3.0))
-                self._teleport_dist_min = int(config.get("teleport_dist_min", 380))
-                self._teleport_dist_max = int(config.get("teleport_dist_max", 450))
-                self._mana_recharge_rate = float(config.get("mana_recharge_rate", 50.0))
-                self._chase_delay_duration = float(config.get("chase_delay_duration", 0.8))
-                self._attack_cooldown_min = float(config.get("attack_cooldown_min", 1.2))
-                self._attack_cooldown_max = float(config.get("attack_cooldown_max", 2.0))
-                self._spidey_sense = float(config.get("spidey_sense", 0.0))
-                self._attack_hitbox_width = int(config.get("attack_hitbox_width", 55))
-                self._attack_hitbox_height = int(config.get("attack_hitbox_height", 45))
+                self.apply_config(config)
         except Exception as e:
             print(f"[WARNING] Error loading wizard config: {e}")
-                
+
         self._mana: float = self._max_mana
         self._is_recharging: bool = False
         self._is_stagnant: bool = False
@@ -298,7 +287,31 @@ class FireWizard(Actor):
         # Precalculate scaled hitbox dimensions for high-performance updates
         self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
         self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
-        
+
+    def apply_config(self, config: dict) -> None:
+        """Apply a (possibly partial) tunable config dict to this wizard.
+
+        Safe to call multiple times and with partial dicts -- unspecified keys
+        keep their current value. Does not touch self._mana; callers that apply
+        a new max_mana after construction (e.g. a runtime difficulty recommendation)
+        should resync self._mana themselves at the point where that's safe to do.
+        """
+        try:
+            self._max_mana = float(config.get("max_mana", self._max_mana))
+            self._spell_mana_cost = float(config.get("spell_mana_cost", self._spell_mana_cost))
+            self._stagnant_duration = float(config.get("stagnant_duration", self._stagnant_duration))
+            self._teleport_dist_min = int(config.get("teleport_dist_min", self._teleport_dist_min))
+            self._teleport_dist_max = int(config.get("teleport_dist_max", self._teleport_dist_max))
+            self._mana_recharge_rate = float(config.get("mana_recharge_rate", self._mana_recharge_rate))
+            self._chase_delay_duration = float(config.get("chase_delay_duration", self._chase_delay_duration))
+            self._attack_cooldown_min = float(config.get("attack_cooldown_min", self._attack_cooldown_min))
+            self._attack_cooldown_max = float(config.get("attack_cooldown_max", self._attack_cooldown_max))
+            self._spidey_sense = float(config.get("spidey_sense", self._spidey_sense))
+            self._attack_hitbox_width = int(config.get("attack_hitbox_width", self._attack_hitbox_width))
+            self._attack_hitbox_height = int(config.get("attack_hitbox_height", self._attack_hitbox_height))
+        except Exception as e:
+            print(f"[WARNING] Error applying wizard config: {e}")
+
     def _load_frames(
         self,
         path_pattern: str,
