@@ -173,3 +173,37 @@ class TestPlayerMoves(unittest.TestCase):
 
         self.assertTrue(self.player.attack_thrust(),
                         "Thrust should succeed on ground")
+
+    def test_hurt_exit_grants_invincibility(self):
+        """Leaving HURT should apply the pending i-frame duration to the timer."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player._invincibility_duration = 0.3
+        self.player._invincibility_timer = 0.0
+
+        self.player.set_state(PlayerState.HURT, force=True)
+        self.assertEqual(self.player.state, PlayerState.HURT)
+        self.assertEqual(self.player._invincibility_timer, 0.0)
+        self.assertEqual(self.player._invincibility_duration, 0.3)
+
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.assertEqual(self.player.state, PlayerState.IDLE)
+        self.assertEqual(self.player._invincibility_timer, 0.3)
+        self.assertEqual(self.player._invincibility_duration, 0.0)
+
+    def test_transform_clears_flip_cache_on_toggle(self):
+        """Completing a transform should clear the flipped-frame cache so that
+        same-length standard/enhanced animations don't leak into each other."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+
+        # Prime the flip cache with a stale entry
+        self.player._animations_flipped[PlayerState.RUN] = ["dummy"]
+        self.assertEqual(len(self.player._animations_flipped), 1)
+
+        # Simulate a transform completion: old=TRANSFORM, new=IDLE
+        self.player._is_enhanced = True
+        self.player.set_state(PlayerState.TRANSFORM, force=True)
+        self.assertTrue(self.player._is_enhanced)
+
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.assertEqual(len(self.player._animations_flipped), 0)
+        self.assertFalse(self.player._is_enhanced)

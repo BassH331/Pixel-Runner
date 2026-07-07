@@ -261,17 +261,29 @@ class FolderBrowser:
 
 
 class ModalDialog:
-    def __init__(self, title: str, body: str, confirm_cb, cancel_cb=None):
+    def __init__(self, title: str, body: str, confirm_cb, cancel_cb=None,
+                 choices: list[str] | None = None, choice_cb=None):
         self.title, self.body = title, body
         self.confirm_cb, self.cancel_cb = confirm_cb, cancel_cb
+        self.choices = choices or []
+        self.choice_cb = choice_cb
+        self.selected = -1
+        self.choice_rects: list[pg.Rect] = []
+
+    def _get_layout(self):
+        N = len(self.choices)
+        btn_y_offset = 145 if N == 0 else 125 + N * 38 + 15
+        dw, dh = 540, btn_y_offset + 67
+        dx, dy = (W - dw) // 2, (H - dh) // 2
+        btn_y = dy + btn_y_offset
+        return dw, dh, dx, dy, btn_y
 
     def draw(self, surf: pg.Surface, tf: pg.font.Font, f: pg.font.Font):
         overlay = pg.Surface((W, H), pg.SRCALPHA)
         overlay.fill((8, 8, 15, 210))
         surf.blit(overlay, (0, 0))
 
-        dw, dh = 540, 230
-        dx, dy = (W - dw) // 2, (H - dh) // 2
+        dw, dh, dx, dy, btn_y = self._get_layout()
         dr = pg.Rect(dx, dy, dw, dh)
         pg.draw.rect(surf, PANEL, dr, border_radius=14)
         pg.draw.rect(surf, WARN,  dr, width=3,  border_radius=14)
@@ -282,9 +294,23 @@ class ModalDialog:
                   f.render(self.body, True, TXT).get_rect(centerx=dr.centerx, y=dy+88))
 
         m = pg.mouse.get_pos()
+        self.choice_rects = []
+        cy = dy + 125
+        for i, choice in enumerate(self.choices):
+            cr = pg.Rect(dx + 40, cy, dw - 80, 30)
+            self.choice_rects.append(cr)
+            is_sel = i == self.selected
+            is_hov = cr.collidepoint(m)
+            col = ACCENT if is_sel else (PANEL2 if not is_hov else (50, 50, 70))
+            pg.draw.rect(surf, col, cr, border_radius=6)
+            pg.draw.rect(surf, BORDER, cr, width=1, border_radius=6)
+            t = f.render(choice, True, TXT)
+            surf.blit(t, t.get_rect(center=cr.center))
+            cy += 38
+
         for rect, label, col, hov in [
-            (pg.Rect(dx+40,  dy+155, 200, 42), "CONFIRM", SUCCESS, SUCC_H),
-            (pg.Rect(dx+300, dy+155, 200, 42), "CANCEL",  DANGER,  DANGH),
+            (pg.Rect(dx+40,  btn_y, 200, 42), "CONFIRM", SUCCESS, SUCC_H),
+            (pg.Rect(dx+300, btn_y, 200, 42), "CANCEL",  DANGER,  DANGH),
         ]:
             c = hov if rect.collidepoint(m) else col
             pg.draw.rect(surf, c, rect, border_radius=8)
@@ -292,15 +318,32 @@ class ModalDialog:
             surf.blit(t, t.get_rect(center=rect.center))
 
     def on(self, event: pg.event.Event):
-        if event.type != pg.MOUSEBUTTONDOWN or event.button != 1: return
-        dw, dh = 540, 230
-        dx, dy = (W - dw) // 2, (H - dh) // 2
-        if pg.Rect(dx+40, dy+155, 200, 42).collidepoint(event.pos):
-            self.confirm_cb()
-        elif pg.Rect(dx+300, dy+155, 200, 42).collidepoint(event.pos):
-            if self.cancel_cb: self.cancel_cb()
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            dw, dh, dx, dy, btn_y = self._get_layout()
+            clicked = False
+            for i, rect in enumerate(self.choice_rects):
+                if rect.collidepoint(event.pos):
+                    self.selected = i
+                    clicked = True
+                    break
+            if clicked:
+                return
+            for rect, label, col, hov in [
+                (pg.Rect(dx+40,  btn_y, 200, 42), "CONFIRM", SUCCESS, SUCC_H),
+                (pg.Rect(dx+300, btn_y, 200, 42), "CANCEL",  DANGER,  DANGH),
+            ]:
+                if rect.collidepoint(event.pos):
+                    if label == "CONFIRM":
+                        if self.choice_cb and self.selected >= 0:
+                            self.choice_cb(self.selected)
+                        self.confirm_cb()
+                    else:
+                        if self.cancel_cb: self.cancel_cb()
         elif event.type == pg.KEYDOWN:
-            if event.key in (pg.K_RETURN, pg.K_y): self.confirm_cb()
+            if event.key in (pg.K_RETURN, pg.K_y):
+                if self.choice_cb and self.selected >= 0:
+                    self.choice_cb(self.selected)
+                self.confirm_cb()
             elif event.key in (pg.K_ESCAPE, pg.K_n):
                 if self.cancel_cb: self.cancel_cb()
 
@@ -393,7 +436,12 @@ class App:
         self._s1b: list[Button] = []
         self._s2b: list[Button] = []
         self._s3b: list[Button] = []
+        self.new_level_mode = False
+        self.new_level_title_input: Optional[TextInput] = None
+        self.new_level_filename_input: Optional[TextInput] = None
         self.scan()
+
+
 
     def scan(self):
         files = []
@@ -401,11 +449,39 @@ class App:
             if os.path.isdir(folder):
                 for f in os.listdir(folder):
                     if (f.startswith("level_") or f.startswith("prologue_")) and f.endswith(".json"):
-                        files.append(os.path.join(folder, f))
+                        path = os.path.join(folder, f)
+                        if self._is_valid_level(path):
+                            files.append(path)
         self.level_files = sorted(files)
+
+    @staticmethod
+    def _is_valid_level(path: str) -> bool:
+        try:
+            with open(path, "r") as fh:
+                data = json.load(fh)
+            if not isinstance(data, dict):
+                return False
+            if "level_name" not in data or not isinstance(data["level_name"], str):
+                return False
+            if "level_end_distance" not in data or not isinstance(data["level_end_distance"], (int, float)):
+                return False
+            if "world_events" in data and not isinstance(data["world_events"], list):
+                return False
+            if "entities" in data and not isinstance(data["entities"], list):
+                return False
+            return True
+        except Exception:
+            return False
 
     def load(self, idx: int):
         self.active_idx = idx
+        if not self._is_valid_level(self.level_files[idx]):
+            self.modal = ModalDialog(
+                "Invalid Level File",
+                f"'{os.path.basename(self.level_files[idx])}' is not a valid level JSON.",
+                lambda: setattr(self, "modal", None),
+            )
+            return
         with open(self.level_files[idx], "r") as fh:
             fcntl.flock(fh, fcntl.LOCK_EX)
             self.level_data = json.load(fh)
@@ -416,6 +492,13 @@ class App:
         self.pending.sort(key=lambda e: e["distance"])
         self.reg_del = set()
         HitboxRegistry.begin_transaction()
+
+        # Persist the selected level as the default for the game
+        try:
+            with open(os.path.join("game_data", ".level_default.json"), "w") as df:
+                json.dump({"last_level": self.level_files[self.active_idx]}, df)
+        except Exception:
+            pass
 
     def commit(self):
         for k in self.reg_del:
@@ -696,6 +779,7 @@ class App:
             cmd = [
                 sys.executable,
                 "main.py",
+                "--level", level_file,
                 "--start-dist", str(start_dist),
                 "--duration", str(duration),
                 "--target-event-id", str(ev.get('id')),
@@ -786,10 +870,6 @@ class App:
             if ev.type == pg.QUIT: self.running = False; return
             if self.modal:
                 self.modal.on(ev)
-                if ev.type == pg.KEYDOWN:
-                    if ev.key in (pg.K_RETURN, pg.K_y):   self.modal.confirm_cb()
-                    elif ev.key in (pg.K_ESCAPE, pg.K_n):
-                        if self.modal.cancel_cb: self.modal.cancel_cb()
                 continue
             if self._topback: self._topback.on(ev)
             if ev.type == pg.KEYDOWN and ev.key == pg.K_ESCAPE:
@@ -800,7 +880,13 @@ class App:
             elif self.stage == 3: self._h3(ev)
 
     def _h1(self, ev: pg.event.Event):
+        if self.new_level_mode:
+            if self.new_level_title_input:
+                self.new_level_title_input.on(ev)
+            if self.new_level_filename_input:
+                self.new_level_filename_input.on(ev)
         for b in self._s1b: b.on(ev)
+
 
     def _h2(self, ev: pg.event.Event):
         for b in self._s2b: b.on(ev)
@@ -856,28 +942,160 @@ class App:
 
     def _d1(self):
         self._s1b = []
+        if self.new_level_mode:
+            hdr = self.tf.render("Create New Level", True, TXT)
+            self.surf.blit(hdr, hdr.get_rect(centerx=W//2, y=CONTENT_Y+28))
+
+            if self.new_level_title_input:
+                self.new_level_title_input.draw(self.surf, self.f, self.tf)
+            if self.new_level_filename_input:
+                self.new_level_filename_input.draw(self.surf, self.f, self.tf)
+
+            def _cancel():
+                self.new_level_mode = False
+
+            def _confirm():
+                title = self.new_level_title_input.val.strip() if self.new_level_title_input else ""
+                filename = self.new_level_filename_input.val.strip() if self.new_level_filename_input else ""
+
+                if not title:
+                    self.modal = ModalDialog("Error", "Level title cannot be empty.", lambda: setattr(self, "modal", None))
+                    return
+                if not filename:
+                    self.modal = ModalDialog("Error", "Filename cannot be empty.", lambda: setattr(self, "modal", None))
+                    return
+
+                if not filename.endswith(".json"):
+                    filename += ".json"
+                if not (filename.startswith("level_") or filename.startswith("prologue_")):
+                    filename = "level_" + filename
+                
+                path = os.path.join("game_data", filename)
+                if os.path.exists(path):
+                    self.modal = ModalDialog("Error", f"File '{filename}' already exists.", lambda: setattr(self, "modal", None))
+                    return
+
+                try:
+                    new_data = {
+                        "level_name": title,
+                        "level_end_distance": 8000,
+                        "world_events": [],
+                        "entities": []
+                    }
+                    os.makedirs("game_data", exist_ok=True)
+                    with open(path, "w") as fh:
+                        json.dump(new_data, fh, indent=4)
+                    self.scan()
+                    self.new_level_mode = False
+                except Exception as e:
+                    self.modal = ModalDialog("Error", f"Failed to create file: {str(e)}", lambda: setattr(self, "modal", None))
+
+            btn_conf = Button("CREATE", W//2 - 210, CONTENT_Y + 280, 200, 42, _confirm, "success")
+            btn_canc = Button("CANCEL", W//2 + 10, CONTENT_Y + 280, 200, 42, _cancel, "danger")
+            btn_conf.draw(self.surf, self.f)
+            btn_canc.draw(self.surf, self.f)
+            self._s1b += [btn_conf, btn_canc]
+            return
+
         hdr = self.tf.render("Select a Level to Edit", True, TXT)
         self.surf.blit(hdr, hdr.get_rect(centerx=W//2, y=CONTENT_Y+28))
+
+        def _start_new():
+            self.new_level_title_input = TextInput("Level Title", W//2-200, CONTENT_Y+120, 400, 36, placeholder="e.g. Level 2 - Forest Run")
+            self.new_level_filename_input = TextInput("Filename (saved under game_data/)", W//2-200, CONTENT_Y+200, 400, 36, placeholder="e.g. level_2.json")
+            self.new_level_mode = True
+
+        create_btn = Button("+ CREATE NEW", W//2 + 180, CONTENT_Y + 20, 170, 38, _start_new, "success")
+        create_btn.draw(self.surf, self.f)
+        self._s1b.append(create_btn)
+
         for i, path in enumerate(self.level_files):
             try:
                 with open(path,"r") as fh:
                     fcntl.flock(fh, fcntl.LOCK_SH); d = json.load(fh)
+                valid = True
                 nm = d.get("level_name", os.path.basename(path))
                 ln = d.get("level_end_distance","?")
                 ec = len(d.get("world_events",[]))
             except Exception:
+                valid = False
                 nm, ln, ec = os.path.basename(path), "?", "?"
             cy   = CONTENT_Y + 100 + i*105
             card = pg.Rect(W//2-350, cy, 700, 88)
             pg.draw.rect(self.surf, PANEL, card, border_radius=10)
             pg.draw.rect(self.surf, BORDER, card, width=1, border_radius=10)
             self.surf.blit(self.tf.render(nm, True, TXT), (card.x+18, cy+12))
+            status = "✔ Valid" if valid else "✖ Invalid"
+            nm_w = self.tf.size(nm)[0]
+            self.surf.blit(self.sf.render(status, True, SUCCESS if valid else DANGER),
+                           (card.x+18 + nm_w + 12, cy+18))
             self.surf.blit(self.f.render(f"Length: {ln}m  ·  {ec} events", True, TXT2),
                            (card.x+18, cy+50))
             def _go(idx=i): self.load(idx); self.go2()
-            btn = Button("SELECT  →", card.right-155, cy+20, 130, 46, _go, "primary")
-            btn.draw(self.surf, self.f)
-            self._s1b.append(btn)
+            def _del(idx=i):
+                p = self.level_files[idx]
+                def _do():
+                    try: os.remove(p)
+                    except Exception: pass
+                    try:
+                        dp = os.path.join("game_data", ".level_default.json")
+                        if os.path.exists(dp):
+                            with open(dp, "r") as f:
+                                cfg = json.load(f)
+                            if cfg.get("last_level") == p:
+                                cfg.pop("last_level", None)
+                                with open(dp, "w") as f:
+                                    json.dump(cfg, f)
+                    except Exception:
+                        pass
+                    self.scan()
+                    self.modal = None
+                self.modal = ModalDialog(
+                    "Delete Level?",
+                    f"Permanently delete file '{os.path.basename(p)}'?",
+                    _do, lambda: setattr(self,"modal",None))
+            def _set_next(idx=i):
+                others = [(os.path.basename(p), p) for j, p in enumerate(self.level_files) if j != idx]
+                target_path = self.level_files[idx]
+                try:
+                    with open(target_path, "r") as fh:
+                        fcntl.flock(fh, fcntl.LOCK_SH); d = json.load(fh)
+                    cur = d.get("next_level", "")
+                    cur_name = os.path.basename(cur) if cur else "—"
+                except Exception:
+                    cur_name = "—"
+                choices = ["(none)", "Clear"] + [name for name, _ in others]
+
+                def _apply(choice_idx):
+                    try:
+                        with open(target_path, "r") as fh:
+                            fcntl.flock(fh, fcntl.LOCK_SH); d = json.load(fh)
+                        if choice_idx == 0 or choice_idx == 1:
+                            d.pop("next_level", None)
+                        else:
+                            target = others[choice_idx - 2][1]
+                            d["next_level"] = os.path.relpath(target, os.path.dirname(target_path))
+                        with open(target_path, "w") as fh:
+                            fcntl.flock(fh, fcntl.LOCK_EX)
+                            json.dump(d, fh, indent=4)
+                    except Exception:
+                        pass
+                label = f"Choose the level that follows '{os.path.basename(target_path)}'"
+                self.modal = ModalDialog(
+                    "Set level order",
+                    label,
+                    confirm_cb=lambda: (setattr(self, "modal", None), self.go1()),
+                    cancel_cb=lambda: setattr(self, "modal", None),
+                    choices=choices,
+                    choice_cb=_apply,
+                )
+            btn = Button("SELECT  →", card.right-270, cy+24, 110, 40, _go, "primary")
+            dlb = Button("✕", card.right-50, cy+24, 36, 40, _del, "danger")
+            nxt = Button("NEXT »", card.right-150, cy+24, 90, 40, _set_next, "ghost")
+            btn.draw(self.surf, self.f); dlb.draw(self.surf, self.f); nxt.draw(self.surf, self.f)
+            self._s1b += [btn, dlb, nxt]
+
+
 
     def _d2(self):
         self._s2b = []

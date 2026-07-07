@@ -27,8 +27,23 @@ class ConfigClient:
     """
 
     @classmethod
+    def _deep_merge(cls, source: Dict[str, Any], destination: Dict[str, Any]) -> Dict[str, Any]:
+        """Recursively merges source into destination. Source keys take precedence."""
+        for key, value in source.items():
+            if isinstance(value, dict):
+                node = destination.setdefault(key, {})
+                if isinstance(node, dict):
+                    cls._deep_merge(value, node)
+                else:
+                    destination[key] = value
+            else:
+                destination[key] = value
+        return destination
+
+    @classmethod
     def fetch_config(cls, config_type: str) -> Dict[str, Any]:
-        """Loads configuration from API -> SQLite Cache -> Local JSON fallback.
+        """Loads configuration from API -> SQLite Cache -> Local JSON fallback,
+        overlaying local JSON changes to ensure local edits take precedence.
         
         Args:
             config_type: Key identifier for config (e.g. 'player', 'boss_wizard')
@@ -38,17 +53,30 @@ class ConfigClient:
         if config_data:
             # Update local SQLite cache for offline play
             LocalCache.set_config(config_type, config_data)
-            return config_data
+        else:
+            # 2. Server failed or offline. Fall back to local SQLite cache
+            print(f"[CONFIG CLIENT] API fetch failed for '{config_type}'. Falling back to local cache...")
+            config_data = LocalCache.get_config(config_type)
 
-        # 2. Server failed or offline. Fall back to local SQLite cache
-        print(f"[CONFIG CLIENT] API fetch failed for '{config_type}'. Falling back to local cache...")
-        cached_data = LocalCache.get_config(config_type)
-        if cached_data:
-            return cached_data
+        # 3. Load fallback (local JSON file)
+        local_data = None
+        try:
+            local_data = cls._load_fallback(config_type)
+        except Exception as e:
+            print(f"[CONFIG CLIENT NOTE] Could not load fallback for '{config_type}': {e}")
 
-        # 3. Cache missed or corrupt. Fall back to local JSON file
-        print(f"[CONFIG CLIENT] Local cache missed for '{config_type}'. Falling back to raw JSON file...")
-        return cls._load_fallback(config_type)
+        # Merge local_data on top of config_data to prioritize local edits
+        merged: Dict[str, Any] = {}
+        if config_data:
+            import copy
+            merged = copy.deepcopy(config_data)
+        if local_data:
+            cls._deep_merge(local_data, merged)
+        
+        if not merged and local_data:
+            return local_data
+            
+        return merged
 
     @classmethod
     def _fetch_from_api(cls, config_type: str) -> Optional[Dict[str, Any]]:

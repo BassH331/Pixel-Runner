@@ -16,6 +16,7 @@ class MainMenuState(State):
         
         # Start loading in background
         self.loading_progress = 0.0
+        self.converted_frames = False
         import threading
         self.loading_thread = threading.Thread(target=self.load_frames, daemon=True)
         self.loading_thread.start()
@@ -55,10 +56,18 @@ class MainMenuState(State):
         self.time_entered: float = 0.0
 
     def load_frames(self):
+        from v3x_zulfiqar_gideon import SettingsManager
+        quality = SettingsManager().get("graphics_quality")
         bg_dir = "assets/graphics/background images/intro_bg"
         try:
             import os
             frame_files = sorted([f for f in os.listdir(bg_dir) if f.endswith(".gif") or f.endswith(".png")])
+            
+            if quality == "low":
+                frame_files = frame_files[:1]
+            elif quality == "medium":
+                frame_files = frame_files[::4]
+                
             total_frames = len(frame_files)
             
             loaded_frames = []
@@ -71,7 +80,6 @@ class MainMenuState(State):
                 try:
                     img = pg.image.load(os.path.join(bg_dir, f))
                     img = pg.transform.scale(img, (self.width, self.height)) # Faster than smoothscale
-                    # Note: We defer .convert() to the main thread or skip it to avoid threading issues
                     loaded_frames.append(img)
                 except Exception as e:
                     print(f"Error loading frame {f}: {e}")
@@ -80,7 +88,7 @@ class MainMenuState(State):
                 self.loading_progress = (i + 1) / total_frames
             
             self.frames = loaded_frames
-            print(f"Loaded {len(self.frames)} frames in background.")
+            print(f"Loaded {len(self.frames)} frames in background (Quality: {quality}).")
             
         except Exception as e:
             print(f"Failed to load background frames: {e}")
@@ -119,6 +127,11 @@ class MainMenuState(State):
                 self.start_game()
             
     def update(self, dt):
+        # Convert frames to display format on main thread when thread finishes
+        if self.loading_thread and not self.loading_thread.is_alive() and not self.converted_frames:
+            self.frames = [f.convert() for f in self.frames]
+            self.converted_frames = True
+
         # Update Background Animation
         if self.frames:
             self.frame_timer += dt

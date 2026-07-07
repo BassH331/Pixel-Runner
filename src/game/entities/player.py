@@ -1555,6 +1555,9 @@ class Player(Actor):
             if self._invincibility_duration > 0:
                 self._invincibility_timer = self._invincibility_duration
                 self._invincibility_duration = 0.0
+        if self.state == PlayerState.TRANSFORM and new_state == PlayerState.IDLE:
+            self._is_enhanced = not self._is_enhanced
+            self._animations_flipped.clear()
         super().set_state(new_state, force=force)
 
     def reset(self) -> None:
@@ -1807,12 +1810,6 @@ class Player(Actor):
         ):
             self._direction = 0
         self.set_state(new_state, force=True)
-
-    def set_state(self, new_state: Enum, force: bool = False) -> None:
-        """Override to intercept transformation exit and toggle enhanced mode."""
-        if self.state == PlayerState.TRANSFORM and new_state != PlayerState.TRANSFORM:
-            self._is_enhanced = not self._is_enhanced
-        super().set_state(new_state, force=force)
 
     def update_animation(self, dt: float) -> None:
         """Override to dynamically swap standard and enhanced animations."""

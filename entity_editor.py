@@ -240,7 +240,14 @@ class HitboxEditorApp:
                     elif etype == "boss":
                         params = event.get("params", {})
                         sprite_dir = params.get("sprite_dir") or ""
-                        key = f"boss:{os.path.basename(sprite_dir.rstrip('/'))}" if sprite_dir else "boss"
+                        if sprite_dir:
+                            folder_name = os.path.basename(sprite_dir.rstrip("/"))
+                            if folder_name.lower() in ("idle", "walk", "run", "fly", "1atk", "2atk", "hurt", "death"):
+                                parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                                folder_name = os.path.basename(parent_dir)
+                            key = f"boss:{folder_name.lower()}"
+                        else:
+                            key = "boss"
                         if key not in added_keys:
                             self.entity_configs.append({
                                 "key": key,
@@ -406,23 +413,17 @@ class HitboxEditorApp:
         elif ent_type == "boss":
             dummy_player = Player(640, 480, mock_audio)
             sprite_dir = params.get("sprite_dir")
-            if sprite_dir and "wizard" in sprite_dir.lower():
-                self.entity = FireWizard(
-                    x=640,
-                    y=480,
-                    player=dummy_player,
-                    tier=params.get("tier", "boss"),
-                    sprite_root=sprite_dir
-                )
-            else:
-                self.entity = Skeleton(
-                    x=640,
-                    y=480,
-                    player=dummy_player,
-                    sprite_root=sprite_dir,
-                    behaviour_map=params.get("behaviour_map"),
-                    tier=params.get("tier", "boss")
-                )
+            from src.game.entities.boss_manager import BossManager
+            boss_class = BossManager.resolve_boss_class(sprite_dir)
+            self.entity = boss_class(
+                x=640,
+                y=480,
+                player=dummy_player,
+                tier=params.get("tier", "boss"),
+                sprite_root=sprite_dir,
+                behaviour_map=params.get("behaviour_map"),
+                custom_scale=self.sliders["scale"].val
+            )
 
         # Retrieve base texture dimensions
         if self.entity is not None and self.entity.animations and self.entity.state in self.entity.animations:

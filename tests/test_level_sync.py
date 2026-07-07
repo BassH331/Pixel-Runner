@@ -16,6 +16,8 @@ from src.game.entities.hitbox_registry import HitboxRegistry, HitboxMargins
 
 class TestLevelSync(unittest.TestCase):
     def setUp(self):
+        # Clear cache first to ensure test isolation
+        HitboxRegistry._cached_config = {}
         # Create a temp file for entity dimensions configuration
         self.temp_dir = tempfile.TemporaryDirectory()
         self.temp_config_path = os.path.join(self.temp_dir.name, "entity_dimensions.json")
@@ -48,8 +50,9 @@ class TestLevelSync(unittest.TestCase):
         HitboxRegistry._rollback_checkpoint = {}
 
     def test_sync_with_level_config(self):
-        # Patch CONFIG_PATH to point to our temp file
-        with patch("src.game.entities.hitbox_registry.CONFIG_PATH", self.temp_config_path):
+        # Patch CONFIG_PATH and ConfigClient.fetch_config to point to our temp file and avoid network requests
+        with patch("src.game.entities.hitbox_registry.CONFIG_PATH", self.temp_config_path), \
+             patch("src.game.services.ConfigClient.fetch_config", return_value=None):
             # Load config to clear cache and start fresh
             HitboxRegistry._cached_config = {}
             HitboxRegistry._load_config()

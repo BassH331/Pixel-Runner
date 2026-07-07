@@ -234,7 +234,8 @@ class StoryState(State):
         pass
 
     def _on_settings(self):
-        self._settings_banner.show("Coming Soon", notification="yellow")
+        from src.game.states.settings_state import SettingsState
+        self.manager.push(SettingsState(self.manager))
 
     # ── Events ───────────────────────────────────────────────────────────────
 
@@ -311,7 +312,7 @@ class StoryState(State):
             surface.blit(self.scene_image, self.scene_rect)
         else:
             # Set alpha on original (very fast)
-            self.scene_image.set_alpha(int(self.alpha))
+            self.scene_image.set_alpha(self.alpha)
             surface.blit(self.scene_image, self.scene_rect)
             self.scene_image.set_alpha(255) # Reset for next frame
 
@@ -321,12 +322,12 @@ class StoryState(State):
 
         # Fade scene out to black as menu fades in
         if self._menu_ready and self._menu_alpha > 0:
-            self._black_overlay.set_alpha(int(self._menu_alpha))
+            self._black_overlay.set_alpha(self._menu_alpha)
             surface.blit(self._black_overlay, (0, 0))
 
         # Parchment menu (fades in after delay)
         if self._menu_ready:
-            alpha = int(self._menu_alpha)
+            alpha = self._menu_alpha
 
             # Stone (behind parchment)
             self._stone.set_alpha(alpha)

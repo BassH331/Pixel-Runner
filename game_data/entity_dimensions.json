@@ -8,9 +8,9 @@
         "scale": 2.0
     },
     "player": {
-        "left": 315,
-        "right": 315,
-        "top": 150,
+        "left": 367,
+        "right": 389,
+        "top": 191,
         "bottom": 0,
         "ground_offset": 34,
         "scale": 3.0
@@ -71,7 +71,7 @@
         "ground_offset": 34,
         "scale": 1.0
     },
-    "boss:bloodZombie": {
+    "boss:bloodzombie": {
         "left": 87,
         "right": 191,
         "top": 135,
@@ -95,12 +95,20 @@
         "ground_offset": 34,
         "scale": 2.0
     },
-    "boss:green_monster": {
-        "left": 65,
-        "right": 65,
-        "top": 20,
+    "generic_npc_totem": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
         "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "boss:green_monster": {
+        "left": 196,
+        "right": 197,
+        "top": 100,
+        "bottom": 36,
         "ground_offset": 35,
-        "scale": 2.2
+        "scale": 2.63
     }
 }

@@ -34,12 +34,12 @@ def test_session_payload_includes_boss_key_and_side_swaps(monkeypatch):
     test_dir = tempfile.mkdtemp()
     try:
         tracker = GameplayTracker({"enabled": True, "log_dir": test_dir})
-        tracker.set_boss_key("boss_wizard")
+        tracker.set_boss_key("boss:wizard")
         tracker.player_side_swaps = 3
 
         tracker.close()
 
-        assert captured.get("boss_key") == "boss_wizard"
+        assert captured.get("boss_key") == "boss:wizard"
         assert captured.get("player_side_swaps") == 3
     finally:
         shutil.rmtree(test_dir)

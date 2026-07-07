@@ -32,7 +32,7 @@ def test_spawn_boss_tags_wizard_with_boss_wizard_key():
         1280,
         720,
     )
-    assert getattr(boss, "boss_key", None) == "boss_wizard"
+    assert getattr(boss, "boss_key", None) == "boss:wizard"
 
 
 def test_spawn_boss_tags_non_wizard_with_boss_skeleton_key():
@@ -44,4 +44,4 @@ def test_spawn_boss_tags_non_wizard_with_boss_skeleton_key():
         1280,
         720,
     )
-    assert getattr(boss, "boss_key", None) == "boss_skeleton"
+    assert getattr(boss, "boss_key", None) == "boss"

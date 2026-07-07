@@ -157,19 +157,35 @@ class GreenMonster(Actor):
         self._attack_cooldown_min: float = 1.0
         self._attack_cooldown_max: float = 1.8
         self._chase_cooldown_duration: float = 1.0
-        self._hover_height: int = 110
         self._attack_hitbox_width: int = 90
         self._attack_hitbox_height: int = 70
 
+        # Mana and charging system properties (mirrors Fire Wizard rules)
+        self._max_mana: float = 100.0
+        self._spell_mana_cost: float = 35.0
+        self._stagnant_duration: float = 3.0
+        self._teleport_dist_min: int = 380
+        self._teleport_dist_max: int = 450
+        self._mana_recharge_rate: float = 50.0
+        self._chase_delay_duration: float = 0.8
+        self._spidey_sense: float = 0.0
+
+        # Cooldowns and states
         self._chase_cooldown: float = 0.0
         self._attack_cooldown: float = 0.0
         self._attack_kind: str = "slam"  # "slam" (melee) or "spit" (ranged)
         self._has_spawned_attack_effect: bool = False
-        self._hover_timer: float = random.uniform(0.0, math.tau)
+
+        self._mana: float = self._max_mana
+        self._is_recharging: bool = False
+        self._is_stagnant: bool = False
+        self._stagnant_timer: float = 0.0
+        self._chase_delay_timer: float = 0.0
+        self._chase_delay_active: bool = False
+        self._teleport_flash_timer: float = 0.0
+        self._teleport_after_hurt: bool = False
 
         # Load margins/scale via the shared "boss:<folder>" registry convention
-        # (see HitboxRegistry.sync_with_level_config, which auto-registers this
-        # key from level_1.json's "scale" field).
         key = f"boss:{self._base_path.rsplit('/', 1)[-1].lower()}"
         margins = HitboxRegistry.get_margins(key)
         registry_scale = None
@@ -183,9 +199,9 @@ class GreenMonster(Actor):
             custom_scale if custom_scale is not None else margins.scale
         )
 
-        # 1. Load animations
+        # 1. Load animations (Walk instead of fly)
         self.animations[GatekeeperState.IDLE] = self._load_scaled(f"{self._base_path}/idle")
-        self.animations[GatekeeperState.CHASE] = self._load_scaled(f"{self._base_path}/fly")
+        self.animations[GatekeeperState.CHASE] = self._load_scaled(f"{self._base_path}/walk")
         self._attack_slam_frames = self._load_scaled(f"{self._base_path}/1atk")
         self._attack_spit_frames = self._load_scaled(f"{self._base_path}/2atk")
         self.animations[GatekeeperState.ATTACK] = self._attack_slam_frames
@@ -207,6 +223,7 @@ class GreenMonster(Actor):
         try:
             config = ConfigClient.fetch_config("enemy_green_monster")
             if config:
+                self.apply_config(config)
                 self._max_health = float(config.get("max_health", self._max_health))
                 self._speed = float(config.get("speed", self._speed))
                 damage_scale = float(config.get("damage_scale", damage_scale))
@@ -215,10 +232,6 @@ class GreenMonster(Actor):
                 self._melee_range = int(config.get("attack_range", self._melee_range))
                 self._attack_hitbox_width = int(config.get("attack_hitbox_width", self._attack_hitbox_width))
                 self._attack_hitbox_height = int(config.get("attack_hitbox_height", self._attack_hitbox_height))
-                # Note: vertical_tolerance/ranged_range are deliberately NOT sourced
-                # from this shared config -- its schema assumes a ground-walking
-                # melee enemy, and the Gatekeeper's hover offset needs a wider
-                # vertical allowance than a walker would.
         except Exception as e:
             print(f"[WARNING] Error loading green_monster config: {e}")
 
@@ -239,20 +252,34 @@ class GreenMonster(Actor):
         # Hitbox adjustment from margins registry
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
 
-        # Hover positioning -- no gravity; the Gatekeeper floats at a fixed
-        # height above the ground and only dips down during a slam attack
-        # or its death animation.
+        # Ground positioning and gravity physics (no hover)
+        self._gravity: float = 0.0
         surf = pg.display.get_surface()
         height = surf.get_height() if surf else 720
         self._ground_y: int = height - margins.ground_offset
-        self._hover_y: float = float(self._ground_y - self._hover_height)
-        self.rect.bottom = int(self._hover_y)
+        self.rect.bottom = self._ground_y
 
         self.spawn_zone: Optional[dict] = None
 
         # Precalculate scaled hitbox dimensions for the melee slam reach
         self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
         self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
+
+    def apply_config(self, config: dict) -> None:
+        """Apply a (possibly partial) config dict to the Green Monster."""
+        try:
+            self._max_mana = float(config.get("max_mana", self._max_mana))
+            self._spell_mana_cost = float(config.get("spell_mana_cost", self._spell_mana_cost))
+            self._stagnant_duration = float(config.get("stagnant_duration", self._stagnant_duration))
+            self._teleport_dist_min = int(config.get("teleport_dist_min", self._teleport_dist_min))
+            self._teleport_dist_max = int(config.get("teleport_dist_max", self._teleport_dist_max))
+            self._mana_recharge_rate = float(config.get("mana_recharge_rate", self._mana_recharge_rate))
+            self._chase_delay_duration = float(config.get("chase_delay_duration", self._chase_delay_duration))
+            self._attack_cooldown_min = float(config.get("attack_cooldown_min", self._attack_cooldown_min))
+            self._attack_cooldown_max = float(config.get("attack_cooldown_max", self._attack_cooldown_max))
+            self._spidey_sense = float(config.get("spidey_sense", self._spidey_sense))
+        except Exception as e:
+            print(f"[WARNING] Error applying green_monster config overrides: {e}")
 
     def _load_scaled(self, folder: str) -> list[pg.Surface]:
         """Load every frame in a folder (natural-sorted) and scale it."""
@@ -319,6 +346,17 @@ class GreenMonster(Actor):
         if new_state == GatekeeperState.ATTACK:
             self._has_spawned_attack_effect = False
 
+        if new_state not in (GatekeeperState.IDLE, GatekeeperState.CHASE):
+            self._chase_delay_timer = 0.0
+            self._chase_delay_active = False
+
+    def _apply_gravity(self) -> None:
+        self._gravity += 1.0
+        self.rect.y += int(self._gravity)
+        if self.rect.bottom >= self._ground_y:
+            self.rect.bottom = self._ground_y
+            self._gravity = 0.0
+
     def update(self, dt: Optional[float] = None, scroll_speed: int = 0) -> None:
         if dt is None:
             dt_sec = 1.0 / 60.0
@@ -328,12 +366,28 @@ class GreenMonster(Actor):
             dt_sec = dt
 
         self.rect.x -= scroll_speed
-        self._hover_timer += dt_sec
+
+        self._apply_gravity()
 
         if self._chase_cooldown > 0.0:
             self._chase_cooldown = max(0.0, self._chase_cooldown - dt_sec)
         if self._attack_cooldown > 0.0:
             self._attack_cooldown = max(0.0, self._attack_cooldown - dt_sec)
+        if self._chase_delay_timer > 0.0:
+            self._chase_delay_timer = max(0.0, self._chase_delay_timer - dt_sec)
+        if self._teleport_flash_timer > 0.0:
+            self._teleport_flash_timer = max(0.0, self._teleport_flash_timer - dt_sec)
+        if self._stagnant_timer > 0.0:
+            self._stagnant_timer = max(0.0, self._stagnant_timer - dt_sec)
+            if self._stagnant_timer <= 0.0:
+                if self._is_stagnant:
+                    self._trigger_teleport_recharge()
+
+        # Mana recovery
+        if self._is_recharging:
+            self._mana = min(self._max_mana, self._mana + self._mana_recharge_rate * dt_sec)
+            if self._mana >= self._max_mana:
+                self._is_recharging = False
 
         # Spawn the toxic glob mid-way through the spit animation
         if (
@@ -344,11 +398,23 @@ class GreenMonster(Actor):
         ):
             self._has_spawned_attack_effect = True
             self._spawn_toxic_glob()
+            self._mana = max(0.0, self._mana - self._spell_mana_cost)
 
         self._update_ai()
         self._update_vertical_position()
 
         super().update(dt_sec)
+
+        if self._teleport_after_hurt and self.state == GatekeeperState.IDLE:
+            self._teleport_after_hurt = False
+            self._trigger_teleport_recharge()
+
+        # Apply teleport transparency/glow effect
+        if self._teleport_flash_timer > 0.0:
+            alpha = 100 if int(self._teleport_flash_timer * 30) % 2 == 0 else 200
+            self.image.set_alpha(alpha)
+        else:
+            self.image.set_alpha(255)
 
         # Clean up once death animation is fully finished
         if (
@@ -358,23 +424,18 @@ class GreenMonster(Actor):
             self.kill()
 
     def _update_vertical_position(self) -> None:
-        """Manage the hover offset: gentle bob while idle/chasing, a dive
-        toward the ground during a slam, and a slow descent on death."""
-        if self.state == GatekeeperState.DEATH:
-            frames = self.animations[GatekeeperState.DEATH]
-            progress = min(1.0, self.animation_index / max(1, len(frames) - 1))
-            self.rect.bottom = int(self._hover_y + progress * self._hover_height)
-            return
-
+        """Manage vertical positioning: jump-slam attack lunge, else ground alignment."""
         if self.state == GatekeeperState.ATTACK and self._attack_kind == "slam":
             frames = self._attack_slam_frames
             progress = self.animation_index / max(1, len(frames) - 1)
-            dive = math.sin(min(1.0, progress) * math.pi)  # 0 -> 1 -> 0
-            self.rect.bottom = int(self._hover_y + dive * self._hover_height)
-            return
-
-        bob = math.sin(self._hover_timer * 3.0) * 6
-        self.rect.bottom = int(self._hover_y + bob)
+            # sin wave: 0 -> 1 -> 0
+            dive = math.sin(min(1.0, progress) * math.pi)
+            # Scale the jump height based on his size/scale
+            jump_height = int(90 * self.scale)
+            self.rect.bottom = int(self._ground_y - dive * jump_height)
+        else:
+            if self.rect.bottom > self._ground_y:
+                self.rect.bottom = self._ground_y
 
     def _spawn_toxic_glob(self) -> None:
         direction = -1 if self.facing_left else 1
@@ -396,17 +457,109 @@ class GreenMonster(Actor):
         for group in self.groups():
             group.add(glob)  # type: ignore
 
+    def _trigger_teleport_recharge(self) -> None:
+        """Instantly teleport away from the player to recharge mana."""
+        if self._player is None:
+            return
+
+        player_rect = self._player.rect
+        dist_offset = random.randint(self._teleport_dist_min, self._teleport_dist_max)
+
+        # Teleport to the opposite side of the player
+        if self.rect.centerx > player_rect.centerx:
+            target_x = player_rect.centerx + dist_offset
+        else:
+            target_x = player_rect.centerx - dist_offset
+
+        # Clamp to screen boundaries
+        target_x = max(50, min(1200, target_x))
+
+        self.rect.centerx = target_x
+        self.rect.bottom = self._ground_y
+        self._gravity = 0.0
+
+        self._is_recharging = True
+        self._is_stagnant = False
+        self._stagnant_timer = 0.0
+        self._teleport_flash_timer = 0.6
+        self._chase_cooldown = 2.0
+        self.set_state(GatekeeperState.IDLE, force=True)
+
     def take_damage(self, amount: float = 0.5) -> None:
         if self.state in (GatekeeperState.HURT, GatekeeperState.DEATH):
             return
 
+        # Check Spidey Sense dodge probability
+        if self._spidey_sense > 0.0 and random.random() < self._spidey_sense:
+            print(f"[SPIDEY SENSE] Green Monster dodged player attack! (Setting: {self._spidey_sense:.2f})")
+            if self._spidey_sense >= 0.8:
+                # GOD MODE: teleport behind player and counter-attack immediately
+                if self._player is not None:
+                    player_rect = self._player.rect
+                    if self._player.facing_left:
+                        target_x = player_rect.centerx + 180
+                        self.facing_left = True
+                    else:
+                        target_x = player_rect.centerx - 180
+                        self.facing_left = False
+
+                    target_x = max(50, min(1200, target_x))
+                    self.rect.centerx = target_x
+                    self.rect.bottom = self._ground_y
+                    self._gravity = 0.0
+
+                    self._mana = max(self._mana, self._spell_mana_cost)
+                    self._teleport_flash_timer = 0.6
+                    self._chase_cooldown = 1.0
+
+                    self._has_spawned_attack_effect = False
+                    self._begin_attack("spit")
+                    print("[SPIDEY SENSE] Green Monster COUNTER-ATTACK INITIATED!")
+                    return
+            else:
+                # Standard spidey sense: teleport away to safety
+                self._trigger_teleport_recharge()
+                return
+
         self._health = max(0, self._health - amount)
         self.attack_state.end()
+
+        # If stagnant, taking damage triggers hurt animation, then teleport retreat to recharge
+        if self._is_stagnant and self._health > 0:
+            self.set_state(GatekeeperState.HURT, force=True)
+            self._teleport_after_hurt = True
+            return
 
         if self._health <= 0:
             self.set_state(GatekeeperState.DEATH, force=True)
         else:
             self.set_state(GatekeeperState.HURT, force=True)
+
+    def _chase_player(self, player_rect: pg.Rect) -> None:
+        dist_x = self.rect.centerx - player_rect.centerx
+        abs_dist_x = abs(dist_x)
+
+        # Smart retreating: if player gets too close, back away to keep distance!
+        if abs_dist_x < 120:
+            retreat_speed = self._speed * 1.3
+            if dist_x > 0:
+                self.rect.x += int(retreat_speed)
+                self.facing_left = True
+            else:
+                self.rect.x -= int(retreat_speed)
+                self.facing_left = False
+        # If player is too far, advance to get into range
+        elif abs_dist_x > 320:
+            if dist_x > 0:
+                self.rect.x -= int(self._speed)
+                self.facing_left = True
+            else:
+                self.rect.x += int(self._speed)
+                self.facing_left = False
+        # If in sweet spot but attack is on cooldown, stand ground & face player
+        else:
+            self.facing_left = (dist_x > 0)
+            self.set_state(GatekeeperState.IDLE)
 
     def _update_ai(self) -> None:
         if self._player is None or self.state in (GatekeeperState.HURT, GatekeeperState.DEATH):
@@ -414,48 +567,92 @@ class GreenMonster(Actor):
         if self.state == GatekeeperState.ATTACK:
             return
 
+        # If mana is low, trigger stagnant/exhausted phase
+        if self._mana < self._spell_mana_cost and not self._is_recharging and not self._is_stagnant:
+            self._is_stagnant = True
+            self._stagnant_timer = self._stagnant_duration
+            self.set_state(GatekeeperState.IDLE, force=True)
+            return
+
+        # If stagnant, remain in IDLE
+        if self._is_stagnant:
+            self.set_state(GatekeeperState.IDLE)
+            return
+
+        # If in chase cooldown or actively recharging, keep idling
+        if self._chase_cooldown > 0.0 or self._is_recharging:
+            self.set_state(GatekeeperState.IDLE)
+            return
+
         player_rect = self._player.rect
         dist_x = self.rect.centerx - player_rect.centerx
         abs_dist_x = abs(dist_x)
         dist_y = abs(self.rect.centery - player_rect.centery)
 
-        if self._chase_cooldown <= 0.0 and self._attack_cooldown <= 0.0 and dist_y < self._vertical_tolerance:
+        # Check if in attack zones and attack is off cooldown
+        if dist_y < self._vertical_tolerance and self._attack_cooldown <= 0.0:
+            # 1. Close-range: melee jump-slam (no mana cost)
             if abs_dist_x <= self._melee_range:
+                self._chase_delay_timer = 0.0
+                self._chase_delay_active = False
                 self._begin_attack("slam")
                 return
-            if abs_dist_x <= self._ranged_range:
+            # 2. Mid-to-long range: toxic glob spit (requires mana)
+            if self._melee_range < abs_dist_x <= self._ranged_range and self._mana >= self._spell_mana_cost:
+                self._chase_delay_timer = 0.0
+                self._chase_delay_active = False
                 self._begin_attack("spit")
                 return
 
-        if abs_dist_x > self._melee_range and abs_dist_x <= self._detection_range:
-            self.facing_left = dist_x > 0
-            self.set_state(GatekeeperState.CHASE)
-            self.rect.x += int((-1 if dist_x > 0 else 1) * self._speed)
-            return
+        # If player runs away, allow a brief window to run before pursuing
+        if abs_dist_x > 320:
+            if self.state == GatekeeperState.IDLE and not self._chase_delay_active:
+                self._chase_delay_timer = self._chase_delay_duration
+                self._chase_delay_active = True
 
-        self.facing_left = dist_x > 0
-        self.set_state(GatekeeperState.IDLE)
+        if self._chase_delay_active:
+            if self._chase_delay_timer > 0.0:
+                self.set_state(GatekeeperState.IDLE)
+                return
+            else:
+                self._chase_delay_active = False
+
+        # Handle movement updates
+        self.set_state(GatekeeperState.CHASE)
+        self._chase_player(player_rect)
 
     def _begin_attack(self, kind: str) -> None:
         self._attack_kind = kind
         self.animations[GatekeeperState.ATTACK] = (
             self._attack_slam_frames if kind == "slam" else self._attack_spit_frames
         )
-        self.facing_left = self.rect.centerx > self._player.rect.centerx
+        self.facing_left = (self.rect.centerx > self._player.rect.centerx)
         self.set_state(GatekeeperState.ATTACK, force=True)
         self._attack_cooldown = random.uniform(self._attack_cooldown_min, self._attack_cooldown_max)
 
     def draw(self, surface: pg.Surface) -> None:
         super().draw(surface)
-        if self._health < self._max_health and self.state != GatekeeperState.DEATH:
+        if (self._health < self._max_health or self._mana < self._max_mana) and self.state != GatekeeperState.DEATH:
             self._draw_health_bar(surface)
 
     def _draw_health_bar(self, surface: pg.Surface) -> None:
         bar_width = 40
         bar_height = 5
         bar_x = self.rect.centerx - bar_width // 2
-        bar_y = self.rect.top - 12
+        bar_y = self.rect.top - 15
 
+        # Red health bar
         pg.draw.rect(surface, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height))
         health_ratio = max(0.0, self._health / self._max_health)
-        pg.draw.rect(surface, (80, 200, 60), (bar_x, bar_y, int(bar_width * health_ratio), bar_height))
+        pg.draw.rect(surface, (255, 0, 0), (bar_x, bar_y, int(bar_width * health_ratio), bar_height))
+
+        # Blue/Green mana bar
+        mana_y = bar_y + bar_height + 2
+        pg.draw.rect(surface, (50, 50, 50), (bar_x, mana_y, bar_width, 3))
+        mana_ratio = max(0.0, self._mana / self._max_mana)
+        pg.draw.rect(surface, (50, 205, 50), (bar_x, mana_y, int(bar_width * mana_ratio), 3))
+
+        # Draw charging green aura if actively recharging
+        if self._is_recharging:
+            glow_radius = int(24 * self.scale + 6 * random.random())
+            pg.draw.circle(surface, (50, 205, 50), self.rect.center, glow_radius, 2)

@@ -6,8 +6,9 @@ collision detection with frame-accurate hit detection, and state transitions.
 """
 
 from __future__ import annotations
-import os
 
+import os
+import json
 from random import randint
 from typing import TYPE_CHECKING, Final, Optional, Any
 from dataclasses import dataclass
@@ -208,6 +209,7 @@ class GameState(State):
         self.max_distance_reached: float = 0.0
         self._level_end_distance: float = 8000.0
         self._level_complete: bool = False
+        self._level_transitioned: bool = False
         self._level_name: str = "The Blight Begins"
 
         # World Event System (distance-based triggers)
@@ -222,7 +224,18 @@ class GameState(State):
         default_level = os.path.join("storyline", "prologue_covenant_of_ash.json")
         if not os.path.exists(default_level):
             default_level = os.path.join("game_data", "level_1.json")
+
         level_path = os.environ.get("GAME_LEVEL_PATH", default_level)
+        last_level_cfg = os.path.join("game_data", ".level_default.json")
+        if level_path == default_level and os.path.exists(last_level_cfg):
+            try:
+                with open(last_level_cfg, "r") as f:
+                    cfg = json.load(f)
+                cand = cfg.get("last_level", "")
+                if cand and os.path.exists(cand):
+                    level_path = cand
+            except Exception:
+                pass
         self.level_data = WorldLoader.load_json(level_path)
         
         if self.level_data:
@@ -600,7 +613,15 @@ class GameState(State):
 
         # Spawn bats
         if current_time >= self.next_bat_group_time:
-            bat_count = randint(self._bat_min_count, self._bat_max_count)
+            from v3x_zulfiqar_gideon import SettingsManager
+            quality = SettingsManager().get("graphics_quality")
+            if quality == "low":
+                bat_count = 0
+            elif quality == "medium":
+                bat_count = max(1, randint(self._bat_min_count, self._bat_max_count) // 2)
+            else:
+                bat_count = randint(self._bat_min_count, self._bat_max_count)
+                
             for _ in range(bat_count):
                 y_pos = randint(50, self.height // 2)
                 x_offset = randint(0, 175)
@@ -610,7 +631,8 @@ class GameState(State):
                 bat.y_base = y_pos
                 self.ambient_group.add(bat)
                 
-            self.audio_manager.play_sound("bats")
+            if bat_count > 0:
+                self.audio_manager.play_sound("bats")
             self.next_bat_group_time = current_time + randint(
                 self.BAT_GROUP_MIN_DELAY,
                 self.BAT_GROUP_MAX_DELAY,
@@ -1399,8 +1421,18 @@ class GameState(State):
                 "Well fought, warrior!",
                 "Level Complete",
             )
+            next_path = self.level_data.get("next_level") if isinstance(self.level_data, dict) else None
+            if next_path and os.path.exists(next_path):
+                os.environ["GAME_LEVEL_PATH"] = os.path.abspath(next_path)
+                try:
+                    self.manager.set(GameState(self.manager))
+                except Exception:
+                    pass
+            elif next_path:
+                print(f"[WARN] next_level '{next_path}' not found; staying on current state.")
         
         # Update systems
+        self.sky.update(dt / 1000.0)
         self.update_background(self.bg_scroll_speed)
         self.player_ui.update()
         self.player.update()
@@ -1737,6 +1769,7 @@ class GameState(State):
             surface: Target surface for rendering.
         """
         # Background
+        self.sky.draw(surface)
         surface.blit(self.bg_image, (self.bg_x1, 0))
         surface.blit(self.bg_image, (self.bg_x2, 0))
         

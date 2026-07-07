@@ -97,12 +97,19 @@ class BossManager:
         setattr(boss, "tier", tier)
         setattr(boss, "event_id", params.get("_event_id"))
         setattr(boss, "event_distance", params.get("_event_distance"))
-        if boss_class is FireWizard:
-            boss_key = "boss_wizard"
-        elif boss_class is GreenMonster:
-            boss_key = "boss_gatekeeper"
+        if sprite_dir:
+            folder_name = os.path.basename(sprite_dir.rstrip("/"))
+            if folder_name.lower() in ("idle", "walk", "run", "fly", "1atk", "2atk", "hurt", "death"):
+                parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                folder_name = os.path.basename(parent_dir)
+            boss_key = f"boss:{folder_name.lower()}"
         else:
-            boss_key = "boss_skeleton"
+            if boss_class is FireWizard:
+                boss_key = "boss:wizard"
+            elif boss_class is GreenMonster:
+                boss_key = "boss:green_monster"
+            else:
+                boss_key = "boss"
         setattr(boss, "boss_key", boss_key)
         
         return boss

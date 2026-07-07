@@ -34,14 +34,14 @@ def _wait_until_done(handle: DifficultyFetchHandle, timeout: float = 2.0) -> Non
 
 
 def test_fetch_success_resolves_config(monkeypatch):
-    body = json.dumps({"boss_key": "boss_wizard", "config": {"max_mana": 150.0}})
+    body = json.dumps({"boss_key": "boss:wizard", "config": {"max_mana": 150.0}})
 
     def fake_urlopen(req, timeout=None):
         return _FakeResponse(200, body)
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
 
-    handle = DifficultyClient.fetch_recommendation_async("boss_wizard")
+    handle = DifficultyClient.fetch_recommendation_async("boss:wizard")
     _wait_until_done(handle)
 
     assert handle.result() == {"max_mana": 150.0}
@@ -53,7 +53,7 @@ def test_fetch_connection_error_resolves_none(monkeypatch):
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
 
-    handle = DifficultyClient.fetch_recommendation_async("boss_wizard")
+    handle = DifficultyClient.fetch_recommendation_async("boss:wizard")
     _wait_until_done(handle)
 
     assert handle.result() is None
@@ -65,7 +65,7 @@ def test_fetch_unexpected_error_resolves_none_without_raising(monkeypatch):
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
 
-    handle = DifficultyClient.fetch_recommendation_async("boss_wizard")
+    handle = DifficultyClient.fetch_recommendation_async("boss:wizard")
     _wait_until_done(handle)
 
     assert handle.result() is None

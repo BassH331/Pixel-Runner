@@ -5,11 +5,11 @@
     "spawn_rate_max": 15000,
     "spawn_zones": [
         {
-            "min_dist": 790,
-            "max_dist": 1130,
-            "max_skeletons": 3,
-            "delay": 6402,
-            "required_kills": 4,
+            "min_dist": 520,
+            "max_dist": 1500,
+            "max_skeletons": 4,
+            "delay": 4000,
+            "required_kills": 10,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {
@@ -19,22 +19,6 @@
                 "Skeleton_01_White_Hurt": "hurt",
                 "Skeleton_01_White_Idle": "idle",
                 "Skeleton_01_White_Walk": "walk"
-            }
-        },
-        {
-            "min_dist": 1500,
-            "max_dist": 1710,
-            "max_skeletons": 3,
-            "delay": 4000,
-            "required_kills": 5,
-            "tier": "minion",
-            "sprite_root": "assets/graphics/Goblin",
-            "behaviour_map": {
-                "Attack": "attack",
-                "Death": "death",
-                "Idle": "idle",
-                "Run": "chase",
-                "Take_hit": "hurt"
             }
         }
     ],
@@ -58,15 +42,37 @@
     ],
     "world_events": [
         {
+            "id": 4,
+            "distance": 194,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "Act I: The Entry",
+                "text": "The end of the long nightmare is in sight. 1,000 more monster souls, and the contract is fulfilled. Reclaim your freedom!!",
+                "radius": 160,
+                "sprite_dir": "assets/graphics/totem",
+                "scale": 2.0
+            }
+        },
+        {
             "id": 1,
             "distance": 3400,
             "type": "boss",
             "params": {
                 "title": "The Gatekeeper",
-                "scale": 2.2,
-                "health": 70.0,
+                "scale": 2.63,
+                "health": 100.0,
                 "tier": "elite",
-                "sprite_dir": "assets/graphics/green_monster"
+                "sprite_dir": "assets/graphics/green_monster",
+                "behaviour_map": {
+                    "1atk": "attack",
+                    "2atk": "attack",
+                    "death": "death",
+                    "fly": "idle",
+                    "hurt": "hurt",
+                    "idle": "idle",
+                    "walk": "walk"
+                }
             }
         },
         {

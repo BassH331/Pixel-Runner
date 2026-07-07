@@ -56,14 +56,52 @@ class HitboxRegistry:
                 cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
                 return
 
+    @classmethod
+    def _normalize_key(cls, key: str) -> str:
+        name_lower = key.lower()
+        if name_lower == "boss_gatekeeper":
+            return "boss:green_monster"
+        if name_lower.startswith("boss_") and name_lower != "boss_":
+            return "boss:" + name_lower[5:]
+        return name_lower
+
+    @classmethod
+    def _load_config(cls) -> None:
+        """Loads dimensions from ConfigClient, falling back to local JSON or defaults."""
+        local_data = {}
+        if os.path.exists(CONFIG_PATH):
+            try:
+                with open(CONFIG_PATH, "r") as f:
+                    fcntl.flock(f, fcntl.LOCK_EX)
+                    local_data = json.load(f)
+            except Exception as e:
+                print(f"Error loading local {CONFIG_PATH}: {e}")
+
+        remote_data = None
+        try:
+            from ..services import ConfigClient
+            remote_data = ConfigClient.fetch_config("entity_dimensions")
+        except Exception as e:
+            print(f"[CACHE NOTE] Could not fetch hitbox config from client services: {e}")
+
+        data = dict(remote_data) if remote_data else {}
+        data.update(local_data)
+
+        if not data:
+            cls._cached_config = dict(cls.DEFAULTS)
+            cls.save_all()
+            cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
+            return
+
         try:
             # Map raw JSON data back to HitboxMargins objects, falling back to defaults if keys are missing
             cls._cached_config = {}
             for name, item in data.items():
-                default_margins = cls.DEFAULTS.get(name) or (
-                    HitboxMargins(0, 0, 0, 0, 34, scale=2.0) if name.startswith("generic_npc_") else HitboxMargins(0, 0, 0, 0, 0, scale=1.0)
+                norm_name = cls._normalize_key(name)
+                default_margins = cls.DEFAULTS.get(norm_name) or (
+                    HitboxMargins(0, 0, 0, 0, 34, scale=2.0) if norm_name.startswith("generic_npc_") else HitboxMargins(0, 0, 0, 0, 0, scale=1.0)
                 )
-                cls._cached_config[name] = HitboxMargins(
+                cls._cached_config[norm_name] = HitboxMargins(
                     left=item.get("left", default_margins.left),
                     right=item.get("right", default_margins.right),
                     top=item.get("top", default_margins.top),
@@ -74,8 +112,9 @@ class HitboxRegistry:
             
             # Populate any missing default entries
             for name, default_margins in cls.DEFAULTS.items():
-                if name not in cls._cached_config:
-                    cls._cached_config[name] = default_margins
+                norm_name = cls._normalize_key(name)
+                if norm_name not in cls._cached_config:
+                    cls._cached_config[norm_name] = default_margins
             
             cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
         except Exception as e:
@@ -123,11 +162,11 @@ class HitboxRegistry:
         if not cls._cached_config:
             cls._load_config()
             
-        name_lower = entity_name.lower()
+        name_lower = cls._normalize_key(entity_name)
         
         # 1. Direct case-insensitive match in cached config
         for k, v in cls._cached_config.items():
-            if k.lower() == name_lower:
+            if cls._normalize_key(k) == name_lower:
                 return v
                 
         # 2. Case-insensitive match for skeleton name fallback to generic NPC
@@ -135,12 +174,12 @@ class HitboxRegistry:
             base_name = name_lower.replace("skeleton_", "", 1)
             alt_key = f"generic_npc_{base_name}"
             for k, v in cls._cached_config.items():
-                if k.lower() == alt_key:
+                if cls._normalize_key(k) == alt_key:
                     return v
                     
         # 3. Direct case-insensitive match in Defaults
         for k, v in cls.DEFAULTS.items():
-            if k.lower() == name_lower:
+            if cls._normalize_key(k) == name_lower:
                 return v
         
         # Dynamic fallback for generic NPCs
@@ -163,17 +202,17 @@ class HitboxRegistry:
         try:
             with open(CONFIG_PATH, "r") as f:
                 data = json.load(f)
-            name_lower = entity_name.lower()
+            name_lower = cls._normalize_key(entity_name)
             
             # Direct case-insensitive match
-            if any(k.lower() == name_lower for k in data.keys()):
+            if any(cls._normalize_key(k) == name_lower for k in data.keys()):
                 return True
                 
             # Fallback mapping check for skeleton
             if name_lower.startswith("skeleton_"):
                 base_name = name_lower.replace("skeleton_", "", 1)
                 alt_key = f"generic_npc_{base_name}"
-                if any(k.lower() == alt_key for k in data.keys()):
+                if any(cls._normalize_key(k) == alt_key for k in data.keys()):
                     return True
                     
             return False
@@ -185,7 +224,8 @@ class HitboxRegistry:
         """Updates the configuration in memory. Must commit transaction to save to disk."""
         if not cls._cached_config:
             cls._load_config()
-        cls._cached_config[entity_name] = margins
+        norm_name = cls._normalize_key(entity_name)
+        cls._cached_config[norm_name] = margins
 
     @classmethod
     def sync_with_level_config(cls, level_data: dict) -> None:
@@ -225,7 +265,11 @@ class HitboxRegistry:
             else:  # boss
                 sprite_dir = params.get("sprite_dir", "")
                 if sprite_dir:
-                    reg_key = f"boss:{os.path.basename(sprite_dir.rstrip('/')).lower()}"
+                    folder_name = os.path.basename(sprite_dir.rstrip("/"))
+                    if folder_name.lower() in ("idle", "walk", "run", "fly", "1atk", "2atk", "hurt", "death"):
+                        parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
+                        folder_name = os.path.basename(parent_dir)
+                    reg_key = f"boss:{folder_name.lower()}"
                 else:
                     reg_key = "boss"
 
