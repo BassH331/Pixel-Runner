@@ -22,6 +22,7 @@ from src.game.entities.boss_manager import BossManager
 from src.game.entities.enemy import Enemy
 from src.game.entities.skeleton import Skeleton
 from src.game.entities.fire_wizard import FireWizard
+from src.game.entities.green_monster import GreenMonster
 from v3x_zulfiqar_gideon import Actor
 
 # Initialize Pygame and font systems
@@ -292,18 +293,28 @@ BOSS_SCHEMAS = {
         }
     },
     "green_monster": {
-        "class": Skeleton,
+        "class": GreenMonster,
         "config_file": "game_data/enemy_green_monster_config.json",
         "defaults": {
             "max_health": 40.0,
             "speed": 2.2,
             "damage_scale": 1.2,
             "knockback_scale": 1.2,
-            "detection_range": 1000,
-            "attack_range": 65,
-            "vertical_tolerance": 100,
-            "attack_hitbox_width": 60,
-            "attack_hitbox_height": 80
+            "detection_range": 900,
+            "attack_range": 110,
+            "vertical_tolerance": 260,
+            "attack_hitbox_width": 90,
+            "attack_hitbox_height": 70,
+            "max_mana": 100.0,
+            "spell_mana_cost": 35.0,
+            "stagnant_duration": 3.0,
+            "teleport_dist_min": 380,
+            "teleport_dist_max": 450,
+            "mana_recharge_rate": 50.0,
+            "chase_delay_duration": 0.8,
+            "attack_cooldown_min": 1.0,
+            "attack_cooldown_max": 1.8,
+            "spidey_sense": 0.0
         },
         "sliders": [
             ("max_health", "Max Health", 10, 150, True, "{val} hp"),
@@ -311,10 +322,20 @@ BOSS_SCHEMAS = {
             ("damage_scale", "Damage Scale multiplier", 0.2, 3.0, True, "{val}x"),
             ("knockback_scale", "Knockback multiplier", 0.2, 3.0, True, "{val}x"),
             ("detection_range", "AI Detection Range", 100, 2000, False, "{val} px"),
-            ("attack_range", "AI Attack Range", 10, 200, False, "{val} px"),
+            ("attack_range", "Melee Attack Range", 10, 250, False, "{val} px"),
             ("vertical_tolerance", "AI Vertical Tolerance", 20, 500, False, "{val} px"),
             ("attack_hitbox_width", "Attack Hitbox Width", 10, 200, False, "{val} px"),
-            ("attack_hitbox_height", "Attack Hitbox Height", 10, 200, False, "{val} px")
+            ("attack_hitbox_height", "Attack Hitbox Height", 10, 200, False, "{val} px"),
+            ("max_mana", "Max Mana Pool", 50, 200, True, "{val} mp"),
+            ("spell_mana_cost", "Spell Cost", 10, 100, True, "{val} mp"),
+            ("stagnant_duration", "Stagnant/Exhausted Time", 0.5, 6.0, True, "{val} sec"),
+            ("teleport_dist_min", "Teleport Min Dist", 100, 600, False, "{val} px"),
+            ("teleport_dist_max", "Teleport Max Dist", 400, 1000, False, "{val} px"),
+            ("mana_recharge_rate", "Mana Recharge Rate", 10, 100, True, "{val}/sec"),
+            ("chase_delay_duration", "Chase Delay Window", 0.0, 3.0, True, "{val} sec"),
+            ("attack_cooldown_min", "Min Spell Cooldown", 0.5, 4.0, True, "{val} sec"),
+            ("attack_cooldown_max", "Max Spell Cooldown", 1.0, 6.0, True, "{val} sec"),
+            ("spidey_sense", "Spidey Sense / Counter Dodge", 0.0, 1.0, True, "{val}")
         ],
         "simulation": {
             "player_x": 100,
@@ -533,6 +554,16 @@ class BossEditorApp:
         self.frame_index = 0.0
         self.init_simulation_state()
         
+        # Load preset path for wizards/green monster
+        if self.selected_boss == "wizard":
+            self.presets_path = "game_data/wizard_presets.json"
+            self.load_presets()
+            self.update_preset_buttons()
+        elif self.selected_boss == "green_monster":
+            self.presets_path = "game_data/green_monster_presets.json"
+            self.load_presets()
+            self.update_preset_buttons()
+        
     def load_boss_config(self, boss_key: str):
         schema = self.bosses[boss_key]["schema"]
         config_path = schema["config_file"]
@@ -617,8 +648,8 @@ class BossEditorApp:
             self.analytics_buttons[6].active = (self.active_preset_slot == 3)
 
     def apply_preset_slot(self, slot: int):
-        if self.selected_boss != "wizard":
-            self.toast_message = "Presets only supported on Wizard boss"
+        if self.selected_boss not in ("wizard", "green_monster"):
+            self.toast_message = "Presets only supported on Wizard and Green Monster bosses"
             self.toast_timer = 1.5
             return
             
@@ -633,8 +664,8 @@ class BossEditorApp:
             self.toast_timer = 1.5
 
     def save_to_active_preset(self):
-        if self.selected_boss != "wizard":
-            self.toast_message = "Presets only supported on Wizard boss"
+        if self.selected_boss not in ("wizard", "green_monster"):
+            self.toast_message = "Presets only supported on Wizard and Green Monster bosses"
             self.toast_timer = 1.5
             return
             
@@ -719,7 +750,7 @@ class BossEditorApp:
             
         rec_diff = self.recent_sessions_analytics.get("recommended_difficulty")
         if rec_diff in ("EASY", "MEDIUM", "HARD", "NIGHTMARE"):
-            if self.selected_boss == "wizard":
+            if self.selected_boss in ("wizard", "green_monster"):
                 preset_config = self.difficulty_manager.get_preset_config(rec_diff)
                 for key, val in preset_config.items():
                     if key in self.sliders:
@@ -733,7 +764,7 @@ class BossEditorApp:
             self.toast_timer = 2.0
 
     def adjust_difficulty(self, direction: int):
-        if self.selected_boss == "wizard":
+        if self.selected_boss in ("wizard", "green_monster"):
             current_config = {k: slider.val for k, slider in self.sliders.items()}
             new_config = self.difficulty_manager.adjust_difficulty_level(current_config, direction)
             for k, val in new_config.items():
@@ -784,7 +815,7 @@ class BossEditorApp:
             config[k] = slider.val
             
         # Enforce ordering constraints
-        if boss_key == "wizard":
+        if boss_key in ("wizard", "green_monster"):
             if config["teleport_dist_max"] < config["teleport_dist_min"]:
                 config["teleport_dist_max"] = config["teleport_dist_min"]
                 self.sliders["teleport_dist_max"].val = config["teleport_dist_min"]
@@ -932,8 +963,8 @@ class BossEditorApp:
                 "IDLE": ("assets/graphics/green_monster/idle/idle_{}.png", 15),
                 "CHASE": ("assets/graphics/green_monster/walk/walk_{}.png", 12),
                 "ATTACK": ("assets/graphics/green_monster/1atk/1atk_{}.png", 7),
-                "HURT": ("assets/graphics/green_monster/idle/idle_{}.png", 15),
-                "DEATH": ("assets/graphics/green_monster/idle/idle_{}.png", 15),
+                "HURT": ("assets/graphics/green_monster/hurt/hurt_{}.png", 5),
+                "DEATH": ("assets/graphics/green_monster/death/death_{}.png", 11),
             }
             loaded_monster = {}
             for state, (pattern, count) in monster_patterns.items():
@@ -1122,7 +1153,7 @@ class BossEditorApp:
             self.sim_events.pop(0)
 
     def update_simulation(self, dt: float):
-        if self.selected_boss == "wizard":
+        if self.selected_boss in ("wizard", "green_monster"):
             self.update_wizard_simulation(dt)
         elif self.selected_boss == "bat":
             self.update_bat_simulation(dt)
@@ -1163,7 +1194,8 @@ class BossEditorApp:
                 self.sim_fireballs.remove(fb)
             elif abs(fb["x"] - self.sim_player_x) < 20:
                 self.sim_fireballs.remove(fb)
-                self.add_sim_log("Fireball HIT mock player!")
+                proj_name = "Toxic glob" if self.selected_boss == "green_monster" else "Fireball"
+                self.add_sim_log(f"{proj_name} HIT mock player!")
 
         # Decrement cooldowns & timers
         if self.sim_boss_attack_cooldown > 0.0:
@@ -1213,7 +1245,8 @@ class BossEditorApp:
                     "speed": 350.0,
                     "dir": -1 if self.sim_boss_facing_left else 1
                 })
-                self.add_sim_log(f"Fireball cast! Mana consumed (-{spell_cost:.1f}). Remaining: {self.sim_boss_mana:.1f}")
+                proj_name = "Toxic glob" if self.selected_boss == "green_monster" else "Fireball"
+                self.add_sim_log(f"{proj_name} cast! Mana consumed (-{spell_cost:.1f}). Remaining: {self.sim_boss_mana:.1f}")
 
         if self.sim_boss_state in ("ATTACK", "HURT"):
             return
@@ -1676,7 +1709,7 @@ class BossEditorApp:
                 # Draw floor
                 pg.draw.line(screen, (75, 75, 100), (430, 420), (1250, 420), 3)
 
-                if self.mode == "SIMULATION" and self.selected_boss == "wizard" and self.sim_boss_teleport_flash_timer > 0.0:
+                if self.mode == "SIMULATION" and self.selected_boss in ("wizard", "green_monster") and self.sim_boss_teleport_flash_timer > 0.0:
                     alpha = 80 if int(self.sim_boss_teleport_flash_timer * 30) % 2 == 0 else 180
                     scaled_frame.set_alpha(alpha)
                 else:
@@ -1725,10 +1758,12 @@ class BossEditorApp:
                     else:
                         pg.draw.rect(screen, (230, 126, 34), atk_rect, 1)
 
-                if self.mode == "SIMULATION" and self.selected_boss == "wizard" and self.sim_boss_is_recharging:
+                if self.mode == "SIMULATION" and self.selected_boss in ("wizard", "green_monster") and self.sim_boss_is_recharging:
                     glow_radius = int(55 + 5 * random.random())
                     aura = pg.Surface((glow_radius * 2, glow_radius * 2), pg.SRCALPHA)
-                    pg.draw.circle(aura, (0, 229, 255, 60), (glow_radius, glow_radius), glow_radius)
+                    # Green glow for green monster, cyan glow for wizard
+                    glow_color = (0, 230, 118, 60) if self.selected_boss == "green_monster" else (0, 229, 255, 60)
+                    pg.draw.circle(aura, glow_color, (glow_radius, glow_radius), glow_radius)
                     screen.blit(aura, (px_x - glow_radius, 420 - int(scaled_h * 0.36) - glow_radius))
 
                 if self.mode == "SIMULATION":
@@ -1738,17 +1773,21 @@ class BossEditorApp:
                     txt_lbl = help_font.render("PLAYER (MOUSE)", True, (100, 255, 100))
                     screen.blit(txt_lbl, (p_px_x - txt_lbl.get_width() // 2, 420 - 70))
 
-                    if self.selected_boss == "wizard":
+                    if self.selected_boss in ("wizard", "green_monster"):
                         for fb in self.sim_fireballs:
                             fb_x = int(430 + (fb["x"] / 1200) * 820)
-                            pg.draw.circle(screen, (255, 100, 0), (fb_x, fb["y"]), 8)
-                            pg.draw.circle(screen, (255, 200, 0), (fb_x, fb["y"]), 5)
+                            if self.selected_boss == "green_monster":
+                                pg.draw.circle(screen, (46, 204, 113), (fb_x, fb["y"]), 8)
+                                pg.draw.circle(screen, (100, 255, 100), (fb_x, fb["y"]), 5)
+                            else:
+                                pg.draw.circle(screen, (255, 100, 0), (fb_x, fb["y"]), 8)
+                                pg.draw.circle(screen, (255, 200, 0), (fb_x, fb["y"]), 5)
 
                     # Health & Mana bar overlay
                     bar_w = 80
                     bar_h = 6
                     bx_y = 420 - scaled_h - 20
-                    if self.selected_boss == "wizard":
+                    if self.selected_boss in ("wizard", "green_monster"):
                         pg.draw.rect(screen, (255, 50, 50), (px_x - bar_w // 2, bx_y, bar_w, bar_h), border_radius=3)
                         mana_ratio = self.sim_boss_mana / self.sliders["max_mana"].val
                         pg.draw.rect(screen, (33, 150, 243), (px_x - bar_w // 2, bx_y + 9, int(bar_w * mana_ratio), bar_h), border_radius=3)

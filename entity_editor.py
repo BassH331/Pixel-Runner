@@ -414,7 +414,7 @@ class HitboxEditorApp:
             dummy_player = Player(640, 480, mock_audio)
             sprite_dir = params.get("sprite_dir")
             from src.game.entities.boss_manager import BossManager
-            boss_class = BossManager.resolve_boss_class(sprite_dir)
+            boss_class: Any = BossManager.resolve_boss_class(sprite_dir)
             self.entity = boss_class(
                 x=640,
                 y=480,
@@ -422,9 +422,8 @@ class HitboxEditorApp:
                 tier=params.get("tier", "boss"),
                 sprite_root=sprite_dir,
                 behaviour_map=params.get("behaviour_map"),
-                custom_scale=self.sliders["scale"].val
+                custom_scale=self.sliders["scale"].val  # ✅ Valid parameters only
             )
-
         # Retrieve base texture dimensions
         if self.entity is not None and self.entity.animations and self.entity.state in self.entity.animations:
             first_frame = self.entity.animations[self.entity.state][0]
