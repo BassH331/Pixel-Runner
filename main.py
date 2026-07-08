@@ -155,6 +155,7 @@ def main():
             "player_hurt": "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav",
             "skeleton_spawn": "assets/audio/whoosh-cinematic-sound-effect-376889.mp3",
             "skeleton_alive": "assets/audio/zombie-noise.mp3",
+            "skeleton_hurt": "assets/audio/Skeleton_hurt.wav",
             "forest": "assets/audio/dark-forest.ogg",
             "bats": "assets/audio/bats.wav",
             "defend_hit": "assets/audio/Sword Blocked 2.wav",

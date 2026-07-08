@@ -318,6 +318,13 @@ class Skeleton(Actor):
         # Precalculate scaled hitbox dimensions for high-performance updates
         self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
         self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
+        self._hurt_sound: Optional[pg.mixer.Sound] = None
+
+        try:
+            self._hurt_sound = pg.mixer.Sound("assets/audio/Skeleton_hurt.wav")
+            self._hurt_sound.set_volume(0.7)
+        except (FileNotFoundError, pg.error) as e:
+            print(f"[SKELETON AUDIO WARNING] Could not load hurt sound: {e}")
         
     def _load_frames(
         self,
@@ -428,13 +435,16 @@ class Skeleton(Actor):
     def take_damage(self, amount: float = 0.5) -> None:
         if self.state in (SkeletonState.HURT, SkeletonState.DEATH):
             return
-            
+        
         self._health = max(0, self._health - amount)
         self.attack_state.end()
-        
+    
         if self._health <= 0:
             self.set_state(SkeletonState.DEATH, force=True)
         else:
+            if self._hurt_sound is not None:
+                self._hurt_sound.play()
+
             self.set_state(SkeletonState.HURT, force=True)
     
     # ─────────────────────────────────────────────────────────────────────────
