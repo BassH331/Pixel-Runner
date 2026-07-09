@@ -228,11 +228,14 @@ class HitboxRegistry:
         cls._cached_config[norm_name] = margins
 
     @classmethod
-    def sync_with_level_config(cls, level_data: dict) -> None:
+    def sync_with_level_config(cls, level_data: dict | None) -> None:
         """Scan level_data world_events for 'npc' and 'boss' types. If a scale is defined,
         ensure that it matches what's in the registry. If not, update the registry's scale
         to match it, and save the registry.
         """
+        if level_data is None:
+            return
+
         if not cls._cached_config:
             cls._load_config()
 

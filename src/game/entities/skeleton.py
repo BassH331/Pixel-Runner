@@ -318,13 +318,6 @@ class Skeleton(Actor):
         # Precalculate scaled hitbox dimensions for high-performance updates
         self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
         self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
-        self._hurt_sound: Optional[pg.mixer.Sound] = None
-
-        try:
-            self._hurt_sound = pg.mixer.Sound("assets/audio/Skeleton_hurt.wav")
-            self._hurt_sound.set_volume(0.7)
-        except (FileNotFoundError, pg.error) as e:
-            print(f"[SKELETON AUDIO WARNING] Could not load hurt sound: {e}")
         
     def _load_frames(
         self,
@@ -433,18 +426,39 @@ class Skeleton(Actor):
             self.kill()
 
     def take_damage(self, amount: float = 0.5) -> None:
+        """
+        Reduce the skeleton's health and switch its animation state.
+
+        Important:
+        This method does NOT play sound directly.
+
+        Reason:
+        The Skeleton class should only care about skeleton logic:
+        - health
+        - attack state
+        - hurt state
+        - death state
+
+        Audio is handled in GameState because GameState owns the audio manager
+        and knows which gameplay event just happened.
+        """
+
+        # Do not allow repeated damage while the skeleton is already hurt or dead.
         if self.state in (SkeletonState.HURT, SkeletonState.DEATH):
             return
-        
+
+        # Lower health, but never allow health to go below 0.
         self._health = max(0, self._health - amount)
+
+        # If the skeleton was attacking, cancel the attack.
         self.attack_state.end()
-    
+
+        # If health is finished, switch to death animation.
         if self._health <= 0:
             self.set_state(SkeletonState.DEATH, force=True)
-        else:
-            if self._hurt_sound is not None:
-                self._hurt_sound.play()
 
+        # Otherwise, switch to hurt animation.
+        else:
             self.set_state(SkeletonState.HURT, force=True)
     
     # ─────────────────────────────────────────────────────────────────────────

@@ -238,15 +238,16 @@ class GameState(State):
                 pass
         self.level_data = WorldLoader.load_json(level_path)
         
-        if self.level_data:
+        level_data = self.level_data
+        if level_data:
             from src.game.entities.hitbox_registry import HitboxRegistry
-            HitboxRegistry.sync_with_level_config(self.level_data)
-            self.BAT_GROUP_MIN_DELAY = self.level_data.get("spawn_rate_min", 5000)
-            self.BAT_GROUP_MAX_DELAY = self.level_data.get("spawn_rate_max", 15000)
+            HitboxRegistry.sync_with_level_config(level_data)
+            self.BAT_GROUP_MIN_DELAY = level_data.get("spawn_rate_min", 5000)
+            self.BAT_GROUP_MAX_DELAY = level_data.get("spawn_rate_max", 15000)
 
             # Level metadata
-            self._level_name = self.level_data.get("level_name", self._level_name)
-            self._level_end_distance = float(self.level_data.get("level_end_distance", self._level_end_distance))
+            self._level_name = level_data.get("level_name", self._level_name)
+            self._level_end_distance = float(level_data.get("level_end_distance", self._level_end_distance))
 
             # Spawn zones — loaded from level_1.json "spawn_zones" array.
             # If the JSON doesn't have spawn_zones, we fall back to
@@ -257,7 +258,7 @@ class GameState(State):
             # ║  The defaults below are ONLY used if the JSON key   ║
             # ║  "spawn_zones" is missing entirely.                  ║
             # ╚══════════════════════════════════════════════════════╝
-            json_zones = self.level_data.get("spawn_zones", None)
+            json_zones = level_data.get("spawn_zones", None)
             if json_zones:
                 # Convert JSON sentinel (99999) to Python infinity for comparisons
                 for zone in json_zones:
@@ -268,13 +269,13 @@ class GameState(State):
                 self._spawn_zones = _DEFAULT_SPAWN_ZONES
 
             # Bat spawn config
-            bat_cfg = self.level_data.get("bat_spawn", {})
+            bat_cfg = level_data.get("bat_spawn", {})
             self._bat_min_count: int = bat_cfg.get("min_count", 3)
             self._bat_max_count: int = bat_cfg.get("max_count", 5)
             
             # Apply player position from level data
             player_data = next(
-                (e for e in self.level_data.get("entities", [])
+                (e for e in level_data.get("entities", [])
                  if e["type"] == "player"),
                 None
             )
@@ -285,7 +286,7 @@ class GameState(State):
                 )
             
             # Load World Events from JSON
-            world_events = self.level_data.get("world_events", [])
+            world_events = level_data.get("world_events", [])
 
             # --- Simulation Expected NPCs Setup ---
             self._simulation_npcs = {}
@@ -833,7 +834,11 @@ class GameState(State):
         else:
             # Non-damageable obstacle - just destroy it
             enemy.kill()
-            
+
+        # Save health AFTER damage.
+        # Now we can compare before vs after.
+        target_health_after = getattr(enemy, "_health", getattr(enemy, "health", 0.0))
+        
         if self.tracker.enabled:
             self.tracker.log_event("damage_dealt", {
                 "attacker": "player",
