@@ -207,3 +207,49 @@ class TestPlayerMoves(unittest.TestCase):
         self.player.set_state(PlayerState.IDLE, force=True)
         self.assertEqual(len(self.player._animations_flipped), 0)
         self.assertFalse(self.player._is_enhanced)
+
+    def test_attack_stamina_consumption_and_gating(self):
+        """Verify attacks consume substantial stamina and are blocked when stamina is insufficient."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player.rect.bottom = self.player._ground_y
+        self.player._stamina = 100.0
+
+        # Thrust attack consumes _THRUST_STAMINA_COST (22.0)
+        success = self.player.attack_thrust()
+        self.assertTrue(success)
+        self.assertAlmostEqual(self.player.stamina, 100.0 - self.player._THRUST_STAMINA_COST)
+
+        # Deplete stamina to below _SMASH_STAMINA_COST (35.0)
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player._stamina = 20.0
+        success = self.player.attack_smash()
+        self.assertFalse(success, "Smash attack should be blocked when stamina < 35.0")
+        self.assertEqual(self.player.stamina, 20.0)
+
+        # Deplete stamina to 0 and attempt power attack
+        self.player._stamina = 0.0
+        success = self.player.attack_power()
+        self.assertFalse(success, "Power attack should be blocked when stamina is 0")
+
+        # Test stamina regen delay pause (1.2s delay)
+        self.player._update_resources(0.5)  # 0.5s passed, delay timer still active (1.2 - 0.5 = 0.7 remaining)
+        self.assertEqual(self.player.stamina, 0.0, "Stamina should not regen during delay period")
+
+    def test_jump_stamina_consumption_and_gating(self):
+        """Verify jump consumes stamina and fails when stamina is insufficient."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player.rect.bottom = self.player._ground_y
+        self.player._stamina = 100.0
+
+        success = self.player.jump()
+        self.assertTrue(success)
+        self.assertAlmostEqual(self.player.stamina, 100.0 - self.player._JUMP_STAMINA_COST)
+
+        # Deplete stamina to below _JUMP_STAMINA_COST (12.0)
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player.rect.bottom = self.player._ground_y
+        self.player._stamina = 5.0
+        success = self.player.jump()
+        self.assertFalse(success, "Jump should fail when stamina is below _JUMP_STAMINA_COST")
+
+

@@ -3,7 +3,7 @@
 controls_editor.py
 Interactive Control Mapping Plugin & Animation Visualizer for Pixel-Runner.
 Allows remapping controls for PC Keyboard and USB Joystick/Gamepad with live action animation previews and local JSON saving.
-Features a clean, modern UI layout with badge pill keycaps, non-overlapping columns, and crisp typography.
+Features step-by-step Combination Builder mode (one-by-one mapping with DONE and CLEAR buttons).
 """
 
 import os
@@ -71,7 +71,7 @@ def get_fonts() -> Tuple[pg.font.Font, pg.font.Font, pg.font.Font, pg.font.Font,
     """Clean, high-legibility UI sans-serif fonts."""
     font_names = "dejavusans,liberationsans,ubuntu,arial,helvetica,sans-serif"
     mono_names = "monospace,dejavusansmono,liberationmono,consolas"
-    
+
     title_font = pg.font.SysFont(font_names, 20, bold=True)
     header_font = pg.font.SysFont(font_names, 15, bold=True)
     ui_font = pg.font.SysFont(font_names, 13, bold=True)
@@ -157,6 +157,7 @@ class ControlsEditorApp:
 
         self.selected_action = "JUMP"
         self.listening_action: Optional[str] = None
+        self.combo_buffer: List[str] = []
 
         # Animation visualizer properties
         self.preview_scale = 3.2
@@ -304,7 +305,7 @@ class ControlsEditorApp:
 
     def show_toast(self, message: str) -> None:
         self.toast_msg = message
-        self.toast_timer = 2.8
+        self.toast_timer = 3.0
 
     def save_config(self) -> None:
         if self.controls_mgr.save_config():
@@ -316,33 +317,36 @@ class ControlsEditorApp:
         self.controls_mgr.reset_to_defaults()
         self.btn_kb.active = (self.controls_mgr.mode == "KEYBOARD")
         self.btn_js.active = (self.controls_mgr.mode == "JOYSTICK")
+        self.listening_action = None
+        self.combo_buffer = []
         self.show_toast("Control mappings reset to defaults!")
 
     def exit_app(self) -> None:
         self.running = False
 
-    def _capture_joystick_combo(self, trigger_str: str) -> str:
-        inputs = []
-        if self.joystick:
-            for b in range(self.joystick.get_numbuttons()):
-                b_str = f"BUTTON_{b}"
-                if self.joystick.get_button(b) or b_str == trigger_str:
-                    if b_str not in inputs:
-                        inputs.append(b_str)
-            for a in range(self.joystick.get_numaxes()):
-                val = self.joystick.get_axis(a)
-                if val < -0.6:
-                    a_str = f"AXIS_{a}_MINUS"
-                    if a_str not in inputs:
-                        inputs.append(a_str)
-                elif val > 0.6:
-                    a_str = f"AXIS_{a}_PLUS"
-                    if a_str not in inputs:
-                        inputs.append(a_str)
-        if trigger_str not in inputs:
-            inputs.append(trigger_str)
-        return " + ".join(inputs)
+    def finalize_combo(self) -> None:
+        """Confirm and save the current combo buffer for the listening action."""
+        if not self.listening_action:
+            return
+        if not self.combo_buffer:
+            self.show_toast("Press at least one key or button first!")
+            return
 
+        combo_str = " + ".join(self.combo_buffer)
+        self.controls_mgr.set_binding(
+            self.listening_action, combo_str, mode=self.controls_mgr.mode
+        )
+        disp_name = self.controls_mgr.get_display_name_for_binding(
+            combo_str, mode=self.controls_mgr.mode
+        )
+        self.show_toast(f"Mapped {self.listening_action} -> '{disp_name}'")
+        self.listening_action = None
+        self.combo_buffer = []
+
+    def clear_combo_buffer(self) -> None:
+        """Clear inputs in the current combo builder session."""
+        self.combo_buffer = []
+        self.show_toast("Cleared combo inputs. Press next key/button...")
 
     def handle_events(self) -> None:
         for event in pg.event.get():
@@ -350,78 +354,62 @@ class ControlsEditorApp:
                 self.running = False
                 return
 
-            # Listening Mode: Catch next key or joystick input (supports single or combination inputs)
+            # Listening / Combo Builder Mode (Step-by-step input adder)
             if self.listening_action:
                 if event.type == pg.KEYDOWN:
                     if event.key == pg.K_ESCAPE:
-                        self.listening_action = None
-                        self.show_toast("Remapping cancelled")
-                    else:
-                        pressed_key_name = pg.key.name(event.key)
-                        keys = pg.key.get_pressed()
-
-                        held_keys = []
-                        modifier_candidates = [
-                            pg.K_LSHIFT, pg.K_RSHIFT, pg.K_LCTRL, pg.K_RCTRL,
-                            pg.K_LALT, pg.K_RALT, pg.K_SPACE, pg.K_UP,
-                            pg.K_DOWN, pg.K_LEFT, pg.K_RIGHT
-                        ]
-
-                        for mod_code in modifier_candidates:
-                            if keys[mod_code] and mod_code != event.key:
-                                name = pg.key.name(mod_code)
-                                if name not in held_keys:
-                                    held_keys.append(name)
-
-                        if held_keys:
-                            combo_str = " + ".join(held_keys + [pressed_key_name])
+                        if self.combo_buffer:
+                            self.clear_combo_buffer()
                         else:
-                            combo_str = pressed_key_name
-
-                        self.controls_mgr.set_binding(
-                            self.listening_action, combo_str, mode="KEYBOARD"
-                        )
-                        display_name = self.controls_mgr.get_display_name_for_binding(
-                            combo_str, mode="KEYBOARD"
-                        )
-                        self.show_toast(
-                            f"Mapped {self.listening_action} -> '{display_name}'"
-                        )
-                        self.listening_action = None
+                            self.listening_action = None
+                            self.show_toast("Remapping cancelled")
+                    elif event.key in (pg.K_RETURN, pg.K_KP_ENTER):
+                        self.finalize_combo()
+                    elif event.key in (pg.K_BACKSPACE, pg.K_DELETE):
+                        if self.combo_buffer:
+                            popped = self.combo_buffer.pop()
+                            disp_popped = popped.upper()
+                            self.show_toast(f"Removed key '{disp_popped}' from combo")
+                    else:
+                        key_name = pg.key.name(event.key)
+                        if key_name not in self.combo_buffer:
+                            self.combo_buffer.append(key_name)
+                            disp = self.controls_mgr.get_display_name_for_binding(
+                                " + ".join(self.combo_buffer), mode="KEYBOARD"
+                            )
+                            self.show_toast(
+                                f"Added '{key_name.upper()}'. Combo: [ {disp} ]. Click DONE or press ENTER when finished."
+                            )
                     continue
 
                 elif event.type == pg.JOYBUTTONDOWN:
-                    trigger_str = f"BUTTON_{event.button}"
-                    combo_str = self._capture_joystick_combo(trigger_str)
-                    self.controls_mgr.set_binding(
-                        self.listening_action, combo_str, mode="JOYSTICK"
-                    )
-                    display_name = self.controls_mgr.get_display_name_for_binding(
-                        combo_str, mode="JOYSTICK"
-                    )
-                    self.show_toast(
-                        f"Mapped {self.listening_action} -> '{display_name}'"
-                    )
-                    self.listening_action = None
+                    if event.button in (8, 9) and self.combo_buffer:
+                        self.finalize_combo()
+                    else:
+                        btn_str = f"BUTTON_{event.button}"
+                        if btn_str not in self.combo_buffer:
+                            self.combo_buffer.append(btn_str)
+                            disp = self.controls_mgr.get_display_name_for_binding(
+                                " + ".join(self.combo_buffer), mode="JOYSTICK"
+                            )
+                            self.show_toast(
+                                f"Added '{btn_str}'. Combo: [ {disp} ]. Click DONE or Options when finished."
+                            )
                     continue
 
                 elif event.type == pg.JOYAXISMOTION:
                     if abs(event.value) > 0.7:
                         dir_str = "MINUS" if event.value < 0 else "PLUS"
-                        trigger_str = f"AXIS_{event.axis}_{dir_str}"
-                        combo_str = self._capture_joystick_combo(trigger_str)
-                        self.controls_mgr.set_binding(
-                            self.listening_action, combo_str, mode="JOYSTICK"
-                        )
-                        display_name = self.controls_mgr.get_display_name_for_binding(
-                            combo_str, mode="JOYSTICK"
-                        )
-                        self.show_toast(
-                            f"Mapped {self.listening_action} -> '{display_name}'"
-                        )
-                        self.listening_action = None
+                        axis_str = f"AXIS_{event.axis}_{dir_str}"
+                        if axis_str not in self.combo_buffer:
+                            self.combo_buffer.append(axis_str)
+                            disp = self.controls_mgr.get_display_name_for_binding(
+                                " + ".join(self.combo_buffer), mode="JOYSTICK"
+                            )
+                            self.show_toast(
+                                f"Added '{axis_str}'. Combo: [ {disp} ]. Click DONE when finished."
+                            )
                     continue
-
 
             # Standard UI handle events
             if self.btn_kb.handle_event(event):
@@ -439,7 +427,7 @@ class ControlsEditorApp:
             if self.btn_back.handle_event(event):
                 continue
 
-            # Right panel table row click selection & REMAP button trigger
+            # Right panel table row clicks
             if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
                 mx, my = event.pos
                 if 495 <= mx <= 1255 and 140 <= my <= 635:
@@ -447,11 +435,28 @@ class ControlsEditorApp:
                     if 0 <= row_idx < len(ACTIONS):
                         action = ACTIONS[row_idx]
                         self.selected_action = action
+                        row_y = 146 + row_idx * 44
 
-                        # Check if click hit REMAP button
-                        remap_rect = pg.Rect(1160, 146 + row_idx * 44 + 6, 80, 28)
+                        if action == self.listening_action:
+                            # Handle listening row buttons: DONE & CLEAR
+                            done_btn_rect = pg.Rect(1098, row_y + 6, 70, 28)
+                            clear_btn_rect = pg.Rect(1175, row_y + 6, 68, 28)
+
+                            if done_btn_rect.collidepoint((mx, my)):
+                                self.finalize_combo()
+                                continue
+                            elif clear_btn_rect.collidepoint((mx, my)):
+                                self.clear_combo_buffer()
+                                continue
+
+                        # Check click on REMAP button for non-listening row
+                        remap_rect = pg.Rect(1160, row_y + 6, 80, 28)
                         if remap_rect.collidepoint((mx, my)):
                             self.listening_action = action
+                            self.combo_buffer = []
+                            self.show_toast(
+                                f"Mapping '{action}': Press inputs one-by-one. Click DONE or ENTER when finished."
+                            )
 
     def update(self, dt: float) -> None:
         if self.toast_timer > 0:
@@ -585,16 +590,18 @@ class ControlsEditorApp:
         h_action = self.ui_font.render("ACTION NAME", True, TEXT_MUTED)
         h_desc = self.ui_font.render("DESCRIPTION", True, TEXT_MUTED)
         h_bound = self.ui_font.render("MAPPED CONTROL", True, TEXT_MUTED)
-        h_remap = self.ui_font.render("ASSIGN", True, TEXT_MUTED)
+        h_remap = self.ui_font.render("ASSIGN / BUILDER", True, TEXT_MUTED)
 
         self.screen.blit(h_action, (515, 120))
         self.screen.blit(h_desc, (680, 120))
         self.screen.blit(h_bound, (920, 120))
-        self.screen.blit(h_remap, (1170, 120))
+        self.screen.blit(h_remap, (1130, 120))
         pg.draw.line(self.screen, BORDER_COLOR, (505, 140), (1245, 140), 1)
 
         # Render Rows
         row_y = 146
+        m_pos = pg.mouse.get_pos()
+
         for action in ACTIONS:
             a_meta = ACTION_METADATA[action]
             is_selected = action == self.selected_action
@@ -620,55 +627,86 @@ class ControlsEditorApp:
 
             # Action Description (Cleanly truncated to max 220px to prevent overlap)
             desc_text = a_meta["desc"]
-            if len(desc_text) > 30:
-                desc_text = desc_text[:27] + "..."
+            if len(desc_text) > 28:
+                desc_text = desc_text[:25] + "..."
             txt_desc = self.value_font.render(desc_text, True, TEXT_MUTED)
             self.screen.blit(txt_desc, (680, row_y + 12))
 
-            # Mapped Control Pill Badge
-            raw_bind = self.controls_mgr.get_binding(action)
-            disp_bind = self.controls_mgr.get_display_name_for_binding(raw_bind)
-
-            pill_rect = pg.Rect(920, row_y + 6, 225, 28)
-
+            # Mapped Control Badge & Controls
             if is_listening:
-                disp_bind = "PRESS ANY INPUT..."
-                p_bg = LISTEN_BG
-                p_border = ACCENT_CYAN
-                p_txt_color = ACCENT_CYAN
+                if self.combo_buffer:
+                    disp_bind = self.controls_mgr.get_display_name_for_binding(
+                        " + ".join(self.combo_buffer)
+                    )
+                else:
+                    disp_bind = "PRESS INPUT 1..."
+
+                # Pill badge for listening mode
+                pill_rect = pg.Rect(920, row_y + 6, 170, 28)
+                pg.draw.rect(self.screen, LISTEN_BG, pill_rect, border_radius=5)
+                pg.draw.rect(
+                    self.screen, ACCENT_CYAN, pill_rect, width=1, border_radius=5
+                )
+
+                txt_bind = self.badge_font.render(disp_bind, True, ACCENT_CYAN)
+                b_rect = txt_bind.get_rect(center=pill_rect.center)
+                self.screen.blit(txt_bind, b_rect)
+
+                # DONE Button
+                done_rect = pg.Rect(1098, row_y + 6, 70, 28)
+                d_bg = (0, 160, 80) if done_rect.collidepoint(m_pos) else (0, 130, 60)
+                pg.draw.rect(self.screen, d_bg, done_rect, border_radius=5)
+                pg.draw.rect(
+                    self.screen, ACCENT_GREEN, done_rect, width=1, border_radius=5
+                )
+                done_txt = self.ui_font.render("DONE", True, (255, 255, 255))
+                self.screen.blit(
+                    done_txt, done_txt.get_rect(center=done_rect.center)
+                )
+
+                # CLEAR Button
+                clear_rect = pg.Rect(1175, row_y + 6, 68, 28)
+                c_bg = (180, 40, 40) if clear_rect.collidepoint(m_pos) else (140, 30, 30)
+                pg.draw.rect(self.screen, c_bg, clear_rect, border_radius=5)
+                pg.draw.rect(
+                    self.screen, (255, 100, 100), clear_rect, width=1, border_radius=5
+                )
+                clear_txt = self.ui_font.render("CLEAR", True, (255, 255, 255))
+                self.screen.blit(
+                    clear_txt, clear_txt.get_rect(center=clear_rect.center)
+                )
+
             else:
+                raw_bind = self.controls_mgr.get_binding(action)
+                disp_bind = self.controls_mgr.get_display_name_for_binding(raw_bind)
+
+                pill_rect = pg.Rect(920, row_y + 6, 225, 28)
                 p_bg = BADGE_BG
                 p_border = BADGE_BORDER if raw_bind else (140, 40, 40)
                 p_txt_color = ACCENT_CYAN if raw_bind else (240, 80, 80)
 
-            pg.draw.rect(self.screen, p_bg, pill_rect, border_radius=5)
-            pg.draw.rect(self.screen, p_border, pill_rect, width=1, border_radius=5)
+                pg.draw.rect(self.screen, p_bg, pill_rect, border_radius=5)
+                pg.draw.rect(self.screen, p_border, pill_rect, width=1, border_radius=5)
 
-            txt_bind = self.badge_font.render(disp_bind, True, p_txt_color)
-            b_rect = txt_bind.get_rect(center=pill_rect.center)
-            self.screen.blit(txt_bind, b_rect)
+                txt_bind = self.badge_font.render(disp_bind, True, p_txt_color)
+                b_rect = txt_bind.get_rect(center=pill_rect.center)
+                self.screen.blit(txt_bind, b_rect)
 
-            # REMAP Button
-            remap_btn_rect = pg.Rect(1160, row_y + 6, 80, 28)
-            b_bg = ACCENT_PURPLE if is_listening else (48, 54, 72)
-            m_pos = pg.mouse.get_pos()
-            is_hover = remap_btn_rect.collidepoint(m_pos)
-            if is_hover:
-                b_bg = (
-                    min(255, b_bg[0] + 30),
-                    min(255, b_bg[1] + 30),
-                    min(255, b_bg[2] + 30),
+                # REMAP Button
+                remap_btn_rect = pg.Rect(1160, row_y + 6, 80, 28)
+                b_bg = (48, 54, 72)
+                if remap_btn_rect.collidepoint(m_pos):
+                    b_bg = (78, 84, 102)
+
+                pg.draw.rect(self.screen, b_bg, remap_btn_rect, border_radius=5)
+                pg.draw.rect(
+                    self.screen, BORDER_LIGHT, remap_btn_rect, width=1, border_radius=5
                 )
 
-            pg.draw.rect(self.screen, b_bg, remap_btn_rect, border_radius=5)
-            pg.draw.rect(
-                self.screen, BORDER_LIGHT, remap_btn_rect, width=1, border_radius=5
-            )
-
-            remap_txt = self.ui_font.render("REMAP", True, (255, 255, 255))
-            self.screen.blit(
-                remap_txt, remap_txt.get_rect(center=remap_btn_rect.center)
-            )
+                remap_txt = self.ui_font.render("REMAP", True, (255, 255, 255))
+                self.screen.blit(
+                    remap_txt, remap_txt.get_rect(center=remap_btn_rect.center)
+                )
 
             row_y += 44
 

@@ -677,16 +677,15 @@ class Player(Actor):
     # Stamina: gates roll/dash/special-attack so the player can't spam them.
     # Regen pauses briefly after each use before resuming.
     _MAX_STAMINA: Final[float] = 100.0
-    _STAMINA_REGEN_RATE: Final[float] = 25.0  # per second
-    _STAMINA_REGEN_DELAY: Final[float] = 0.5  # seconds of no regen after a spend
-    _ROLL_STAMINA_COST: Final[float] = 15.0
-    _DASH_STAMINA_COST: Final[float] = 15.0
-    _SPECIAL_ATTACK_STAMINA_COST: Final[float] = 30.0
-    # Basic attacks tax stamina too but are never blocked by it -- only the
-    # dodge/dash/special "special moves" hard-gate on an empty bar.
-    _THRUST_STAMINA_COST: Final[float] = 5.0
-    _SMASH_STAMINA_COST: Final[float] = 8.0
-    _POWER_STAMINA_COST: Final[float] = 12.0
+    _STAMINA_REGEN_RATE: Final[float] = 15.0  # per second (slower regen)
+    _STAMINA_REGEN_DELAY: Final[float] = 1.2  # seconds of delay before regen resumes
+    _JUMP_STAMINA_COST: Final[float] = 12.0
+    _ROLL_STAMINA_COST: Final[float] = 20.0
+    _DASH_STAMINA_COST: Final[float] = 20.0
+    _THRUST_STAMINA_COST: Final[float] = 22.0
+    _SMASH_STAMINA_COST: Final[float] = 35.0
+    _POWER_STAMINA_COST: Final[float] = 48.0
+    _SPECIAL_ATTACK_STAMINA_COST: Final[float] = 60.0
 
     _ATTACK_AUDIO_FRAME_SOUNDS: Final[dict[Enum, dict[int, str]]] = {
         PlayerState.ATTACK_SMASH: {
@@ -1384,8 +1383,10 @@ class Player(Actor):
         only be dealt on the configured hit frames.
 
         Returns:
-            True if attack started, False if blocked by current state.
+            True if attack started, False if blocked by current state or low stamina.
         """
+        if self._stamina < self._THRUST_STAMINA_COST:
+            return False
         # Ground attacks require the player to be on the ground
         if self.rect.bottom < self._ground_y - 1:
             return False
@@ -1414,8 +1415,10 @@ class Player(Actor):
         multi-hit attack that can hit targets twice.
 
         Returns:
-            True if attack started, False if blocked by current state.
+            True if attack started, False if blocked by current state or low stamina.
         """
+        if self._stamina < self._SMASH_STAMINA_COST:
+            return False
         # Ground attacks require the player to be on the ground
         if self.rect.bottom < self._ground_y - 1:
             return False
@@ -1444,8 +1447,10 @@ class Player(Actor):
         only be dealt on the configured hit frames.
 
         Returns:
-            True if attack started, False if blocked by current state.
+            True if attack started, False if blocked by current state or low stamina.
         """
+        if self._stamina < self._POWER_STAMINA_COST:
+            return False
         # Ground attacks require the player to be on the ground
         if self.rect.bottom < self._ground_y - 1:
             return False
@@ -1580,8 +1585,11 @@ class Player(Actor):
         Button: ``SPACE`` (keyboard) / Gamepad button 0 / Left-stick up (axis 1 < -0.9)
 
         Returns:
-            True if jump started, False if not grounded or blocked.
+            True if jump started, False if not grounded, low stamina, or blocked.
         """
+        if self._stamina < self._JUMP_STAMINA_COST:
+            return False
+            
         # Must be on ground
         if self.rect.bottom < self._ground_y - self._AIRBORNE_THRESHOLD:
             return False
@@ -1591,6 +1599,7 @@ class Player(Actor):
             
         self._gravity = self._JUMP_VELOCITY
         self._transition_to(PlayerState.JUMP_UP)
+        self._spend_stamina(self._JUMP_STAMINA_COST)
         self._audio_manager.play_sound("jump_grunt")
         self._audio_manager.play_sound("jump")
         return True
@@ -1897,11 +1906,10 @@ class Player(Actor):
             self._defend_releasing = False
             return
 
-        # Check if defend button is still held
+        # Check if defend button is still held via ControlsManager
         keys = pg.key.get_pressed()
         joystick = self._get_joystick()
-        r2_trigger = self._safe_get_button(joystick, 7)
-        defend_held = keys[pg.K_r] or r2_trigger
+        defend_held = ControlsManager().is_action_pressed("DEFEND", keys, joystick)
 
         current_frame = int(self.animation_index)
 

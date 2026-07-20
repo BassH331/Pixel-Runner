@@ -1,5 +1,5 @@
 {
-    "active_mode": "KEYBOARD",
+    "active_mode": "JOYSTICK",
     "keyboard_bindings": {
         "MOVE_LEFT": "left",
         "MOVE_RIGHT": "right",
@@ -10,20 +10,20 @@
         "DEFEND": "r",
         "ROLL": "left shift",
         "DASH": "left ctrl",
-        "SPECIAL_ATTACK": "left shift + f",
+        "SPECIAL_ATTACK": "f",
         "TRANSFORM": "t"
     },
     "joystick_bindings": {
         "MOVE_LEFT": "AXIS_0_MINUS",
         "MOVE_RIGHT": "AXIS_0_PLUS",
         "JUMP": "BUTTON_0",
-        "ATTACK_THRUST": "BUTTON_0",
-        "ATTACK_SMASH": "BUTTON_2",
-        "ATTACK_POWER": "BUTTON_3",
+        "ATTACK_THRUST": "BUTTON_3",
+        "ATTACK_SMASH": "BUTTON_1",
+        "ATTACK_POWER": "BUTTON_2",
         "DEFEND": "BUTTON_7",
-        "ROLL": "BUTTON_4",
-        "DASH": "BUTTON_5",
-        "SPECIAL_ATTACK": "AXIS_1_PLUS",
-        "TRANSFORM": "BUTTON_8"
+        "ROLL": "AXIS_4_PLUS",
+        "DASH": "BUTTON_4",
+        "SPECIAL_ATTACK": "AXIS_1_PLUS + AXIS_4_MINUS",
+        "TRANSFORM": "AXIS_1_MINUS + AXIS_4_MINUS"
     }
 }

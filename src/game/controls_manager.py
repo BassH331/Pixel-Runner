@@ -222,29 +222,26 @@ class ControlsManager:
                     return False
         return False
 
-    def is_action_pressed(
-        self,
-        action: str,
-        keys: Any,
-        joystick: Optional[Any] = None,
-    ) -> bool:
-        """Check if a given action is currently active based on key state or joystick state. Supports combinations (e.g. 'left shift + f', 'BUTTON_4 + BUTTON_5')."""
-        if self.mode == "KEYBOARD" or joystick is None:
-            kb_binding = self.get_binding(action, "KEYBOARD")
-            if not kb_binding:
-                return False
+    def _check_keyboard_action(self, action: str, keys: Any) -> bool:
+        if keys is None:
+            return False
+        kb_binding = self.get_binding(action, "KEYBOARD")
+        if not kb_binding:
+            return False
 
-            parts = [p.strip() for p in kb_binding.split("+")]
-            for part in parts:
-                try:
-                    code = pg.key.key_code(part)
-                    if not keys[code]:
-                        return False
-                except Exception:
+        parts = [p.strip() for p in kb_binding.split("+")]
+        for part in parts:
+            try:
+                code = pg.key.key_code(part)
+                if not keys[code]:
                     return False
-            return True
-        
-        # JOYSTICK mode
+            except Exception:
+                return False
+        return True
+
+    def _check_joystick_action(self, action: str, joystick: Any) -> bool:
+        if joystick is None:
+            return False
         js_binding = self.get_binding(action, "JOYSTICK")
         if not js_binding:
             return False
@@ -254,5 +251,28 @@ class ControlsManager:
             if not self._check_single_joystick_input(part, joystick):
                 return False
         return True
+
+    def is_action_pressed(
+        self,
+        action: str,
+        keys: Any,
+        joystick: Optional[Any] = None,
+    ) -> bool:
+        """
+        Check if a given action is currently active based on key state or joystick state.
+        Supports combinations (e.g. 'left shift + f', 'BUTTON_4 + BUTTON_5').
+        Checks active mode first, falling back to alternate mode if unpressed.
+        """
+        if self.mode == "KEYBOARD":
+            if self._check_keyboard_action(action, keys):
+                return True
+            if joystick is not None and self._check_joystick_action(action, joystick):
+                return True
+        else:
+            if joystick is not None and self._check_joystick_action(action, joystick):
+                return True
+            if self._check_keyboard_action(action, keys):
+                return True
+        return False
 
 
