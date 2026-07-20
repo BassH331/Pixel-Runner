@@ -1,0 +1,29 @@
+{
+    "active_mode": "KEYBOARD",
+    "keyboard_bindings": {
+        "MOVE_LEFT": "left",
+        "MOVE_RIGHT": "right",
+        "JUMP": "space",
+        "ATTACK_THRUST": "q",
+        "ATTACK_SMASH": "e",
+        "ATTACK_POWER": "w",
+        "DEFEND": "r",
+        "ROLL": "left shift",
+        "DASH": "left ctrl",
+        "SPECIAL_ATTACK": "left shift + f",
+        "TRANSFORM": "t"
+    },
+    "joystick_bindings": {
+        "MOVE_LEFT": "AXIS_0_MINUS",
+        "MOVE_RIGHT": "AXIS_0_PLUS",
+        "JUMP": "BUTTON_0",
+        "ATTACK_THRUST": "BUTTON_0",
+        "ATTACK_SMASH": "BUTTON_2",
+        "ATTACK_POWER": "BUTTON_3",
+        "DEFEND": "BUTTON_7",
+        "ROLL": "BUTTON_4",
+        "DASH": "BUTTON_5",
+        "SPECIAL_ATTACK": "AXIS_1_PLUS",
+        "TRANSFORM": "BUTTON_8"
+    }
+}

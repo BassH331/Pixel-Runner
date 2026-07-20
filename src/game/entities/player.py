@@ -55,6 +55,7 @@ import pygame as pg
 from v3x_zulfiqar_gideon import AssetManager, Actor, FootstepController
 from .hitbox_registry import HitboxRegistry
 from ..services import ConfigClient
+from ..controls_manager import ControlsManager
 from v3x_zulfiqar_gideon import (
     AttackConfig,
     AttackState,
@@ -1715,10 +1716,10 @@ class Player(Actor):
         keys: pg.key.ScancodeWrapper,
         joystick: Optional[pg.joystick.JoystickType],
     ) -> None:
-        """Process horizontal movement input."""
-        # Determine direction from input
-        move_left = keys[pg.K_LEFT] or (self._safe_get_axis(joystick, 0) < -0.5)
-        move_right = keys[pg.K_RIGHT] or (self._safe_get_axis(joystick, 0) > 0.5)
+        """Process horizontal movement input via ControlsManager."""
+        controls_mgr = ControlsManager()
+        move_left = controls_mgr.is_action_pressed("MOVE_LEFT", keys, joystick)
+        move_right = controls_mgr.is_action_pressed("MOVE_RIGHT", keys, joystick)
         
         if move_left:
             self._direction = -1
@@ -1734,67 +1735,35 @@ class Player(Actor):
         keys: pg.key.ScancodeWrapper,
         joystick: Optional[pg.joystick.JoystickType],
     ) -> None:
-        """Process action button input (jump, attacks, defend).
+        """Process action button input via ControlsManager."""
+        controls_mgr = ControlsManager()
 
-        Button → Move mapping:
-            SPACE / Gamepad btn 0 / Stick-up  →  jump()
-            Q     / Gamepad btn 2             →  attack_thrust()
-            E     / Gamepad btn 1             →  attack_smash()
-            W     / Gamepad btn 3             →  attack_power()
-            R     / Gamepad R2 (button 7)     →  defend()
-            LSHIFT/ Gamepad btn 4 (L1)        →  roll()
-            LCTRL / Gamepad btn 5 (R1)        →  dash()
-            F     / Gamepad L2 (button 6)     →  special_attack()
-            T     / Gamepad btn 8             →  transform()
-        """
-        # ── Jump  (SPACE | gamepad btn 0 | left-stick up) ─────────────────────
-        stick_y = self._safe_get_axis(joystick, 1)
-        jump_pressed = (
-            keys[pg.K_SPACE] or
-            self._safe_get_button(joystick, 0) or
-            stick_y < -0.9
-        )
-        if jump_pressed:
+        if controls_mgr.is_action_pressed("JUMP", keys, joystick):
             self.jump()
 
-        # ── Thrust attack  (Q | gamepad btn 2) ────────────────────────────────
-        if keys[pg.K_q] or self._safe_get_button(joystick, 2):
+        if controls_mgr.is_action_pressed("ATTACK_THRUST", keys, joystick):
             self.attack_thrust()
 
-        # ── Smash attack   (E | gamepad btn 1) ────────────────────────────────
-        if keys[pg.K_e] or self._safe_get_button(joystick, 1):
+        if controls_mgr.is_action_pressed("ATTACK_SMASH", keys, joystick):
             self.attack_smash()
 
-        # ── Power attack   (W | gamepad btn 3) ────────────────────────────────
-        if keys[pg.K_w] or self._safe_get_button(joystick, 3):
+        if controls_mgr.is_action_pressed("ATTACK_POWER", keys, joystick):
             self.attack_power()
 
-        # ── Defend         (R | gamepad R2 trigger, button 7) ─────────────────
-        # Digital button index, not the analog axis: trigger axes idle at
-        # -1.0 on some controllers/drivers (e.g. PS4/PS5 on Linux) and at 0.0
-        # on others, so a fixed axis threshold isn't reliable cross-platform.
-        r2_trigger = self._safe_get_button(joystick, 7)
-        defend_pressed = keys[pg.K_r] or r2_trigger
-        if defend_pressed:
+        if controls_mgr.is_action_pressed("DEFEND", keys, joystick):
             if self.state != PlayerState.DEFEND:   # don't re-trigger mid-defend
                 self.defend()
-        # Note: button-release logic is handled inside _update_defend_logic()
 
-        # ── Roll           (LSHIFT | gamepad btn 4 / L1) ──────────────────────
-        if keys[pg.K_LSHIFT] or self._safe_get_button(joystick, 4):
+        if controls_mgr.is_action_pressed("ROLL", keys, joystick):
             self.roll()
 
-        # ── Dash           (LCTRL | gamepad btn 5 / R1) ───────────────────────
-        if keys[pg.K_LCTRL] or self._safe_get_button(joystick, 5):
+        if controls_mgr.is_action_pressed("DASH", keys, joystick):
             self.dash()
 
-        # ── Special Attack (F | gamepad L2 trigger, button 6) ─────────────────
-        l2_trigger = self._safe_get_button(joystick, 6)
-        if keys[pg.K_f] or l2_trigger:
+        if controls_mgr.is_action_pressed("SPECIAL_ATTACK", keys, joystick):
             self.special_attack()
 
-        # ── Transform      (T | gamepad btn 8) ────────────────────────────────
-        if keys[pg.K_t] or self._safe_get_button(joystick, 8):
+        if controls_mgr.is_action_pressed("TRANSFORM", keys, joystick):
             self.transform()
     
     # ─────────────────────────────────────────────────────────────────────────

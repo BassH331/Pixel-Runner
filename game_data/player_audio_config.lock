@@ -1,9 +1,24 @@
 {
-    "config_hash": "08760382198fec3340fdc4e67212517322f46502f56204c0df83a4e37d5c2d8f",
+    "config_hash": "250326fc340f4e4465217a9db625dd329a81efd2086b55306fb3eac4a6f392bf",
     "audio_hashes": {
         "assets/audio/smash.wav": "a61fa5ce472e70e6d3fbb6f76a2bf49e10d3abd836ea760718558bf400b4b40d",
         "assets/audio/sword-slash-and-swing-185432.mp3": "2e4742e14585772e8f0c2ea0834150df95f0c973f97b540a88370e109b0135e5",
         "assets/audio/sword-slice-2-393845.mp3": "abcd14bd051183b3812fd68e87a87ab30116f30514c6328a108a36eb2863a8e3",
-        "assets/audio/Magical Light Aura Sound Effect.mp3": "67c35b5a5417543084117b16e1bcddf76e07800804da5def7f032a2b2af6567f"
+        "assets/audio/Magical Light Aura Sound Effect.mp3": "67c35b5a5417543084117b16e1bcddf76e07800804da5def7f032a2b2af6567f",
+        "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_Growl2.wav": "63d27c20d3bf2d47244fefbe249a5937eb9827eddce8a97ccc4e6b896547eef1",
+        "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_Growl4.wav": "a1d4e9e30324ac7e609662a879f5f9480c8d974730c3a1116927a3aebf8f3473",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 1.wav": "676d1ed662705575186e1ee6a9114b812b81d6f1987f7d39bb37ccc491c60318",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 2.wav": "31d563a704e7cceaa8d4af0116b2a452120a411b3733d40606c4aa16443f0d73",
+        "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_SoftGrowl5.wav": "efdd0c6c0b1647e13f0acbcd49f140472968da9dce2998728fea34f547e849c7",
+        "assets/audio/Beasts/Beasts/Beast_Growl4.wav": "11f909adb5e5560b531ddfd136e8abd4ac939550645f72a9d89d532f32490e27",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Sheath 2.ogg": "bd7b7546ccacca22f1cc4c55ffea7b6ea85b59bee3312622e82c25c88eb7a54b",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Attack 3.wav": "df732ea610c0402f2fa4d90443d8141f3730c3c23a989d9fc7fc43aa81d1b4e5",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Wave Attack 2.ogg": "6558a2f68cccb98d82a13eaaac8b521ecb28c75c5260acb98941e796e20abad2",
+        "assets/audio/Abyssal Horror SFX Vol.1/Abyssal Horror/DeepOne_Growl3.mp3": "36c456c8a6d3a02eae76e0d4b76714b0c9e7fccf627250b3982cd4fee4209411",
+        "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_Grunt.wav": "a357da5e2e93df7bd213b98712ee580036182a400d70a0dd7da11186155edbd1",
+        "assets/audio/magic sound effect.mp3": "3c6563c592f392f1c031acee79b7230d5d3c20a54e86739081388f16772b4ee4",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Wall 1.ogg": "f78a7f614277972b45f39768a4c41e81b6808707a1e4cad0c22cf4a014cb6268",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Firespray 2.wav": "12234e8b9795a390805e3766b0f391edd6f3ece06ea925f010fb1184f8dae428",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 3.wav": "a24ff4a537bd2595629ef8afc889566d6d67f1bbfdb92c85ba3a644c2046460a"
     }
 }

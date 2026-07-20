@@ -53,8 +53,13 @@ class MenuState(State):
         if self.score > 0:
             self.exit_button.handle_event(event)
         
-        if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-            self.start_game()
+        if event.type == pg.KEYDOWN:
+            if event.key == pg.K_SPACE:
+                self.start_game()
+            elif event.key == pg.K_c:
+                from controls_editor import ControlsEditorApp
+                editor = ControlsEditorApp(surface=pg.display.get_surface())
+                editor.run()
 
     def update(self, dt):
         self.play_button.update(dt)
@@ -78,3 +83,7 @@ class MenuState(State):
             instr = self.test_font.render("Press SPACE to Start", False, (255, 255, 255))
             instr_rect = instr.get_rect(center=(self.width//2, self.height//2 + 150))
             surface.blit(instr, instr_rect)
+
+        ctrl_hint = self.test_font.render("Press C for Control Mappings", False, (200, 230, 255))
+        ctrl_rect = ctrl_hint.get_rect(center=(self.width//2, self.height - 40))
+        surface.blit(ctrl_hint, ctrl_rect)

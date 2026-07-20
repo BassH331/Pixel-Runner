@@ -7,7 +7,23 @@
         "power_release_2": "assets/audio/Magical Light Aura Sound Effect.mp3",
         "power_release_3": "assets/audio/Magical Light Aura Sound Effect.mp3",
         "power_release_4": "assets/audio/Magical Light Aura Sound Effect.mp3",
-        "power_release_5": "assets/audio/Magical Light Aura Sound Effect.mp3"
+        "power_release_5": "assets/audio/Magical Light Aura Sound Effect.mp3",
+        "dinosaur_growl2": "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_Growl2.wav",
+        "dinosaur_growl4": "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_Growl4.wav",
+        "attack_sfx": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 1.wav",
+        "fireball_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 1.wav",
+        "fireball_2": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 2.wav",
+        "dinosaur_softgrowl5": "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_SoftGrowl5.wav",
+        "beast_growl4": "assets/audio/Beasts/Beasts/Beast_Growl4.wav",
+        "sword_sheath_2": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Sheath 2.ogg",
+        "sword_attack_3": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Attack 3.wav",
+        "wave_attack_2": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Wave Attack 2.ogg",
+        "deepone_growl3": "assets/audio/Abyssal Horror SFX Vol.1/Abyssal Horror/DeepOne_Growl3.mp3",
+        "dinosaur_grunt": "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_Grunt.wav",
+        "magic_sound_effect": "assets/audio/magic sound effect.mp3",
+        "rock_wall_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Wall 1.ogg",
+        "firespray_2": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Firespray 2.wav",
+        "fireball_3": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 3.wav"
     },
     "states": {
         "ATTACK_SMASH": {
@@ -29,8 +45,27 @@
             "0": "aura_effect"
         },
         "TRANSFORM": {
-            "3": "jump"
+            "3": "jump",
+            "4": "dinosaur_grunt",
+            "11": "dinosaur_growl2",
+            "13": "deepone_growl3",
+            "19": "rock_wall_1",
+            "21": "fireball_3"
         }
     },
-    "enhanced_states": {}
+    "enhanced_states": {
+        "ATTACK_THRUST": {
+            "1": "beast_growl4",
+            "3": "dinosaur_growl4",
+            "4": "sword_attack_3",
+            "5": "fireball_1"
+        },
+        "TRANSFORM": {
+            "2": "jump",
+            "4": "dinosaur_grunt",
+            "13": "deepone_growl3",
+            "19": "rock_wall_1",
+            "21": "fireball_3"
+        }
+    }
 }

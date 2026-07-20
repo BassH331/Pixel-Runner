@@ -447,6 +447,87 @@ HTML_CONTENT = """<!DOCTYPE html>
             color: #000;
         }
 
+        /* Live Animation Preview Widget */
+        .live-anim-widget {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            padding: 0.6rem 1rem;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .live-anim-widget.active {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 16px rgba(6, 182, 212, 0.3);
+            background: rgba(6, 182, 212, 0.08);
+        }
+
+        .live-anim-box {
+            width: 120px;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8);
+        }
+
+        .live-anim-box img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            image-rendering: pixelated;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8));
+        }
+
+        .live-sound-txt {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 700;
+            transition: color 0.15s ease, text-shadow 0.15s ease;
+        }
+
+        .live-sound-txt.active-sound {
+            color: var(--accent-cyan);
+            text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+        }
+
+        .live-anim-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            font-size: 0.85rem;
+        }
+
+        .live-frame-txt {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .live-speed-txt {
+            color: var(--accent-cyan);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .frame-card.preview-active {
+            border-color: var(--accent-cyan) !important;
+            box-shadow: 0 0 16px rgba(6, 182, 212, 0.35) !important;
+            background: rgba(6, 182, 212, 0.08) !important;
+            transform: translateY(-2px);
+        }
+
         .timeline-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -911,9 +992,35 @@ HTML_CONTENT = """<!DOCTYPE html>
             </div>
 
             <div class="timeline-controls">
-                <div class="control-group">
+                <div class="control-group" style="flex-wrap: wrap; gap: 0.6rem; align-items: center;">
                     <span class="control-label">Animation State:</span>
                     <select id="state-select"></select>
+                    <button id="btn-preview-state" class="btn btn-primary" onclick="toggleAnimationPreview()" title="Play animation in real-time with frame sound triggers" style="padding: 0.45rem 0.9rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+                        <span id="preview-btn-icon">▶</span>
+                        <span id="preview-btn-text">Preview</span>
+                    </button>
+                    
+                    <!-- Speed Controls -->
+                    <div style="display: flex; align-items: center; gap: 0.4rem; background: rgba(0,0,0,0.3); padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                        <span class="control-label" style="font-size:0.75rem; white-space: nowrap;">Speed:</span>
+                        <input type="range" id="preview-speed-slider" class="slider" min="0.2" max="4.0" step="0.1" value="1.0" style="width: 75px;" oninput="onSpeedSliderChange(this.value)">
+                        <span id="preview-speed-val" style="font-size: 0.8rem; font-weight: 700; color: var(--accent-cyan); min-width: 32px;">1.0x</span>
+                        <button class="btn btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" onclick="setSpeedPreset(1.0)">1x</button>
+                        <button class="btn btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" onclick="setSpeedPreset(1.5)">1.5x</button>
+                        <button class="btn btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;" onclick="setSpeedPreset(2.0)">2x</button>
+                    </div>
+                </div>
+
+                <!-- Live Animation Preview Box -->
+                <div id="live-anim-widget" class="live-anim-widget">
+                    <div class="live-anim-box">
+                        <img id="live-anim-img" src="" alt="Frame Preview" onerror="this.style.opacity='0';" />
+                    </div>
+                    <div class="live-anim-info">
+                        <span id="live-anim-frame-num" class="live-frame-txt">Frame 0 / 0</span>
+                        <span id="live-anim-speed-txt" class="live-speed-txt">Ready</span>
+                        <span id="live-sound-txt" class="live-sound-txt">🔊 No Sound</span>
+                    </div>
                 </div>
 
                 <div id="variant-toggle" class="toggle-group">
@@ -1101,6 +1208,242 @@ HTML_CONTENT = """<!DOCTYPE html>
             return "/" + pattern.replace("{}", numStr);
         }
 
+        // Timing configurations extracted from game engine (Player._STATE_CONFIGS, enemy defaults)
+        const STATE_TIMING_META = {
+            player: {
+                DEATH: { speed: 0.12, loop: false },
+                DEFEND: { speed: 0.18, loop: false },
+                HURT: { speed: 0.20, loop: false, frame_speeds: { 0: 0.3, 1: 0.3, 2: 0.3, 3: 0.1, 4: 0.1, 5: 0.2 } },
+                ATTACK_THRUST: { speed: 0.24, loop: false, frame_speeds: { 0: 0.12, 1: 0.12, 2: 0.40, 3: 0.28, 4: 0.28, 5: 0.20, 6: 0.20, 7: 0.15, 8: 0.15 } },
+                ATTACK_SMASH: { speed: 0.24, loop: false, frame_speeds: { 0: 0.12, 1: 0.12, 2: 0.35, 3: 0.35, 4: 0.35, 5: 0.15, 6: 0.15, 7: 0.32, 8: 0.32, 9: 0.32, 10: 0.22, 11: 0.22, 12: 0.22, 13: 0.18, 14: 0.18, 15: 0.14, 16: 0.14 } },
+                ATTACK_POWER: { speed: 0.24, loop: false, frame_speeds: { 0: 0.10, 1: 0.10, 2: 0.10, 3: 0.10, 4: 0.10, 5: 0.10, 6: 0.30, 7: 0.30, 8: 0.30, 9: 0.30, 10: 0.30, 11: 0.18, 12: 0.18, 13: 0.18, 14: 0.18, 15: 0.35, 16: 0.35, 17: 0.35, 18: 0.35, 19: 0.35, 20: 0.35, 21: 0.35, 22: 0.12 } },
+                SPECIAL_ATTACK: { speed: 0.20, loop: false, frame_speeds: { 0:0.14,1:0.14,2:0.14,3:0.14,4:0.14,5:0.14,6:0.18,7:0.18,8:0.18,9:0.18,10:0.18,11:0.18,12:0.18,13:0.18,14:0.25,15:0.25,16:0.25,17:0.30,18:0.30,19:0.30,20:0.30,21:0.30,22:0.30,23:0.30,24:0.30,25:0.30,26:0.30,27:0.16,28:0.16,29:0.16,30:0.16,31:0.16,32:0.16,33:0.16 } },
+                TRANSFORM: { speed: 0.18, loop: false, frame_speeds: { 0:0.14,1:0.14,2:0.14,3:0.14,4:0.14,5:0.14,6:0.22,7:0.22,8:0.22,9:0.22,10:0.22,11:0.22,12:0.22,13:0.30,14:0.30,15:0.30,16:0.30,17:0.30,18:0.30,19:0.30,20:0.30,21:0.30,22:0.25,23:0.25,24:0.25,25:0.25,26:0.25,27:0.25,28:0.25,29:0.16,30:0.16,31:0.16,32:0.16,33:0.16,34:0.16 } },
+                ROLL: { speed: 0.30, loop: false },
+                DASH: { speed: 0.32, loop: false },
+                JUMP_UP: { speed: 0.20, loop: true },
+                JUMP_DOWN: { speed: 0.22, loop: true },
+                RUN: { speed: 0.22, loop: true },
+                IDLE: { speed: 0.15, loop: true }
+            }
+        };
+
+        let animPreviewState = {
+            running: false,
+            lastTime: 0,
+            animationIndex: 0.0,
+            currentFrameInt: -1,
+            animFrameId: null,
+            flashTimeout: null
+        };
+
+        function getFrameSpeed(entity, state, frameIdx) {
+            const timing = STATE_TIMING_META[entity]?.[state];
+            if (timing) {
+                if (timing.frame_speeds && timing.frame_speeds[frameIdx] !== undefined) {
+                    return timing.frame_speeds[frameIdx];
+                }
+                if (timing.speed !== undefined) return timing.speed;
+            }
+            return 0.20;
+        }
+
+        function playMixerSound(soundId) {
+            const path = appState.config.sounds[soundId] || appState.jukebox_sounds[soundId];
+            if (!path) return;
+
+            const master = parseFloat(masterSlider.value);
+            const sfx = parseFloat(sfxSlider.value);
+            const trackVol = appState.settings.sound_volumes[soundId] !== undefined ? appState.settings.sound_volumes[soundId] : 1.0;
+            const finalVol = Math.max(0.0, Math.min(1.0, master * sfx * trackVol));
+            if (finalVol <= 0.001) return;
+
+            const audio = new Audio("/" + path);
+            audio.volume = finalVol;
+            audio.play().catch(e => console.error("Preview sound trigger error:", e));
+        }
+
+        function onSpeedSliderChange(val) {
+            const speedVal = parseFloat(val);
+            const valEl = document.getElementById("preview-speed-val");
+            if (valEl) valEl.innerText = `${speedVal.toFixed(1)}x`;
+        }
+
+        function setSpeedPreset(val) {
+            const slider = document.getElementById("preview-speed-slider");
+            if (slider) {
+                slider.value = val;
+                onSpeedSliderChange(val);
+            }
+        }
+
+        function updateLiveSoundInfo(soundId) {
+            const soundTxt = document.getElementById("live-sound-txt");
+            if (!soundTxt) return;
+            soundTxt.innerText = soundId ? `🔊 ${soundId}` : "🔊 No Sound";
+            if (soundId) {
+                soundTxt.classList.add("active-sound");
+                if (animPreviewState.flashTimeout) clearTimeout(animPreviewState.flashTimeout);
+                animPreviewState.flashTimeout = setTimeout(() => {
+                    soundTxt.classList.remove("active-sound");
+                }, 350);
+            }
+        }
+
+        function toggleAnimationPreview() {
+            if (animPreviewState.running) {
+                stopAnimationPreview();
+            } else {
+                startAnimationPreview();
+            }
+        }
+
+        function startAnimationPreview() {
+            stopAnimationPreview();
+
+            const state = stateSelect.value;
+            const em = ENTITY_META[currentEntity];
+            if (!em || !em.states[state]) return;
+
+            const sd = em.states[state];
+            const maxFrames = em.has_variants
+                ? (sd.frames[currentVariant] || sd.frames.standard)
+                : sd.frames;
+            if (!maxFrames || maxFrames <= 0) return;
+
+            const timing = STATE_TIMING_META[currentEntity]?.[state];
+            const isLooping = timing?.loop !== undefined ? timing.loop : (state === 'IDLE' || state === 'RUN' || state === 'FLY' || state === 'WALK' || state === 'CHASE');
+
+            animPreviewState.running = true;
+            animPreviewState.animationIndex = 0.0;
+            animPreviewState.currentFrameInt = -1;
+            animPreviewState.lastTime = performance.now();
+
+            const btnIcon = document.getElementById("preview-btn-icon");
+            const btnText = document.getElementById("preview-btn-text");
+            const widget = document.getElementById("live-anim-widget");
+            const btn = document.getElementById("btn-preview-state");
+
+            if (btnIcon) btnIcon.innerText = "⏹";
+            if (btnText) btnText.innerText = "Stop";
+            if (widget) widget.classList.add("active");
+            if (btn) {
+                btn.classList.remove("btn-primary");
+                btn.classList.add("btn-danger");
+            }
+
+            function previewStep(timestamp) {
+                if (!animPreviewState.running) return;
+
+                const deltaMs = timestamp - animPreviewState.lastTime;
+                animPreviewState.lastTime = timestamp;
+
+                // Engine runs at 60 FPS (16.6667ms per frame tick)
+                const frameTicks = Math.min(3.0, deltaMs / 16.6667);
+
+                const currentInt = Math.floor(animPreviewState.animationIndex) % maxFrames;
+                const baseSpeed = getFrameSpeed(currentEntity, state, currentInt);
+                const speedMultiplier = parseFloat(document.getElementById("preview-speed-slider")?.value || 1.0);
+                const effectiveSpeed = baseSpeed * speedMultiplier;
+
+                animPreviewState.animationIndex += effectiveSpeed * frameTicks;
+
+                let nextInt = Math.floor(animPreviewState.animationIndex);
+                if (nextInt >= maxFrames) {
+                    if (isLooping) {
+                        animPreviewState.animationIndex = animPreviewState.animationIndex % maxFrames;
+                        nextInt = Math.floor(animPreviewState.animationIndex);
+                    } else {
+                        // Played full animation sequence once
+                        updatePreviewFrameDisplay(state, maxFrames - 1, maxFrames, effectiveSpeed, speedMultiplier);
+                        stopAnimationPreview();
+                        return;
+                    }
+                }
+
+                if (nextInt !== animPreviewState.currentFrameInt) {
+                    animPreviewState.currentFrameInt = nextInt;
+                    updatePreviewFrameDisplay(state, nextInt, maxFrames, effectiveSpeed, speedMultiplier);
+
+                    // Check sound trigger
+                    const targetMap = (currentVariant === "standard") 
+                        ? (appState.config.states[state] || {})
+                        : (appState.config.enhanced_states[state] || {});
+
+                    const soundId = targetMap[nextInt];
+                    if (soundId) {
+                        playMixerSound(soundId);
+                        updateLiveSoundInfo(soundId);
+                    }
+                }
+
+                animPreviewState.animFrameId = requestAnimationFrame(previewStep);
+            }
+
+            animPreviewState.animFrameId = requestAnimationFrame(previewStep);
+        }
+
+        function updatePreviewFrameDisplay(state, frameIdx, maxFrames, speed, multiplier) {
+            const imgUrl = getFrameImageUrl(state, currentVariant, frameIdx);
+            
+            const liveImg = document.getElementById("live-anim-img");
+            if (liveImg) {
+                liveImg.src = imgUrl;
+                liveImg.style.opacity = '1';
+            }
+
+            const frameTxt = document.getElementById("live-anim-frame-num");
+            if (frameTxt) frameTxt.innerText = `Frame ${frameIdx} / ${maxFrames}`;
+
+            const speedTxt = document.getElementById("live-anim-speed-txt");
+            const speedMult = multiplier || parseFloat(document.getElementById("preview-speed-slider")?.value || 1.0);
+            if (speedTxt) speedTxt.innerText = `${speed.toFixed(2)} spd (${speedMult.toFixed(1)}x)`;
+
+            // Highlight timeline card in grid
+            const cards = document.querySelectorAll("#timeline-grid .frame-card");
+            cards.forEach((card, idx) => {
+                if (idx === frameIdx) {
+                    card.classList.add("preview-active");
+                } else {
+                    card.classList.remove("preview-active");
+                }
+            });
+        }
+
+        function stopAnimationPreview() {
+            animPreviewState.running = false;
+            if (animPreviewState.animFrameId) {
+                cancelAnimationFrame(animPreviewState.animFrameId);
+                animPreviewState.animFrameId = null;
+            }
+            if (animPreviewState.flashTimeout) {
+                clearTimeout(animPreviewState.flashTimeout);
+                animPreviewState.flashTimeout = null;
+            }
+
+            const btnIcon = document.getElementById("preview-btn-icon");
+            const btnText = document.getElementById("preview-btn-text");
+            const widget = document.getElementById("live-anim-widget");
+            const soundTxt = document.getElementById("live-sound-txt");
+            const btn = document.getElementById("btn-preview-state");
+
+            if (btnIcon) btnIcon.innerText = "▶";
+            if (btnText) btnText.innerText = "Preview";
+            if (widget) widget.classList.remove("active");
+            if (soundTxt) {
+                soundTxt.classList.remove("active-sound");
+                soundTxt.innerText = "🔊 No Sound";
+            }
+            if (btn) {
+                btn.classList.remove("btn-danger");
+                btn.classList.add("btn-primary");
+            }
+
+            // Remove glow from timeline cards
+            const cards = document.querySelectorAll("#timeline-grid .frame-card");
+            cards.forEach(card => card.classList.remove("preview-active"));
+        }
+
         // Application State
         let appState = {
             config: {},
@@ -1148,6 +1491,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         function switchEntity(key) {
             if (!ENTITY_META[key]) return;
+            stopAnimationPreview();
             currentEntity = key;
             const meta = ENTITY_META[key];
             // Rebuild chips
@@ -1290,9 +1634,13 @@ HTML_CONTENT = """<!DOCTYPE html>
             document.getElementById("mixer-search").addEventListener("input", renderTrackMixer);
 
             // Selection Controls
-            stateSelect.addEventListener("change", renderTimeline);
+            stateSelect.addEventListener("change", () => {
+                stopAnimationPreview();
+                renderTimeline();
+            });
             
             btnStd.addEventListener("click", () => {
+                stopAnimationPreview();
                 btnStd.classList.add("active");
                 btnEnh.classList.remove("active");
                 currentVariant = "standard";
@@ -1300,6 +1648,7 @@ HTML_CONTENT = """<!DOCTYPE html>
             });
 
             btnEnh.addEventListener("click", () => {
+                stopAnimationPreview();
                 btnEnh.classList.add("active");
                 btnStd.classList.remove("active");
                 currentVariant = "enhanced";
@@ -1470,6 +1819,7 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         // Modal Management
         function openAssignModal(state, variant, frame) {
+            stopAnimationPreview();
             appState.activeFrameTarget = { state, variant, frame };
             document.getElementById("modal-title-text").innerText = `Assign sound to ${state} (${variant}) - Frame ${frame}`;
             
@@ -1495,6 +1845,7 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         function openAudioBrowserModal() {
+            stopAnimationPreview();
             appState.activeFrameTarget = null;
             document.getElementById("modal-title-text").innerText = "Browse & Register Audio Assets";
             
