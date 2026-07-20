@@ -8,6 +8,8 @@ toxic globs when kept at range.
 
 from __future__ import annotations
 
+from src.game.audio.entity_audio_mixin import EntityAudioMixin
+
 import math
 import random
 from dataclasses import dataclass
@@ -104,7 +106,7 @@ class StateConfig:
     interruptible: bool = True
 
 
-class GreenMonster(Actor):
+class GreenMonster(EntityAudioMixin, Actor):
     """
     The Gatekeeper -- a hovering elite enemy. Keeps just out of easy reach,
     diving down for a ground-slam when the player gets close and lobbing
@@ -140,6 +142,7 @@ class GreenMonster(Actor):
         behaviour_map: Optional[dict[str, str]] = None,
         custom_scale: Optional[float] = None,
         custom_health: Optional[float] = None,
+        audio_manager=None,
     ) -> None:
         super().__init__(x, y)
 
@@ -247,6 +250,9 @@ class GreenMonster(Actor):
         self.set_state(GatekeeperState.IDLE)
         if self.state in self.animations:
             self.image = self.animations[self.state][0]
+
+        # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
+        self._init_entity_audio_config(audio_manager, "green_monster")
         self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y))
 
         # Hitbox adjustment from margins registry
@@ -404,6 +410,7 @@ class GreenMonster(Actor):
         self._update_vertical_position()
 
         super().update(dt_sec)
+        self._update_animation_audio()
 
         if self._teleport_after_hurt and self.state == GatekeeperState.IDLE:
             self._teleport_after_hurt = False
@@ -485,7 +492,7 @@ class GreenMonster(Actor):
         self._chase_cooldown = 2.0
         self.set_state(GatekeeperState.IDLE, force=True)
 
-    def take_damage(self, amount: float = 0.5) -> None:
+    def take_damage(self, amount: float = 0.5, knockback: tuple[float, float] | None = None) -> None:
         if self.state in (GatekeeperState.HURT, GatekeeperState.DEATH):
             return
 

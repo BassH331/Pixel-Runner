@@ -4,6 +4,7 @@ import math
 from enum import Enum
 from v3x_zulfiqar_gideon import Actor, AssetManager
 from .hitbox_registry import HitboxRegistry
+from src.game.audio.entity_audio_mixin import EntityAudioMixin
 
 class EnemyState(Enum):
     FLY = 0
@@ -15,15 +16,16 @@ class EnemyStateConfig:
         self.frame_speeds = None
         self.next_state = None
 
-class Enemy(Actor):
+class Enemy(EntityAudioMixin, Actor):
     """
     Base class for all enemy entities in the game.
     Handles common enemy behaviors like movement, animation, and collision.
     """
     _fly_frames_caches: dict[float, list[pg.Surface]] = {}
 
-    def __init__(self):
+    def __init__(self, audio_manager=None):
         super().__init__(0, 0)
+        self._bat_audio_manager = audio_manager  # store for post-init setup
         
         # Load margins and base scale
         margins = HitboxRegistry.get_margins("enemy")
@@ -97,6 +99,9 @@ class Enemy(Actor):
         margins = HitboxRegistry.get_margins("enemy")
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
 
+        # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
+        self._init_entity_audio_config(self._bat_audio_manager, "bat")
+
     def take_damage(self, amount: float, knockback: tuple[float, float] | None = None) -> None:
         """Apply damage to this enemy. Override in subclasses."""
         pass
@@ -151,3 +156,4 @@ class Enemy(Actor):
             self.kill()
             
         super().update(dt)  # Actor handles animation and base components
+        self._update_animation_audio()

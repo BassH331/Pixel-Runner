@@ -4,6 +4,8 @@ Fire Wizard boss module with specialized AI and frame-precise spell casting.
 
 from __future__ import annotations
 
+from src.game.audio.entity_audio_mixin import EntityAudioMixin
+
 import os
 import json
 import random
@@ -130,7 +132,7 @@ class StateConfig:
     interruptible: bool = True
 
 
-class FireWizard(Actor):
+class FireWizard(EntityAudioMixin, Actor):
     """
     A Fire Wizard boss with unique spell casting animations, frame-precise hitboxes,
     and balanced AI that gives the player space to maneuver.
@@ -164,6 +166,7 @@ class FireWizard(Actor):
         behaviour_map: Optional[dict[str, str]] = None,
         custom_scale: Optional[float] = None,
         custom_health: Optional[float] = None,
+        audio_manager=None,
     ) -> None:
         super().__init__(x, y)
         
@@ -267,6 +270,9 @@ class FireWizard(Actor):
         self.set_state(FireWizardState.IDLE)
         if self.state in self.animations:
             self.image = self.animations[self.state][0]
+
+        # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
+        self._init_entity_audio_config(audio_manager, "boss_wizard")
         self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y))
         
         # Hitbox adjustment from margins registry
@@ -439,6 +445,7 @@ class FireWizard(Actor):
         self._update_ai()
         
         super().update(dt_sec)
+        self._update_animation_audio()
         
         if self._teleport_after_hurt and self.state == FireWizardState.IDLE:
             self._teleport_after_hurt = False
@@ -512,7 +519,7 @@ class FireWizard(Actor):
         self._chase_cooldown = 2.0
         self.set_state(FireWizardState.IDLE, force=True)
 
-    def take_damage(self, amount: float = 0.5) -> None:
+    def take_damage(self, amount: float = 0.5, knockback: tuple[float, float] | None = None) -> None:
         if self.state in (FireWizardState.HURT, FireWizardState.DEATH):
             return
             

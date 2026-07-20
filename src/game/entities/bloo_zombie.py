@@ -1,8 +1,6 @@
 """
-Skeleton enemy module with precision frame-based combat system.
-
-This module implements a skeletal enemy with state-machine AI and
-frame-accurate hit detection for responsive, fair combat gameplay.
+Blood Zombie (Bloo Zombie) enemy entity with skeleton-based combat mechanics.
+Specialized variant with enhanced health, unique sprites, and modified behavior.
 """
 
 from __future__ import annotations
@@ -10,7 +8,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Final, Optional, Sequence
+from typing import TYPE_CHECKING, Final, Optional
 
 import pygame as pg
 
@@ -23,8 +21,8 @@ if TYPE_CHECKING:
     from src.game.entities.player import Player
 
 
-class SkeletonState(Enum):
-    """Enumeration of all possible skeleton behavioral states."""
+class BloodZombieState(Enum):
+    """Enumeration of all possible blood zombie behavioral states."""
     
     DEATH = 0
     HURT = 10
@@ -37,34 +35,35 @@ class SkeletonState(Enum):
 class StateConfig:
     animation_speed: float = 0.15
     loops: bool = True
-    next_state: Optional[SkeletonState] = None
+    next_state: Optional[BloodZombieState] = None
     interruptible: bool = True
 
 
-class Skeleton(EntityAudioMixin, Actor):
+class BloodZombie(EntityAudioMixin, Actor):
     """
-    A skeletal enemy with state-machine AI and frame-precise combat.
+    A blood zombie enemy (Bloo Zombie) with enhanced stats and skeleton-based combat.
+    Features unique sprites, higher health, and modified attack patterns.
     """
     
     # Class-level attack configurations (immutable)
     ATTACK_1_CONFIG: Final[AttackConfig] = AttackConfig(
         hit_frames=frozenset({6}),
-        base_damage=1.0,
-        knockback_force=8.0,
+        base_damage=2.0,  # Higher base damage than regular skeletons
+        knockback_force=10.0,  # Higher knockback
     )
     
     ATTACK_2_CONFIG: Final[AttackConfig] = AttackConfig(
         hit_frames=frozenset({5, 6}),
-        base_damage=0.75,
-        knockback_force=5.0,
+        base_damage=1.5,
+        knockback_force=6.0,
     )
     
     STATE_CONFIGS: Final[dict[Enum, StateConfig]] = {
-        SkeletonState.IDLE: StateConfig(0.1),
-        SkeletonState.CHASE: StateConfig(0.15),
-        SkeletonState.ATTACK: StateConfig(0.15, loops=False, next_state=SkeletonState.IDLE, interruptible=False),
-        SkeletonState.HURT: StateConfig(0.30, loops=False, next_state=SkeletonState.IDLE, interruptible=False),
-        SkeletonState.DEATH: StateConfig(0.15, loops=False, interruptible=False),
+        BloodZombieState.IDLE: StateConfig(0.1),
+        BloodZombieState.CHASE: StateConfig(0.15),
+        BloodZombieState.ATTACK: StateConfig(0.15, loops=False, next_state=BloodZombieState.IDLE, interruptible=False),
+        BloodZombieState.HURT: StateConfig(0.15, loops=False, next_state=BloodZombieState.IDLE, interruptible=False),
+        BloodZombieState.DEATH: StateConfig(0.15, loops=False, interruptible=False),
     }
 
     def __init__(
@@ -72,9 +71,7 @@ class Skeleton(EntityAudioMixin, Actor):
         x: int,
         y: int,
         player: Player,
-        sprite_root: Optional[str] = None,
-        behaviour_map: Optional[dict[str, str]] = None,
-        tier: str = "minion",
+        tier: str = "boss",  # Blood Zombie is always a boss variant
         custom_scale: Optional[float] = None,
         custom_health: Optional[float] = None,
         audio_manager=None,
@@ -85,106 +82,55 @@ class Skeleton(EntityAudioMixin, Actor):
         self.state_configs = self.STATE_CONFIGS
         self.tier = tier
         
-        # Load margins and scale first
-        if self.tier == "boss":
-            margins_key = "boss"
-            if sprite_root:
-                import os
-                folder_name = os.path.basename(sprite_root.rstrip("/"))
-                margins_key = f"boss:{folder_name.lower()}"
-        else:
-            margins_key = "skeleton"
-            if sprite_root:
-                import os
-                folder_name = os.path.basename(sprite_root.rstrip("/"))
-                margins_key = f"skeleton_{folder_name.lower()}"
-        
+        # Load hitbox margins specifically for blood_zombie boss
+        margins_key = "boss:bloodzombie"  # Specific key for blood zombie boss hitbox data
         margins = HitboxRegistry.get_margins(margins_key)
-        # If margins for custom skeleton/boss are missing, fall back to default
+        
+        # Fallback to generic boss margins if specific ones missing
         if margins.scale == 1.0 and margins.ground_offset == 0:
-            if self.tier == "boss":
-                margins = HitboxRegistry.get_margins("boss")
-            else:
-                margins = HitboxRegistry.get_margins("skeleton")
-            
-        # Determine scale: registry priority -> custom_scale priority -> default margins scale
+            margins = HitboxRegistry.get_margins("boss")
+        
+        # Determine scale: explicit custom > registry > default margins
         registry_scale = None
         try:
             if HitboxRegistry.has_custom_margins(margins_key):
                 registry_scale = margins.scale
         except Exception:
             pass
-
+        
         self.scale = registry_scale if registry_scale is not None else (custom_scale if custom_scale is not None else margins.scale)
         self._scale_is_explicit = (registry_scale is not None or custom_scale is not None)
         
-        # 1. Load default animations
-        self.animations[SkeletonState.IDLE] = self._load_frames(
-            "assets/skeleton/Skeleton_01_White_Idle/skeleton-idle_{}.png", 8
+        # Load default animations first (fallback if sprite loading fails)
+        self.animations[BloodZombieState.IDLE] = self._load_frames(
+            "assets/graphics/bloodZombie/Idle/blood_idle_{:02d}.png", 10
         )
-        self.animations[SkeletonState.CHASE] = self._load_frames(
-            "assets/skeleton/Skeleton_01_White_Walk/skeleton-walk_{:02d}.png", 10
+        self.animations[BloodZombieState.CHASE] = self._load_frames(
+            "assets/graphics/bloodZombie/Move/blood_chase_{}.png", 8
         )
         self._attack1_frames = self._load_frames(
-            "assets/skeleton/Skeleton_01_White_Attack1/skeleton-atk2_{:02d}.png", 10
+            "assets/graphics/bloodZombie/Attack1/blood_attack2_{:02d}.png", 16
         )
-        self.animations[SkeletonState.ATTACK] = self._attack1_frames
-        # Handle secondary attack animation implicitly or add it to state machine
+        self.animations[BloodZombieState.ATTACK] = self._attack1_frames
         self._attack2_frames = self._load_frames(
-            "assets/skeleton/Skeleton_01_White_Attack2/skeleton-atk1_{}.png", 9
+            "assets/graphics/bloodZombie/Attack2/blood_attack1_{:02d}.png", 16
         )
-        self.animations[SkeletonState.HURT] = self._load_frames(
-            "assets/skeleton/Skeleton_01_White_Hurt/skeleton-hurt_{}.png", 5
+        self.animations[BloodZombieState.HURT] = self._load_frames(
+            "assets/graphics/bloodZombie/Hurt/blood_hurt_{}.png", 6
         )
-        self.animations[SkeletonState.DEATH] = self._load_frames(
-            "assets/skeleton/Skeleton_01_White_Die/skeleton-death_{:02d}.png", 13
+        self.animations[BloodZombieState.DEATH] = self._load_frames(
+            "assets/graphics/bloodZombie/Death/blood_death_{}.png", 6
         )
         
-        # 2. Overwrite with dynamic sprites if provided
-        if sprite_root and behaviour_map:
-            import os
-            tag_to_folders = {}
-            for sub, tag in behaviour_map.items():
-                tag_to_folders.setdefault(tag, []).append(os.path.join(sprite_root, sub))
-                
-            def load_from_folders(folders: list[str]) -> list[pg.Surface]:
-                frames = []
-                for f in folders:
-                    raw = AssetManager.get_animation_frames(f)
-                    for frame in raw:
-                        w = int(frame.get_width() * self.scale)
-                        h = int(frame.get_height() * self.scale)
-                        frames.append(pg.transform.scale(frame, (w, h)))
-                return frames
-                
-            if "idle" in tag_to_folders:
-                self.animations[SkeletonState.IDLE] = load_from_folders(tag_to_folders["idle"])
-            if "walk" in tag_to_folders or "chase" in tag_to_folders:
-                walk_folders = tag_to_folders.get("walk", []) + tag_to_folders.get("chase", [])
-                self.animations[SkeletonState.CHASE] = load_from_folders(walk_folders)
-            if "attack" in tag_to_folders:
-                attack_folders = tag_to_folders["attack"]
-                if len(attack_folders) >= 2:
-                    self._attack1_frames = load_from_folders([attack_folders[0]])
-                    self._attack2_frames = load_from_folders([attack_folders[1]])
-                    self.animations[SkeletonState.ATTACK] = self._attack1_frames
-                else:
-                    self._attack1_frames = load_from_folders(attack_folders)
-                    self._attack2_frames = self._attack1_frames
-                    self.animations[SkeletonState.ATTACK] = self._attack1_frames
-            if "hurt" in tag_to_folders:
-                self.animations[SkeletonState.HURT] = load_from_folders(tag_to_folders["hurt"])
-            if "death" in tag_to_folders:
-                self.animations[SkeletonState.DEATH] = load_from_folders(tag_to_folders["death"])
-                
-        # 3. Apply Tier Scaling (Health, Speed, Size)
+        # Apply Tier Scaling (Health, Speed, Size)
         damage_scale = 1.0
         knockback_scale = 1.0
         
         if self.tier == "boss":
-            if not sprite_root and not self._scale_is_explicit:
+            # Apply boss scaling (already applied via sprite loading in skeleton logic, but adjust here too)
+            if not self._scale_is_explicit:
                 self.scale *= 1.8
-                # Scale all pre-loaded animation frames to boss scale
+                # Scale all animation frames
                 for state in list(self.animations.keys()):
                     self.animations[state] = [
                         pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
@@ -198,72 +144,31 @@ class Skeleton(EntityAudioMixin, Actor):
                     pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
                     for img in self._attack2_frames
                 ]
-            self._max_health = custom_health if custom_health is not None else 150.0
-            self._speed = 3.2
-            damage_scale = 3.0
-            knockback_scale = 1.8
             
-            # Additional boss AI fields
-            self._detection_range = 3000
-            self._attack_range = 80
-            self._vertical_tolerance = 500
-        elif self.tier == "elite":
-            if not sprite_root and not self._scale_is_explicit:
-                self.scale *= 1.3
-                # Scale all pre-loaded animation frames to elite scale
-                for state in list(self.animations.keys()):
-                    self.animations[state] = [
-                        pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
-                        for img in self.animations[state]
-                    ]
-                self._attack1_frames = [
-                    pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
-                    for img in self._attack1_frames
-                ]
-                self._attack2_frames = [
-                    pg.transform.scale(img, (int(img.get_width() * 1.3), int(img.get_height() * 1.3)))
-                    for img in self._attack2_frames
-                ]
-            self._max_health = custom_health if custom_health is not None else 60.0
-            self._speed = 3.2
-            damage_scale = 1.6
-            knockback_scale = 1.3
-            self._detection_range = 2000
+            self._max_health = custom_health if custom_health is not None else 180.0  # Higher than regular skeleton boss
+            self._speed = 3.0
+            damage_scale = 3.5
+            knockback_scale = 2.0
+            
+            # Blood Zombie specific AI parameters
+            self._detection_range = 3500
+            self._attack_range = 90
+            self._vertical_tolerance = 600
+        else:  # Should not happen for blood zombie but keep for completeness
+            self._max_health = custom_health if custom_health is not None else 90.0
+            self._speed = 2.8
+            damage_scale = 1.8
+            knockback_scale = 1.5
+            self._detection_range = 1200
             self._attack_range = 70
-            self._vertical_tolerance = 300
-        else:  # minion
-            self._max_health = custom_health if custom_health is not None else 30.0
-            self._speed = 2.5
-            damage_scale = 1.0
-            knockback_scale = 1.0
-            self._detection_range = 1000
-            self._attack_range = 60
-            self._vertical_tolerance = 100
-            
-        self._attack_hitbox_width = 60
-        self._attack_hitbox_height = 80
-
-        # Determine config type based on sprite root or tier
-        config_type = None
-        if sprite_root:
-            sprite_lower = sprite_root.lower()
-            if "goblin" in sprite_lower:
-                config_type = "enemy_goblin"
-            elif "green_monster" in sprite_lower:
-                config_type = "enemy_green_monster"
-            elif "bloodzombie" in sprite_lower:
-                config_type = "enemy_blood_zombie"
-            elif "skeletonzombie" in sprite_lower or "zombie" in sprite_lower:
-                config_type = "enemy_skeleton_zombie"
+            self._vertical_tolerance = 200
         
-        if config_type is None:
-            if self.tier == "boss":
-                config_type = "boss_skeleton"
-            else:
-                config_type = "enemy_skeleton_minion"
-
+        self._attack_hitbox_width = 70
+        self._attack_hitbox_height = 90
+        
+        # Load configuration from config service
         try:
-            config = ConfigClient.fetch_config(config_type)
+            config = ConfigClient.fetch_config("enemy_blood_zombie")
             if config:
                 self._max_health = float(config.get("max_health", self._max_health))
                 self._speed = float(config.get("speed", self._speed))
@@ -272,11 +177,12 @@ class Skeleton(EntityAudioMixin, Actor):
                 self._detection_range = int(config.get("detection_range", self._detection_range))
                 self._attack_range = int(config.get("attack_range", self._attack_range))
                 self._vertical_tolerance = int(config.get("vertical_tolerance", self._vertical_tolerance))
-                self._attack_hitbox_width = int(config.get("attack_hitbox_width", 60))
-                self._attack_hitbox_height = int(config.get("attack_hitbox_height", 80))
+                self._attack_hitbox_width = int(config.get("attack_hitbox_width", self._attack_hitbox_width))
+                self._attack_hitbox_height = int(config.get("attack_hitbox_height", self._attack_hitbox_height))
         except Exception as e:
-            print(f"[WARNING] Error loading skeleton config for {config_type}: {e}")
-            
+            print(f"[WARNING] Error loading blood zombie config: {e}")
+        
+        # Apply damage and knockback scaling
         if custom_health is not None:
             self._max_health = custom_health
         self._health: float = self._max_health
@@ -293,39 +199,36 @@ class Skeleton(EntityAudioMixin, Actor):
         )
         
         # Initial setup
-        self.set_state(SkeletonState.IDLE)
+        self.set_state(BloodZombieState.IDLE)
         if self.state in self.animations:
             self.image = self.animations[self.state][0]
         self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y))
         
-        # Hitbox adjustment - loaded dynamically via the central HitboxRegistry
+        # Hitbox adjustment using blood zombie specific margins
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
         
         # Movement and physics
         self._gravity: float = 0.0
-        self._knockback_vel_x: float = 0.0
-        # Load dynamic ground offset from HitboxRegistry using the active display surface height
         surf = pg.display.get_surface()
         height = surf.get_height() if surf else 720
         self._ground_y: int = height - margins.ground_offset
         
         # AI configuration
         if not hasattr(self, "_detection_range"):
-            self._detection_range = 3000 if self.tier == "boss" else 1000
+            self._detection_range = 3500 if self.tier == "boss" else 1200
         if not hasattr(self, "_attack_range"):
-            self._attack_range = 60
+            self._attack_range = 90 if self.tier == "boss" else 70
         if not hasattr(self, "_vertical_tolerance"):
-            self._vertical_tolerance = 500 if self.tier == "boss" else 100
+            self._vertical_tolerance = 600 if self.tier == "boss" else 200
         self.spawn_zone: Optional[dict] = None
         
-        # Precalculate scaled hitbox dimensions for high-performance updates
+        # Precalculate scaled hitbox dimensions for performance
         self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
         self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
 
         # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
-        _entity_audio_key = "skeleton_boss" if self.tier == "boss" else ("skeleton_zombie" if (sprite_root and "zombie" in (sprite_root or "").lower()) else "skeleton_minion")
-        self._init_entity_audio_config(audio_manager, _entity_audio_key)
-        
+        self._init_entity_audio_config(audio_manager, "blood_zombie")
+
     def _load_frames(
         self,
         path_pattern: str,
@@ -338,7 +241,7 @@ class Skeleton(EntityAudioMixin, Actor):
         Args:
             path_pattern: Format string for frame paths with index placeholder.
             count: Number of frames to load (0-indexed).
-            scale_factor: Multiplier for sprite dimensions.
+            scale_factor: Multiplier for sprite dimensions (defaults to self.scale).
             
         Returns:
             List of scaled pygame Surface objects.
@@ -348,7 +251,7 @@ class Skeleton(EntityAudioMixin, Actor):
         """
         if scale_factor is None:
             scale_factor = self.scale
-
+        
         frames: list[pg.Surface] = []
         
         for i in range(count):
@@ -363,20 +266,17 @@ class Skeleton(EntityAudioMixin, Actor):
                 scaled_frame = pg.transform.scale(frame, scaled_size)
                 frames.append(scaled_frame)
             except (FileNotFoundError, pg.error) as e:
-                # Log but continue - partial animation sets may be acceptable
                 print(f"Warning: Failed to load frame {i} from '{path}': {e}")
                 
         if not frames:
-            raise RuntimeError(
-                f"Failed to load any frames from pattern: {path_pattern}"
-            )
+            raise RuntimeError(f"Failed to load any frames from pattern: {path_pattern}")
             
         return frames
-    
+
     # ─────────────────────────────────────────────────────────────────────────
     # Public API: Combat and State Inspection
     # ─────────────────────────────────────────────────────────────────────────
-    
+
     @property
     def health(self) -> float: return self._health
     @property
@@ -384,7 +284,7 @@ class Skeleton(EntityAudioMixin, Actor):
     @property
     def entity_id(self) -> int: return id(self)
     @property
-    def is_dead(self) -> bool: return self.state == SkeletonState.DEATH
+    def is_dead(self) -> bool: return self.state == BloodZombieState.DEATH
     @property
     def current_frame_index(self) -> int: return int(self.animation_index)
 
@@ -407,7 +307,7 @@ class Skeleton(EntityAudioMixin, Actor):
         return self.attack_state.config.knockback_force if self.attack_state.config else 0.0
 
     def get_attack_hitbox(self) -> Optional[pg.Rect]:
-        """Return the attack hitbox based on skeleton facing and position."""
+        """Return the attack hitbox based on blood zombie facing and position."""
         if not self.should_deal_damage():
             return None
         hitbox_w = self._scaled_hitbox_w
@@ -423,102 +323,85 @@ class Skeleton(EntityAudioMixin, Actor):
         if dt is None: dt = 1.0 / 60.0
         self.rect.x -= scroll_speed
         
-        # Apply horizontal knockback velocity
-        if abs(self._knockback_vel_x) > 0.1:
-            self.rect.x += int(self._knockback_vel_x)
-            self._knockback_vel_x *= 0.8  # Decay knockback over time
-        else:
-            self._knockback_vel_x = 0.0
-            
         self._apply_gravity()
         self._update_ai()
         
-        super().update(dt) # Handles state machines and animations
+        super().update(dt)  # Handles state machines and animations
         self._update_animation_audio()
         
         # Cleanup on death animation completion
-        if self.state == SkeletonState.DEATH and int(self.animation_index) >= len(self.animations[SkeletonState.DEATH]) - 1:
+        if self.state == BloodZombieState.DEATH and int(self.animation_index) >= len(self.animations[BloodZombieState.DEATH]) - 1:
             self.kill()
 
     def take_damage(self, amount: float = 0.5, knockback: tuple[float, float] | None = None) -> None:
         """
-        Reduce the skeleton's health and switch its animation state.
-
+        Reduce the blood zombie's health and switch its animation state.
+        
         Important:
         This method does NOT play sound directly.
-
         Reason:
-        The Skeleton class should only care about skeleton logic:
+        The BloodZombie class should only care about zombie logic:
         - health
         - attack state
         - hurt state
         - death state
-
+        
         Audio is handled in GameState because GameState owns the audio manager
         and knows which gameplay event just happened.
         """
-
-        # Do not allow repeated damage while the skeleton is already hurt or dead.
-        if self.state in (SkeletonState.HURT, SkeletonState.DEATH):
+        # Do not allow repeated damage while already hurt or dead
+        if self.state in (BloodZombieState.HURT, BloodZombieState.DEATH):
             return
-
-        # Lower health, but never allow health to go below 0.
+        
+        # Reduce health, but never allow health to go below 0
         self._health = max(0, self._health - amount)
-
-        # If the skeleton was attacking, cancel the attack.
+        
+        # If the zombie was attacking, cancel the attack
         self.attack_state.end()
-
-        # If health is finished, switch to death animation.
+        
+        # If health is depleted, switch to death animation
         if self._health <= 0:
-            self.set_state(SkeletonState.DEATH, force=True)
-        # Otherwise, switch to hurt animation.
+            self.set_state(BloodZombieState.DEATH, force=True)
+        # Otherwise, switch to hurt animation
         else:
-            self.set_state(SkeletonState.HURT, force=True)
+            self.set_state(BloodZombieState.HURT, force=True)
 
-        # Apply knockback if provided
-        if knockback:
-            self._knockback_vel_x = knockback[0] * 1.5
-            if knockback[1] < 0:
-                self._gravity = knockback[1] * 1.2
-            else:
-                self._gravity = -abs(knockback[0]) * 0.4
-    
     # ─────────────────────────────────────────────────────────────────────────
     # Private: AI Logic
     # ─────────────────────────────────────────────────────────────────────────
-    
+
     def _update_ai(self) -> None:
-        if self._player is None or self.state in (SkeletonState.HURT, SkeletonState.DEATH):
+        if self._player is None or self.state in (BloodZombieState.HURT, BloodZombieState.DEATH):
             return
             
         player_rect = self._player.rect
         dist_x = abs(self.rect.centerx - player_rect.centerx)
         dist_y = abs(self.rect.centery - player_rect.centery)
         
-        if self.state == SkeletonState.ATTACK:
+        if self.state == BloodZombieState.ATTACK:
             return
             
         if dist_x < self._attack_range and dist_y < self._vertical_tolerance:
             self._begin_attack()
         elif dist_x < self._detection_range and dist_y < self._vertical_tolerance:
-            self.set_state(SkeletonState.CHASE)
+            self.set_state(BloodZombieState.CHASE)
         else:
-            self.set_state(SkeletonState.IDLE)
+            self.set_state(BloodZombieState.IDLE)
             
-        if self.state == SkeletonState.CHASE:
+        if self.state == BloodZombieState.CHASE:
             self._chase_player(player_rect)
-    
+
     def _begin_attack(self) -> None:
         if random.random() < 0.5:
             # Primary attack animation
-            self.animations[SkeletonState.ATTACK] = self._attack1_frames
+            self.animations[BloodZombieState.ATTACK] = self._attack1_frames
             self.current_attack_config = self.attack1_config
         else:
             # Secondary attack animation
-            self.animations[SkeletonState.ATTACK] = self._attack2_frames
+            self.animations[BloodZombieState.ATTACK] = self._attack2_frames
             self.current_attack_config = self.attack2_config
-        self.set_state(SkeletonState.ATTACK)
-    
+        self.set_state(BloodZombieState.ATTACK)
+
     def _chase_player(self, player_rect: pg.Rect) -> None:
         if self.rect.centerx > player_rect.centerx:
             self.rect.x -= int(self._speed)
@@ -526,11 +409,11 @@ class Skeleton(EntityAudioMixin, Actor):
         else:
             self.rect.x += int(self._speed)
             self.facing_left = False
-    
+
     # ─────────────────────────────────────────────────────────────────────────
     # Private: Physics
     # ─────────────────────────────────────────────────────────────────────────
-    
+
     def _apply_gravity(self) -> None:
         """Apply gravitational acceleration and ground collision."""
         self._gravity += 1.0
@@ -540,18 +423,14 @@ class Skeleton(EntityAudioMixin, Actor):
         if self.rect.bottom >= self._ground_y:
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
-    
-    # ─────────────────────────────────────────────────────────────────────────
-    def _apply_frame(self) -> None:
-        pass # Handle by Actor superclass
-    
+
     # ─────────────────────────────────────────────────────────────────────────
     # Rendering
-    # ─────────────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────
 
     def draw(self, surface: pg.Surface) -> None:
         """
-        Draw the skeleton and UI elements.
+        Draw the blood zombie and UI elements.
         
         Args:
             surface: Target surface for rendering.
@@ -559,27 +438,27 @@ class Skeleton(EntityAudioMixin, Actor):
         super().draw(surface)
         
         # Draw health bar when damaged and alive
-        if self._health < self._max_health and self.state != SkeletonState.DEATH:
+        if self._health < self._max_health and self.state != BloodZombieState.DEATH:
             self._draw_health_bar(surface)
-    
+
     def _draw_health_bar(self, surface: pg.Surface) -> None:
-        """Render the health bar above the skeleton."""
-        bar_width: int = 40
-        bar_height: int = 5
+        """Render the health bar above the blood zombie."""
+        bar_width: int = 50
+        bar_height: int = 6
         bar_x: int = self.rect.centerx - bar_width // 2
-        bar_y: int = self.rect.top - 10
+        bar_y: int = self.rect.top - 12
         
         # Background (empty health)
         pg.draw.rect(
             surface,
-            (50, 50, 50),
+            (40, 40, 40),
             (bar_x, bar_y, bar_width, bar_height),
         )
         
-        # Current health (red fill)
+        # Current health (dark red fill for blood zombie theme)
         health_ratio = self._health / self._max_health
         pg.draw.rect(
             surface,
-            (255, 0, 0),
+            (180, 0, 0),
             (bar_x, bar_y, int(bar_width * health_ratio), bar_height),
         )

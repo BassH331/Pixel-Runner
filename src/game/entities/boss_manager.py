@@ -46,7 +46,8 @@ class BossManager:
         params: dict,
         player_sprite: Any,
         screen_width: int,
-        screen_height: int
+        screen_height: int,
+        audio_manager: Any = None
     ) -> Actor:
         """
         Polymorphically spawn and initialize a boss entity using the registry factory.
@@ -88,7 +89,8 @@ class BossManager:
             sprite_root=sprite_dir,
             behaviour_map=behaviour_map,
             custom_scale=scale,
-            custom_health=health
+            custom_health=health,
+            audio_manager=audio_manager,
         )
         
         # 3. Attach common metadata tags for the game engine

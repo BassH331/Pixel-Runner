@@ -153,7 +153,7 @@ def main():
             "footstep": "assets/audio/Dirt Run 3.wav",
             "skeleton_death": "assets/audio/skeletom scream.mp3",
             "player_hurt": "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav",
-            "skeleton_spawn": "assets/audio/whoosh-cinematic-sound-effect-376889.mp3",
+            "skeleton_spawn": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
             "skeleton_alive": "assets/audio/zombie-noise.mp3",
             "skeleton_hurt": "assets/audio/Skeleton_hurt.wav",
             "forest": "assets/audio/dark-forest.ogg",

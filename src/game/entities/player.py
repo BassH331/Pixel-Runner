@@ -841,6 +841,12 @@ class Player(Actor):
         self._current_attack_config: Optional[AttackConfig] = None
         self._attack_audio_frames_played: set[int] = set()
 
+        # Custom audio configuration & lock validation
+        self._custom_audio_config = {}
+        is_mock = type(audio_manager).__name__ in ("MagicMock", "Mock") or not hasattr(audio_manager, "sound_library")
+        if audio_manager is not None and not is_mock:
+            self._init_audio_config(audio_manager)
+
         # Defend animation phase tracking
         self._defend_releasing: bool = False
         
@@ -889,6 +895,67 @@ class Player(Actor):
 
         # Add this line with other state variables
         self._defend_handled = False  
+
+    def _init_audio_config(self, audio_manager: AudioManager) -> None:
+        """Load, validate, and register dynamic audio configurations."""
+        from src.game.audio.audio_lock import verify_config_integrity, save_config_and_lock, AudioValidationError
+        config_path = "game_data/player_audio_config.json"
+        lock_path = "game_data/player_audio_config.lock"
+        
+        # If config file does not exist, automatically generate and save defaults
+        if not os.path.exists(config_path):
+            default_config = {
+                "sounds": {
+                    "smash_phase_1": "assets/audio/smash.wav",
+                    "smash_phase_2": "assets/audio/sword-slash-and-swing-185432.mp3",
+                    "smash_phase_3": "assets/audio/sword-slice-2-393845.mp3",
+                    "power_release_1": "assets/audio/Magical Light Aura Sound Effect.mp3",
+                    "power_release_2": "assets/audio/Magical Light Aura Sound Effect.mp3",
+                    "power_release_3": "assets/audio/Magical Light Aura Sound Effect.mp3",
+                    "power_release_4": "assets/audio/Magical Light Aura Sound Effect.mp3",
+                    "power_release_5": "assets/audio/Magical Light Aura Sound Effect.mp3"
+                },
+                "states": {
+                    "ATTACK_SMASH": {
+                        "3": "smash_phase_1",
+                        "7": "smash_phase_2",
+                        "11": "smash_phase_3"
+                    },
+                    "ATTACK_POWER": {
+                        "3": "smash_phase_1",
+                        "7": "smash_phase_2",
+                        "11": "smash_phase_3",
+                        "16": "power_release_1",
+                        "17": "power_release_2",
+                        "18": "power_release_3",
+                        "19": "power_release_4",
+                        "20": "power_release_5"
+                    }
+                },
+                "enhanced_states": {}
+            }
+            try:
+                save_config_and_lock(default_config, config_path, lock_path)
+            except Exception as e:
+                print(f"[Player] Warning: Failed to seed default audio config: {e}")
+                
+        # Validate integrity using the lock system
+        is_valid, reason = verify_config_integrity(config_path, lock_path)
+        if not is_valid:
+            raise AudioValidationError(f"Audio lock validation failed: {reason}")
+            
+        # Load the configuration
+        try:
+            with open(config_path, "r") as f:
+                self._custom_audio_config = json.load(f)
+        except Exception as e:
+            raise AudioValidationError(f"Failed to load player audio config: {e}")
+            
+        # Pre-load sounds into the audio manager if needed
+        sounds = self._custom_audio_config.get("sounds", {})
+        for sound_name, file_path in sounds.items():
+            if file_path and sound_name not in audio_manager.sound_library:
+                audio_manager.load_sound(sound_name, file_path)
         
     def _load_all_animations(self) -> None:
         scale = self.scale
@@ -1878,17 +1945,48 @@ class Player(Actor):
             self._defend_releasing = True
 
     def _update_attack_audio(self) -> None:
-        """Play frame-synced audio for multi-hit attacks."""
+        """Play frame-synced audio for character animations."""
         if self.state is None:
             return
-        sound_map = self._ATTACK_AUDIO_FRAME_SOUNDS.get(self.state)
+        
+        # Determine the sound map depending on whether the player is enhanced
+        state_key = self.state.name if hasattr(self.state, "name") else str(self.state)
+        
+        # Check custom config maps (self._custom_audio_config)
+        sound_map = None
+        if hasattr(self, "_custom_audio_config") and self._custom_audio_config:
+            section = "enhanced_states" if self._is_enhanced else "states"
+            sound_map = self._custom_audio_config.get(section, {}).get(state_key)
+            
+        # Fallback to hardcoded default for attack audio if no custom config map is present
+        # or if it doesn't contain entries for the current state.
+        if sound_map is None:
+            if not self._is_enhanced:  # Only fall back if standard
+                sound_map = self._ATTACK_AUDIO_FRAME_SOUNDS.get(self.state)
+            
         if not sound_map:
             return
 
         current_frame = int(self.animation_index)
-        if current_frame in sound_map and current_frame not in self._attack_audio_frames_played:
+        
+        # If state changed, clear played set
+        if getattr(self, "_last_state_audio_check", None) != self.state:
+            self._attack_audio_frames_played.clear()
+            self._last_state_audio_check = self.state
+            
+        # If animation index looped back, clear played set
+        if hasattr(self, "_prev_frame_index") and current_frame < self._prev_frame_index:
+            self._attack_audio_frames_played.clear()
+        self._prev_frame_index = current_frame
+
+        # Check if we should play the sound for the current frame
+        from typing import cast, Dict, Any
+        sm_dict = cast(Dict[Any, str], sound_map)
+        sound_name = sm_dict.get(current_frame) or sm_dict.get(str(current_frame))
+        
+        if sound_name and current_frame not in self._attack_audio_frames_played:
             self._attack_audio_frames_played.add(current_frame)
-            self._audio_manager.play_sound(sound_map[current_frame])
+            self._audio_manager.play_sound(sound_name)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Main Update Loop

@@ -482,7 +482,7 @@ class GameState(State):
             for _ in range(count):
                 y_pos = randint(50, self.height // 2)
                 x_offset = randint(0, 175)
-                bat = Enemy()
+                bat = Enemy(audio_manager=self.audio_manager)
                 bat.rect.midleft = (self.width + x_offset, y_pos)
                 bat.y_base = y_pos
                 self.ambient_group.add(bat)
@@ -497,9 +497,9 @@ class GameState(State):
         if player_sprite is None:
             return
 
-        boss = BossManager.spawn_boss(params, player_sprite, self.width, self.height)
+        boss = BossManager.spawn_boss(params, player_sprite, self.width, self.height, audio_manager=self.audio_manager)
         self.obstacle_group.add(boss)
-        self.audio_manager.play_sound("skeleton_spawn")
+        self.audio_manager.play_sound(sound_name = "skeleton_spawn", volume = 0.04)
 
         # Draw target text banner when boss spawns
         title = params.get("title", "Boss")
@@ -627,7 +627,7 @@ class GameState(State):
                 y_pos = randint(50, self.height // 2)
                 x_offset = randint(0, 175)
                 
-                bat = Enemy()
+                bat = Enemy(audio_manager=self.audio_manager)
                 bat.rect.midleft = (self.width + x_offset, y_pos)
                 bat.y_base = y_pos
                 self.ambient_group.add(bat)
@@ -683,12 +683,13 @@ class GameState(State):
             player=player_sprite,  # Pass the actual Player instance
             sprite_root=sprite_root,
             behaviour_map=behaviour_map,
-            tier=tier
+            tier=tier,
+            audio_manager=self.audio_manager,
         )
         self.obstacle_group.add(skeleton)
         if zone is not None:
             skeleton.spawn_zone = zone
-        self.audio_manager.play_sound("skeleton_spawn")
+        self.audio_manager.play_sound(sound_name = "skeleton_spawn", volume = 0.04)
     
     # ─────────────────────────────────────────────────────────────────────────
     # Background Parallax
@@ -822,7 +823,7 @@ class GameState(State):
         # Apply damage to enemy
         target_health_before = getattr(enemy, "_health", getattr(enemy, "health", 0.0))
         if isinstance(enemy, (Skeleton, FireWizard)):
-            enemy.take_damage(damage)
+            enemy.take_damage(damage, knockback)
         elif isinstance(enemy, Enemy):
             enemy.take_damage(damage, knockback)
         elif hasattr(enemy, 'take_damage'):
@@ -867,7 +868,7 @@ class GameState(State):
                 else (enemy.state == FireWizardState.DEATH)
             )
             if is_dead and not getattr(enemy, "_death_sound_played", False):
-                self.audio_manager.play_sound("skeleton_death")
+                self.audio_manager.play_sound("skeleton_death", volume=0.4)
                 setattr(enemy, "_death_sound_played", True)
                 
                 # Check for Boss defeat
@@ -895,6 +896,10 @@ class GameState(State):
                 
                 # Fire "first_kill" flag for objective triggers
                 self.trigger_manager.set_flag("first_kill")
+            elif not is_dead:
+                # Enemy was hurt but not killed — play hurt sound
+                print(f"[SFX] Playing skeleton_hurt (health={getattr(enemy, '_health', '?')})")
+                self.audio_manager.play_sound("skeleton_hurt", volume=2.2)
         
         # Score reward
         self.score += self._SCORE_PER_HIT
