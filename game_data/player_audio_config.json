@@ -1,0 +1,36 @@
+{
+    "sounds": {
+        "smash_phase_1": "assets/audio/smash.wav",
+        "smash_phase_2": "assets/audio/sword-slash-and-swing-185432.mp3",
+        "smash_phase_3": "assets/audio/sword-slice-2-393845.mp3",
+        "power_release_1": "assets/audio/Magical Light Aura Sound Effect.mp3",
+        "power_release_2": "assets/audio/Magical Light Aura Sound Effect.mp3",
+        "power_release_3": "assets/audio/Magical Light Aura Sound Effect.mp3",
+        "power_release_4": "assets/audio/Magical Light Aura Sound Effect.mp3",
+        "power_release_5": "assets/audio/Magical Light Aura Sound Effect.mp3"
+    },
+    "states": {
+        "ATTACK_SMASH": {
+            "3": "smash_phase_1",
+            "7": "smash_phase_2",
+            "11": "smash_phase_3"
+        },
+        "ATTACK_POWER": {
+            "3": "smash_phase_1",
+            "7": "smash_phase_2",
+            "11": "smash_phase_3",
+            "16": "power_release_1",
+            "17": "power_release_2",
+            "18": "power_release_3",
+            "19": "power_release_4",
+            "20": "power_release_5"
+        },
+        "ROLL": {
+            "0": "aura_effect"
+        },
+        "TRANSFORM": {
+            "3": "jump"
+        }
+    },
+    "enhanced_states": {}
+}

@@ -1,0 +1,9 @@
+{
+    "config_hash": "08760382198fec3340fdc4e67212517322f46502f56204c0df83a4e37d5c2d8f",
+    "audio_hashes": {
+        "assets/audio/smash.wav": "a61fa5ce472e70e6d3fbb6f76a2bf49e10d3abd836ea760718558bf400b4b40d",
+        "assets/audio/sword-slash-and-swing-185432.mp3": "2e4742e14585772e8f0c2ea0834150df95f0c973f97b540a88370e109b0135e5",
+        "assets/audio/sword-slice-2-393845.mp3": "abcd14bd051183b3812fd68e87a87ab30116f30514c6328a108a36eb2863a8e3",
+        "assets/audio/Magical Light Aura Sound Effect.mp3": "67c35b5a5417543084117b16e1bcddf76e07800804da5def7f032a2b2af6567f"
+    }
+}
