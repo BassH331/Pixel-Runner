@@ -1,0 +1,36 @@
+{
+    "sounds": {
+        "background_music": "assets/audio/1 Exploration TomMusic.ogg",
+        "game_loop": "assets/audio/game_loop.mp3",
+        "burning_village": "assets/audio/Burning Fire.mp3",
+        "reveal": "assets/audio/Reveal Sound Effect.mp3",
+        "magic_sfx": "assets/audio/magic sound effect.mp3",
+        "lightning": "assets/audio/Lighting.mp3",
+        "night_sounds": "assets/audio/night sounds.mp3",
+        "fight_sfx": "assets/audio/Fight Sfx.mp3",
+        "evil_laugh": "assets/audio/Evil laugh.mp3",
+        "bells": "assets/audio/Ominous Bells of Doom.mp3",
+        "skeleton_death": "assets/audio/skeletom scream.mp3",
+        "skeleton_alive": "assets/audio/zombie-noise.mp3",
+        "skeleton_hurt": "assets/audio/Skeleton_hurt.wav",
+        "forest": "assets/audio/dark-forest.ogg",
+        "bats": "assets/audio/bats.wav",
+        "collision_player_skeleton": "assets/audio/Deadly Kombat Free version/blade_hit_07.wav",
+        "collision_player_zombie": "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3",
+        "collision_player_boss": "assets/audio/smash.wav",
+        "collision_player_bat": "assets/audio/bats.wav",
+        "collision_player_green_monster": "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3",
+        "collision_player_defend": "assets/audio/Sword Blocked 2.wav",
+        "roll": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
+        "jump": "assets/audio/land2-43790.mp3",
+        "skeleton_spawn": "assets/audio/zombie-noise.mp3"
+    },
+    "sound_metadata": {
+        "collision_player_skeleton": {
+            "category": "COLLISION",
+            "state": "\ud83d\udca5 Skeleton Hit",
+            "usage": "Player sword hit slicing/breaking Skeleton bones.",
+            "color": "#f59e0b"
+        }
+    }
+}

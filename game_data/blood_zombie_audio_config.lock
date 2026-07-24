@@ -1,4 +1,6 @@
 {
-    "config_hash": "86b75742875aaf35b440a28cf90f466a10657a0d5e1474e89f3dadf7d2945b0b",
-    "audio_hashes": {}
+    "config_hash": "6bceee1b976def69a930a72760f33e0e483cf4fc088ff68785202c52a26c0abb",
+    "audio_hashes": {
+        "assets/audio/zombie-noise.mp3": "f4baabc7478b75be0acb163d49f03312299e43d4fa92300dc6f172a85363ee12"
+    }
 }

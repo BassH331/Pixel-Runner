@@ -107,6 +107,10 @@ class GameState(State):
         self.audio_manager = self.manager.audio_manager
         self.bg_music_channel_id: Optional[int] = None
         
+        # Attach audio manager to CombatCollisionLogger singleton
+        from src.game.audio import CombatCollisionLogger
+        CombatCollisionLogger.get_instance(self.audio_manager)
+        
         # Entity groups
         self.player = pg.sprite.GroupSingle()
         self.player.add(
@@ -851,55 +855,59 @@ class GameState(State):
                 "world_distance": self.world_distance
             })
         
-        # Audio feedback based on attack type
-        from src.game.entities.player import PlayerState
-        if player.state == PlayerState.ATTACK_SMASH:
-            sound_name = self._select_smash_sound(player)
-            self.audio_manager.play_sound(sound_name)
-            self.audio_manager.play_sound("attack_one")
-        elif player.state == PlayerState.ATTACK_THRUST:
-            self.audio_manager.play_sound("attack_one")
-        else:
-            self.audio_manager.play_sound("thrust")
-        
-        if isinstance(enemy, (Skeleton, FireWizard)):
-            is_dead = (
-                (enemy.state == SkeletonState.DEATH) if isinstance(enemy, Skeleton)
-                else (enemy.state == FireWizardState.DEATH)
-            )
-            if is_dead and not getattr(enemy, "_death_sound_played", False):
-                self.audio_manager.play_sound("skeleton_death", volume=0.4)
-                setattr(enemy, "_death_sound_played", True)
-                
-                # Check for Boss defeat
-                if getattr(enemy, "is_boss", False):
-                    if getattr(enemy, "tier", "boss") == "boss":
-                        self._level_complete = True
-                        self.objective_display.show(
-                            f"You have defeated the mighty {getattr(enemy, 'boss_title', 'Boss')}! "
-                            "The land is saved, and your name shall be sung in legend. "
-                            "Victory is yours!",
-                            "Victory Achieved!"
-                        )
-                    else:
-                        self.notification_banner.show(
-                            f"VICTORY: {getattr(enemy, 'boss_title', 'Mini-boss').upper()} DEFEATED!",
-                            notification="green"
-                        )
+        # Audio feedback & collision logging via single source of truth (CombatCollisionLogger)
+        from src.game.audio import CombatCollisionLogger
+        enemy_type = "skeleton"
+        if isinstance(enemy, FireWizard):
+            enemy_type = "boss"
+        elif hasattr(enemy, "name"):
+            enemy_type = str(enemy.name).lower()
 
-                # Track zone kills
-                zone = getattr(enemy, "spawn_zone", None)
-                if zone is not None:
-                    zone["killed_count"] = zone.get("killed_count", 0) + 1
-                    print(f"[KILL] Skeleton from zone killed! "
-                          f"kills={zone['killed_count']}/{zone.get('required_kills', 0)}")
-                
-                # Fire "first_kill" flag for objective triggers
-                self.trigger_manager.set_flag("first_kill")
-            elif not is_dead:
-                # Enemy was hurt but not killed — play hurt sound
-                print(f"[SFX] Playing skeleton_hurt (health={getattr(enemy, '_health', '?')})")
-                self.audio_manager.play_sound("skeleton_hurt", volume=2.2)
+        enemy_id = getattr(enemy, "id", f"enemy_{id(enemy)}")
+        is_dead = (
+            (enemy.state == SkeletonState.DEATH) if isinstance(enemy, Skeleton)
+            else (getattr(enemy, "state", None) == getattr(FireWizardState, "DEATH", None) if isinstance(enemy, FireWizard) else False)
+        )
+
+        if is_dead and not getattr(enemy, "_death_sound_played", False):
+            death_sound = "evil_laugh" if enemy_type == "boss" else "skeleton_death"
+            self.audio_manager.play_sound(death_sound)
+            setattr(enemy, "_death_sound_played", True)
+        elif not is_dead:
+            CombatCollisionLogger.get_instance().log_collision(
+                attacker="player",
+                defender=enemy_type,
+                defender_id=enemy_id,
+                action="hit",
+                defender_state="alive"
+            )
+
+        if isinstance(enemy, (Skeleton, FireWizard)) and is_dead and getattr(enemy, "_death_sound_played", False):
+            # Check for Boss defeat
+            if getattr(enemy, "is_boss", False):
+                if getattr(enemy, "tier", "boss") == "boss":
+                    self._level_complete = True
+                    self.objective_display.show(
+                        f"You have defeated the mighty {getattr(enemy, 'boss_title', 'Boss')}! "
+                        "The land is saved, and your name shall be sung in legend. "
+                        "Victory is yours!",
+                        "Victory Achieved!"
+                    )
+                else:
+                    self.notification_banner.show(
+                        f"VICTORY: {getattr(enemy, 'boss_title', 'Mini-boss').upper()} DEFEATED!",
+                        notification="green"
+                    )
+
+            # Track zone kills
+            zone = getattr(enemy, "spawn_zone", None)
+            if zone is not None:
+                zone["killed_count"] = zone.get("killed_count", 0) + 1
+                print(f"[KILL] Skeleton from zone killed! "
+                      f"kills={zone['killed_count']}/{zone.get('required_kills', 0)}")
+            
+            # Fire "first_kill" flag for objective triggers
+            self.trigger_manager.set_flag("first_kill")
         
         # Score reward
         self.score += self._SCORE_PER_HIT
@@ -998,6 +1006,22 @@ class GameState(State):
         # Only apply secondary effects if damage went through
         if not damage_applied:
             return
+        
+        # Audio feedback & collision logging for skeleton -> player hit
+        from src.game.audio import CombatCollisionLogger
+        enemy_type = "skeleton"
+        if isinstance(skeleton, FireWizard):
+            enemy_type = "boss"
+        elif hasattr(skeleton, "name"):
+            enemy_type = str(skeleton.name).lower()
+
+        CombatCollisionLogger.get_instance(self.audio_manager).log_collision(
+            attacker=enemy_type,
+            defender="player",
+            defender_id=getattr(skeleton, "id", f"skeleton_{id(skeleton)}"),
+            action="hit",
+            defender_state="alive"
+        )
         
         # Apply knockback
         knockback = skeleton.get_current_attack_knockback()

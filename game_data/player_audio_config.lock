@@ -1,5 +1,5 @@
 {
-    "config_hash": "250326fc340f4e4465217a9db625dd329a81efd2086b55306fb3eac4a6f392bf",
+    "config_hash": "20e340326ac5e2edbb5655d4bbbef2c2d77d5e9bd6352f65b08f2404b9b68b88",
     "audio_hashes": {
         "assets/audio/smash.wav": "a61fa5ce472e70e6d3fbb6f76a2bf49e10d3abd836ea760718558bf400b4b40d",
         "assets/audio/sword-slash-and-swing-185432.mp3": "2e4742e14585772e8f0c2ea0834150df95f0c973f97b540a88370e109b0135e5",
@@ -19,6 +19,21 @@
         "assets/audio/magic sound effect.mp3": "3c6563c592f392f1c031acee79b7230d5d3c20a54e86739081388f16772b4ee4",
         "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Wall 1.ogg": "f78a7f614277972b45f39768a4c41e81b6808707a1e4cad0c22cf4a014cb6268",
         "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Firespray 2.wav": "12234e8b9795a390805e3766b0f391edd6f3ece06ea925f010fb1184f8dae428",
-        "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 3.wav": "a24ff4a537bd2595629ef8afc889566d6d67f1bbfdb92c85ba3a644c2046460a"
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 3.wav": "a24ff4a537bd2595629ef8afc889566d6d67f1bbfdb92c85ba3a644c2046460a",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Footsteps/Dirt/Dirt Chain Run 5.wav": "76071daa89eec8da371a70cbee8fe01e4f8955f6da1aebd752dc48af22413d7c",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Footsteps/Dirt/Dirt Chain Run 1.ogg": "56b3ff406147b5cc2ecad2452b0ffcaebebe7e2716e08d2c9281f8608dd0e8b4",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Footsteps/Dirt/Dirt Chain Walk 4.ogg": "6564f8d822a916f57bcecaa395c5010c5bf33499bd1c07ff3edf1cf1957af6f9",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Wall 2.ogg": "377ec01398da2e6a4399eacabadc74839fa794ff1b495d522e0dde41c69e01db",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Waterspray 1.ogg": "74eb2dd1057d5d6af3776bd9394e5ed39fee288650449e67237fd0985cecc6ff",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Meteor Swarm 1.ogg": "03a28dd627c824a9f4baa913a7f421336996f1ab69e34cc518dcef268e474ede",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Unsheath 2.ogg": "e633f888c454551300567d492ce494eadd09e2a36ecc69014e2a58115e28387b",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Unsheath 1.ogg": "dfd8e426a9ee2615d63e36d93dbb7e5beb4bb396566d8b61582f64fa426b7707",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Parry 3.ogg": "a7b0ffd68a72bd78740d6604b049699e0d4cd18a893982d473035178f6e6793e",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Impact Hit 1.ogg": "3f3bdd7f3637e9bfe7d14a4cabed00f0e195eda95bdeb260233705e7e012d9c3",
+        "assets/audio/whoosh-cinematic-sound-effect-376889.wav": "047880f09a5ee0b52c709f452451ae0af07ac2c635c6f0a551934908f4bdf072",
+        "assets/audio/land2-43790.mp3": "fa538a84848473341ecab81be395d130ff0fc65467680259c58707e931d0f8e5",
+        "assets/audio/angry-grunt-103204.mp3": "0173afee01656c45d538b4361af57799b3ce21a6f5600cdb99738dd8ae38324f",
+        "assets/audio/thrust.wav": "eb7049682425b962695ec9410841c79b2a9b74a0c51e7f862b148b8fe30bf691",
+        "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav": "90032b06f486207a7a21cf6b530f035e4f2563e23b109480850a75a00ae62722"
     }
 }

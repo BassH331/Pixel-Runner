@@ -1,4 +1,8 @@
 {
-    "config_hash": "86b75742875aaf35b440a28cf90f466a10657a0d5e1474e89f3dadf7d2945b0b",
-    "audio_hashes": {}
+    "config_hash": "905702695fbc405281f3ab59c671a75b8b2fb94f084df7dea09aebe4fb054afd",
+    "audio_hashes": {
+        "assets/audio/Evil laugh.mp3": "8e41ebdec3d506e60f6f78438fe27ae7a5b5693a13fe7879b98ae4fd055a40b0",
+        "assets/audio/magic sound effect.mp3": "3c6563c592f392f1c031acee79b7230d5d3c20a54e86739081388f16772b4ee4",
+        "assets/audio/Ominous Bells of Doom.mp3": "9fd9e016d588a4b9f899a9d05e955da47711312e9a205d09a7b55a10e887ecd8"
+    }
 }

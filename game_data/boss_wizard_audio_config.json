@@ -1,5 +1,15 @@
 {
-    "sounds": {},
-    "states": {},
-    "enhanced_states": {}
+    "sounds": {
+        "evil_laugh": "assets/audio/Evil laugh.mp3",
+        "magic_sfx": "assets/audio/magic sound effect.mp3",
+        "bells": "assets/audio/Ominous Bells of Doom.mp3"
+    },
+    "states": {
+        "CAST": {
+            "0": "magic_sfx"
+        },
+        "SPELL": {
+            "0": "evil_laugh"
+        }
+    }
 }

@@ -1,4 +1,6 @@
 {
-    "config_hash": "86b75742875aaf35b440a28cf90f466a10657a0d5e1474e89f3dadf7d2945b0b",
-    "audio_hashes": {}
+    "config_hash": "e59e8158f37a096ca155a898473162923438bfacbedafce227b466cadeb22a94",
+    "audio_hashes": {
+        "assets/audio/bats.wav": "8c5f07fd8f2f1ccec3643a173dd43473b4081098b3524ff921a0b7ad089a3a61"
+    }
 }

@@ -21,9 +21,26 @@
         "deepone_growl3": "assets/audio/Abyssal Horror SFX Vol.1/Abyssal Horror/DeepOne_Growl3.mp3",
         "dinosaur_grunt": "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_Grunt.wav",
         "magic_sound_effect": "assets/audio/magic sound effect.mp3",
+        "aura_effect": "assets/audio/Magical Light Aura Sound Effect.mp3",
         "rock_wall_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Wall 1.ogg",
         "firespray_2": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Firespray 2.wav",
-        "fireball_3": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 3.wav"
+        "fireball_3": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 3.wav",
+        "dirt_chain_run_5": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Footsteps/Dirt/Dirt Chain Run 5.wav",
+        "dirt_chain_run_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Footsteps/Dirt/Dirt Chain Run 1.ogg",
+        "dirt_chain_walk_4": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Footsteps/Dirt/Dirt Chain Walk 4.ogg",
+        "rock_wall_2": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Wall 2.ogg",
+        "waterspray_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Waterspray 1.ogg",
+        "rock_meteor_swarm_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Meteor Swarm 1.ogg",
+        "sword_unsheath_2": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Unsheath 2.ogg",
+        "sword_unsheath_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Unsheath 1.ogg",
+        "sword_parry_3": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Parry 3.ogg",
+        "sword_impact_hit_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Attacks/Sword Attacks Hits and Blocks/Sword Impact Hit 1.ogg",
+        "roll": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
+        "dash": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
+        "jump": "assets/audio/land2-43790.mp3",
+        "jump_grunt": "assets/audio/angry-grunt-103204.mp3",
+        "thrust": "assets/audio/thrust.wav",
+        "player_hurt": "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav"
     },
     "states": {
         "ATTACK_SMASH": {
@@ -42,7 +59,7 @@
             "20": "power_release_5"
         },
         "ROLL": {
-            "0": "aura_effect"
+            "0": "roll"
         },
         "TRANSFORM": {
             "3": "jump",
@@ -51,6 +68,19 @@
             "13": "deepone_growl3",
             "19": "rock_wall_1",
             "21": "fireball_3"
+        },
+        "RUN": {
+            "3": "dirt_chain_run_5",
+            "8": "dirt_chain_run_1"
+        },
+        "SPECIAL_ATTACK": {
+            "0": "dirt_chain_walk_4",
+            "18": "deepone_growl3",
+            "19": "sword_sheath_2",
+            "21": "sword_parry_3",
+            "22": "sword_unsheath_2",
+            "23": "sword_impact_hit_1",
+            "24": "sword_sheath_2"
         }
     },
     "enhanced_states": {

@@ -1,4 +1,9 @@
 {
-    "config_hash": "86b75742875aaf35b440a28cf90f466a10657a0d5e1474e89f3dadf7d2945b0b",
-    "audio_hashes": {}
+    "config_hash": "e92946e660ec74b907b76a2ce7469e4b4d96c5afddd28b46ef7a43c397c1af57",
+    "audio_hashes": {
+        "assets/audio/whoosh-cinematic-sound-effect-376889.wav": "047880f09a5ee0b52c709f452451ae0af07ac2c635c6f0a551934908f4bdf072",
+        "assets/audio/Skeleton_hurt.wav": "90282d5c541fe0dccb98b5332d89ec6b267c2157c62f1350eb7950ed189f2d6e",
+        "assets/audio/skeletom scream.mp3": "a44d7713c45d2c7269f73e5f8f37766fd0d93047f05e1d249ba8311c6815ef94",
+        "assets/CreatureSoundFree1_1/CreatureSoundFree/CREAHmn_Heavy Breathing, Beast, MHCS17.wav": "c43f000ff984ed778de738446d0db34d5ce7aa44c238927adfaf691b2f5e1a69"
+    }
 }

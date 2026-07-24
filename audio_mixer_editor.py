@@ -15,6 +15,7 @@ sys.path.insert(0, BASE_DIR)
 
 # ── Entity-to-config-file registry ───────────────────────────────────────────
 ENTITY_REGISTRY = {
+    "master_audio":    {"config": "game_data/master_audio_config.json",         "lock": "game_data/master_audio_config.lock"},
     "player":          {"config": "game_data/player_audio_config.json",         "lock": "game_data/player_audio_config.lock"},
     "skeleton_minion": {"config": "game_data/skeleton_minion_audio_config.json", "lock": "game_data/skeleton_minion_audio_config.lock"},
     "skeleton_zombie": {"config": "game_data/skeleton_zombie_audio_config.json", "lock": "game_data/skeleton_zombie_audio_config.lock"},
@@ -666,10 +667,13 @@ HTML_CONTENT = """<!DOCTYPE html>
             z-index: 1000;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
+            overflow-y: auto;
+            padding: 2rem 1rem;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s ease;
+            scrollbar-width: thin;
         }
 
         .modal-overlay.open {
@@ -683,12 +687,15 @@ HTML_CONTENT = """<!DOCTYPE html>
             border-radius: 12px;
             width: 760px;
             max-width: 95%;
-            max-height: 90vh;
+            max-height: 88vh;
             display: flex;
             flex-direction: column;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
             transform: scale(0.95);
             transition: transform 0.3s ease;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            margin: auto;
         }
 
         .modal-overlay.open .modal {
@@ -1032,6 +1039,69 @@ HTML_CONTENT = """<!DOCTYPE html>
             <div id="timeline-grid" class="timeline-grid">
                 <!-- Renders dynamically -->
             </div>
+
+            <!-- Master Audio Panel (Active when 'master_audio' entity chip is clicked) -->
+            <div id="master-audio-panel" style="display: none; flex-direction: column; gap: 1.2rem;">
+                <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.6rem;">
+                        <h3 style="font-size: 1rem; color: #c084fc; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>🎵</span> Central Game Audio & Ambient Sound Tracks
+                        </h3>
+                        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                            <span id="master-commit-badge" style="font-size: 0.75rem; color: #4ade80; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); padding: 0.2rem 0.65rem; border-radius: 12px; font-weight: 600;">
+                                🔒 Config Locked & Committed
+                            </span>
+                            <button class="btn btn-primary" onclick="openAddStateSoundModal()" style="padding: 0.35rem 0.8rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; background: linear-gradient(135deg, #a855f7, #7c3aed);">
+                                <span>➕</span> Add Sound to State
+                            </button>
+                            <button id="master-save-commit-btn" class="btn" onclick="saveChanges()" style="padding: 0.35rem 0.85rem; font-size: 0.8rem; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 6px; box-shadow: 0 2px 8px rgba(16,185,129,0.3); display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                                <span>💾</span> Save & Commit Config
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 1rem 0; line-height: 1.4;">
+                        Configure background music, ambient howling sounds, and global sound effect mappings. Changes are auto-secured to <code>master_audio_config.lock</code> on Save.
+                    </p>
+                    
+                    <!-- Ambient & Music Specific Controls Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.75rem;" id="master-ambience-cards">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Master Sounds Directory List -->
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <div>
+                            <h3 style="font-size: 0.95rem; color: var(--text-primary); margin: 0 0 0.2rem 0;">Master Audio Category Library</h3>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">Organized sound mappings categorized by game state and system function</span>
+                        </div>
+                        <input type="text" id="master-sound-search" class="search-box" style="margin-bottom: 0; width: 220px;" placeholder="Search sound keys..." oninput="renderMasterAudioPanel()">
+                    </div>
+
+                    <!-- Category Pills Filter Bar -->
+                    <div id="master-category-filters" style="display: flex; gap: 0.4rem; margin-bottom: 0.8rem; flex-wrap: wrap;">
+                        <!-- Rendered by JS -->
+                    </div>
+
+                    <div id="master-sounds-table-container" style="max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; padding: 0.2rem;">
+                        <!-- Rendered by JS -->
+                    </div>
+                    
+                    <!-- Quick Add Sound Registration to Master -->
+                    <div style="margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--border-color); display: flex; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 140px;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">New Sound Key Alias:</label>
+                            <input type="text" id="add-master-key" class="form-input" placeholder="e.g. boss_theme" style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem;">
+                        </div>
+                        <div style="flex: 1.5; min-width: 200px;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Audio Asset Path:</label>
+                            <input type="text" id="add-master-path" class="form-input" list="raw-assets-datalist" placeholder="assets/sounds/..." style="width: 100%; font-size: 0.85rem; padding: 0.4rem 0.6rem;">
+                        </div>
+                        <button class="btn btn-primary" onclick="addMasterSoundEntry()" style="padding: 0.4rem 0.9rem; font-size: 0.85rem; white-space: nowrap;">+ Add to Master</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1101,12 +1171,113 @@ HTML_CONTENT = """<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- Mini Pop-up Form Modal for Add/Edit State Sound Mapping -->
+    <div id="state-sound-modal" class="modal-overlay" onclick="if(event.target === this) closeStateSoundModal()">
+        <div class="modal" style="background: #181825; border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 12px; width: 560px; max-width: 92vw; padding: 1.2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.6rem;">
+                <h3 style="font-size: 1rem; color: #c084fc; margin: 0; display: flex; align-items: center; gap: 0.5rem;" id="state-modal-title">
+                    <span>➕</span> Add / Edit Audio Sound Entry
+                </h3>
+                <button class="modal-close" onclick="closeStateSoundModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;">&times;</button>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                <!-- Existing Sound Picker or Create New -->
+                <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; padding: 0.6rem;">
+                    <label style="font-size: 0.75rem; font-weight: 700; color: #c084fc; display: block; margin-bottom: 0.3rem;">Work With / Edit Existing Sound:</label>
+                    <select id="modal-existing-sound-select" class="form-input" style="width: 100%; font-size: 0.85rem; padding: 0.45rem; background: rgba(0,0,0,0.4);" onchange="onModalSelectExistingSound(this.value)">
+                        <option value="__NEW__">➕ Create New Sound Key...</option>
+                    </select>
+                </div>
+
+                <!-- Category Selection -->
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Game State Category:</label>
+                    <select id="modal-sound-category" class="form-input" style="width: 100%; font-size: 0.85rem; padding: 0.45rem;" onchange="onModalCategoryChange(this.value)">
+                        <option value="COLLISION">💥 Combat Collision & Entity Hits</option>
+                        <option value="MUSIC">📜 Story Cutscenes & BGM</option>
+                        <option value="AMBIENCE">🎮 Gameplay State Music & Ambience</option>
+                        <option value="PLAYER">⚔️ Shadow Warrior Player SFX</option>
+                        <option value="SKELETON">💀 Skeleton Enemy SFX</option>
+                        <option value="BOSS_WIZARD">🔥 Fire Wizard Boss SFX</option>
+                        <option value="GENERAL">⚙️ General Sound Effects</option>
+                    </select>
+                </div>
+                
+                <!-- Sound Key Alias -->
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Sound Key Alias (Unique Identifier):</label>
+                    <input type="text" id="modal-sound-key" class="form-input" placeholder="e.g. collision_player_bat or skeleton_groan" style="width: 100%; font-size: 0.85rem; padding: 0.45rem;" oninput="validateModalSoundKey(this.value)">
+                    <span id="modal-key-warning" style="font-size: 0.72rem; color: #38bdf8; display: none; margin-top: 0.2rem;">ℹ️ Editing existing sound key. Key rename updates references.</span>
+                </div>
+                
+                <!-- State Badge & Usage Explanation -->
+                <div style="display: flex; gap: 0.5rem;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">State Tag Label:</label>
+                        <input type="text" id="modal-sound-tag" class="form-input" placeholder="e.g. 💥 Bat Hit" style="width: 100%; font-size: 0.85rem; padding: 0.45rem;">
+                    </div>
+                    <div style="flex: 1.8;">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Trigger Usage Explanation:</label>
+                        <input type="text" id="modal-sound-usage" class="form-input" placeholder="e.g. Player strike hitting flying Bat" style="width: 100%; font-size: 0.85rem; padding: 0.45rem;">
+                    </div>
+                </div>
+                
+                <!-- Audio Asset File Path Header & Explorer Trigger -->
+                <div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.3rem;">
+                        <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">Audio Asset File Path:</label>
+                        <button class="btn" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1); cursor: pointer; display: flex; align-items: center; gap: 0.35rem; border-radius: 4px;" onclick="toggleModalAudioExplorer()">
+                            <span>📁</span> Browse & Test Library (<span id="explorer-count-badge">0</span>)
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 0.4rem;">
+                        <input type="text" id="modal-sound-path" class="form-input" list="raw-assets-datalist" placeholder="assets/audio/..." style="flex: 1; font-size: 0.85rem; padding: 0.45rem;" oninput="renderModalAudioExplorer()">
+                        <button class="play-icon-btn" style="padding: 0.45rem 0.75rem;" onclick="previewModalSoundPath()" title="Preview Selected Audio">▶</button>
+                    </div>
+                </div>
+
+                <!-- Interactive Audio Library Explorer Drawer -->
+                <div id="modal-audio-explorer" style="display: none; background: rgba(0,0,0,0.55); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 0.75rem; flex-direction: column; gap: 0.6rem;">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                        <select id="explorer-folder-select" class="form-input" style="flex: 1; min-width: 140px; font-size: 0.78rem; padding: 0.3rem 0.5rem;" onchange="renderModalAudioExplorer()">
+                            <option value="">All Audio Folders</option>
+                        </select>
+                        <input type="text" id="explorer-search" class="search-box" style="flex: 1.5; margin-bottom: 0; font-size: 0.78rem; padding: 0.35rem 0.6rem;" placeholder="Search audio filename or folder..." oninput="renderModalAudioExplorer()">
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; color: var(--text-secondary);">
+                        <span>Click <b>▶ Play</b> to preview sound. Click row or <b>Select</b> to assign.</span>
+                        <label style="display: flex; align-items: center; gap: 0.3rem; cursor: pointer; user-select: none; color: #38bdf8;">
+                            <input type="checkbox" id="explorer-autoplay" checked style="cursor: pointer;"> Autoplay on select
+                        </label>
+                    </div>
+                    <div id="explorer-asset-list" style="max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; padding-right: 0.2rem; scrollbar-width: thin;">
+                        <!-- Dynamic asset list -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div style="display: flex; gap: 0.6rem; justify-content: space-between; align-items: center; padding-top: 0.6rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                <button id="modal-btn-delete" class="btn btn-danger" onclick="deleteModalSound()" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; display: none;">&times; Remove Sound</button>
+                <div style="display: flex; gap: 0.6rem; margin-left: auto;">
+                    <button class="btn btn-secondary" onclick="closeStateSoundModal()" style="padding: 0.4rem 1rem; font-size: 0.82rem;">Cancel</button>
+                    <button id="modal-btn-save" class="btn btn-primary" onclick="confirmStateSoundModal()" style="padding: 0.4rem 1.2rem; font-size: 0.82rem; background: linear-gradient(135deg, #a855f7, #7c3aed);">💾 Save Sound</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ── Per-Entity Animation Metadata ──────────────────────────────────────
         // pad: zero-pad digits (0 = no pad, 2 = 2-digit zero-pad)
         // offset: 0 = 0-indexed files, 1 = 1-indexed files
         // has_variants: true = show Standard/Enhanced toggle
         const ENTITY_META = {
+            master_audio: {
+                label:"Master Audio & Ambience", icon:"🎵", color:"#a855f7", is_master:true, has_variants:false,
+                states:{}
+            },
             player: {
                 label:"Shadow Warrior", icon:"⚔️", color:"#06b6d4", has_variants:true, offset:1,
                 states:{
@@ -1252,15 +1423,8 @@ HTML_CONTENT = """<!DOCTYPE html>
             const path = appState.config.sounds[soundId] || appState.jukebox_sounds[soundId];
             if (!path) return;
 
-            const master = parseFloat(masterSlider.value);
-            const sfx = parseFloat(sfxSlider.value);
             const trackVol = appState.settings.sound_volumes[soundId] !== undefined ? appState.settings.sound_volumes[soundId] : 1.0;
-            const finalVol = Math.max(0.0, Math.min(1.0, master * sfx * trackVol));
-            if (finalVol <= 0.001) return;
-
-            const audio = new Audio("/" + path);
-            audio.volume = finalVol;
-            audio.play().catch(e => console.error("Preview sound trigger error:", e));
+            editorAudioEngine.playSound(path, trackVol);
         }
 
         function onSpeedSliderChange(val) {
@@ -1412,6 +1576,9 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         function stopAnimationPreview() {
             animPreviewState.running = false;
+            if (typeof editorAudioEngine !== "undefined") {
+                editorAudioEngine.stopAll();
+            }
             if (animPreviewState.animFrameId) {
                 cancelAnimationFrame(animPreviewState.animFrameId);
                 animPreviewState.animFrameId = null;
@@ -1496,6 +1663,22 @@ HTML_CONTENT = """<!DOCTYPE html>
             const meta = ENTITY_META[key];
             // Rebuild chips
             initEntitySelector();
+            
+            const isMaster = !!meta.is_master;
+            const timelineControls = document.querySelector(".timeline-controls");
+            const timelineGrid = document.getElementById("timeline-grid");
+            const masterPanel = document.getElementById("master-audio-panel");
+
+            if (isMaster) {
+                if (timelineControls) timelineControls.style.display = "none";
+                if (timelineGrid) timelineGrid.style.display = "none";
+                if (masterPanel) masterPanel.style.display = "flex";
+            } else {
+                if (timelineControls) timelineControls.style.display = "flex";
+                if (timelineGrid) timelineGrid.style.display = "grid";
+                if (masterPanel) masterPanel.style.display = "none";
+            }
+
             // Show/hide variant toggle
             variantToggle.style.display = meta.has_variants ? "" : "none";
             if (!meta.has_variants) currentVariant = "standard";
@@ -1553,9 +1736,879 @@ HTML_CONTENT = """<!DOCTYPE html>
 
                 updateLockStatusUI();
                 renderTrackMixer();
-                renderTimeline();
+                if (currentEntity === "master_audio") {
+                    renderMasterAudioPanel();
+                } else {
+                    renderTimeline();
+                }
             } catch (err) {
                 console.error("Error fetching status:", err);
+            }
+        }
+
+        const MASTER_CATEGORIES = [
+            { id: "MUSIC",       name: "Background Music & Loops",    icon: "🎼", shortName: "Music",    color: "#c084fc", bg: "rgba(192, 132, 252, 0.08)", border: "rgba(192, 132, 252, 0.25)" },
+            { id: "AMBIENCE",    name: "Ambient Atmosphere & Howls",  icon: "🌌", shortName: "Ambience", color: "#a855f7", bg: "rgba(168, 85, 247, 0.08)", border: "rgba(168, 85, 247, 0.25)" },
+            { id: "COLLISION",   name: "Combat Collision & Entity Hits", icon: "💥", shortName: "Collision", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)", border: "rgba(245, 158, 11, 0.25)" },
+            { id: "PLAYER",      name: "Shadow Warrior (Player) SFX", icon: "⚔️", shortName: "Player",   color: "#38bdf8", bg: "rgba(56, 189, 248, 0.08)", border: "rgba(56, 189, 248, 0.25)" },
+            { id: "SKELETON",    name: "Skeleton Enemy SFX",          icon: "💀", shortName: "Skeleton", color: "#fb923c", bg: "rgba(251, 146, 60, 0.08)", border: "rgba(251, 146, 60, 0.25)" },
+            { id: "BOSS_WIZARD", name: "Fire Wizard & Boss SFX",      icon: "🧙", shortName: "Boss SFX", color: "#f43f5e", bg: "rgba(244, 63, 94, 0.08)", border: "rgba(244, 63, 94, 0.25)" },
+            { id: "GENERAL",     name: "General & Miscellaneous SFX", icon: "🔔", shortName: "General",  color: "#4ade80", bg: "rgba(74, 222, 128, 0.08)", border: "rgba(74, 222, 128, 0.25)" }
+        ];
+
+        const SOUND_USAGE_MAP = {
+            "background_music": { state: "📜 Story State", color: "#c084fc", usage: "Main Exploration & Story Cutscenes music." },
+            "game_loop":        { state: "🎮 Gameplay State", color: "#818cf8", usage: "Main active level & runner gameplay music loop." },
+            "burning_village":  { state: "📜 Story State", color: "#c084fc", usage: "Plays during burning village story intro scene." },
+            "night_sounds":     { state: "🎮 Gameplay (Night)", color: "#a855f7", usage: "Nighttime background environmental ambiance." },
+            "forest":           { state: "🎮 Gameplay (Forest)", color: "#34d399", usage: "Dark forest level environmental ambiance." },
+            "wendigo_screams":  { state: "🎮 Gameplay (Spooky)", color: "#f87171", usage: "Spooky monster howl in forest background." },
+            "bells":            { state: "📜 Story Cutscene", color: "#c084fc", usage: "Ominous bell tolling for dark story cutscenes." },
+            "bats":             { state: "🎮 Gameplay (Cave/Night)", color: "#a855f7", usage: "Bat wing flutter sounds in night/cave levels." },
+            "reveal":           { state: "📜 Story & Cutscene", color: "#c084fc", usage: "Plays when revealing a boss or secret area." },
+
+            "collision_player_skeleton":      { state: "💥 Skeleton Hit", color: "#f59e0b", usage: "Player sword hit slicing/breaking Skeleton bones." },
+            "collision_player_zombie":        { state: "💥 Zombie Hit", color: "#f59e0b", usage: "Player strike slicing Zombie flesh." },
+            "collision_player_boss":          { state: "💥 Boss Hit", color: "#f59e0b", usage: "Heavy weapon impact hit on Fire Wizard Boss." },
+            "collision_player_bat":           { state: "💥 Bat Hit", color: "#f59e0b", usage: "Player strike hitting flying Bat." },
+            "collision_player_green_monster": { state: "💥 Slime Hit", color: "#f59e0b", usage: "Player attack striking Green Slime monster." },
+            "collision_player_defend":        { state: "💥 Block Clash", color: "#f59e0b", usage: "Shield/blade clash when Player blocks incoming hit." },
+
+            "jump_grunt":       { state: "⚔️ Player Action", color: "#38bdf8", usage: "Voice grunt when Player jumps." },
+            "jump":             { state: "⚔️ Player Action", color: "#38bdf8", usage: "Landing / jump launch physics sound." },
+            "roll":             { state: "⚔️ Player Action", color: "#38bdf8", usage: "Whoosh sound when Player presses Dodge Roll." },
+            "dash":             { state: "⚔️ Player Action", color: "#38bdf8", usage: "Air dash sound when Player uses speed dash." },
+            "footstep":         { state: "⚔️ Player Action", color: "#38bdf8", usage: "Footstep sound while Player runs on ground." },
+            "attack_one":       { state: "⚔️ Player Action", color: "#38bdf8", usage: "Slash sound on primary attack." },
+            "thrust":           { state: "⚔️ Player Action", color: "#38bdf8", usage: "Spear thrust SFX on attack combo." },
+            "special_attack":   { state: "⚔️ Player Action", color: "#38bdf8", usage: "Heavy slice sound on special attack." },
+            "defend":           { state: "⚔️ Player Action", color: "#38bdf8", usage: "Stance sound when entering block / defend." },
+            "defend_hit":       { state: "⚔️ Player Action", color: "#38bdf8", usage: "Shield impact sound when blocking hit." },
+            "player_hurt":      { state: "⚔️ Player Hurt", color: "#f87171", usage: "Pain groan when Player takes damage." },
+            "player_hit":       { state: "⚔️ Player Hurt", color: "#f87171", usage: "Body slice impact sound when Player is hit." },
+            "player_death":     { state: "⚔️ Player Defeat", color: "#f87171", usage: "Defeat groan when Player HP reaches 0." },
+            "transform":        { state: "⚔️ Player Super Mode", color: "#facc15", usage: "Transformation sound when powering up." },
+            "aura_effect":      { state: "⚔️ Player Super Mode", color: "#facc15", usage: "Glowing aura power sound effect." },
+            "power_release_1":  { state: "⚔️ Player Super Mode", color: "#facc15", usage: "Energy burst release level 1." },
+            "power_release_2":  { state: "⚔️ Player Super Mode", color: "#facc15", usage: "Energy burst release level 2." },
+            "power_release_3":  { state: "⚔️ Player Super Mode", color: "#facc15", usage: "Energy burst release level 3." },
+            "power_release_4":  { state: "⚔️ Player Super Mode", color: "#facc15", usage: "Energy burst release level 4." },
+            "power_release_5":  { state: "⚔️ Player Super Mode", color: "#facc15", usage: "Energy burst release level 5." },
+
+            "skeleton_spawn":   { state: "💀 Skeleton Enemy", color: "#fb923c", usage: "Plays when Skeleton rises out of the ground." },
+            "skeleton_alive":   { state: "💀 Skeleton Enemy", color: "#fb923c", usage: "Zombie hiss/growl while Skeleton chases Player." },
+            "skeleton_hurt":    { state: "💀 Skeleton Enemy", color: "#fb923c", usage: "Bone crack sound when Skeleton gets hit." },
+            "skeleton_death":   { state: "💀 Skeleton Enemy", color: "#fb923c", usage: "Death shriek when Skeleton is killed." },
+
+            "magic_sfx":        { state: "🔥 Boss Fire Wizard", color: "#f43f5e", usage: "Fireball spell casting sound." },
+            "lightning":        { state: "🔥 Boss Fire Wizard", color: "#f43f5e", usage: "Thunder bolt attack sound." },
+            "evil_laugh":       { state: "🔥 Boss Fire Wizard", color: "#f43f5e", usage: "Evil laugh when Boss enters or attacks." },
+            "fight_sfx":        { state: "🔥 Boss Battle", color: "#f43f5e", usage: "Dramatic impact sound at start of Boss fight." },
+            "smash":            { state: "🔥 Boss Heavy Attack", color: "#f43f5e", usage: "Ground smash attack sound." },
+            "smash_phase_1":    { state: "🔥 Boss Heavy Attack", color: "#f43f5e", usage: "Phase 1 heavy smash attack." },
+            "smash_phase_2":    { state: "🔥 Boss Heavy Attack", color: "#f43f5e", usage: "Phase 2 slash smash attack." },
+            "smash_phase_3":    { state: "🔥 Boss Heavy Attack", color: "#f43f5e", usage: "Phase 3 sword slice smash attack." }
+        };
+
+        let currentEditingSoundKey = null;
+
+        function getSoundUsageInfo(key) {
+            if (appState.config && appState.config.sound_metadata && appState.config.sound_metadata[key]) {
+                const m = appState.config.sound_metadata[key];
+                return {
+                    state: m.state || "⚙️ Custom Audio",
+                    color: m.color || "#94a3b8",
+                    usage: m.usage || "Registered custom game audio sound effect.",
+                    category: m.category
+                };
+            }
+            if (SOUND_USAGE_MAP[key]) {
+                return SOUND_USAGE_MAP[key];
+            }
+            const catId = getCategoryForMasterKey(key);
+            const catMeta = MASTER_CATEGORIES.find(c => c.id === catId);
+            return {
+                state: catMeta ? `${catMeta.icon} ${catMeta.shortName}` : "⚙️ Custom Audio",
+                color: catMeta ? catMeta.color : "#94a3b8",
+                usage: "Registered game audio sound effect."
+            };
+        }
+
+        function getCategoryForMasterKey(key) {
+            if (appState.config && appState.config.sound_metadata && appState.config.sound_metadata[key] && appState.config.sound_metadata[key].category) {
+                return appState.config.sound_metadata[key].category;
+            }
+            const k = key.toLowerCase();
+            if (k.startsWith("collision_")) {
+                return "COLLISION";
+            }
+            if (k === "background_music" || k === "game_loop" || k.includes("music") || k.includes("bgm") || k.includes("theme")) {
+                return "MUSIC";
+            }
+            if (k === "night_sounds" || k === "forest" || k === "wendigo_screams" || k === "burning_village" || k === "bells" || k === "bats" || k.includes("ambient") || k.includes("howl")) {
+                return "AMBIENCE";
+            }
+            if (k.startsWith("skeleton_")) {
+                return "SKELETON";
+            }
+            if (k.startsWith("boss_") || k.startsWith("wizard_") || k === "magic_sfx" || k === "lightning" || k === "fight_sfx" || k === "evil_laugh" || k === "reveal") {
+                return "BOSS_WIZARD";
+            }
+            if (
+                k === "roll" || k === "dash" || k === "jump" || k === "jump_grunt" || k === "footstep" ||
+                k === "attack_one" || k === "thrust" || k === "special_attack" || k.startsWith("smash") ||
+                k === "defend" || k === "defend_hit" || k.startsWith("player_") || k === "transform" ||
+                k === "aura_effect" || k.startsWith("power_release_")
+            ) {
+                return "PLAYER";
+            }
+            return "GENERAL";
+        }
+
+        function renameSoundKey(oldKey, newKey) {
+            oldKey = (oldKey || "").trim();
+            newKey = (newKey || "").trim();
+            if (!oldKey || !newKey || oldKey === newKey) return true;
+
+            if (!appState.config.sounds) appState.config.sounds = {};
+            if (appState.config.sounds[newKey] && !confirm(`Key '${newKey}' already exists. Overwrite?`)) {
+                return false;
+            }
+
+            const path = appState.config.sounds[oldKey];
+            delete appState.config.sounds[oldKey];
+            appState.config.sounds[newKey] = path;
+
+            if (!appState.config.sound_metadata) appState.config.sound_metadata = {};
+            if (appState.config.sound_metadata[oldKey]) {
+                appState.config.sound_metadata[newKey] = appState.config.sound_metadata[oldKey];
+                delete appState.config.sound_metadata[oldKey];
+            }
+
+            if (SOUND_USAGE_MAP[oldKey]) {
+                SOUND_USAGE_MAP[newKey] = SOUND_USAGE_MAP[oldKey];
+                delete SOUND_USAGE_MAP[oldKey];
+            }
+
+            // Rename references in states & enhanced_states
+            ["states", "enhanced_states"].forEach(section => {
+                if (appState.config[section]) {
+                    Object.keys(appState.config[section]).forEach(st => {
+                        Object.keys(appState.config[section][st]).forEach(frame => {
+                            if (appState.config[section][st][frame] === oldKey) {
+                                appState.config[section][st][frame] = newKey;
+                            }
+                        });
+                    });
+                }
+            });
+
+            return true;
+        }
+
+        function renameMasterSoundKey(oldKey) {
+            const newKey = prompt(`Rename Sound Key Alias '${oldKey}' to:`, oldKey);
+            if (!newKey || newKey.trim() === "" || newKey.trim() === oldKey) return;
+            if (renameSoundKey(oldKey, newKey.trim())) {
+                markUnsaved();
+                renderMasterAudioPanel();
+                renderTrackMixer();
+            }
+        }
+
+        function filterMasterCategory(catId) {
+            appState.activeMasterCategoryFilter = catId;
+            renderMasterAudioPanel();
+        }
+
+        function renderMasterAudioPanel() {
+            const panel = document.getElementById("master-audio-panel");
+            if (!panel || currentEntity !== "master_audio") return;
+
+            if (!appState.config.sounds) appState.config.sounds = {};
+            if (!appState.config.sound_metadata) appState.config.sound_metadata = {};
+            if (!appState.activeMasterCategoryFilter) appState.activeMasterCategoryFilter = "ALL";
+
+            // 1. Ambient & Key Music Cards
+            const ambienceCardsContainer = document.getElementById("master-ambience-cards");
+            const keyTrackDefs = [
+                { key: "background_music", label: "Primary Background Music (BGM)", state: "📜 Story State", icon: "🎼", default: "assets/audio/1 Exploration TomMusic.ogg" },
+                { key: "game_loop",        label: "Game Loop Music",            state: "🎮 Gameplay State", icon: "🎮", default: "assets/audio/game_loop.mp3" },
+                { key: "night_sounds",     label: "Night Sounds & Howls",        state: "🎮 Gameplay (Night)", icon: "🦉", default: "assets/audio/night sounds.mp3" },
+                { key: "forest",           label: "Forest Atmosphere",          state: "🎮 Gameplay (Forest)", icon: "🍃", default: "assets/audio/dark-forest.ogg" },
+                { key: "wendigo_screams",  label: "Wendigo Shrieks",             state: "🎮 Gameplay (Spooky)", icon: "👹", default: "assets/audio/Wendigo sounds.mp3" },
+                { key: "burning_village",  label: "Burning Village Ambiance",   state: "📜 Story Cutscene", icon: "🏚️", default: "assets/audio/Burning Fire.mp3" },
+            ];
+
+            let cardsHtml = "";
+            keyTrackDefs.forEach(tr => {
+                const currentPath = appState.config.sounds[tr.key] || tr.default;
+                cardsHtml += `
+                    <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.6rem 0.8rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #e9d5ff;">${tr.icon} ${tr.key}</span>
+                            <div style="display: flex; gap: 0.3rem;">
+                                <button class="play-icon-btn" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="previewSound('${tr.key}')" title="Preview Audio">&#9658; Play</button>
+                                <button class="btn btn-secondary" style="padding: 0.2rem 0.45rem; font-size: 0.72rem;" onclick="openEditStateSoundModal('${tr.key}')" title="Edit Sound Properties">✏️</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <span style="font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 4px; background: rgba(192,132,252,0.18); color: #c084fc; font-weight: 700;">${tr.state}</span>
+                            <span style="font-size: 0.72rem; color: var(--text-secondary);">${tr.label}</span>
+                        </div>
+                        <input type="text" class="form-input" list="raw-assets-datalist" value="${currentPath}" style="font-size: 0.78rem; padding: 0.3rem 0.5rem;" onchange="updateMasterSoundPath('${tr.key}', this.value)">
+                    </div>
+                `;
+            });
+            if (ambienceCardsContainer) ambienceCardsContainer.innerHTML = cardsHtml;
+
+            // 2. Compute Category Counts & Groups
+            const query = (document.getElementById("master-sound-search")?.value || "").toLowerCase().trim();
+            const soundKeys = Object.keys(appState.config.sounds).sort();
+
+            const groupedKeys = {};
+            MASTER_CATEGORIES.forEach(c => { groupedKeys[c.id] = []; });
+
+            soundKeys.forEach(k => {
+                const catId = getCategoryForMasterKey(k);
+                if (groupedKeys[catId]) {
+                    groupedKeys[catId].push(k);
+                } else {
+                    groupedKeys.GENERAL.push(k);
+                }
+            });
+
+            // Category Filter Pills
+            const activeCat = appState.activeMasterCategoryFilter;
+            const filterContainer = document.getElementById("master-category-filters");
+            let filterHtml = `
+                <button class="btn ${activeCat === 'ALL' ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; border-radius: 12px;" onclick="filterMasterCategory('ALL')">
+                    All Categories (${soundKeys.length})
+                </button>
+            `;
+            MASTER_CATEGORIES.forEach(c => {
+                const count = groupedKeys[c.id].length;
+                if (count > 0 || activeCat === c.id) {
+                    const isActive = activeCat === c.id;
+                    const style = isActive
+                        ? `background: ${c.color}; color: #000; border-color: ${c.color}; font-weight: 700;`
+                        : `color: ${c.color}; border-color: ${c.border}; background: rgba(0,0,0,0.3);`;
+                    filterHtml += `
+                        <button class="btn" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; border-radius: 12px; ${style}" onclick="filterMasterCategory('${c.id}')">
+                            ${c.icon} ${c.shortName} (${count})
+                        </button>
+                    `;
+                }
+            });
+            if (filterContainer) filterContainer.innerHTML = filterHtml;
+
+            // 3. Render Category Section Cards
+            const container = document.getElementById("master-sounds-table-container");
+            let html = "";
+            let totalRendered = 0;
+
+            MASTER_CATEGORIES.forEach(cat => {
+                if (activeCat !== "ALL" && activeCat !== cat.id) return;
+
+                let categoryKeys = groupedKeys[cat.id];
+                if (query) {
+                    categoryKeys = categoryKeys.filter(k => {
+                        const info = getSoundUsageInfo(k);
+                        return k.toLowerCase().includes(query) ||
+                            (appState.config.sounds[k] || "").toLowerCase().includes(query) ||
+                            (info.state || "").toLowerCase().includes(query) ||
+                            (info.usage || "").toLowerCase().includes(query);
+                    });
+                }
+
+                if (categoryKeys.length === 0) return;
+                totalRendered += categoryKeys.length;
+
+                html += `
+                    <div style="background: ${cat.bg}; border: 1px solid ${cat.border}; border-radius: 6px; overflow: hidden;">
+                        <div style="padding: 0.5rem 0.8rem; background: rgba(0,0,0,0.35); font-weight: 700; color: ${cat.color}; font-size: 0.82rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid ${cat.border};">
+                            <span style="display: flex; align-items: center; gap: 0.4rem;">${cat.icon} ${cat.name}</span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 0.7rem; background: rgba(255,255,255,0.1); padding: 0.15rem 0.5rem; border-radius: 10px; font-weight: 600;">${categoryKeys.length} sound${categoryKeys.length === 1 ? '' : 's'}</span>
+                                <button class="btn" style="padding: 0.15rem 0.55rem; font-size: 0.72rem; border-radius: 4px; background: rgba(255,255,255,0.1); color: ${cat.color}; border: 1px solid ${cat.border}; cursor: pointer;" onclick="openAddStateSoundModal('${cat.id}')">
+                                    ➕ Add Sound to this Category
+                                </button>
+                            </div>
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.82rem; background: rgba(0,0,0,0.2);">
+                            <thead>
+                                <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-secondary); font-size: 0.72rem; text-transform: uppercase;">
+                                    <th style="padding: 0.4rem 0.8rem; width: 50px;">Play</th>
+                                    <th style="padding: 0.4rem 0.8rem; width: 220px;">Sound Key Alias</th>
+                                    <th style="padding: 0.4rem 0.8rem; width: 300px;">Game State & Trigger Usage</th>
+                                    <th style="padding: 0.4rem 0.8rem;">Mapped Asset Path</th>
+                                    <th style="padding: 0.4rem 0.8rem; text-align: right; width: 140px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                categoryKeys.forEach(k => {
+                    const path = appState.config.sounds[k];
+                    const info = getSoundUsageInfo(k);
+                    
+                    html += `
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;" onmouseleave="this.style.background='transparent'" onmouseenter="this.style.background='rgba(255,255,255,0.04)'">
+                            <td style="padding: 0.35rem 0.8rem;">
+                                <button class="play-icon-btn" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="previewSound('${k}')" title="Play Sound">&#9658;</button>
+                            </td>
+                            <td style="padding: 0.35rem 0.8rem; font-weight: 700; font-family: monospace; color: ${cat.color};">
+                                <div style="display: flex; align-items: center; gap: 0.3rem;">
+                                    <span style="cursor: pointer;" onclick="openEditStateSoundModal('${k}')" title="Click to Edit">${k}</span>
+                                    <button style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.75rem; opacity: 0.6;" onclick="renameMasterSoundKey('${k}')" title="Quick Rename Alias">✏️</button>
+                                </div>
+                            </td>
+                            <td style="padding: 0.35rem 0.8rem;">
+                                <div style="display: flex; flex-direction: column; gap: 0.15rem; cursor: pointer;" onclick="openEditStateSoundModal('${k}')" title="Click to Edit Tag & Usage">
+                                    <span style="display: inline-block; font-size: 0.68rem; font-weight: 700; color: ${info.color || cat.color}; background: rgba(255,255,255,0.06); padding: 0.1rem 0.4rem; border-radius: 4px; width: fit-content;">
+                                        ${info.state}
+                                    </span>
+                                    <span style="font-size: 0.72rem; color: var(--text-secondary); white-space: normal; line-height: 1.2;">
+                                        ${info.usage}
+                                    </span>
+                                </div>
+                            </td>
+                            <td style="padding: 0.35rem 0.8rem;">
+                                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                                    <input type="text" class="form-input" list="raw-assets-datalist" value="${path}" style="width: 100%; font-size: 0.78rem; padding: 0.25rem 0.5rem;" onchange="updateMasterSoundPath('${k}', this.value)">
+                                    <button class="play-icon-btn" style="padding: 0.2rem 0.45rem; font-size: 0.75rem;" onclick="previewModalSoundPathDirect('${path}')" title="Preview Audio File">▶</button>
+                                </div>
+                            </td>
+                            <td style="padding: 0.35rem 0.8rem; text-align: right; white-space: nowrap;">
+                                <button class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; margin-right: 0.3rem;" onclick="openEditStateSoundModal('${k}')" title="Edit Sound & Category">✏️ Edit</button>
+                                <button class="btn btn-danger" style="padding: 0.2rem 0.45rem; font-size: 0.72rem;" onclick="deleteMasterSound('${k}')" title="Remove Registration">&times; Remove</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+
+            if (totalRendered === 0) {
+                html = `<div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">No sound keys found matching '${query || activeCat}'.</div>`;
+            }
+
+            if (container) container.innerHTML = html;
+        }
+
+        function previewModalSoundPathDirect(path) {
+            if (!path) return;
+            editorAudioEngine.playSound(path, 1.0);
+        }
+
+        function updateMasterSoundPath(key, newPath) {
+            if (!appState.config.sounds) appState.config.sounds = {};
+            appState.config.sounds[key] = newPath;
+            markUnsaved();
+            renderMasterAudioPanel();
+            renderTrackMixer();
+        }
+
+        function deleteMasterSound(key) {
+            if (confirm(`Remove sound alias '${key}' from Master Audio Registry?`)) {
+                delete appState.config.sounds[key];
+                if (appState.config.sound_metadata) delete appState.config.sound_metadata[key];
+                if (SOUND_USAGE_MAP[key]) delete SOUND_USAGE_MAP[key];
+                markUnsaved();
+                renderMasterAudioPanel();
+                renderTrackMixer();
+            }
+        }
+
+        function addMasterSoundEntry() {
+            const key = document.getElementById("add-master-key").value.trim();
+            const path = document.getElementById("add-master-path").value.trim();
+            if (!key || !path) {
+                alert("Please specify both a Sound Key Alias and Audio Asset Path.");
+                return;
+            }
+            if (!appState.config.sounds) appState.config.sounds = {};
+            appState.config.sounds[key] = path;
+            document.getElementById("add-master-key").value = "";
+            document.getElementById("add-master-path").value = "";
+            markUnsaved();
+            renderMasterAudioPanel();
+            renderTrackMixer();
+        }
+
+        // ── Centralized Audio Engine ─────────────────────────────────────────────
+        class EditorAudioEngine {
+            constructor() {
+                this.maxPoolSize = 8;
+                this.pool = [];
+                this.explorerAudio = null;
+                this.explorerPath = null;
+            }
+
+            _getRecycledInstance() {
+                let inst = this.pool.find(a => a.ended || a.paused || !a.src);
+                if (!inst) {
+                    if (this.pool.length < this.maxPoolSize) {
+                        inst = new Audio();
+                        this.pool.push(inst);
+                    } else {
+                        inst = this.pool[0];
+                        this.pool.push(this.pool.shift());
+                        try {
+                            inst.pause();
+                            inst.currentTime = 0;
+                            inst.removeAttribute("src");
+                            inst.load();
+                        } catch(e) {}
+                    }
+                }
+                return inst;
+            }
+
+            playSound(path, volume = 1.0, onEnded = null) {
+                if (!path) return;
+                const fullPath = path.startsWith("/") ? path : "/" + path;
+                const master = parseFloat(masterSlider?.value || 1.0);
+                const sfx = parseFloat(sfxSlider?.value || 1.0);
+                const finalVol = Math.max(0.0, Math.min(1.0, volume * master * sfx));
+                if (finalVol <= 0.001) return;
+
+                const audio = this._getRecycledInstance();
+                try {
+                    audio.pause();
+                    audio.src = fullPath;
+                    audio.volume = finalVol;
+                    audio.currentTime = 0;
+                } catch(e) {}
+
+                const cleanup = () => {
+                    if (onEnded) onEnded();
+                };
+
+                audio.onended = cleanup;
+                audio.onerror = (e) => {
+                    console.warn("Audio load error:", fullPath, e);
+                    cleanup();
+                };
+
+                const p = audio.play();
+                if (p !== undefined) {
+                    p.catch(err => {
+                        if (err.name !== "AbortError") {
+                            console.warn("Playback interrupted or blocked:", err);
+                        }
+                        cleanup();
+                    });
+                }
+            }
+
+            playExplorerTrack(path, onEnded = null) {
+                if (!path) return false;
+                const fullPath = path.startsWith("/") ? path : "/" + path;
+
+                if (this.explorerPath === path && this.explorerAudio && !this.explorerAudio.paused) {
+                    this.stopExplorerTrack();
+                    return false;
+                }
+
+                this.stopExplorerTrack();
+
+                const master = parseFloat(masterSlider?.value || 1.0);
+                const sfx = parseFloat(sfxSlider?.value || 1.0);
+                const audio = new Audio(fullPath);
+                audio.volume = Math.max(0.0, Math.min(1.0, master * sfx));
+                this.explorerAudio = audio;
+                this.explorerPath = path;
+
+                const cleanup = () => {
+                    if (this.explorerPath === path) {
+                        this.explorerAudio = null;
+                        this.explorerPath = null;
+                    }
+                    if (onEnded) onEnded();
+                };
+
+                audio.onended = cleanup;
+                audio.onerror = cleanup;
+
+                const p = audio.play();
+                if (p !== undefined) {
+                    p.catch(err => {
+                        cleanup();
+                    });
+                }
+                return true;
+            }
+
+            stopExplorerTrack() {
+                if (this.explorerAudio) {
+                    try {
+                        this.explorerAudio.pause();
+                        this.explorerAudio.currentTime = 0;
+                        this.explorerAudio.removeAttribute("src");
+                        this.explorerAudio.load();
+                    } catch(e) {}
+                    this.explorerAudio = null;
+                }
+                this.explorerPath = null;
+            }
+
+            isExplorerPlaying(path) {
+                return this.explorerPath === path && this.explorerAudio && !this.explorerAudio.paused;
+            }
+
+            stopAll() {
+                this.stopExplorerTrack();
+                this.pool.forEach(a => {
+                    try {
+                        a.pause();
+                        a.currentTime = 0;
+                        a.removeAttribute("src");
+                        a.load();
+                    } catch(e) {}
+                });
+            }
+        }
+
+        const editorAudioEngine = new EditorAudioEngine();
+
+        // ── Interactive Audio Library Explorer Logic ─────────────────────────────
+        function toggleModalAudioExplorer(forceState = null) {
+            const panel = document.getElementById("modal-audio-explorer");
+            if (!panel) return;
+            const shouldShow = forceState !== null ? forceState : (panel.style.display === "none" || panel.style.display === "");
+            panel.style.display = shouldShow ? "flex" : "none";
+            if (shouldShow) {
+                populateExplorerFolderDropdown();
+                renderModalAudioExplorer();
+            }
+        }
+
+        function populateExplorerFolderDropdown() {
+            const folderSelect = document.getElementById("explorer-folder-select");
+            if (!folderSelect) return;
+            const currentFolder = folderSelect.value;
+            folderSelect.innerHTML = '<option value="">All Audio Folders</option>';
+            
+            const folderCounts = {};
+            (appState.audio_assets || []).forEach(assetPath => {
+                const parts = assetPath.split("/");
+                parts.pop();
+                const folder = parts.join("/");
+                folderCounts[folder] = (folderCounts[folder] || 0) + 1;
+            });
+            
+            Object.keys(folderCounts).sort().forEach(folder => {
+                const opt = document.createElement("option");
+                opt.value = folder;
+                opt.textContent = `${folder} (${folderCounts[folder]})`;
+                folderSelect.appendChild(opt);
+            });
+            if (currentFolder) folderSelect.value = currentFolder;
+        }
+
+        function playExplorerAudio(path) {
+            editorAudioEngine.playExplorerTrack(path, () => {
+                renderModalAudioExplorer();
+            });
+            renderModalAudioExplorer();
+        }
+
+        function selectExplorerAudio(path) {
+            const pathInput = document.getElementById("modal-sound-path");
+            if (pathInput) pathInput.value = path;
+            
+            const autoplay = document.getElementById("explorer-autoplay")?.checked;
+            if (autoplay) {
+                playExplorerAudio(path);
+            } else {
+                renderModalAudioExplorer();
+            }
+        }
+
+        function renderModalAudioExplorer() {
+            const listContainer = document.getElementById("explorer-asset-list");
+            const countBadge = document.getElementById("explorer-count-badge");
+            if (!listContainer) return;
+
+            const assets = appState.audio_assets || [];
+            const selectedFolder = document.getElementById("explorer-folder-select")?.value || "";
+            const search = (document.getElementById("explorer-search")?.value || "").toLowerCase().trim();
+            const currentPathInInput = (document.getElementById("modal-sound-path")?.value || "").trim();
+
+            let filtered = assets.filter(a => {
+                if (selectedFolder && !a.startsWith(selectedFolder)) return false;
+                if (search && !a.toLowerCase().includes(search)) return false;
+                return true;
+            });
+
+            if (countBadge) countBadge.innerText = filtered.length;
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = `<div style="padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">No audio files found matching '${search}'.</div>`;
+                return;
+            }
+
+            let html = "";
+            filtered.forEach(assetPath => {
+                const parts = assetPath.split("/");
+                const filename = parts.pop();
+                const folder = parts.join("/");
+                const isSelected = (assetPath === currentPathInInput);
+                const isPlaying = editorAudioEngine.isExplorerPlaying(assetPath);
+
+                const bg = isSelected
+                    ? "rgba(6, 182, 212, 0.2)"
+                    : (isPlaying ? "rgba(168, 85, 247, 0.22)" : "rgba(255, 255, 255, 0.03)");
+                const border = isSelected
+                    ? "rgba(6, 182, 212, 0.5)"
+                    : (isPlaying ? "rgba(168, 85, 247, 0.5)" : "rgba(255, 255, 255, 0.06)");
+
+                const playBtnText = isPlaying ? "⏸ Pause" : "▶ Play";
+                const playBtnStyle = isPlaying
+                    ? "background: #ef4444; border-color: #ef4444; color: white; font-weight: 700;"
+                    : "";
+
+                html += `
+                    <div style="background: ${bg}; border: 1px solid ${border}; border-radius: 6px; padding: 0.35rem 0.6rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; transition: background 0.15s;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1; cursor: pointer;" onclick="selectExplorerAudio('${assetPath}')">
+                            <button class="play-icon-btn" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; flex-shrink: 0; ${playBtnStyle}" onclick="event.stopPropagation(); playExplorerAudio('${assetPath}')" title="Preview Audio">
+                                ${playBtnText}
+                            </button>
+                            <div style="display: flex; flex-direction: column; min-width: 0; overflow: hidden;">
+                                <span style="font-size: 0.78rem; font-weight: 700; color: ${isSelected ? '#38bdf8' : (isPlaying ? '#c084fc' : '#e2e8f0')}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${filename}">
+                                    ${filename}
+                                </span>
+                                <span style="font-size: 0.68rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${folder}">
+                                    ${folder}/
+                                </span>
+                            </div>
+                        </div>
+                        <button class="btn ${isSelected ? 'btn-primary' : 'btn-secondary'}" style="padding: 0.2rem 0.55rem; font-size: 0.72rem; flex-shrink: 0; ${isSelected ? 'background: #06b6d4; border-color: #06b6d4; color: #000; font-weight: 700;' : ''}" onclick="selectExplorerAudio('${assetPath}')">
+                            ${isSelected ? '✓ Selected' : 'Select'}
+                        </button>
+                    </div>
+                `;
+            });
+
+            listContainer.innerHTML = html;
+        }
+
+        // ── State Sound Mini Pop-up Modal Logic ─────────────────────────────────
+        function populateModalExistingSounds(selectedKey = "") {
+            const sel = document.getElementById("modal-existing-sound-select");
+            if (!sel) return;
+            sel.innerHTML = `<option value="__NEW__">➕ Create New Sound Key...</option>`;
+            
+            if (!appState.config.sounds) return;
+            const keys = Object.keys(appState.config.sounds).sort();
+            
+            MASTER_CATEGORIES.forEach(cat => {
+                const catKeys = keys.filter(k => getCategoryForMasterKey(k) === cat.id);
+                if (catKeys.length > 0) {
+                    const group = document.createElement("optgroup");
+                    group.label = `${cat.icon} ${cat.name}`;
+                    catKeys.forEach(k => {
+                        const opt = document.createElement("option");
+                        opt.value = k;
+                        opt.textContent = k;
+                        group.appendChild(opt);
+                    });
+                    sel.appendChild(group);
+                }
+            });
+            
+            sel.value = selectedKey || "__NEW__";
+        }
+
+        function openAddStateSoundModal(presetCatId) {
+            currentEditingSoundKey = null;
+            const modal = document.getElementById("state-sound-modal");
+            if (!modal) return;
+            
+            populateModalExistingSounds("__NEW__");
+            
+            document.getElementById("state-modal-title").innerHTML = `<span>➕</span> Add New Audio Sound Entry`;
+            document.getElementById("modal-sound-key").value = "";
+            document.getElementById("modal-sound-key").disabled = false;
+            document.getElementById("modal-sound-path").value = "";
+            document.getElementById("modal-sound-tag").value = "";
+            document.getElementById("modal-sound-usage").value = "";
+            
+            const catSelect = document.getElementById("modal-sound-category");
+            if (catSelect) {
+                catSelect.value = presetCatId || "COLLISION";
+            }
+            
+            onModalCategoryChange(catSelect ? catSelect.value : "COLLISION");
+            validateModalSoundKey("");
+            
+            const countBadge = document.getElementById("explorer-count-badge");
+            if (countBadge) countBadge.innerText = (appState.audio_assets || []).length;
+            populateExplorerFolderDropdown();
+            
+            const btnDel = document.getElementById("modal-btn-delete");
+            if (btnDel) btnDel.style.display = "none";
+            const btnSave = document.getElementById("modal-btn-save");
+            if (btnSave) btnSave.innerText = "➕ Create & Save";
+            
+            modal.classList.add("open");
+        }
+
+        function openEditStateSoundModal(key) {
+            currentEditingSoundKey = key;
+            const modal = document.getElementById("state-sound-modal");
+            if (!modal) return;
+
+            populateModalExistingSounds(key);
+
+            const path = (appState.config.sounds && appState.config.sounds[key]) || "";
+            const info = getSoundUsageInfo(key);
+            const catId = getCategoryForMasterKey(key);
+
+            document.getElementById("state-modal-title").innerHTML = `<span>✏️</span> Edit Sound: <code style="color:#c084fc; margin-left:0.3rem;">${key}</code>`;
+            document.getElementById("modal-sound-key").value = key;
+            document.getElementById("modal-sound-key").disabled = false;
+            document.getElementById("modal-sound-path").value = path;
+            document.getElementById("modal-sound-tag").value = info.state || "";
+            document.getElementById("modal-sound-usage").value = info.usage || "";
+
+            const catSelect = document.getElementById("modal-sound-category");
+            if (catSelect) catSelect.value = catId;
+
+            validateModalSoundKey(key);
+
+            const countBadge = document.getElementById("explorer-count-badge");
+            if (countBadge) countBadge.innerText = (appState.audio_assets || []).length;
+            populateExplorerFolderDropdown();
+
+            const btnDel = document.getElementById("modal-btn-delete");
+            if (btnDel) btnDel.style.display = "inline-block";
+            const btnSave = document.getElementById("modal-btn-save");
+            if (btnSave) btnSave.innerText = "💾 Save Sound Changes";
+
+            modal.classList.add("open");
+        }
+
+        function onModalSelectExistingSound(val) {
+            if (val === "__NEW__") {
+                openAddStateSoundModal();
+            } else {
+                openEditStateSoundModal(val);
+            }
+        }
+
+        function closeStateSoundModal() {
+            editorAudioEngine.stopAll();
+            toggleModalAudioExplorer(false);
+            const modal = document.getElementById("state-sound-modal");
+            if (modal) modal.classList.remove("open");
+        }
+
+        function onModalCategoryChange(catId) {
+            const usageInput = document.getElementById("modal-sound-usage");
+            const tagInput = document.getElementById("modal-sound-tag");
+            
+            const defaults = {
+                "MUSIC": { tag: "📜 Story State", usage: "Background music track played during story cutscenes or state navigation." },
+                "AMBIENCE": { tag: "🎮 Gameplay (Night)", usage: "Environmental atmospheric sound and howl played during active gameplay." },
+                "PLAYER": { tag: "⚔️ Player Action", usage: "Sound effect triggered by Shadow Warrior player movement or action." },
+                "SKELETON": { tag: "💀 Skeleton Enemy", usage: "Sound effect triggered during Skeleton enemy animation or spawn." },
+                "BOSS_WIZARD": { tag: "🔥 Boss Battle", usage: "Sound effect triggered during Fire Wizard Boss attack phase." },
+                "COLLISION": { tag: "💥 Combat Collision", usage: "Combat encounter hit impact sound triggered on entity contact." },
+                "GENERAL": { tag: "⚙️ Custom Audio", usage: "Registered custom game audio sound effect." }
+            };
+            
+            const def = defaults[catId] || defaults["GENERAL"];
+            if (tagInput && (!tagInput.value || Object.values(defaults).some(d => d.tag === tagInput.value))) {
+                tagInput.value = def.tag;
+            }
+            if (usageInput && (!usageInput.value || Object.values(defaults).some(d => d.usage === usageInput.value))) {
+                usageInput.value = def.usage;
+            }
+        }
+
+        function validateModalSoundKey(key) {
+            const warning = document.getElementById("modal-key-warning");
+            if (!warning) return;
+            if (key && appState.config.sounds && appState.config.sounds[key.trim()] && key.trim() !== currentEditingSoundKey) {
+                warning.innerText = "⚠️ Key already exists and will be overwritten!";
+                warning.style.color = "#f43f5e";
+                warning.style.display = "block";
+            } else if (currentEditingSoundKey) {
+                warning.innerText = "ℹ️ Editing existing sound entry. Key rename will auto-update state references.";
+                warning.style.color = "#38bdf8";
+                warning.style.display = "block";
+            } else {
+                warning.style.display = "none";
+            }
+        }
+
+        function previewModalSoundPath() {
+            const path = document.getElementById("modal-sound-path").value.trim();
+            if (!path) return;
+            editorAudioEngine.playSound(path, 1.0);
+        }
+
+        function confirmStateSoundModal() {
+            const keyInput = document.getElementById("modal-sound-key");
+            const newKey = keyInput ? keyInput.value.trim() : "";
+            const path = document.getElementById("modal-sound-path").value.trim();
+            const tag = document.getElementById("modal-sound-tag").value.trim();
+            const usage = document.getElementById("modal-sound-usage").value.trim();
+            const catId = document.getElementById("modal-sound-category").value;
+
+            if (!newKey || !path) {
+                alert("Please provide both a Sound Key Alias and an Audio Asset Path.");
+                return;
+            }
+
+            const catMeta = MASTER_CATEGORIES.find(c => c.id === catId) || MASTER_CATEGORIES[6];
+
+            if (currentEditingSoundKey && currentEditingSoundKey !== newKey) {
+                const ok = renameSoundKey(currentEditingSoundKey, newKey);
+                if (!ok) return;
+            }
+
+            if (!appState.config.sounds) appState.config.sounds = {};
+            appState.config.sounds[newKey] = path;
+
+            if (!appState.config.sound_metadata) appState.config.sound_metadata = {};
+            appState.config.sound_metadata[newKey] = {
+                category: catId,
+                state: tag || `${catMeta.icon} ${catMeta.shortName}`,
+                usage: usage || "Registered game sound effect.",
+                color: catMeta.color
+            };
+
+            SOUND_USAGE_MAP[newKey] = {
+                state: tag || `${catMeta.icon} ${catMeta.shortName}`,
+                color: catMeta.color,
+                usage: usage || "Registered game sound effect."
+            };
+
+            markUnsaved();
+            renderMasterAudioPanel();
+            renderTrackMixer();
+            closeStateSoundModal();
+        }
+
+        function deleteModalSound() {
+            if (!currentEditingSoundKey) return;
+            const key = currentEditingSoundKey;
+            if (confirm(`Remove sound alias '${key}' from Audio Config?`)) {
+                if (appState.config.sounds) delete appState.config.sounds[key];
+                if (appState.config.sound_metadata) delete appState.config.sound_metadata[key];
+                if (SOUND_USAGE_MAP[key]) delete SOUND_USAGE_MAP[key];
+                markUnsaved();
+                renderMasterAudioPanel();
+                renderTrackMixer();
+                closeStateSoundModal();
             }
         }
 
@@ -1667,21 +2720,40 @@ HTML_CONTENT = """<!DOCTYPE html>
 
         function updateLockStatusUI() {
             lockStatus.className = "lock-badge";
+            const masterBadge = document.getElementById("master-commit-badge");
             
             if (appState.isModified) {
                 lockStatus.classList.add("unsaved");
                 lockText.innerText = "UNSAVED CHANGES";
                 alertBar.style.display = "flex";
                 alertText.innerText = "Values changed in editor. Click 'Save Changes' to apply and secure lock.";
+                if (masterBadge) {
+                    masterBadge.style.color = "#fbbf24";
+                    masterBadge.style.background = "rgba(245, 158, 11, 0.15)";
+                    masterBadge.style.borderColor = "rgba(245, 158, 11, 0.3)";
+                    masterBadge.innerHTML = "⚠️ Uncommitted Edits (Click Save to Commit)";
+                }
             } else if (appState.valid) {
                 lockStatus.classList.add("valid");
                 lockText.innerText = "LOCK SECURED";
                 alertBar.style.display = "none";
+                if (masterBadge) {
+                    masterBadge.style.color = "#4ade80";
+                    masterBadge.style.background = "rgba(34, 197, 94, 0.15)";
+                    masterBadge.style.borderColor = "rgba(34, 197, 94, 0.3)";
+                    masterBadge.innerHTML = "🔒 Config Locked & Committed";
+                }
             } else {
                 lockStatus.classList.add("invalid");
                 lockText.innerText = "LOCK OUT OF SYNC";
                 alertBar.style.display = "flex";
                 alertText.innerText = appState.reason || "Audios do not match lock signatures.";
+                if (masterBadge) {
+                    masterBadge.style.color = "#f43f5e";
+                    masterBadge.style.background = "rgba(244, 63, 94, 0.15)";
+                    masterBadge.style.borderColor = "rgba(244, 63, 94, 0.3)";
+                    masterBadge.innerHTML = "⚠️ Lock Out of Sync (Save to Fix)";
+                }
             }
         }
 
@@ -2052,16 +3124,8 @@ HTML_CONTENT = """<!DOCTYPE html>
         }
 
         function previewRawFile(path) {
-            const audio = document.getElementById("preview-player");
-            const master = parseFloat(masterSlider.value);
-            const sfx = parseFloat(sfxSlider.value);
-            
-            audio.src = "/" + path;
-            audio.volume = Math.max(0.0, Math.min(1.0, master * sfx));
-            audio.play().catch(err => {
-                console.error("Playback failed for file:", path, err);
-                alert("Cannot play preview. File might be corrupted or format unsupported by browser.");
-            });
+            if (!path) return;
+            editorAudioEngine.playSound(path, 1.0);
         }
 
         function onRawPathInputChange(val) {
@@ -2324,7 +3388,7 @@ class MixerEditorHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"error": str(e)}, 500)
             return
 
-        # Serve static assets directly from disk
+        # Serve static assets directly from disk with Range header streaming support
         if path.startswith("/assets/") or path.startswith("/game_data/"):
             clean_path = urllib.parse.unquote(path.lstrip("/"))
             full_path = os.path.join(BASE_DIR, clean_path)
@@ -2334,22 +3398,67 @@ class MixerEditorHandler(http.server.BaseHTTPRequestHandler):
                 return
 
             if os.path.exists(full_path) and os.path.isfile(full_path):
-                self.send_response(200)
+                file_size = os.path.getsize(full_path)
+                range_header = self.headers.get("Range")
+
+                start_byte = 0
+                end_byte = file_size - 1
+
+                if range_header and range_header.startswith("bytes="):
+                    try:
+                        byte_range = range_header.split("=")[1].split("-")
+                        if byte_range[0]:
+                            start_byte = int(byte_range[0])
+                        if len(byte_range) > 1 and byte_range[1]:
+                            end_byte = int(byte_range[1])
+                    except (ValueError, IndexError):
+                        start_byte = 0
+                        end_byte = file_size - 1
+
+                if start_byte < 0:
+                    start_byte = 0
+                if end_byte >= file_size:
+                    end_byte = file_size - 1
+
+                content_length = (end_byte - start_byte) + 1
+
+                if range_header:
+                    self.send_response(206)
+                    self.send_header("Content-Range", f"bytes {start_byte}-{end_byte}/{file_size}")
+                else:
+                    self.send_response(200)
+
+                self.send_header("Accept-Ranges", "bytes")
                 if full_path.endswith(".mp3"):
                     self.send_header("Content-Type", "audio/mpeg")
                 elif full_path.endswith(".wav"):
                     self.send_header("Content-Type", "audio/wav")
                 elif full_path.endswith(".ogg"):
                     self.send_header("Content-Type", "audio/ogg")
+                elif full_path.endswith(".flac"):
+                    self.send_header("Content-Type", "audio/flac")
                 elif full_path.endswith(".png"):
                     self.send_header("Content-Type", "image/png")
                 else:
                     self.send_header("Content-Type", "application/octet-stream")
-                self.send_header("Content-Length", str(os.path.getsize(full_path)))
+
+                self.send_header("Content-Length", str(content_length))
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
-                with open(full_path, "rb") as f:
-                    self.wfile.write(f.read())
+
+                try:
+                    with open(full_path, "rb") as f:
+                        f.seek(start_byte)
+                        remaining = content_length
+                        chunk_size = 65536
+                        while remaining > 0:
+                            chunk = f.read(min(remaining, chunk_size))
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                            remaining -= len(chunk)
+                except (ConnectionResetError, BrokenPipeError, OSError):
+                    pass
                 return
             else:
                 self.send_error(404, "File Not Found")

@@ -1,5 +1,15 @@
 {
-    "sounds": {},
-    "states": {},
-    "enhanced_states": {}
+    "sounds": {
+        "skeleton_spawn": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
+        "skeleton_death": "assets/audio/skeletom scream.mp3",
+        "evil_laugh": "assets/audio/Evil laugh.mp3"
+    },
+    "states": {
+        "ATTACK": {
+            "1": "evil_laugh"
+        },
+        "DEATH": {
+            "0": "skeleton_death"
+        }
+    }
 }

@@ -1,4 +1,7 @@
 {
-    "config_hash": "86b75742875aaf35b440a28cf90f466a10657a0d5e1474e89f3dadf7d2945b0b",
-    "audio_hashes": {}
+    "config_hash": "47096d0e8fc1d68426c7c80bf3a85ed5bd98ddc03a30b9abd0bef4d877cb221a",
+    "audio_hashes": {
+        "assets/audio/zombie-noise.mp3": "f4baabc7478b75be0acb163d49f03312299e43d4fa92300dc6f172a85363ee12",
+        "assets/audio/Skeleton_hurt.wav": "90282d5c541fe0dccb98b5332d89ec6b267c2157c62f1350eb7950ed189f2d6e"
+    }
 }

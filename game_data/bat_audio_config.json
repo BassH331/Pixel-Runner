@@ -1,5 +1,10 @@
 {
-    "sounds": {},
-    "states": {},
-    "enhanced_states": {}
+    "sounds": {
+        "bats": "assets/audio/bats.wav"
+    },
+    "states": {
+        "ATTACK": {
+            "0": "bats"
+        }
+    }
 }

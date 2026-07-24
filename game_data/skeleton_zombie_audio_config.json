@@ -1,5 +1,14 @@
 {
-    "sounds": {},
-    "states": {},
-    "enhanced_states": {}
+    "sounds": {
+        "zombie_noise": "assets/audio/zombie-noise.mp3",
+        "skeleton_hurt": "assets/audio/Skeleton_hurt.wav"
+    },
+    "states": {
+        "ATTACK": {
+            "1": "zombie_noise"
+        },
+        "HURT": {
+            "0": "skeleton_hurt"
+        }
+    }
 }

@@ -1,8 +1,8 @@
 {
     "fps_cap": 60,
     "graphics_quality": "high",
-    "master_volume": 0.25,
-    "music_volume": 0.25,
-    "sfx_volume": 0.25,
+    "master_volume": 0.5,
+    "music_volume": 0.4,
+    "sfx_volume": 0.65,
     "sound_volumes": {}
 }

@@ -1,5 +1,10 @@
 {
-    "sounds": {},
-    "states": {},
-    "enhanced_states": {}
+    "sounds": {
+        "zombie_noise": "assets/audio/zombie-noise.mp3"
+    },
+    "states": {
+        "ATTACK": {
+            "1": "zombie_noise"
+        }
+    }
 }

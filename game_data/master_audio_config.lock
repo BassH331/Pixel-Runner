@@ -1,0 +1,26 @@
+{
+    "config_hash": "ae883abf43ede0e00f3a6d5429ac5773169293be51dc40bddb138ca96ec4d7be",
+    "audio_hashes": {
+        "assets/audio/1 Exploration TomMusic.ogg": "346889023226b8711ded582f38ed0d71f98d4bdc9106ac5a705b112a50a62ce5",
+        "assets/audio/game_loop.mp3": "e39789f52ffa2a5ac5ca5361f31b5fddaf990da47f9404145421ea0b4fb07e63",
+        "assets/audio/Burning Fire.mp3": "52e783b99cf1606d0916b5b7128fc98dd44630c397c7a1ce4ff9e7dfd16b1d0a",
+        "assets/audio/Reveal Sound Effect.mp3": "bfa11634c57f7379b6be66f84c5f1c1072a6dd98ffaedc8624d01b3e12416846",
+        "assets/audio/magic sound effect.mp3": "3c6563c592f392f1c031acee79b7230d5d3c20a54e86739081388f16772b4ee4",
+        "assets/audio/Lighting.mp3": "b325d08f6d9f1b459e750688b54400db46aa73647a72c5085b942d02e7ddf7c1",
+        "assets/audio/night sounds.mp3": "700f91f487355c810125fdb86fdf759b7ff5b5217fa2bb8dec21913e8862b2a7",
+        "assets/audio/Fight Sfx.mp3": "4db49566fd4827c44e7ce34540448529e67e7d843e249d7d8b24cf8cc8cebfb3",
+        "assets/audio/Evil laugh.mp3": "8e41ebdec3d506e60f6f78438fe27ae7a5b5693a13fe7879b98ae4fd055a40b0",
+        "assets/audio/Ominous Bells of Doom.mp3": "9fd9e016d588a4b9f899a9d05e955da47711312e9a205d09a7b55a10e887ecd8",
+        "assets/audio/skeletom scream.mp3": "a44d7713c45d2c7269f73e5f8f37766fd0d93047f05e1d249ba8311c6815ef94",
+        "assets/audio/zombie-noise.mp3": "f4baabc7478b75be0acb163d49f03312299e43d4fa92300dc6f172a85363ee12",
+        "assets/audio/Skeleton_hurt.wav": "90282d5c541fe0dccb98b5332d89ec6b267c2157c62f1350eb7950ed189f2d6e",
+        "assets/audio/dark-forest.ogg": "5ebaeeb6daf54b727494b720071c1d2c73df16d851c1cbf8cc0047137a14543b",
+        "assets/audio/bats.wav": "8c5f07fd8f2f1ccec3643a173dd43473b4081098b3524ff921a0b7ad089a3a61",
+        "assets/audio/Deadly Kombat Free version/blade_hit_07.wav": "d313383b087037d489304e5f6f48022f033eb15b11aa5c00c3f1c2b3e579b969",
+        "assets/audio/mixkit-quick-knife-slice-cutting-2152.mp3": "a57a2611ad4484d1934d71b7a7a911cace8a0a91d1792f645f9d8199d65d507d",
+        "assets/audio/smash.wav": "a61fa5ce472e70e6d3fbb6f76a2bf49e10d3abd836ea760718558bf400b4b40d",
+        "assets/audio/Sword Blocked 2.wav": "20c5efc2bdb3bc52b7f41bb35d408cc11b73c3f67115aeb2b0e67443d62356c3",
+        "assets/audio/whoosh-cinematic-sound-effect-376889.wav": "047880f09a5ee0b52c709f452451ae0af07ac2c635c6f0a551934908f4bdf072",
+        "assets/audio/land2-43790.mp3": "fa538a84848473341ecab81be395d130ff0fc65467680259c58707e931d0f8e5"
+    }
+}
