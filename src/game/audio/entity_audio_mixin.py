@@ -133,7 +133,9 @@ class EntityAudioMixin:
         for sound_name, file_path in sounds.items():
             if file_path and sound_name not in audio_manager.sound_library:
                 try:
-                    audio_manager.load_sound(sound_name, file_path)
+                    # Use load_sound_safe so entity configs never override
+                    # sounds already registered by master_audio_config.json
+                    audio_manager.load_sound_safe(sound_name, file_path)
                 except Exception as load_sound_err:
                     print(
                         f"[EntityAudio:{entity_key}] Could not load sound "

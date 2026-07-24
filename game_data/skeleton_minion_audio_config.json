@@ -1,6 +1,5 @@
 {
     "sounds": {
-        "skeleton_spawn": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
         "skeleton_hurt": "assets/audio/Skeleton_hurt.wav",
         "skeleton_death": "assets/audio/skeletom scream.mp3",
         "creahmn_heavy_breathing__beast__mhcs17": "assets/CreatureSoundFree1_1/CreatureSoundFree/CREAHmn_Heavy Breathing, Beast, MHCS17.wav"

@@ -1,7 +1,6 @@
 {
-    "config_hash": "2c3a0b979134a2f51325eaa84091db1b5fd8e4d33cc17ee11e66590d7ab13a11",
+    "config_hash": "3d36d010e075d4855851f1926d190040e0abf1c43e1008dd9113cd557442919a",
     "audio_hashes": {
-        "assets/audio/whoosh-cinematic-sound-effect-376889.wav": "047880f09a5ee0b52c709f452451ae0af07ac2c635c6f0a551934908f4bdf072",
         "assets/audio/skeletom scream.mp3": "a44d7713c45d2c7269f73e5f8f37766fd0d93047f05e1d249ba8311c6815ef94",
         "assets/audio/Evil laugh.mp3": "8e41ebdec3d506e60f6f78438fe27ae7a5b5693a13fe7879b98ae4fd055a40b0"
     }

@@ -219,6 +219,9 @@ class StoryState(State):
             self.manager.audio_manager.play_music("background_music", volume=0.5)
 
     def on_exit(self):
+        if hasattr(self.manager, 'audio_manager') and self.manager.audio_manager:
+            self.manager.audio_manager.stop_music()
+            self.manager.audio_manager.stop_all_sounds()
         if self.narration_channel:
             self.narration_channel.stop()
         self._sfx_manager.stop_all()

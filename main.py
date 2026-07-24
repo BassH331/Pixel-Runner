@@ -128,9 +128,10 @@ def main():
         },
         
         # Audio Jukebox
+        # NOTE: game_loop and background_music are defined ONLY in
+        # game_data/master_audio_config.json (controlled via the Audio Mixer Editor).
+        # Do NOT add them here — this dict overrides the editor after it loads.
         audio={
-            "background_music": "assets/audio/1 Exploration TomMusic.ogg",
-            "game_loop": "assets/audio/game_loop.mp3",
             "burning village" : "assets/audio/Burning Fire.mp3",
             "jump_grunt": "assets/audio/angry-grunt-103204.mp3",
             "jump": "assets/audio/land2-43790.mp3",
@@ -153,7 +154,6 @@ def main():
             "footstep": "assets/audio/Dirt Run 3.wav",
             "skeleton_death": "assets/audio/skeletom scream.mp3",
             "player_hurt": "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav",
-            "skeleton_spawn": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
             "skeleton_alive": "assets/audio/zombie-noise.mp3",
             "skeleton_hurt": "assets/audio/Skeleton_hurt.wav",
             "forest": "assets/audio/dark-forest.ogg",

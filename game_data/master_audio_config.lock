@@ -1,8 +1,8 @@
 {
-    "config_hash": "ae883abf43ede0e00f3a6d5429ac5773169293be51dc40bddb138ca96ec4d7be",
+    "config_hash": "97d1f0d4bc55e3ea093550c0643a5d8becaeb3b6681c519b5636217805bfadaf",
     "audio_hashes": {
         "assets/audio/1 Exploration TomMusic.ogg": "346889023226b8711ded582f38ed0d71f98d4bdc9106ac5a705b112a50a62ce5",
-        "assets/audio/game_loop.mp3": "e39789f52ffa2a5ac5ca5361f31b5fddaf990da47f9404145421ea0b4fb07e63",
+        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/BGS Loops/Forest Night/Forest Night.ogg": "bd81628c98eecfbc99bdbf74f7bd9d78fec5015e7b0bc01139ac932765280978",
         "assets/audio/Burning Fire.mp3": "52e783b99cf1606d0916b5b7128fc98dd44630c397c7a1ce4ff9e7dfd16b1d0a",
         "assets/audio/Reveal Sound Effect.mp3": "bfa11634c57f7379b6be66f84c5f1c1072a6dd98ffaedc8624d01b3e12416846",
         "assets/audio/magic sound effect.mp3": "3c6563c592f392f1c031acee79b7230d5d3c20a54e86739081388f16772b4ee4",

@@ -503,7 +503,7 @@ class GameState(State):
 
         boss = BossManager.spawn_boss(params, player_sprite, self.width, self.height, audio_manager=self.audio_manager)
         self.obstacle_group.add(boss)
-        self.audio_manager.play_sound(sound_name = "skeleton_spawn", volume = 0.04)
+        self.audio_manager.play_sound(sound_name="skeleton_spawn", volume=0.15)
 
         # Draw target text banner when boss spawns
         title = params.get("title", "Boss")
@@ -531,12 +531,17 @@ class GameState(State):
     
     def on_enter(self) -> None:
         """Initialize state when entering gameplay."""
+        self.audio_manager.stop_music()
         self.audio_manager.stop_all_sounds()
-        self.bg_music_channel_id = self.audio_manager.play_sound(
-            "game_loop",
-            loop=True,
-            volume=0.5,
-        )
+        
+        # Dynamically resolve background music track from master audio config (game_loop)
+        # Always use play_music() so it routes through the dedicated music Channel 0,
+        # respects music_volume bus scaling, and doesn't consume SFX channels.
+        sounds_dict = getattr(self.audio_manager, "master_audio_config", {}).get("sounds", {})
+        bg_track_key = "game_loop" if "game_loop" in sounds_dict else "background_music"
+        
+        self.audio_manager.play_music(bg_track_key, loop=True)
+        self.bg_music_channel_id = 0  # music always on channel 0
         self.player_ui.start_timer()
 
         # Show level notification banner on first entry
@@ -693,7 +698,7 @@ class GameState(State):
         self.obstacle_group.add(skeleton)
         if zone is not None:
             skeleton.spawn_zone = zone
-        self.audio_manager.play_sound(sound_name = "skeleton_spawn", volume = 0.04)
+        self.audio_manager.play_sound(sound_name="skeleton_spawn", volume=0.15)
     
     # ─────────────────────────────────────────────────────────────────────────
     # Background Parallax

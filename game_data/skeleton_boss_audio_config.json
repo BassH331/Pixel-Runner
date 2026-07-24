@@ -1,6 +1,5 @@
 {
     "sounds": {
-        "skeleton_spawn": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
         "skeleton_death": "assets/audio/skeletom scream.mp3",
         "evil_laugh": "assets/audio/Evil laugh.mp3"
     },

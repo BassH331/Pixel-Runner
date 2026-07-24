@@ -1,7 +1,7 @@
 {
     "sounds": {
         "background_music": "assets/audio/1 Exploration TomMusic.ogg",
-        "game_loop": "assets/audio/game_loop.mp3",
+        "game_loop": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/BGS Loops/Forest Night/Forest Night.ogg",
         "burning_village": "assets/audio/Burning Fire.mp3",
         "reveal": "assets/audio/Reveal Sound Effect.mp3",
         "magic_sfx": "assets/audio/magic sound effect.mp3",
@@ -31,6 +31,19 @@
             "state": "\ud83d\udca5 Skeleton Hit",
             "usage": "Player sword hit slicing/breaking Skeleton bones.",
             "color": "#f59e0b"
+        },
+        "game_loop": {
+            "category": "MUSIC",
+            "state": "\ud83c\udfae Gameplay State",
+            "usage": "Main active level & runner gameplay music loop.",
+            "color": "#c084fc"
+        },
+        "skeleton_spawn": {
+            "category": "SKELETON",
+            "state": "\ud83d\udc80 Skeleton Spawn",
+            "usage": "Atmospheric spawn noise played when a new skeleton spawns.",
+            "color": "#9333ea",
+            "volume": 0.2
         }
     }
 }
