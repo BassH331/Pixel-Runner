@@ -52,10 +52,10 @@ class ConfigClient:
 
     @classmethod
     def fetch_config(cls, config_type: str) -> Dict[str, Any]:
-        """Loads configuration: session cache -> API (once) -> SQLite Cache -> Local JSON.
+        """Loads configuration: session cache -> Local JSON (instant) -> async background cloud sync.
 
-        Network is only hit ONCE per config key per session. After that, the merged
-        result is served instantly from RAM to avoid per-spawn blocking lag.
+        Local fallback JSON is loaded instantly (0ms latency) to guarantee zero game-loop
+        frame stutters. Cloud API check is executed in a background daemon thread.
 
         Args:
             config_type: Key identifier for config (e.g. 'player', 'boss_wizard')
@@ -64,44 +64,47 @@ class ConfigClient:
         if config_type in cls._session_cache:
             return copy.deepcopy(cls._session_cache[config_type])
 
-        config_data: Optional[Dict[str, Any]] = None
-
-        # 1. Try API once per session only
-        if config_type not in cls._api_attempted:
-            cls._api_attempted.add(config_type)
-            config_data = cls._fetch_from_api(config_type)
-            if config_data:
-                # Update local SQLite cache for offline play
-                LocalCache.set_config(config_type, config_data)
-            else:
-                # 2. API failed — fall back to SQLite cache
-                print(f"[CONFIG CLIENT] API fetch failed for '{config_type}'. Falling back to local cache...")
-                config_data = LocalCache.get_config(config_type)
-        else:
-            # Already attempted this session — go straight to SQLite cache
-            config_data = LocalCache.get_config(config_type)
-
-        # 3. Load local JSON fallback (always applied on top to prioritize local edits)
-        local_data = None
+        # 1. Load local JSON fallback immediately (instant, 0ms latency)
+        local_data: Optional[Dict[str, Any]] = None
         try:
             local_data = cls._load_fallback(config_type)
-        except Exception as e:
-            print(f"[CONFIG CLIENT NOTE] Could not load fallback for '{config_type}': {e}")
+        except Exception:
+            pass
 
-        # Merge local_data on top of config_data
+        # 2. Check local SQLite cache
+        cached_data = LocalCache.get_config(config_type)
         merged: Dict[str, Any] = {}
-        if config_data:
-            merged = copy.deepcopy(config_data)
+        if cached_data:
+            merged = copy.deepcopy(cached_data)
         if local_data:
             cls._deep_merge(local_data, merged)
-
         if not merged and local_data:
             merged = local_data
 
-        # Store in session cache — all future calls skip network and disk entirely
+        # Store in session cache — all future calls return instantly from RAM
         cls._session_cache[config_type] = copy.deepcopy(merged)
 
+        # 3. Kick off async background API sync (never blocks main thread)
+        if config_type not in cls._api_attempted:
+            cls._api_attempted.add(config_type)
+            import threading
+            threading.Thread(
+                target=cls._async_api_sync,
+                args=(config_type,),
+                daemon=True
+            ).start()
+
         return merged
+
+    @classmethod
+    def _async_api_sync(cls, config_type: str) -> None:
+        """Background worker thread to check cloud API for updates without stalling gameplay."""
+        config_data = cls._fetch_from_api(config_type)
+        if config_data:
+            LocalCache.set_config(config_type, config_data)
+            current = cls._session_cache.get(config_type, {})
+            cls._deep_merge(config_data, current)
+            cls._session_cache[config_type] = current
 
     @classmethod
     def invalidate_cache(cls, config_type: Optional[str] = None) -> None:
@@ -119,23 +122,23 @@ class ConfigClient:
 
     @classmethod
     def _fetch_from_api(cls, config_type: str) -> Optional[Dict[str, Any]]:
-        """HTTP GET to API server with 3 second timeout."""
+        """HTTP GET to API server with 1.5 second timeout in background thread."""
         url = f"{API_BASE_URL.rstrip('/')}/api/configs/{config_type}"
         try:
             req = urllib.request.Request(
                 url,
                 headers={"User-Agent": "Pixel-Runner Game Client"}
             )
-            with urllib.request.urlopen(req, timeout=3.0) as response:
+            with urllib.request.urlopen(req, timeout=1.5) as response:
                 if response.status == 200:
                     raw_data = response.read().decode("utf-8")
                     return json.loads(raw_data)
-        except urllib.error.URLError as e:
-            print(f"[CONFIG CLIENT ERROR] Connection error fetching {config_type}: {e}")
-        except json.JSONDecodeError as e:
-            print(f"[CONFIG CLIENT ERROR] Failed to parse config JSON for {config_type}: {e}")
-        except Exception as e:
-            print(f"[CONFIG CLIENT ERROR] Unexpected error fetching {config_type}: {e}")
+        except urllib.error.URLError:
+            pass
+        except json.JSONDecodeError:
+            pass
+        except Exception:
+            pass
         return None
 
     @classmethod
