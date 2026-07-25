@@ -1,5 +1,5 @@
 {
-    "config_hash": "43ecc0e58f12a3ba67f16ca1efe982dea8368fc06527230dc173108162909d3c",
+    "config_hash": "ea98770e93674dc5ce2b07806622234c73c6d9c18692c0f0ade0fb6377f0c02b",
     "audio_hashes": {
         "assets/audio/smash.wav": "a61fa5ce472e70e6d3fbb6f76a2bf49e10d3abd836ea760718558bf400b4b40d",
         "assets/audio/sword-slash-and-swing-185432.mp3": "2e4742e14585772e8f0c2ea0834150df95f0c973f97b540a88370e109b0135e5",
@@ -34,6 +34,7 @@
         "assets/audio/land2-43790.mp3": "fa538a84848473341ecab81be395d130ff0fc65467680259c58707e931d0f8e5",
         "assets/audio/angry-grunt-103204.mp3": "0173afee01656c45d538b4361af57799b3ce21a6f5600cdb99738dd8ae38324f",
         "assets/audio/thrust.wav": "eb7049682425b962695ec9410841c79b2a9b74a0c51e7f862b148b8fe30bf691",
-        "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav": "90032b06f486207a7a21cf6b530f035e4f2563e23b109480850a75a00ae62722"
+        "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav": "90032b06f486207a7a21cf6b530f035e4f2563e23b109480850a75a00ae62722",
+        "assets/audio/07. Damage Grunt (Male).wav": "d601bd1f596b70b8d3a5ea30227722d2b09d0d4766689755755f5b8591c6d980"
     }
 }

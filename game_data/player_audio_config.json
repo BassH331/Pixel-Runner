@@ -40,7 +40,8 @@
         "jump": "assets/audio/land2-43790.mp3",
         "jump_grunt": "assets/audio/angry-grunt-103204.mp3",
         "thrust": "assets/audio/thrust.wav",
-        "player_hurt": "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav"
+        "player_hurt": "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav",
+        "grunt_player": "assets/audio/07. Damage Grunt (Male).wav"
     },
     "states": {
         "ATTACK_SMASH": {
@@ -69,7 +70,10 @@
             "19": "sword_sheath_2"
         },
         "ATTACK_POWER": {},
-        "ATTACK_THRUST": {}
+        "ATTACK_THRUST": {},
+        "HURT": {
+            "2": "grunt_player"
+        }
     },
     "enhanced_states": {
         "ATTACK_THRUST": {
