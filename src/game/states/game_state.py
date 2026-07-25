@@ -503,7 +503,6 @@ class GameState(State):
 
         boss = BossManager.spawn_boss(params, player_sprite, self.width, self.height, audio_manager=self.audio_manager)
         self.obstacle_group.add(boss)
-        self.audio_manager.play_sound(sound_name="skeleton_spawn", volume=0.15)
 
         # Draw target text banner when boss spawns
         title = params.get("title", "Boss")
@@ -875,8 +874,7 @@ class GameState(State):
         )
 
         if is_dead and not getattr(enemy, "_death_sound_played", False):
-            death_sound = "evil_laugh" if enemy_type == "boss" else "skeleton_death"
-            self.audio_manager.play_sound(death_sound)
+            # Death sound is handled by entity audio config (per-frame triggers)
             setattr(enemy, "_death_sound_played", True)
         elif not is_dead:
             CombatCollisionLogger.get_instance().log_collision(
@@ -1039,8 +1037,7 @@ class GameState(State):
                 knockback * knockback_direction,
             )
         
-        # Audio feedback for successful hit
-        self.audio_manager.play_sound("player_hit")
+        # Audio feedback handled by player/entity audio configs (per-frame triggers)
         
         trigger_flash = getattr(player, 'trigger_hit_flash', None)
         if trigger_flash:
@@ -1054,7 +1051,6 @@ class GameState(State):
         # Debug output if in debug mode
         if hasattr(self, 'debug_mode') and self.debug_mode:
             print(f"Player hit by skeleton! Health: {player.health}")
-        self.audio_manager.play_sound("player_hurt")
     
     def _apply_knockback_to_player(
         self,

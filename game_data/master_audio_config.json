@@ -45,5 +45,17 @@
             "color": "#9333ea",
             "volume": 0.2
         }
+    },
+    "collision_map": {
+        "skeleton": "collision_player_skeleton",
+        "player": "collision_player_skeleton",
+        "zombie": "collision_player_zombie",
+        "bloo_zombie": "collision_player_zombie",
+        "boss": "collision_player_boss",
+        "fire_wizard": "collision_player_boss",
+        "boss_wizard": "collision_player_boss",
+        "bat": "collision_player_bat",
+        "green_monster": "collision_player_green_monster",
+        "defend": "collision_player_defend"
     }
 }

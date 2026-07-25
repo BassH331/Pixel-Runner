@@ -48,16 +48,6 @@
             "7": "smash_phase_2",
             "11": "smash_phase_3"
         },
-        "ATTACK_POWER": {
-            "3": "smash_phase_1",
-            "7": "smash_phase_2",
-            "11": "smash_phase_3",
-            "16": "power_release_1",
-            "17": "power_release_2",
-            "18": "power_release_3",
-            "19": "power_release_4",
-            "20": "power_release_5"
-        },
         "ROLL": {
             "0": "roll"
         },
@@ -76,11 +66,7 @@
         "SPECIAL_ATTACK": {
             "0": "dirt_chain_walk_4",
             "18": "deepone_growl3",
-            "19": "sword_sheath_2",
-            "21": "sword_parry_3",
-            "22": "sword_unsheath_2",
-            "23": "sword_impact_hit_1",
-            "24": "sword_sheath_2"
+            "19": "sword_sheath_2"
         }
     },
     "enhanced_states": {

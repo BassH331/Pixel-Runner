@@ -25,7 +25,7 @@ ENTITY_REGISTRY = {
     "boss_wizard":     {"config": "game_data/boss_wizard_audio_config.json",     "lock": "game_data/boss_wizard_audio_config.lock"},
     "bat":             {"config": "game_data/bat_audio_config.json",             "lock": "game_data/bat_audio_config.lock"},
 }
-DEFAULT_EMPTY_CONFIG = {"sounds": {}, "states": {}, "enhanced_states": {}}
+DEFAULT_EMPTY_CONFIG = {"sounds": {}, "states": {}, "enhanced_states": {}, "collision_map": {}}
 
 def extract_jukebox_sounds(main_py_path="main.py"):
     """
@@ -1069,6 +1069,21 @@ HTML_CONTENT = """<!DOCTYPE html>
                     </div>
                 </div>
 
+                <!-- Combat Collision Sound Mapping Matrix -->
+                <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem;">
+                        <div>
+                            <h3 style="font-size: 0.95rem; color: #f59e0b; margin: 0 0 0.2rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>💥</span> Combat Collision Sound Mappings
+                            </h3>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">Direct entity collision sound dispatchers used by CombatCollisionLogger</span>
+                        </div>
+                    </div>
+                    <div id="master-collision-map-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
                 <!-- Master Sounds Directory List -->
                 <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
@@ -1962,6 +1977,63 @@ HTML_CONTENT = """<!DOCTYPE html>
             });
             if (ambienceCardsContainer) ambienceCardsContainer.innerHTML = cardsHtml;
 
+            // 1b. Render Collision Map Matrix
+            const collisionContainer = document.getElementById("master-collision-map-container");
+            if (collisionContainer) {
+                if (!appState.config.collision_map) {
+                    appState.config.collision_map = {
+                        "skeleton": "collision_player_skeleton",
+                        "player": "collision_player_skeleton",
+                        "zombie": "collision_player_zombie",
+                        "bloo_zombie": "collision_player_zombie",
+                        "boss": "collision_player_boss",
+                        "fire_wizard": "collision_player_boss",
+                        "boss_wizard": "collision_player_boss",
+                        "bat": "collision_player_bat",
+                        "green_monster": "collision_player_green_monster",
+                        "defend": "collision_player_defend"
+                    };
+                }
+                const collisionKeys = Object.keys(appState.config.collision_map).sort();
+                const availableSounds = Object.keys(appState.config.sounds).sort();
+
+                let colHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.5rem;">`;
+                collisionKeys.forEach(entKey => {
+                    const soundKey = appState.config.collision_map[entKey];
+                    let optionsHtml = "";
+                    availableSounds.forEach(sk => {
+                        const sel = sk === soundKey ? 'selected' : '';
+                        optionsHtml += `<option value="${sk}" ${sel}>${sk}</option>`;
+                    });
+                    colHtml += `
+                        <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 6px; padding: 0.45rem 0.7rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <span style="font-size: 0.75rem; font-weight: 700; color: #f59e0b; font-family: monospace;">${entKey}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.35rem; flex: 1; justify-content: flex-end;">
+                                <select class="form-input" style="font-size: 0.75rem; padding: 0.2rem 0.4rem; max-width: 200px;" onchange="updateCollisionMapEntry('${entKey}', this.value)">
+                                    ${optionsHtml}
+                                </select>
+                                <button class="play-icon-btn" style="padding: 0.15rem 0.45rem; font-size: 0.72rem;" onclick="previewSound('${soundKey}')" title="Preview Mapped Sound">▶</button>
+                                <button class="btn btn-danger" style="padding: 0.15rem 0.4rem; font-size: 0.72rem;" onclick="deleteCollisionMapEntry('${entKey}')" title="Delete Mapping">&times;</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                colHtml += `</div>`;
+
+                colHtml += `
+                    <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(245, 158, 11, 0.15); display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="text" id="add-collision-entity-key" class="form-input" placeholder="Entity Key (e.g. dragon)" style="font-size: 0.78rem; padding: 0.25rem 0.5rem; width: 160px;">
+                        <select id="add-collision-sound-key" class="form-input" style="font-size: 0.78rem; padding: 0.25rem 0.5rem; max-width: 220px;">
+                            ${availableSounds.map(sk => `<option value="${sk}">${sk}</option>`).join('')}
+                        </select>
+                        <button class="btn" style="padding: 0.25rem 0.65rem; font-size: 0.78rem; background: #f59e0b; color: #000; font-weight: 700; border: none; border-radius: 4px; cursor: pointer;" onclick="addCollisionMapEntry()">+ Add Collision Mapping</button>
+                    </div>
+                `;
+                collisionContainer.innerHTML = colHtml;
+            }
+
             // 2. Compute Category Counts & Groups
             const query = (document.getElementById("master-sound-search")?.value || "").toLowerCase().trim();
             const soundKeys = Object.keys(appState.config.sounds).sort();
@@ -2139,6 +2211,41 @@ HTML_CONTENT = """<!DOCTYPE html>
             markUnsaved();
             renderMasterAudioPanel();
             renderTrackMixer();
+        }
+
+        function updateCollisionMapEntry(entityKey, newSoundKey) {
+            if (!appState.config.collision_map) appState.config.collision_map = {};
+            appState.config.collision_map[entityKey] = newSoundKey;
+            markUnsaved();
+            renderMasterAudioPanel();
+        }
+
+        function deleteCollisionMapEntry(entityKey) {
+            if (confirm(`Remove collision mapping for '${entityKey}'?`)) {
+                delete appState.config.collision_map[entityKey];
+                markUnsaved();
+                renderMasterAudioPanel();
+            }
+        }
+
+        function addCollisionMapEntry() {
+            const entityKeyInput = document.getElementById("add-collision-entity-key");
+            const soundKeyInput = document.getElementById("add-collision-sound-key");
+            const entityKey = (entityKeyInput?.value || "").trim().toLowerCase();
+            const soundKey = soundKeyInput?.value;
+            if (!entityKey) {
+                alert("Please enter an entity key name.");
+                return;
+            }
+            if (!soundKey) {
+                alert("Please select a target sound key.");
+                return;
+            }
+            if (!appState.config.collision_map) appState.config.collision_map = {};
+            appState.config.collision_map[entityKey] = soundKey;
+            if (entityKeyInput) entityKeyInput.value = "";
+            markUnsaved();
+            renderMasterAudioPanel();
         }
 
         // ── Centralized Audio Engine ─────────────────────────────────────────────

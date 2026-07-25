@@ -1354,17 +1354,15 @@ class Player(Actor):
         if self.state == PlayerState.DEFEND:
             # Reduce damage by 70% when defending
             amount = int(amount * 0.3)
-            self._audio_manager.play_sound("defend_hit")
-        else:
-            self._audio_manager.play_sound("player_hurt")
         
         # Apply damage
         self._health = max(0, self._health - int(amount))
         
         # Determine resulting state
+        # Audio feedback (defend_hit, player_hurt, player_death) is handled by
+        # the per-frame entity audio config — no hardcoded play_sound calls.
         if self._health <= 0:
             self._transition_to(PlayerState.DEATH)
-            self._audio_manager.play_sound("player_death")
         elif self.state != PlayerState.DEFEND:  # Only go to HURT state if not defending
             self._transition_to(PlayerState.HURT)
             # Grant extended i-frames after hurt animation
