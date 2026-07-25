@@ -1399,7 +1399,6 @@ class Player(Actor):
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._spend_stamina(self._THRUST_STAMINA_COST)
-        self._audio_manager.play_sound("thrust")
         return True
 
     def attack_smash(self) -> bool:
@@ -1431,7 +1430,6 @@ class Player(Actor):
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._spend_stamina(self._SMASH_STAMINA_COST)
-        self._audio_manager.play_sound("smash")
         return True
 
     def attack_power(self) -> bool:
@@ -1463,7 +1461,6 @@ class Player(Actor):
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._spend_stamina(self._POWER_STAMINA_COST)
-        self._audio_manager.play_sound("thrust")
         return True
 
     def defend(self) -> bool:
@@ -1479,7 +1476,6 @@ class Player(Actor):
             return False
             
         self._transition_to(PlayerState.DEFEND)
-        self._audio_manager.play_sound("defend")
         return True
 
     def _spend_stamina(self, cost: float) -> None:
@@ -1505,7 +1501,6 @@ class Player(Actor):
             return False
         self._spend_stamina(self._ROLL_STAMINA_COST)
         self._transition_to(PlayerState.ROLL)
-        self._audio_manager.play_sound("roll")
         return True
 
     def dash(self) -> bool:
@@ -1523,7 +1518,6 @@ class Player(Actor):
             return False
         self._spend_stamina(self._DASH_STAMINA_COST)
         self._transition_to(PlayerState.DASH)
-        self._audio_manager.play_sound("dash")
         return True
 
     def special_attack(self) -> bool:
@@ -1546,7 +1540,6 @@ class Player(Actor):
         self._transition_to(PlayerState.SPECIAL_ATTACK)
         self.attack_state.begin(cfg)
         self._attack_audio_frames_played.clear()
-        self._audio_manager.play_sound("special_attack")
         return True
 
     def transform(self) -> bool:
@@ -1565,7 +1558,6 @@ class Player(Actor):
         if not self._is_enhanced:
             self._mana = max(0.0, self._mana - self._TRANSFORM_MANA_COST)
         self._transition_to(PlayerState.TRANSFORM)
-        self._audio_manager.play_sound("transform")
         return True
 
     def set_footstep_volume(self, volume: float) -> None:

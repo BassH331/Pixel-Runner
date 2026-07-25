@@ -67,7 +67,9 @@
             "0": "dirt_chain_walk_4",
             "18": "deepone_growl3",
             "19": "sword_sheath_2"
-        }
+        },
+        "ATTACK_POWER": {},
+        "ATTACK_THRUST": {}
     },
     "enhanced_states": {
         "ATTACK_THRUST": {
