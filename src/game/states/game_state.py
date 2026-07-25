@@ -68,13 +68,6 @@ class GameState(State):
     # Game over delay in milliseconds
     _GAME_OVER_DELAY_MS: Final[int] = 3000
 
-    # Attack-two (smash) sound variants mapped by active frame index
-    _SMASH_SOUND_MAP: Final[dict[int, str]] = {
-        3: "smash_phase_1",
-        7: "smash_phase_2",
-        11: "smash_phase_3",
-    }
-    
     def __init__(self, manager: StateManager) -> None:
         """
         Initialize the game state.
@@ -915,30 +908,9 @@ class GameState(State):
         # Score reward
         self.score += self._SCORE_PER_HIT
 
-    def _select_smash_sound(self, player: Player) -> str:
-        """Choose smash attack sound variant based on current hit frame."""
-        frame = player.get_current_attack_frame()
-        if frame is None:
-            return "smash"
-        return self._SMASH_SOUND_MAP.get(frame, "smash")
-
     def _is_boss_active(self) -> bool:
         """Check if any boss is currently active and alive in the scene."""
         return BossManager.is_boss_active(self.obstacle_group)
-
-    def _manage_skeleton_spawns(self) -> None:
-        """Maintain skeleton population within configured limits."""
-        zone = self._get_spawn_zone()
-        if zone is None:
-            return
-        current_skeletons = sum(
-            1 for sprite in self.obstacle_group if isinstance(sprite, Skeleton)
-        )
-        if current_skeletons < zone["max_skeletons"]:
-            self.spawn_skeleton()
-            self.next_skeleton_spawn_time = (
-                pg.time.get_ticks() + zone["delay"]
-            )
 
     def _process_enemy_attacks(self, player: Player) -> None:
         """

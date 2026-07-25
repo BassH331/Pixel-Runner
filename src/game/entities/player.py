@@ -687,24 +687,6 @@ class Player(Actor):
     _POWER_STAMINA_COST: Final[float] = 48.0
     _SPECIAL_ATTACK_STAMINA_COST: Final[float] = 60.0
 
-    _ATTACK_AUDIO_FRAME_SOUNDS: Final[dict[Enum, dict[int, str]]] = {
-        PlayerState.ATTACK_SMASH: {
-            3: "smash_phase_1",
-            7: "smash_phase_2",
-            11: "smash_phase_3",
-        },
-        PlayerState.ATTACK_POWER: {
-            3: "smash_phase_1",
-            7: "smash_phase_2",
-            11: "smash_phase_3",
-            16: "power_release_1",
-            17: "power_release_2",
-            18: "power_release_3",
-            19: "power_release_4",
-            20: "power_release_5",
-        }
-    }
-    
     def __init__(self, x: int, y: int, audio_manager: AudioManager) -> None:
         super().__init__(x, y)
         
@@ -1924,12 +1906,6 @@ class Player(Actor):
         if hasattr(self, "_custom_audio_config") and self._custom_audio_config:
             section = "enhanced_states" if self._is_enhanced else "states"
             sound_map = self._custom_audio_config.get(section, {}).get(state_key)
-            
-        # Fallback to hardcoded default for attack audio if no custom config map is present
-        # or if it doesn't contain entries for the current state.
-        if sound_map is None:
-            if not self._is_enhanced:  # Only fall back if standard
-                sound_map = self._ATTACK_AUDIO_FRAME_SOUNDS.get(self.state)
             
         if not sound_map:
             return
