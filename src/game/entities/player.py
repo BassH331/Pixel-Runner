@@ -425,7 +425,7 @@ class Player(Actor):
         base_damage=25.0,
         knockback_force=15.0,
         knockback_angle=45.0,
-        hit_stop_frames=11,
+        hit_stop_frames=4,
         can_hit_multiple=True,
         max_hits_per_target=3,
         frame_damage_modifiers={2: 0.2, 7: 1.0, 13: 0.5},
@@ -454,7 +454,7 @@ class Player(Actor):
         base_damage=25.0,
         knockback_force=15.0,
         knockback_angle=45.0,
-        hit_stop_frames=19,
+        hit_stop_frames=5,
         can_hit_multiple=True,
         max_hits_per_target=2,
         frame_damage_modifiers={6: 0.5, 11: 0.8, 16: 1.2, 20: 1.5},
@@ -487,7 +487,7 @@ class Player(Actor):
         base_damage=35.0,
         knockback_force=15.0,
         knockback_angle=45.0,
-        hit_stop_frames=15,
+        hit_stop_frames=4,
         can_hit_multiple=True,
         max_hits_per_target=3,
         frame_damage_modifiers={},
@@ -523,7 +523,7 @@ class Player(Actor):
         base_damage=50.0,
         knockback_force=20.0,
         knockback_angle=45.0,
-        hit_stop_frames=19,
+        hit_stop_frames=4,
         can_hit_multiple=True,
         max_hits_per_target=4,
         frame_damage_modifiers={},
@@ -552,7 +552,7 @@ class Player(Actor):
         base_damage=20.0,
         knockback_force=10.0,
         knockback_angle=30.0,
-        hit_stop_frames=4,
+        hit_stop_frames=3,
         can_hit_multiple=True,
         max_hits_per_target=1,
         frame_damage_modifiers={},
@@ -579,7 +579,7 @@ class Player(Actor):
         base_damage=35.0,
         knockback_force=18.0,
         knockback_angle=45.0,
-        hit_stop_frames=6,
+        hit_stop_frames=4,
         can_hit_multiple=True,
         max_hits_per_target=2,
         frame_damage_modifiers={},
@@ -614,7 +614,7 @@ class Player(Actor):
         base_damage=40.0,
         knockback_force=20.0,
         knockback_angle=45.0,
-        hit_stop_frames=8,
+        hit_stop_frames=5,
         can_hit_multiple=True,
         max_hits_per_target=1,
         frame_damage_modifiers={},
@@ -682,7 +682,7 @@ class Player(Actor):
     _JUMP_STAMINA_COST: Final[float] = 12.0
     _ROLL_STAMINA_COST: Final[float] = 20.0
     _DASH_STAMINA_COST: Final[float] = 20.0
-    _THRUST_STAMINA_COST: Final[float] = 22.0
+    _THRUST_STAMINA_COST: Final[float] = 0.0
     _SMASH_STAMINA_COST: Final[float] = 35.0
     _POWER_STAMINA_COST: Final[float] = 48.0
     _SPECIAL_ATTACK_STAMINA_COST: Final[float] = 60.0
@@ -1352,6 +1352,14 @@ class Player(Actor):
             
         return True
     
+    def _trigger_power_fx(self, pkey: str) -> None:
+        """Trigger action pop-in effect on PowerIconsManager when a move is executed."""
+        try:
+            from src.game.ui.power_icons_manager import PowerIconsManager
+            PowerIconsManager.trigger(pkey, (self.rect.centerx, self.rect.top - 15))
+        except Exception:
+            pass
+
     def attack_thrust(self) -> bool:
         """
         Initiate thrust attack.
@@ -1381,6 +1389,7 @@ class Player(Actor):
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._spend_stamina(self._THRUST_STAMINA_COST)
+        self._trigger_power_fx("ATTACK_THRUST")
         return True
 
     def attack_smash(self) -> bool:
@@ -1412,6 +1421,7 @@ class Player(Actor):
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._spend_stamina(self._SMASH_STAMINA_COST)
+        self._trigger_power_fx("ATTACK_SMASH")
         return True
 
     def attack_power(self) -> bool:
@@ -1443,6 +1453,7 @@ class Player(Actor):
         self._current_attack_config = cfg
         self._attack_audio_frames_played.clear()
         self._spend_stamina(self._POWER_STAMINA_COST)
+        self._trigger_power_fx("ATTACK_POWER")
         return True
 
     def defend(self) -> bool:
@@ -1458,6 +1469,7 @@ class Player(Actor):
             return False
             
         self._transition_to(PlayerState.DEFEND)
+        self._trigger_power_fx("DEFEND")
         return True
 
     def _spend_stamina(self, cost: float) -> None:
@@ -1483,6 +1495,7 @@ class Player(Actor):
             return False
         self._spend_stamina(self._ROLL_STAMINA_COST)
         self._transition_to(PlayerState.ROLL)
+        self._trigger_power_fx("ROLL")
         return True
 
     def dash(self) -> bool:
@@ -1500,6 +1513,7 @@ class Player(Actor):
             return False
         self._spend_stamina(self._DASH_STAMINA_COST)
         self._transition_to(PlayerState.DASH)
+        self._trigger_power_fx("DASH")
         return True
 
     def special_attack(self) -> bool:
@@ -1522,6 +1536,7 @@ class Player(Actor):
         self._transition_to(PlayerState.SPECIAL_ATTACK)
         self.attack_state.begin(cfg)
         self._attack_audio_frames_played.clear()
+        self._trigger_power_fx("SPECIAL_ATTACK")
         return True
 
     def transform(self) -> bool:

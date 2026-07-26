@@ -12,13 +12,54 @@ class PowerIconsManager:
     """
     CONFIG_PATH = "game_data/power_icons_config.json"
 
+    _instance = None
+
     def __init__(self, config_path: Optional[str] = None):
+        PowerIconsManager._instance = self
         self.config_path = config_path or self.CONFIG_PATH
         self.config: Dict[str, Any] = {}
         self.icon_surfaces: Dict[str, pg.Surface] = {}
         self.fonts: Dict[str, pg.font.Font] = {}
+        self.glow_frames: list = []
+        self.active_pop_effects: list = []
         self._init_fonts()
         self.load_config()
+        self._load_glow_frames()
+
+    def _load_glow_frames(self):
+        """Pre-load animated icon glow sprite frames from assets/icon_glow_sprites."""
+        self.glow_frames.clear()
+        folder = "assets/icon_glow_sprites"
+        if not os.path.exists(folder):
+            folder = "assets/icon_glow_sprites (2)"
+        if os.path.exists(folder):
+            for i in range(15):
+                path = os.path.join(folder, f"icon_glow_{i:02d}.png")
+                if os.path.exists(path):
+                    try:
+                        img = pg.image.load(path)
+                        try:
+                            img = img.convert_alpha()
+                        except Exception:
+                            pass
+                        self.glow_frames.append(img)
+                    except Exception as e:
+                        print(f"[PowerIconsManager] Could not load glow frame {path}: {e}")
+
+    @classmethod
+    def trigger(cls, pkey: str, world_pos: Optional[Tuple[int, int]] = None):
+        """Class helper to trigger action pop-in FX from anywhere in game code."""
+        if cls._instance:
+            cls._instance.trigger_power_effect(pkey, world_pos)
+
+    def trigger_power_effect(self, pkey: str, world_pos: Optional[Tuple[int, int]] = None):
+        """Trigger a Power Rangers-style action pop-in effect with full portal glow FX!"""
+        self.active_pop_effects.append({
+            "key": pkey,
+            "start_time": pg.time.get_ticks(),
+            "duration": 480,  # 480ms smooth portal animation
+            "pos": world_pos
+        })
 
     def _init_fonts(self):
         if not pg.font.get_init():
@@ -38,6 +79,7 @@ class PowerIconsManager:
             try:
                 with open(self.config_path, "r") as f:
                     self.config = json.load(f)
+                self._preload_assets()
             except Exception as e:
                 print(f"[PowerIconsManager] Failed to load {self.config_path}: {e}")
                 self.config = self.get_default_config()
@@ -115,7 +157,11 @@ class PowerIconsManager:
             path = pdata.get("asset_path", "")
             if path and os.path.exists(path):
                 try:
-                    img = pg.image.load(path).convert_alpha()
+                    img = pg.image.load(path)
+                    try:
+                        img = img.convert_alpha()
+                    except Exception:
+                        pass
                     w = int(pdata.get("width", 52) * pdata.get("scale", 1.0))
                     h = int(pdata.get("height", 52) * pdata.get("scale", 1.0))
                     scaled = pg.transform.smoothscale(img, (w, h))
@@ -173,117 +219,239 @@ class PowerIconsManager:
             pg.draw.circle(surface, (255, 255, 255), (cx, cy), r, width=2)
 
     def get_keybind_badge_label(self, pkey: str, default_keybind: str) -> str:
-        """Resolve current keybinding text from ControlsManager or fallback."""
+        """Resolve current keybinding text from ControlsManager or fallback, formatting axes nicely."""
+        raw_binding = default_keybind
         try:
             from src.game.controls_manager import ControlsManager
             cm = ControlsManager()
-            binding = cm.get_binding(pkey)
-            if binding:
-                if cm.mode == "JOYSTICK":
-                    btn_map = {
-                        "BUTTON_0": "✕",  # Bottom (Cross)
-                        "BUTTON_1": "○",  # Right (Circle)
-                        "BUTTON_2": "□",  # Left (Box / Square)
-                        "BUTTON_3": "△",  # Top (Triangle)
-                        "BUTTON_4": "L1",
-                        "BUTTON_5": "R1",
-                        "BUTTON_6": "L2",
-                        "BUTTON_7": "R2",
-                        "BUTTON_8": "SELECT",
-                        "BUTTON_9": "START",
-                    }
-                    for key, val in btn_map.items():
-                        if key in binding:
-                            return val
-                    return binding
-                else:
-                    return binding.upper()
+            b = cm.get_binding(pkey)
+            if b:
+                raw_binding = b
         except Exception:
             pass
-        return default_keybind
+
+        return self.format_binding_label(raw_binding)
+
+    def format_binding_label(self, binding: str) -> str:
+        """Format raw binding string into clean compact HUD badge text."""
+        if not binding:
+            return ""
+
+        label_map = {
+            "BUTTON_0": "✕",
+            "BUTTON_1": "○",
+            "BUTTON_2": "△",
+            "BUTTON_3": "□",
+            "BUTTON_4": "L1",
+            "BUTTON_5": "R1",
+            "BUTTON_6": "L2",
+            "BUTTON_7": "R2",
+            "BUTTON_8": "SELECT",
+            "BUTTON_9": "START",
+            "AXIS_0_MINUS": "L←",
+            "AXIS_0_PLUS":  "L→",
+            "AXIS_1_MINUS": "L↑",
+            "AXIS_1_PLUS":  "L↓",
+            "AXIS_2_MINUS": "R←",
+            "AXIS_2_PLUS":  "R→",
+            "AXIS_3_MINUS": "R←",
+            "AXIS_3_PLUS":  "R→",
+            "AXIS_4_MINUS": "R↑",
+            "AXIS_4_PLUS":  "R↓",
+        }
+
+        if "+" in binding:
+            parts = [p.strip() for p in binding.split("+")]
+            formatted = [label_map.get(p, p) for p in parts]
+            return " + ".join(formatted)
+
+        return label_map.get(binding, binding)
+
+    STAMINA_COSTS: Dict[str, float] = {
+        "JUMP": 12.0,
+        "ROLL": 20.0,
+        "DASH": 20.0,
+        "ATTACK_THRUST": 22.0,
+        "ATTACK_SMASH": 35.0,
+        "ATTACK_POWER": 48.0,
+        "SPECIAL_ATTACK": 60.0,
+        "DEFEND": 15.0,
+    }
+
+    def _crop_to_circle(self, surf: pg.Surface) -> pg.Surface:
+        """Crop an image surface into a smooth circular mask."""
+        w, h = surf.get_size()
+        r = min(w, h) // 2
+        mask = pg.Surface((w, h), pg.SRCALPHA)
+        pg.draw.circle(mask, (255, 255, 255, 255), (w // 2, h // 2), r)
+
+        result = pg.Surface((w, h), pg.SRCALPHA)
+        result.blit(surf, (0, 0))
+        result.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+        return result
 
     def draw(
         self,
         surface: pg.Surface,
         cooldowns: Optional[Dict[str, float]] = None,
-        active_powers: Optional[Dict[str, bool]] = None
+        active_powers: Optional[Dict[str, bool]] = None,
+        current_stamina: Optional[float] = None,
+        max_stamina: Optional[float] = None,
+        current_mana: Optional[float] = None,
+        max_mana: Optional[float] = None
     ):
         """
         Draw all active power HUD icons to target Pygame surface.
         cooldowns: dict mapping power_key -> progress ratio (0.0 = ready, 1.0 = on full cooldown)
         active_powers: dict mapping power_key -> bool (is currently active / held)
+        current_stamina: player's current stamina (dims icons when stamina is insufficient)
         """
-        if not self.config.get("icons"):
-            return
-
         cooldowns = cooldowns or {}
         active_powers = active_powers or {}
         show_badges = self.config.get("show_keybind_badges", True)
+        show_overlay = self.config.get("show_hud_overlay", False)
 
-        for pkey, pdata in self.config["icons"].items():
-            if not pdata.get("enabled", True):
-                continue
+        # Only draw persistent HUD overlay icons if show_hud_overlay is enabled (e.g. Tutorial Mode)
+        if show_overlay and self.config.get("icons"):
+            for pkey, pdata in self.config["icons"].items():
+                if not pdata.get("enabled", True):
+                    continue
 
-            x = pdata.get("x", 100)
-            y = pdata.get("y", 100)
-            w = int(pdata.get("width", 52) * pdata.get("scale", 1.0))
-            h = int(pdata.get("height", 52) * pdata.get("scale", 1.0))
-            anchor = pdata.get("anchor", "center")
+                x = pdata.get("x", 100)
+                y = pdata.get("y", 100)
+                w = int(pdata.get("width", 52) * pdata.get("scale", 1.0))
+                h = int(pdata.get("height", 52) * pdata.get("scale", 1.0))
+                anchor = pdata.get("anchor", "center")
 
-            # Handle anchor positioning
-            if anchor == "center":
-                rect = pg.Rect(x - w // 2, y - h // 2, w, h)
-            elif anchor == "top-left":
-                rect = pg.Rect(x, y, w, h)
-            elif anchor == "top-right":
-                rect = pg.Rect(x - w, y, w, h)
-            elif anchor == "bottom-left":
-                rect = pg.Rect(x, y - h, w, h)
-            elif anchor == "bottom-right":
-                rect = pg.Rect(x - w, y - h, w, h)
-            else:
-                rect = pg.Rect(x - w // 2, y - h // 2, w, h)
-
-            style = pdata.get("frame_style", "circle")
-            border_color = tuple(pdata.get("border_color", [0, 229, 255]))
-            is_active = active_powers.get(pkey, False)
-
-            # Draw outer frame
-            self.draw_frame(surface, rect, style, border_color, active=is_active)
-
-            # Draw cached icon surface
-            icon_surf = self.icon_surfaces.get(pkey)
-            if icon_surf:
-                opacity = pdata.get("opacity", 255)
-                if opacity < 255:
-                    temp = icon_surf.copy()
-                    temp.set_alpha(opacity)
-                    surface.blit(temp, (rect.centerx - temp.get_width() // 2, rect.centery - temp.get_height() // 2))
+                # Handle anchor positioning
+                if anchor == "center":
+                    rect = pg.Rect(x - w // 2, y - h // 2, w, h)
+                elif anchor == "top-left":
+                    rect = pg.Rect(x, y, w, h)
+                elif anchor == "top-right":
+                    rect = pg.Rect(x - w, y, w, h)
+                elif anchor == "bottom-left":
+                    rect = pg.Rect(x, y - h, w, h)
+                elif anchor == "bottom-right":
+                    rect = pg.Rect(x - w, y - h, w, h)
                 else:
-                    surface.blit(icon_surf, (rect.centerx - icon_surf.get_width() // 2, rect.centery - icon_surf.get_height() // 2))
+                    rect = pg.Rect(x - w // 2, y - h // 2, w, h)
 
-            # Render Cooldown Overlay (radial sweep / darkened arc)
-            cd_ratio = cooldowns.get(pkey, 0.0)
-            if cd_ratio > 0.0:
-                cd_ratio = min(1.0, max(0.0, cd_ratio))
-                cd_surf = pg.Surface((rect.width, rect.height), pg.SRCALPHA)
-                cd_surf.fill((0, 0, 0, 160))
-                # Crop height proportional to cooldown remaining
-                cd_height = int(rect.height * cd_ratio)
-                surface.blit(cd_surf, rect.topleft, area=pg.Rect(0, 0, rect.width, cd_height))
+                style = pdata.get("frame_style", "circle")
+                border_color = tuple(pdata.get("border_color", [0, 229, 255]))
+                is_active = active_powers.get(pkey, False)
 
-            # Keybind Badge
-            raw_keybind = pdata.get("keybind", "")
-            keybind = self.get_keybind_badge_label(pkey, raw_keybind)
-            if show_badges and keybind:
-                badge_bg = tuple(pdata.get("badge_bg", [0, 140, 200]))
-                badge_txt = self.badge_font.render(keybind, True, (255, 255, 255))
-                bw = badge_txt.get_width() + 8
-                bh = 16
-                bx = rect.centerx - bw // 2
-                by = rect.bottom - bh // 2
-                badge_rect = pg.Rect(bx, by, bw, bh)
+                # Check resource requirement to dim icon if stamina/mana is insufficient
+                base_opacity = pdata.get("opacity", 255)
+                resource_type = pdata.get("resource_type", "stamina")
+                cost = pdata.get("cost", self.STAMINA_COSTS.get(pkey, 20.0))
 
-                pg.draw.rect(surface, (10, 14, 20), badge_rect.inflate(2, 2), border_radius=4)
-                pg.draw.rect(surface, badge_bg, badge_rect, border_radius=4)
-                surface.blit(badge_txt, (bx + 4, by + 1))
+                is_depleted = False
+                if resource_type == "mana":
+                    if current_mana is not None and current_mana < cost:
+                        is_depleted = True
+                elif resource_type == "stamina":
+                    if current_stamina is not None and current_stamina < cost:
+                        is_depleted = True
+
+                if is_depleted:
+                    effective_opacity = max(50, int(base_opacity * 0.30))
+                    frame_color = (max(30, border_color[0] // 3), max(30, border_color[1] // 3), max(30, border_color[2] // 3))
+                else:
+                    effective_opacity = base_opacity
+                    frame_color = border_color
+
+                # Draw outer frame
+                self.draw_frame(surface, rect, style, frame_color, active=is_active)
+
+                # Draw cached icon surface
+                icon_surf = self.icon_surfaces.get(pkey)
+                if icon_surf:
+                    icon_w = int(w * 0.88)
+                    icon_h = int(h * 0.88)
+                    scaled = pg.transform.smoothscale(icon_surf, (icon_w, icon_h))
+
+                    if style in ("circle", "glowing"):
+                        scaled = self._crop_to_circle(scaled)
+
+                    if effective_opacity < 255:
+                        alpha_surf = pg.Surface(scaled.get_size(), pg.SRCALPHA)
+                        alpha_surf.fill((255, 255, 255, effective_opacity))
+                        scaled.blit(alpha_surf, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+
+                    surface.blit(scaled, (rect.centerx - scaled.get_width() // 2, rect.centery - scaled.get_height() // 2))
+
+                # Render Cooldown Overlay (radial sweep / darkened arc)
+                cd_ratio = cooldowns.get(pkey, 0.0)
+                if cd_ratio > 0.0:
+                    cd_ratio = min(1.0, max(0.0, cd_ratio))
+                    cd_surf = pg.Surface((rect.width, rect.height), pg.SRCALPHA)
+                    cd_surf.fill((0, 0, 0, 160))
+                    # Crop height proportional to cooldown remaining
+                    cd_height = int(rect.height * cd_ratio)
+                    surface.blit(cd_surf, rect.topleft, area=pg.Rect(0, 0, rect.width, cd_height))
+
+                # Keybind Badge
+                raw_keybind = pdata.get("keybind", "")
+                keybind = self.get_keybind_badge_label(pkey, raw_keybind)
+                if show_badges and keybind:
+                    badge_bg = tuple(pdata.get("badge_bg", [0, 140, 200]))
+                    badge_txt = self.badge_font.render(keybind, True, (255, 255, 255))
+                    bw = badge_txt.get_width() + 8
+                    bh = 16
+                    bx = rect.centerx - bw // 2
+                    by = rect.bottom - bh // 2
+                    badge_rect = pg.Rect(bx, by, bw, bh)
+
+                    pg.draw.rect(surface, (10, 14, 20), badge_rect.inflate(2, 2), border_radius=4)
+                    pg.draw.rect(surface, badge_bg, badge_rect, border_radius=4)
+                    surface.blit(badge_txt, (bx + 4, by + 1))
+
+        # Render active Power Rangers-style pop-in action FX with icon_glow animated frames
+        now = pg.time.get_ticks()
+        remaining_effects = []
+        for fx in self.active_pop_effects:
+            elapsed = now - fx["start_time"]
+            if elapsed < fx["duration"]:
+                remaining_effects.append(fx)
+                t = elapsed / fx["duration"]
+                scale = 1.0 + math.sin(t * math.pi) * 0.50
+                alpha = int(255 * (1.0 - t))
+
+                pkey = fx["key"]
+                icon_surf = self.icon_surfaces.get(pkey)
+
+                if fx["pos"] and icon_surf:
+                    px, py = fx["pos"]
+                    py_float = py - int(t * 40)
+                    bw = max(10, int(50 * scale))
+                    bh = max(10, int(50 * scale))
+
+                    # Render animated icon_glow frame as power frame background
+                    if self.glow_frames:
+                        frame_idx = int(t * len(self.glow_frames)) % len(self.glow_frames)
+                        glow_img = self.glow_frames[frame_idx]
+                        glow_w = int(bw * 2.8)
+                        glow_h = int(bh * 2.8)
+                        glow_scaled = pg.transform.smoothscale(glow_img, (glow_w, glow_h))
+
+                        if alpha < 255:
+                            alpha_s = pg.Surface(glow_scaled.get_size(), pg.SRCALPHA)
+                            alpha_s.fill((255, 255, 255, alpha))
+                            glow_scaled.blit(alpha_s, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+
+                        surface.blit(glow_scaled, (px - glow_w // 2, py_float - glow_h // 2))
+
+                    pop_surf = pg.transform.smoothscale(icon_surf, (bw, bh))
+                    if pkey in self.config.get("icons", {}):
+                        style = self.config["icons"][pkey].get("frame_style", "circle")
+                        if style in ("circle", "glowing"):
+                            pop_surf = self._crop_to_circle(pop_surf)
+
+                    alpha_surf = pg.Surface(pop_surf.get_size(), pg.SRCALPHA)
+                    alpha_surf.fill((255, 255, 255, alpha))
+                    pop_surf.blit(alpha_surf, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+
+                    surface.blit(pop_surf, (px - bw // 2, py_float - bh // 2))
+
+        self.active_pop_effects = remaining_effects

@@ -902,6 +902,11 @@ class GameState(State):
                 print(f"[KILL] Skeleton from zone killed! "
                       f"kills={zone['killed_count']}/{zone.get('required_kills', 0)}")
             
+            # Track total souls gathered
+            self.total_souls = getattr(self, "total_souls", 0) + 1
+            if hasattr(self, "player_ui") and self.player_ui:
+                self.player_ui.souls_collected = self.total_souls
+
             # Fire "first_kill" flag for objective triggers
             self.trigger_manager.set_flag("first_kill")
         

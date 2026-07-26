@@ -46,6 +46,14 @@ power-icons-editor:
 	@echo "🎨 Launching Power Icons & Screen Placement Plugin..."
 	$(PYTHON) power_icons_editor.py
 
+player-editor:
+	@echo "🎮 Launching Player Animation & Frame Speed Editor..."
+	$(PYTHON) player_editor.py
+
+entity-editor:
+	@echo "👾 Launching Entity Stats & Animation Editor..."
+	$(PYTHON) entity_editor.py
+
 # ── Clean everything ─────────────────────────────────────────────────────────
 clean:
 	@echo "🧹 Cleaning up..."
