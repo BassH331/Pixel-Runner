@@ -1,6 +1,9 @@
 {
-    "config_hash": "ea98770e93674dc5ce2b07806622234c73c6d9c18692c0f0ade0fb6377f0c02b",
+    "config_hash": "463ff855eebae73039a5040576da535ce7e34a973bf591ce12f3f55954a74b4b",
     "audio_hashes": {
+        "assets/audio/25. Effort Grunt (Male).wav": "f4795979afb1850732fb8a6f9586e26e7b0766a41740e36f3e255cd78024b080",
+        "assets/audio/40. Effort Grunt (Male).wav": "3161920ff7ba28e8d60a261c662e16bedb2e8a6c0bf7823ac98f31271f5b93ce",
+        "assets/audio/41. Effort Grunt (Male).wav": "d42a0d764fa68675da4543721dedc066a004a99227338afd47687349de6b487d",
         "assets/audio/smash.wav": "a61fa5ce472e70e6d3fbb6f76a2bf49e10d3abd836ea760718558bf400b4b40d",
         "assets/audio/sword-slash-and-swing-185432.mp3": "2e4742e14585772e8f0c2ea0834150df95f0c973f97b540a88370e109b0135e5",
         "assets/audio/sword-slice-2-393845.mp3": "abcd14bd051183b3812fd68e87a87ab30116f30514c6328a108a36eb2863a8e3",
@@ -35,6 +38,9 @@
         "assets/audio/angry-grunt-103204.mp3": "0173afee01656c45d538b4361af57799b3ce21a6f5600cdb99738dd8ae38324f",
         "assets/audio/thrust.wav": "eb7049682425b962695ec9410841c79b2a9b74a0c51e7f862b148b8fe30bf691",
         "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav": "90032b06f486207a7a21cf6b530f035e4f2563e23b109480850a75a00ae62722",
-        "assets/audio/07. Damage Grunt (Male).wav": "d601bd1f596b70b8d3a5ea30227722d2b09d0d4766689755755f5b8591c6d980"
+        "assets/audio/07. Damage Grunt (Male).wav": "d601bd1f596b70b8d3a5ea30227722d2b09d0d4766689755755f5b8591c6d980",
+        "assets/audio/Deadly Kombat Free version/somersault_01.wav": "b67935abba4f8a9bf4d033f3b1f6287d1217e6e8d09b94fcedeed8efd3442c2c",
+        "assets/audio/03. Effort Grunt (Male).wav": "189602aed07a564bbb1a194cf1ac4706cb9d17a8533994484fa3e2608d343af2",
+        "assets/audio/Deadly Kombat Free version/somersault_10.wav": "7678312133cce2ba1bc76df7862be260a47f7c15ad86db10d0956fde1f54d093"
     }
 }

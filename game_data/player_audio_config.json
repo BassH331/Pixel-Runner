@@ -1,5 +1,8 @@
 {
     "sounds": {
+        "25": "assets/audio/25. Effort Grunt (Male).wav",
+        "40": "assets/audio/40. Effort Grunt (Male).wav",
+        "41": "assets/audio/41. Effort Grunt (Male).wav",
         "smash_phase_1": "assets/audio/smash.wav",
         "smash_phase_2": "assets/audio/sword-slash-and-swing-185432.mp3",
         "smash_phase_3": "assets/audio/sword-slice-2-393845.mp3",
@@ -41,7 +44,12 @@
         "jump_grunt": "assets/audio/angry-grunt-103204.mp3",
         "thrust": "assets/audio/thrust.wav",
         "player_hurt": "assets/audio/mixkit-fighting-man-voice-of-pain-2173.wav",
-        "grunt_player": "assets/audio/07. Damage Grunt (Male).wav"
+        "grunt_player": "assets/audio/07. Damage Grunt (Male).wav",
+        "somersault_01": "assets/audio/Deadly Kombat Free version/somersault_01.wav",
+        "sword_slash_and_swing_185432": "assets/audio/sword-slash-and-swing-185432.mp3",
+        "sword_slice_2_393845": "assets/audio/sword-slice-2-393845.mp3",
+        "03": "assets/audio/03. Effort Grunt (Male).wav",
+        "somersault_10": "assets/audio/Deadly Kombat Free version/somersault_10.wav"
     },
     "states": {
         "ATTACK_SMASH": {
@@ -69,10 +77,18 @@
             "18": "deepone_growl3",
             "19": "sword_sheath_2"
         },
-        "ATTACK_POWER": {},
-        "ATTACK_THRUST": {},
+        "ATTACK_POWER": {
+            "2": "sword_slash_and_swing_185432",
+            "6": "sword_slice_2_393845",
+            "10": "sword_slice_2_393845",
+            "11": "03",
+            "12": "somersault_10"
+        },
         "HURT": {
             "2": "grunt_player"
+        },
+        "ATTACK_THRUST": {
+            "1": "somersault_01"
         }
     },
     "enhanced_states": {
