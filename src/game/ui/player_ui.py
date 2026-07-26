@@ -49,6 +49,14 @@ class PlayerUI:
         self.font = AssetManager.get_font('assets/graphics/Darinia/Darinia.ttf', 30)
         self.small_font = AssetManager.get_font('assets/graphics/Darinia/Darinia.ttf', 16)
 
+        from typing import Optional, Any
+        self.power_icons_manager: Optional[Any] = None
+        try:
+            from src.game.ui.power_icons_manager import PowerIconsManager
+            self.power_icons_manager = PowerIconsManager()
+        except Exception as e:
+            print(f"[PlayerUI] Could not initialize PowerIconsManager: {e}")
+
     def load_icon(self, path, size):
         try:
             icon = AssetManager.get_texture(path)
@@ -188,3 +196,7 @@ class PlayerUI:
         dist_icon_rect = self.dist_icon.get_rect(midright=(dist_rect.left - 8, dist_rect.centery))
         surface.blit(self.dist_icon, dist_icon_rect)
         surface.blit(dist_text, dist_rect)
+
+        # Draw Power HUD Icons overlay if available
+        if self.power_icons_manager is not None:
+            self.power_icons_manager.draw(surface)

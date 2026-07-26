@@ -1,0 +1,153 @@
+{
+  "screen_width": 1280,
+  "screen_height": 720,
+  "show_cooldown_timers": true,
+  "show_keybind_badges": true,
+  "global_scale": 1.0,
+  "icons": {
+    "ATTACK_THRUST": {
+      "enabled": true,
+      "label": "Thrust",
+      "asset_path": "",
+      "x": 1180,
+      "y": 550,
+      "width": 52,
+      "height": 52,
+      "scale": 1.0,
+      "opacity": 255,
+      "keybind": "Q",
+      "frame_style": "circle",
+      "border_color": [
+        0,
+        229,
+        255
+      ],
+      "badge_bg": [
+        0,
+        140,
+        200
+      ],
+      "anchor": "center"
+    },
+    "ATTACK_POWER": {
+      "enabled": true,
+      "label": "Power Atk",
+      "asset_path": "",
+      "x": 1230,
+      "y": 600,
+      "width": 52,
+      "height": 52,
+      "scale": 1.0,
+      "opacity": 255,
+      "keybind": "W",
+      "frame_style": "circle",
+      "border_color": [
+        255,
+        145,
+        0
+      ],
+      "badge_bg": [
+        200,
+        100,
+        0
+      ],
+      "anchor": "center"
+    },
+    "ATTACK_SMASH": {
+      "enabled": true,
+      "label": "Smash",
+      "asset_path": "",
+      "x": 1180,
+      "y": 650,
+      "width": 52,
+      "height": 52,
+      "scale": 1.0,
+      "opacity": 255,
+      "keybind": "E",
+      "frame_style": "circle",
+      "border_color": [
+        230,
+        0,
+        118
+      ],
+      "badge_bg": [
+        180,
+        0,
+        90
+      ],
+      "anchor": "center"
+    },
+    "DEFEND": {
+      "enabled": true,
+      "label": "Defend",
+      "asset_path": "",
+      "x": 1130,
+      "y": 600,
+      "width": 52,
+      "height": 52,
+      "scale": 1.0,
+      "opacity": 255,
+      "keybind": "R",
+      "frame_style": "circle",
+      "border_color": [
+        0,
+        230,
+        118
+      ],
+      "badge_bg": [
+        0,
+        150,
+        75
+      ],
+      "anchor": "center"
+    },
+    "SPECIAL_ATTACK": {
+      "enabled": true,
+      "label": "Special",
+      "asset_path": "",
+      "x": 736,
+      "y": 640,
+      "width": 58,
+      "height": 58,
+      "scale": 1.1,
+      "opacity": 255,
+      "keybind": "F",
+      "frame_style": "glowing",
+      "border_color": [
+        170,
+        0,
+        255
+      ],
+      "badge_bg": [
+        130,
+        0,
+        200
+      ],
+      "anchor": "center"
+    },
+    "DASH": {
+      "enabled": true,
+      "label": "Dash",
+      "asset_path": "",
+      "x": 800,
+      "y": 640,
+      "width": 52,
+      "height": 52,
+      "scale": 1.0,
+      "opacity": 255,
+      "keybind": "L-CTRL",
+      "frame_style": "square",
+      "border_color": [
+        0,
+        145,
+        234
+      ],
+      "badge_bg": [
+        0,
+        100,
+        180
+      ],
+      "anchor": "center"
+    }
+  }
+}
