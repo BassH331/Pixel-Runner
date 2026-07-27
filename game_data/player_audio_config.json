@@ -53,6 +53,7 @@
     },
     "states": {
         "ATTACK_SMASH": {
+            "2": "thrust",
             "3": "smash_phase_1",
             "7": "smash_phase_2",
             "11": "smash_phase_3"

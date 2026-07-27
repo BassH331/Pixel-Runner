@@ -1,8 +1,7 @@
 {
-    "config_hash": "fea53d0fb06c2ed90bc933847b5aea6ec0c5c736225e470dd98a4c691bb843ff",
+    "config_hash": "d6eae8901a5b9a76bdcf95ae1ea12412f017b930f6bde69baa1facabca38e37a",
     "audio_hashes": {
         "assets/audio/1 Exploration TomMusic.ogg": "346889023226b8711ded582f38ed0d71f98d4bdc9106ac5a705b112a50a62ce5",
-        "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/BGS Loops/Forest Night/Forest Night.ogg": "bd81628c98eecfbc99bdbf74f7bd9d78fec5015e7b0bc01139ac932765280978",
         "assets/audio/Burning Fire.mp3": "52e783b99cf1606d0916b5b7128fc98dd44630c397c7a1ce4ff9e7dfd16b1d0a",
         "assets/audio/Reveal Sound Effect.mp3": "bfa11634c57f7379b6be66f84c5f1c1072a6dd98ffaedc8624d01b3e12416846",
         "assets/audio/magic sound effect.mp3": "3c6563c592f392f1c031acee79b7230d5d3c20a54e86739081388f16772b4ee4",
@@ -21,6 +20,8 @@
         "assets/audio/smash.wav": "a61fa5ce472e70e6d3fbb6f76a2bf49e10d3abd836ea760718558bf400b4b40d",
         "assets/audio/Sword Blocked 2.wav": "20c5efc2bdb3bc52b7f41bb35d408cc11b73c3f67115aeb2b0e67443d62356c3",
         "assets/audio/whoosh-cinematic-sound-effect-376889.wav": "047880f09a5ee0b52c709f452451ae0af07ac2c635c6f0a551934908f4bdf072",
-        "assets/audio/land2-43790.mp3": "fa538a84848473341ecab81be395d130ff0fc65467680259c58707e931d0f8e5"
+        "assets/audio/land2-43790.mp3": "fa538a84848473341ecab81be395d130ff0fc65467680259c58707e931d0f8e5",
+        "assets/audio/Combat Pack - vol 1/2. One Last Day on Earth - 110bpm - LONG LOOP 1min44s.wav": "d7c43f28ba15835f4aedd70fccf1c5685f8f221fde96af8b020f53b141aaa2d0",
+        "assets/audio/Combat Pack - vol 1/2. One Last Day on Earth - 110bpm - LOOP 52s.wav": "f96c07ba69679cf3f9e291b0d767b7c6b6f25697ae85df2ad6e712c4df41d94d"
     }
 }

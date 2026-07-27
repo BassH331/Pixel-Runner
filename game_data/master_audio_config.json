@@ -1,7 +1,6 @@
 {
     "sounds": {
         "background_music": "assets/audio/1 Exploration TomMusic.ogg",
-        "game_loop": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/BGS Loops/Forest Night/Forest Night.ogg",
         "burning_village": "assets/audio/Burning Fire.mp3",
         "reveal": "assets/audio/Reveal Sound Effect.mp3",
         "magic_sfx": "assets/audio/magic sound effect.mp3",
@@ -23,7 +22,9 @@
         "collision_player_defend": "assets/audio/Sword Blocked 2.wav",
         "roll": "assets/audio/whoosh-cinematic-sound-effect-376889.wav",
         "jump": "assets/audio/land2-43790.mp3",
-        "skeleton_spawn": "assets/audio/zombie-noise.mp3"
+        "skeleton_spawn": "assets/audio/zombie-noise.mp3",
+        "game_loop_2": "assets/audio/Combat Pack - vol 1/2. One Last Day on Earth - 110bpm - LONG LOOP 1min44s.wav",
+        "game_loop": "assets/audio/Combat Pack - vol 1/2. One Last Day on Earth - 110bpm - LOOP 52s.wav"
     },
     "sound_metadata": {
         "collision_player_skeleton": {
@@ -32,18 +33,24 @@
             "usage": "Player sword hit slicing/breaking Skeleton bones.",
             "color": "#f59e0b"
         },
-        "game_loop": {
-            "category": "MUSIC",
-            "state": "\ud83c\udfae Gameplay State",
-            "usage": "Main active level & runner gameplay music loop.",
-            "color": "#c084fc"
-        },
         "skeleton_spawn": {
             "category": "SKELETON",
             "state": "\ud83d\udc80 Skeleton Spawn",
             "usage": "Atmospheric spawn noise played when a new skeleton spawns.",
             "color": "#9333ea",
             "volume": 0.2
+        },
+        "game_loop_2": {
+            "category": "MUSIC",
+            "state": "\ud83c\udfae Gameplay State",
+            "usage": "Main active level & runner gameplay music loop.",
+            "color": "#c084fc"
+        },
+        "game_loop": {
+            "category": "MUSIC",
+            "state": "\ud83c\udfae Gameplay State",
+            "usage": "Main active level & runner gameplay music loop.",
+            "color": "#c084fc"
         }
     },
     "collision_map": {
