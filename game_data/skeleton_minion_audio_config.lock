@@ -1,8 +1,9 @@
 {
-    "config_hash": "84c1fd7611a6236594b6e8ed6705c1299734b842f4faa4076253a9083a668242",
+    "config_hash": "9d9c60b6f6f8937ebb38a7d9d0b9239921d96c08195979e1ba7128d67eae58ec",
     "audio_hashes": {
         "assets/audio/Skeleton_hurt.wav": "90282d5c541fe0dccb98b5332d89ec6b267c2157c62f1350eb7950ed189f2d6e",
         "assets/audio/skeletom scream.mp3": "a44d7713c45d2c7269f73e5f8f37766fd0d93047f05e1d249ba8311c6815ef94",
-        "assets/CreatureSoundFree1_1/CreatureSoundFree/CREAHmn_Heavy Breathing, Beast, MHCS17.wav": "c43f000ff984ed778de738446d0db34d5ce7aa44c238927adfaf691b2f5e1a69"
+        "assets/CreatureSoundFree1_1/CreatureSoundFree/CREAHmn_Heavy Breathing, Beast, MHCS17.wav": "c43f000ff984ed778de738446d0db34d5ce7aa44c238927adfaf691b2f5e1a69",
+        "assets/audio/Deadly Kombat Free version/bone_breaking_03.wav": "c502137bb5aeeb421bb34827fdeab06822427a594776ed007c74156de753106b"
     }
 }

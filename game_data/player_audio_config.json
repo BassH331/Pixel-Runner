@@ -25,7 +25,7 @@
         "dinosaur_grunt": "assets/audio/Dinosaurs/Dinosaurs/Dinosaur_Grunt.wav",
         "magic_sound_effect": "assets/audio/magic sound effect.mp3",
         "aura_effect": "assets/audio/Magical Light Aura Sound Effect.mp3",
-        "rock_wall_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/OGG Files/SFX/Spells/Rock Wall 1.ogg",
+        "rock_wall_1": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Rock Wall 1.wav",
         "firespray_2": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Firespray 2.wav",
         "fireball_3": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Spells/Fireball 3.wav",
         "dirt_chain_run_5": "assets/audio/Free Fantasy SFX Pack By TomMusic/WAV Files/SFX/Footsteps/Dirt/Dirt Chain Run 5.wav",
@@ -83,7 +83,9 @@
             "6": "sword_slice_2_393845",
             "10": "sword_slice_2_393845",
             "11": "03",
-            "12": "somersault_10"
+            "12": "somersault_10",
+            "18": "rock_wall_1",
+            "19": "fireball_2"
         },
         "HURT": {
             "2": "grunt_player"

@@ -2,14 +2,16 @@
     "sounds": {
         "skeleton_hurt": "assets/audio/Skeleton_hurt.wav",
         "skeleton_death": "assets/audio/skeletom scream.mp3",
-        "creahmn_heavy_breathing__beast__mhcs17": "assets/CreatureSoundFree1_1/CreatureSoundFree/CREAHmn_Heavy Breathing, Beast, MHCS17.wav"
+        "creahmn_heavy_breathing__beast__mhcs17": "assets/CreatureSoundFree1_1/CreatureSoundFree/CREAHmn_Heavy Breathing, Beast, MHCS17.wav",
+        "bone_breaking_03": "assets/audio/Deadly Kombat Free version/bone_breaking_03.wav"
     },
     "states": {
         "ATTACK": {
             "2": "skeleton_hurt"
         },
         "DEATH": {
-            "0": "skeleton_death"
+            "0": "skeleton_death",
+            "1": "bone_breaking_03"
         },
         "HURT": {
             "1": "creahmn_heavy_breathing__beast__mhcs17"
