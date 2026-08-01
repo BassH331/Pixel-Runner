@@ -1,15 +1,76 @@
 {
-    "level_name": "Level 1 - Mask of the Shepherd",
+    "level_name": "Level 1 - The Dark Forest",
     "level_end_distance": 8000,
     "spawn_rate_min": 5000,
     "spawn_rate_max": 15000,
+
+    "soul_harvest": {
+        "starting_souls": 9000,
+        "target_souls": 10000,
+        "soul_values": {
+            "skeleton_minion": 5,
+            "skeleton_zombie": 8,
+            "goblin": 3,
+            "elite_boss": 150,
+            "mini_boss": 300,
+            "final_boss_remaining": true
+        }
+    },
+
     "spawn_zones": [
         {
             "min_dist": 520,
             "max_dist": 1500,
-            "max_skeletons": 4,
-            "delay": 4000,
-            "required_kills": 10,
+            "max_skeletons": 3,
+            "delay": 5000,
+            "tier": "minion",
+            "sprite_root": "assets/skeleton",
+            "behaviour_map": {
+                "Skeleton_01_White_Attack1": "attack",
+                "Skeleton_01_White_Attack2": "attack",
+                "Skeleton_01_White_Die": "death",
+                "Skeleton_01_White_Hurt": "hurt",
+                "Skeleton_01_White_Idle": "idle",
+                "Skeleton_01_White_Walk": "walk"
+            }
+        },
+        {
+            "min_dist": 1500,
+            "max_dist": 3200,
+            "max_skeletons": 5,
+            "delay": 3500,
+            "tier": "minion",
+            "sprite_root": "assets/skeleton",
+            "behaviour_map": {
+                "Skeleton_01_White_Attack1": "attack",
+                "Skeleton_01_White_Attack2": "attack",
+                "Skeleton_01_White_Die": "death",
+                "Skeleton_01_White_Hurt": "hurt",
+                "Skeleton_01_White_Idle": "idle",
+                "Skeleton_01_White_Walk": "walk"
+            }
+        },
+        {
+            "min_dist": 3800,
+            "max_dist": 5200,
+            "max_skeletons": 6,
+            "delay": 2800,
+            "tier": "minion",
+            "sprite_root": "assets/skeleton",
+            "behaviour_map": {
+                "Skeleton_01_White_Attack1": "attack",
+                "Skeleton_01_White_Attack2": "attack",
+                "Skeleton_01_White_Die": "death",
+                "Skeleton_01_White_Hurt": "hurt",
+                "Skeleton_01_White_Idle": "idle",
+                "Skeleton_01_White_Walk": "walk"
+            }
+        },
+        {
+            "min_dist": 5800,
+            "max_dist": 7500,
+            "max_skeletons": 8,
+            "delay": 2000,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {
@@ -22,10 +83,12 @@
             }
         }
     ],
+
     "bat_spawn": {
         "min_count": 3,
         "max_count": 5
     },
+
     "entities": [
         {
             "type": "player",
@@ -33,6 +96,7 @@
             "y": 600
         }
     ],
+
     "checkpoints": [
         {
             "id": 1,
@@ -40,15 +104,55 @@
             "y": 200
         }
     ],
+
     "world_events": [
         {
-            "id": 4,
+            "id": 10,
             "distance": 194,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
                 "title": "Act I: The Entry",
                 "text": "The end of the long nightmare is in sight. 1,000 more monster souls, and the contract is fulfilled. Reclaim your freedom!!",
+                "radius": 160,
+                "sprite_dir": "assets/graphics/totem",
+                "scale": 2.0
+            }
+        },
+        {
+            "id": 11,
+            "distance": 800,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "A Dying Villager",
+                "text": "The creatures... they came from the rift. The Shepherd said he would protect us... he lied. Run, stranger. This forest devours all who linger.",
+                "radius": 160,
+                "sprite_dir": "assets/graphics/totem",
+                "scale": 2.0
+            }
+        },
+        {
+            "id": 12,
+            "distance": 1800,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "The Scythe Whispers",
+                "text": "You feel the Umbral Scythe pulling at your soul with every swing. The dark steel hums with satisfaction. Something is wrong... but the contract must be fulfilled.",
+                "radius": 160,
+                "sprite_dir": "assets/graphics/totem",
+                "scale": 2.0
+            }
+        },
+        {
+            "id": 13,
+            "distance": 2800,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "WARNING: Gatekeeper Territory",
+                "text": "The trees twist and blacken ahead. A demonic presence drives the monsters into a frenzy here. The Gatekeeper is near. Prepare yourself, Kaelen.",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/totem",
                 "scale": 2.0
@@ -63,6 +167,7 @@
                 "scale": 2.63,
                 "health": 100.0,
                 "tier": "elite",
+                "soul_value": 150,
                 "sprite_dir": "assets/graphics/green_monster",
                 "behaviour_map": {
                     "1atk": "attack",
@@ -76,6 +181,19 @@
             }
         },
         {
+            "id": 14,
+            "distance": 4500,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "The Fabricator Watches",
+                "text": "You feel eyes upon you from beyond the veil. 'Closer, closer,' a silken voice hisses. 'Every soul you reap binds you tighter to my design.' The contract burns in your chest.",
+                "radius": 160,
+                "sprite_dir": "assets/graphics/totem",
+                "scale": 2.0
+            }
+        },
+        {
             "id": 2,
             "distance": 5400,
             "type": "boss",
@@ -84,6 +202,7 @@
                 "scale": 2.0,
                 "health": 100.0,
                 "tier": "elite",
+                "soul_value": 300,
                 "sprite_dir": "assets/graphics/bloodZombie",
                 "behaviour_map": {
                     "Attack1": "attack",
@@ -95,6 +214,19 @@
             }
         },
         {
+            "id": 15,
+            "distance": 6500,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "The Scythe Speaks",
+                "text": "The blade thrums with dark energy. 'One more. Just one more, and you will be free...' But something in its tone feels wrong. Like a predator soothing its prey before the final strike.",
+                "radius": 160,
+                "sprite_dir": "assets/graphics/totem",
+                "scale": 2.0
+            }
+        },
+        {
             "id": 3,
             "distance": 7663,
             "type": "boss",
@@ -103,6 +235,7 @@
                 "scale": 4.11,
                 "health": 100.0,
                 "tier": "boss",
+                "soul_value": "remaining",
                 "sprite_dir": "assets/wizard",
                 "behaviour_map": {
                     "Attack": "attack",

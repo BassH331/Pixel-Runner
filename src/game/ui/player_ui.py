@@ -1,3 +1,4 @@
+import math
 import pygame as pg
 from v3x_zulfiqar_gideon import AssetManager
 
@@ -14,6 +15,17 @@ class PlayerUI:
         self.start_time = 0
         self.power_ups = []
 
+        # ── Soul Harvest System ──────────────────────────────────────────────
+        self.souls_collected = 0          # Souls gained *this level* (added on top of starting)
+        self.soul_harvest_start = 9000    # Pre-existing souls from Kaelen's past hunts
+        self.soul_harvest_target = 10000  # The contract's quota
+        self._soul_pulse_timer: float = 0.0   # Countdown for glow pulse on soul gain
+        self._soul_pulse_scale: float = 1.0   # Current pulse scale multiplier
+        self._soul_last_total: int = 9000     # Track changes for pulse trigger
+        self._soul_complete: bool = False      # True once quota is met
+        self._soul_complete_callback = None    # Called once when quota is met
+        # ─────────────────────────────────────────────────────────────────────
+
         # Load dragon HP bar sprite frames (0 = full, 7 = empty)
         self.health_frames = []
         for i in range(8):
@@ -29,9 +41,8 @@ class PlayerUI:
         self.stamina_bar_pos = (20, self.mana_bar_pos[1] + 32)
         self._resource_bar_size = (200, 16)
 
-        self.souls_collected = 0
         self.souls_icon_pos = (20, self.stamina_bar_pos[1] + 38)
-        self.relic_icon_pos = (150, self.stamina_bar_pos[1] + 38)
+        self.relic_icon_pos = (20, self.stamina_bar_pos[1] + 82)
         self.power_up_icon_pos = (20, self.relic_icon_pos[1] + 48)
         self.time_pos = (pg.display.Info().current_w - 160, 20)
 
@@ -132,10 +143,35 @@ class PlayerUI:
             "duration": duration
         })
     
+    @property
+    def current_soul_total(self) -> int:
+        """Total souls including the starting amount from Kaelen's past hunts."""
+        return self.soul_harvest_start + self.souls_collected
+
+    def add_souls(self, amount: int) -> None:
+        """Add souls to the harvest counter with pulse feedback."""
+        self.souls_collected += amount
+        self._soul_pulse_timer = 0.6  # 600ms pulse
+        self._soul_pulse_scale = 1.25  # Scale up 25%
+
+        # Check if quota is met
+        if not self._soul_complete and self.current_soul_total >= self.soul_harvest_target:
+            self._soul_complete = True
+            self.souls_collected = self.soul_harvest_target - self.soul_harvest_start
+            if self._soul_complete_callback is not None:
+                self._soul_complete_callback()
+
     def update(self):
         current_time = pg.time.get_ticks()
         self.power_ups = [pu for pu in self.power_ups 
                          if current_time - pu["start_time"] < pu["duration"]]
+
+        # Decay soul pulse animation
+        if self._soul_pulse_timer > 0:
+            self._soul_pulse_timer = max(0.0, self._soul_pulse_timer - 0.016)  # ~60fps
+            # Ease out the scale
+            t = self._soul_pulse_timer / 0.6
+            self._soul_pulse_scale = 1.0 + 0.25 * t
     
     def _crop_to_circle(self, surf: pg.Surface) -> pg.Surface:
         """Crop image into a smooth circle."""
@@ -194,7 +230,6 @@ class PlayerUI:
         pg.draw.rect(surface, (0, 0, 0, 140), bg_rect, width=1, border_radius=4)
 
     def draw(self, surface):
-        import math
         now = pg.time.get_ticks()
         float_y = int(math.sin(now * 0.0035) * 2.5)  # Subtle 2.5px floating motion for HUD icons
 
@@ -232,13 +267,10 @@ class PlayerUI:
             border_color=(160, 60, 255)
         )
 
-        # Draw Souls Collected counter with purple glowing frame
-        souls_y = self.souls_icon_pos[1] + float_y
-        self._draw_framed_icon(surface, self.souls_icon, (self.souls_icon_pos[0], souls_y), border_color=(160, 60, 255), opacity=255)
-        souls_text = self.medium_font.render(f"x {self.souls_collected}", True, (240, 220, 255))
-        surface.blit(souls_text, (self.souls_icon_pos[0] + 44, souls_y + 8))
+        # ── Soul Harvest Display ─────────────────────────────────────────────
+        self._draw_soul_harvest(surface, float_y)
 
-        # Draw Relics counter with purple glowing frame
+        # Draw Relics counter with golden glowing frame
         relic_y = self.relic_icon_pos[1] + float_y
         self._draw_framed_icon(surface, self.relic_icon, (self.relic_icon_pos[0], relic_y), border_color=(255, 215, 0), opacity=255)
         relic_text = self.medium_font.render(f"x {self.relics}", True, (255, 255, 255))
@@ -279,3 +311,94 @@ class PlayerUI:
                 current_mana=getattr(self, "current_mana", 100.0),
                 max_mana=getattr(self, "max_mana", 100.0)
             )
+
+    def _draw_soul_harvest(self, surface: pg.Surface, float_y: int) -> None:
+        """Draw the Soul Harvest progress bar with pulse effects.
+
+        Layout:
+            [Soul Icon]  ████████████████░░░░  9,450 / 10,000
+                         ↑ progress bar       ↑ numeric counter
+
+        Color shifts as quota approaches:
+            < 80% → deep purple (calm)
+            80-95% → amber (tension rising)
+            > 95% → crimson red (imminent)
+            100% → golden flash (complete)
+        """
+        souls_y = self.souls_icon_pos[1] + float_y
+        total = self.current_soul_total
+        target = self.soul_harvest_target
+        ratio = min(1.0, total / target) if target > 0 else 0.0
+
+        # Dynamic color based on proximity to quota
+        if self._soul_complete:
+            bar_fill = (255, 215, 50)       # Golden — complete
+            bar_border = (255, 200, 0)
+            text_color = (255, 240, 180)
+        elif ratio >= 0.95:
+            bar_fill = (200, 40, 40)        # Crimson — imminent
+            bar_border = (255, 60, 60)
+            text_color = (255, 180, 180)
+        elif ratio >= 0.80:
+            bar_fill = (200, 140, 30)       # Amber — tension rising
+            bar_border = (230, 170, 50)
+            text_color = (255, 220, 160)
+        else:
+            bar_fill = (120, 50, 200)       # Deep purple — calm
+            bar_border = (160, 60, 255)
+            text_color = (220, 200, 255)
+
+        # Pulse glow overlay when souls are gained
+        pulse_alpha = 0
+        if self._soul_pulse_timer > 0:
+            pulse_alpha = int(180 * (self._soul_pulse_timer / 0.6))
+
+        # Draw soul icon with pulse border
+        icon_border = bar_border if self._soul_pulse_timer <= 0 else (255, 220, 80)
+        self._draw_framed_icon(
+            surface, self.souls_icon,
+            (self.souls_icon_pos[0], souls_y),
+            border_color=icon_border, opacity=255
+        )
+
+        # Progress bar dimensions
+        bar_x = self.souls_icon_pos[0] + 50
+        bar_w = 180
+        bar_h = 14
+        bar_y_center = souls_y + 18 - bar_h // 2
+
+        # Background
+        bg_rect = pg.Rect(bar_x, bar_y_center, bar_w, bar_h)
+        pg.draw.rect(surface, (15, 12, 25), bg_rect, border_radius=4)
+
+        # Fill
+        if ratio > 0:
+            fill_w = max(2, int(bar_w * ratio))
+            fill_rect = pg.Rect(bar_x, bar_y_center, fill_w, bar_h)
+            pg.draw.rect(surface, bar_fill, fill_rect, border_radius=4)
+
+            # Highlight shimmer on top half
+            top_rect = pg.Rect(bar_x, bar_y_center, fill_w, bar_h // 2)
+            shimmer = (*[min(255, c + 40) for c in bar_fill[:3]],)
+            pg.draw.rect(surface, shimmer, top_rect, border_radius=4)
+
+        # Pulse glow overlay on the bar
+        if pulse_alpha > 0:
+            glow_surf = pg.Surface((bar_w + 6, bar_h + 6), pg.SRCALPHA)
+            glow_surf.fill((255, 220, 80, pulse_alpha))
+            surface.blit(glow_surf, (bar_x - 3, bar_y_center - 3))
+
+        # Border
+        pg.draw.rect(surface, bar_border, bg_rect, width=1, border_radius=4)
+
+        # Numeric text: "9,450 / 10,000"
+        total_str = f"{total:,}"
+        target_str = f"{target:,}"
+        count_text = self.small_font.render(
+            f"{total_str} / {target_str}", True, text_color
+        )
+        surface.blit(count_text, (bar_x + bar_w + 8, bar_y_center - 1))
+
+        # Draw "SOULS" label below bar
+        label_text = self.small_font.render("SOULS", True, (140, 120, 180))
+        surface.blit(label_text, (bar_x, bar_y_center + bar_h + 2))

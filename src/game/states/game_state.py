@@ -161,6 +161,17 @@ class GameState(State):
         self.next_skeleton_spawn_time: int = pg.time.get_ticks()
         self._game_over_start_time: Optional[int] = None
 
+        # ── Soul Harvest System ──────────────────────────────────────────────
+        self.total_souls: int = 0  # Souls gathered *this level*
+        self._soul_harvest_config: dict = {}  # Loaded from level JSON
+        self._soul_quota_reached: bool = False
+        # ─────────────────────────────────────────────────────────────────────
+
+        # ── Boss Arena System ────────────────────────────────────────────────
+        self._arena_active: bool = False
+        self._arena_left_boundary: int = 0  # Player can't go left of this
+        # ─────────────────────────────────────────────────────────────────────
+
         # Travel distance tracking
         self.world_distance: float = 0.0
         self._is_simulating = False
@@ -245,6 +256,17 @@ class GameState(State):
             # Level metadata
             self._level_name = level_data.get("level_name", self._level_name)
             self._level_end_distance = float(level_data.get("level_end_distance", self._level_end_distance))
+
+            # ── Soul Harvest config ──────────────────────────────────────────
+            self._soul_harvest_config = level_data.get("soul_harvest", {})
+            if self._soul_harvest_config:
+                sh = self._soul_harvest_config
+                self.player_ui.soul_harvest_start = sh.get("starting_souls", 9000)
+                self.player_ui.soul_harvest_target = sh.get("target_souls", 10000)
+                self.player_ui._soul_last_total = self.player_ui.soul_harvest_start
+                # Wire the completion callback to trigger the story climax
+                self.player_ui._soul_complete_callback = self._on_soul_quota_reached
+            # ────────────────────────────────────────────────────────────────
 
             # Spawn zones — loaded from level_1.json "spawn_zones" array.
             # If the JSON doesn't have spawn_zones, we fall back to
@@ -497,6 +519,16 @@ class GameState(State):
         boss = BossManager.spawn_boss(params, player_sprite, self.width, self.height, audio_manager=self.audio_manager)
         self.obstacle_group.add(boss)
 
+        # Store the soul_value from JSON config on the boss entity
+        soul_value = params.get("soul_value", 0)
+        setattr(boss, "soul_value", soul_value)
+
+        # ── Activate Boss Arena ──────────────────────────────────────────────
+        # Lock the player in: they can't retreat past their current position
+        self._arena_active = True
+        self._arena_left_boundary = max(0, player_sprite.rect.left - 50)
+        # ────────────────────────────────────────────────────────────────────
+
         # Draw target text banner when boss spawns
         title = params.get("title", "Boss")
         self.notification_banner.show(
@@ -516,6 +548,31 @@ class GameState(State):
             self._pending_difficulty_boss = boss
         if self.tracker.enabled and boss_key:
             self.tracker.set_boss_key(boss_key)
+
+    def _on_soul_quota_reached(self) -> None:
+        """Triggered when the soul harvest counter reaches 10,000.
+
+        This is the narrative climax of Level 1 — the Arch-Fabricator's
+        revelation that the contract was a spiritual trap.
+        """
+        self._soul_quota_reached = True
+        self._level_complete = True
+
+        # The forest goes dead silent
+        self.audio_manager.stop_music()
+
+        # Show the Fabricator's revelation
+        self.objective_display.show(
+            "The forest falls deathly silent. A voice like silk slithers from the void:\n\n"
+            "'Ten thousand souls... and every last one bound by YOUR hand. "
+            "Did you truly believe I would release you? The contract was never "
+            "about freedom, Kaelen. Every soul you reaped with my Scythe has "
+            "legally bonded YOUR soul to my domain.'\n\n"
+            "The Arch-Fabricator laughs and vanishes, leaving you trapped "
+            "with the cursed blade. But you will not submit. "
+            "You keep the Scythe... and begin your hunt for the Holy Artifacts.",
+            "The Fabricator's Betrayal"
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Lifecycle
@@ -861,10 +918,8 @@ class GameState(State):
             enemy_type = str(enemy.name).lower()
 
         enemy_id = getattr(enemy, "id", f"enemy_{id(enemy)}")
-        is_dead = (
-            (enemy.state == SkeletonState.DEATH) if isinstance(enemy, Skeleton)
-            else (getattr(enemy, "state", None) == getattr(FireWizardState, "DEATH", None) if isinstance(enemy, FireWizard) else False)
-        )
+        # Unified is_dead check — covers Skeleton, FireWizard, GreenMonster, BloodZombie
+        is_dead = getattr(enemy, "is_dead", False)
 
         if is_dead and not getattr(enemy, "_death_sound_played", False):
             # Death sound is handled by entity audio config (per-frame triggers)
@@ -878,34 +933,64 @@ class GameState(State):
                 defender_state="alive"
             )
 
-        if isinstance(enemy, (Skeleton, FireWizard)) and is_dead and getattr(enemy, "_death_sound_played", False):
-            # Check for Boss defeat
+        if is_dead and getattr(enemy, "_death_sound_played", False):
+            # ── Soul Harvest: variable rewards per enemy type ─────────────
+            soul_values = self._soul_harvest_config.get("soul_values", {})
+            soul_reward = 0
+
             if getattr(enemy, "is_boss", False):
+                # Check for boss-specific soul_value from level JSON
+                boss_soul_value = getattr(enemy, "soul_value", 0)
+                if boss_soul_value == "remaining":
+                    # Final boss: award whatever's left to hit 10,000
+                    remaining = self.player_ui.soul_harvest_target - self.player_ui.current_soul_total
+                    soul_reward = max(0, remaining)
+                elif isinstance(boss_soul_value, (int, float)) and boss_soul_value > 0:
+                    soul_reward = int(boss_soul_value)
+                else:
+                    # Fallback to tier-based values
+                    tier = getattr(enemy, "tier", "boss")
+                    if tier == "boss":
+                        soul_reward = soul_values.get("final_boss_remaining", 0)
+                        if soul_reward is True:
+                            remaining = self.player_ui.soul_harvest_target - self.player_ui.current_soul_total
+                            soul_reward = max(0, remaining)
+                    else:
+                        soul_reward = soul_values.get("elite_boss", 150)
+
+                # ── Deactivate Boss Arena ─────────────────────────────────
+                self._arena_active = False
+                # ─────────────────────────────────────────────────────────
+
+                # Check for final boss defeat (tier == "boss")
                 if getattr(enemy, "tier", "boss") == "boss":
-                    self._level_complete = True
-                    self.objective_display.show(
-                        f"You have defeated the mighty {getattr(enemy, 'boss_title', 'Boss')}! "
-                        "The land is saved, and your name shall be sung in legend. "
-                        "Victory is yours!",
-                        "Victory Achieved!"
-                    )
+                    if not self._soul_quota_reached:
+                        # The quota callback handles the story climax
+                        pass
+                    else:
+                        self._level_complete = True
                 else:
                     self.notification_banner.show(
                         f"VICTORY: {getattr(enemy, 'boss_title', 'Mini-boss').upper()} DEFEATED!",
                         notification="green"
                     )
+            else:
+                # Regular enemy — look up tier-based soul values
+                tier = getattr(enemy, "tier", "minion")
+                soul_reward = soul_values.get(f"skeleton_{tier}", soul_values.get("skeleton_minion", 5))
+
+            # Apply soul reward through the UI system (handles pulse + completion)
+            if soul_reward > 0:
+                self.total_souls += soul_reward
+                self.player_ui.add_souls(soul_reward)
 
             # Track zone kills
             zone = getattr(enemy, "spawn_zone", None)
             if zone is not None:
                 zone["killed_count"] = zone.get("killed_count", 0) + 1
-                print(f"[KILL] Skeleton from zone killed! "
-                      f"kills={zone['killed_count']}/{zone.get('required_kills', 0)}")
-            
-            # Track total souls gathered
-            self.total_souls = getattr(self, "total_souls", 0) + 1
-            if hasattr(self, "player_ui") and self.player_ui:
-                self.player_ui.souls_collected = self.total_souls
+                print(f"[KILL] Enemy from zone killed! "
+                      f"kills={zone['killed_count']}/{zone.get('required_kills', 0)} "
+                      f"souls+={soul_reward} total={self.player_ui.current_soul_total}")
 
             # Fire "first_kill" flag for objective triggers
             self.trigger_manager.set_flag("first_kill")
@@ -1415,6 +1500,12 @@ class GameState(State):
             self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
         else:
             self.bg_scroll_speed = 0
+
+        # ── Boss Arena Boundary Enforcement ──────────────────────────────────
+        if self._arena_active:
+            if player_sprite.rect.left < self._arena_left_boundary:
+                player_sprite.rect.left = self._arena_left_boundary
+        # ────────────────────────────────────────────────────────────────────
 
         # Track travel distance
         self.world_distance += self.bg_scroll_speed
