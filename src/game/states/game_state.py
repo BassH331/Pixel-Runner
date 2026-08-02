@@ -124,6 +124,7 @@ class GameState(State):
         # UI
         self.player_ui = PlayerUI()
         self.objective_display = ObjectiveDisplay()
+        self._current_interacting_npc = None
         self.notification_banner = NotificationBanner(scale=0.6, icon_scale=0.6)
         self.tutorial_overlay = TutorialOverlay()
         self._show_objective_on_start: bool = True
@@ -482,6 +483,8 @@ class GameState(State):
                 scale=params.get("scale"),  # Respect level configuration scale
                 proximity_radius=params.get("radius", 160),
                 frame_duration=params.get("frame_duration", 0.15),
+                play_death_on_interact=params.get("play_death_on_interact", False),
+                death_sprite_dir=params.get("death_sprite_dir"),
             )
             setattr(npc, "event_id", params.get("_event_id"))
             setattr(npc, "event_distance", params.get("_event_distance"))
@@ -524,9 +527,10 @@ class GameState(State):
         setattr(boss, "soul_value", soul_value)
 
         # ── Activate Boss Arena ──────────────────────────────────────────────
-        # Lock the player in: they can't retreat past their current position
+        # Lock the player in: expand retreat boundary leftwards & widen right movement ratio
         self._arena_active = True
-        self._arena_left_boundary = max(0, player_sprite.rect.left - 50)
+        self._arena_left_boundary = max(40, player_sprite.rect.left - 380)
+        player_sprite.right_bound_ratio = 0.90
         # ────────────────────────────────────────────────────────────────────
 
         # Draw target text banner when boss spawns
@@ -625,24 +629,29 @@ class GameState(State):
 
         # While objective overlay is active, only listen for dismiss input
         if self.objective_display.is_active:
-            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+            dismiss_pressed = (
+                (event.type == pg.KEYDOWN and event.key in (pg.K_SPACE, pg.K_RETURN, pg.K_x)) or
+                (event.type == pg.JOYBUTTONDOWN and event.button in (0, 6))
+            )
+            if dismiss_pressed:
                 self.objective_display.dismiss()
-            elif event.type == pg.JOYBUTTONDOWN and event.button == 0:
-                self.objective_display.dismiss()
+                if hasattr(self, "_current_interacting_npc") and self._current_interacting_npc is not None:
+                    if hasattr(self._current_interacting_npc, "trigger_death"):
+                        if getattr(self._current_interacting_npc, "play_death_on_interact", False):
+                            self._current_interacting_npc.trigger_death()
+                    self._current_interacting_npc = None
             return
 
-        # Check for interaction input (ENTER / gamepad btn 6).
-        # Note: btn 2 is already bound to thrust-attack in Player._process_action_input,
-        # so interact must use a different button or pressing it near an NPC would
-        # simultaneously open dialogue and swing the sword.
+        # Check for interaction input (ENTER / X / gamepad btn 6).
         interact_pressed = (
-            (event.type == pg.KEYDOWN and event.key == pg.K_RETURN) or
+            (event.type == pg.KEYDOWN and event.key in (pg.K_RETURN, pg.K_x)) or
             (event.type == pg.JOYBUTTONDOWN and event.button == 6)
         )
         if interact_pressed:
             for point in self.interaction_group:
                 if point.can_interact:
                     self.objective_display.show(point.text, point.title)
+                    self._current_interacting_npc = point
                     point.mark_interacted()
                     break
             else:
@@ -650,6 +659,7 @@ class GameState(State):
                 for npc in self.npc_group:
                     if npc.can_interact:
                         self.objective_display.show(npc.text, npc.title)
+                        self._current_interacting_npc = npc
                         npc.mark_interacted()
                         break
 
@@ -960,6 +970,8 @@ class GameState(State):
 
                 # ── Deactivate Boss Arena ─────────────────────────────────
                 self._arena_active = False
+                if self.player.sprite:
+                    self.player.sprite.right_bound_ratio = getattr(self.player.sprite, "_RUN_RIGHT_BOUND_RATIO", 0.65)
                 # ─────────────────────────────────────────────────────────
 
                 # Check for final boss defeat (tier == "boss")

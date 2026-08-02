@@ -809,6 +809,7 @@ class Player(Actor):
         # Load margins and scale first
         margins = HitboxRegistry.get_margins("player")
         self.scale = margins.scale
+        self.right_bound_ratio: float = self._RUN_RIGHT_BOUND_RATIO
         
         # Enhanced form state and animation tracking
         self._is_enhanced = False
@@ -1810,7 +1811,7 @@ class Player(Actor):
         screen_surf = pg.display.get_surface()
         screen_w = screen_surf.get_width() if screen_surf else 1280
         self.rect.left = max(self.rect.left, self._SCREEN_BOUND_LEFT)
-        self.rect.right = min(self.rect.right, int(screen_w * self._RUN_RIGHT_BOUND_RATIO))
+        self.rect.right = min(self.rect.right, int(screen_w * self.right_bound_ratio))
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Transition Helpers

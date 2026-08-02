@@ -36,6 +36,7 @@ from .hitbox_registry import HitboxRegistry
 
 class _GenericNPCState(Enum):
     IDLE = 0
+    DEATH = 1
 
 
 class GenericNPC(Actor):
@@ -50,6 +51,8 @@ class GenericNPC(Actor):
         proximity_radius:   Pixel distance to show the "Talk" prompt.
         frame_duration:     Seconds per animation frame.
         prompt_text:        Text shown on the proximity prompt.
+        play_death_on_interact: Whether to trigger death animation on dialogue completion.
+        death_sprite_dir:   Path to death animation frames folder.
     """
 
     # Prompt styling (same as WizardNPC for visual consistency)
@@ -73,6 +76,8 @@ class GenericNPC(Actor):
         proximity_radius: int = 160,
         frame_duration: float = 0.15,
         prompt_text: str = "Talk  [ X / ENTER ]",
+        play_death_on_interact: bool = False,
+        death_sprite_dir: Optional[str] = None,
     ) -> None:
         super().__init__(x, y)
 
@@ -81,6 +86,21 @@ class GenericNPC(Actor):
         self.proximity_radius = proximity_radius
         self._interacted: bool = False
         self._in_range: bool = False
+        self.play_death_on_interact: bool = play_death_on_interact
+        self.is_dying_or_dead: bool = False
+
+        # Auto-detect death_sprite_dir if not specified but play_death_on_interact is enabled
+        if self.play_death_on_interact and not death_sprite_dir:
+            sdir = sprite_dir.rstrip("/")
+            base = os.path.basename(sdir)
+            if base.lower() == "idle":
+                parent = os.path.dirname(sdir)
+                for candidate_name in ["Death", "death", "DEATH"]:
+                    candidate_path = os.path.join(parent, candidate_name)
+                    if os.path.isdir(candidate_path):
+                        death_sprite_dir = candidate_path
+                        break
+        self.death_sprite_dir = death_sprite_dir
 
         # Resolve registry key and margins early to determine scale
         folder_name = os.path.basename(sprite_dir.rstrip("/"))
@@ -111,6 +131,22 @@ class GenericNPC(Actor):
         self.state_configs[_GenericNPCState.IDLE] = type(
             "SC", (), {"animation_speed": frame_duration, "loops": True, "interruptible": False}
         )()
+
+        # ── Load death animation frames if enabled ───────────────────────────
+        if self.play_death_on_interact and self.death_sprite_dir and os.path.exists(self.death_sprite_dir):
+            raw_death_frames = AssetManager.get_animation_frames(self.death_sprite_dir)
+            if raw_death_frames:
+                scaled_death_frames: list[pg.Surface] = []
+                for frame in raw_death_frames:
+                    w = int(frame.get_width() * final_scale)
+                    h = int(frame.get_height() * final_scale)
+                    scaled_death_frames.append(pg.transform.scale(frame, (w, h)))
+
+                self.animations[_GenericNPCState.DEATH] = scaled_death_frames
+                self.state_configs[_GenericNPCState.DEATH] = type(
+                    "SC", (), {"animation_speed": frame_duration, "loops": False, "interruptible": False}
+                )()
+
         self.set_state(_GenericNPCState.IDLE)
         if self.state in self.animations:
             self.image = self.animations[self.state][0]
@@ -147,14 +183,21 @@ class GenericNPC(Actor):
 
     @property
     def can_interact(self) -> bool:
-        return self._in_range and not self._interacted
+        return self._in_range and not self._interacted and not self.is_dying_or_dead
 
     @property
     def has_been_used(self) -> bool:
-        return self._interacted
+        return self._interacted or self.is_dying_or_dead
 
     def mark_interacted(self) -> None:
         self._interacted = True
+
+    def trigger_death(self) -> None:
+        """Trigger death animation on interaction completion."""
+        self._interacted = True
+        self.is_dying_or_dead = True
+        if _GenericNPCState.DEATH in self.animations:
+            self.set_state(_GenericNPCState.DEATH, force=True)
 
     def reset(self) -> None:
         self._interacted = False

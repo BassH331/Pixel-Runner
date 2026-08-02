@@ -3,7 +3,6 @@
     "level_end_distance": 8000,
     "spawn_rate_min": 5000,
     "spawn_rate_max": 15000,
-
     "soul_harvest": {
         "starting_souls": 9000,
         "target_souls": 10000,
@@ -16,7 +15,6 @@
             "final_boss_remaining": true
         }
     },
-
     "spawn_zones": [
         {
             "min_dist": 520,
@@ -83,12 +81,10 @@
             }
         }
     ],
-
     "bat_spawn": {
         "min_count": 3,
         "max_count": 5
     },
-
     "entities": [
         {
             "type": "player",
@@ -96,7 +92,6 @@
             "y": 600
         }
     ],
-
     "checkpoints": [
         {
             "id": 1,
@@ -104,7 +99,6 @@
             "y": 200
         }
     ],
-
     "world_events": [
         {
             "id": 10,
@@ -115,8 +109,10 @@
                 "title": "Act I: The Entry",
                 "text": "The end of the long nightmare is in sight. 1,000 more monster souls, and the contract is fulfilled. Reclaim your freedom!!",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/masked_man",
-                "scale": 2.0
+                "sprite_dir": "assets/graphics/Necromancer/Idle",
+                "death_sprite_dir": "assets/graphics/Necromancer/Death",
+                "play_death_on_interact": true,
+                "scale": 3.38
             }
         },
         {

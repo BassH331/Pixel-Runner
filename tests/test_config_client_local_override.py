@@ -3,6 +3,8 @@ import pytest
 from src.game.services.config_client import ConfigClient
 
 def test_config_client_local_override(monkeypatch):
+    ConfigClient._session_cache.clear()
+    ConfigClient._api_attempted.clear()
     # Mock API fetch to return a cloud configuration
     def mock_fetch_from_api(config_type):
         if config_type == "player":

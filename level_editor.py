@@ -392,11 +392,13 @@ def _scale_from_registry(etype: str, npc_type: str = "", sprite_dir: str = "", f
         print(f"[WARN] Could not read registry scale for {key!r}: {e}")
         return fallback
 
+from v3x_zulfiqar_gideon import AssetManager
+
 def _load_preview(path: str, scale: float = 2.0) -> list[pg.Surface]:
     frames: list[pg.Surface] = []
     if not os.path.exists(path): return frames
-    for fn in sorted(f for f in os.listdir(path) if f.lower().endswith(".png")):
-        img = pg.image.load(os.path.join(path, fn)).convert_alpha()
+    raw_frames = AssetManager.get_animation_frames(path)
+    for img in raw_frames:
         w, h = img.get_size()
         frames.append(pg.transform.scale(img, (int(w*scale), int(h*scale))))
     return frames

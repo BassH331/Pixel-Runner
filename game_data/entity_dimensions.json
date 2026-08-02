@@ -85,7 +85,7 @@
         "top": 208,
         "bottom": 154,
         "ground_offset": 34,
-        "scale": 3.17
+        "scale": 2.0
     },
     "generic_npc_masked_man": {
         "left": 0,
@@ -110,5 +110,61 @@
         "bottom": 36,
         "ground_offset": 35,
         "scale": 2.63
+    },
+    "generic_npc_fairy": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_shadow_warrior": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_wizard_npc": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_evil_jack": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_agis": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 1.09
+    },
+    "generic_npc_redmoontower": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_necromancer": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 3.38
     }
 }

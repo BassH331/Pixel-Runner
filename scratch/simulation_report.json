@@ -1,17 +1,71 @@
 {
     "status": "PASSED",
-    "timestamp": 16022,
-    "duration_ms": 6500.000000000029,
+    "timestamp": 9630,
+    "duration_ms": 6000.00000000002,
     "start_distance": 0.0,
-    "final_distance": 1840.0,
+    "final_distance": 1690.0,
     "scroll_speed": 5,
     "npcs": [
         {
-            "id": 4,
+            "id": 10,
             "type": "npc",
-            "title": "New NPC",
-            "registry_key": "generic_npc_totem",
-            "json_distance": 500.0,
+            "title": "Act I: The Entry",
+            "registry_key": "generic_npc_necromancer",
+            "json_distance": 194.0,
+            "json_scale": 3.38,
+            "json_radius": 160.0,
+            "registry_scale": 3.38,
+            "registry_ground_offset": 34,
+            "spawned": true,
+            "status": "PASSED",
+            "issues": [],
+            "actual_spawn_distance": 195.0,
+            "actual_scale": 3.38,
+            "actual_radius": 160.0,
+            "actual_width": 324,
+            "actual_height": 324,
+            "initial_screen_x": 1647,
+            "initial_screen_y": 573,
+            "first_physical_collision": {
+                "world_distance": 930.0,
+                "trigger_distance": 194.0,
+                "delta": 736.0
+            },
+            "first_proximity_collision": {
+                "world_distance": 965.0,
+                "trigger_distance": 194.0,
+                "delta": 771.0
+            },
+            "total_frames_tracked": 300,
+            "total_x_scrolled": 1495,
+            "avg_scroll_per_frame": 4.983333333333333,
+            "expected_screen_x": 152.0,
+            "actual_screen_x": 152,
+            "screen_x_error": 0.0,
+            "position_samples": [
+                {
+                    "frame": 0,
+                    "x": 1647,
+                    "y": 573
+                },
+                {
+                    "frame": 150,
+                    "x": 897,
+                    "y": 573
+                },
+                {
+                    "frame": 299,
+                    "x": 152,
+                    "y": 573
+                }
+            ]
+        },
+        {
+            "id": 11,
+            "type": "npc",
+            "title": "A Dying Villager",
+            "registry_key": "generic_npc_fairy",
+            "json_distance": 800.0,
             "json_scale": 2.0,
             "json_radius": 160.0,
             "registry_scale": 2.0,
@@ -19,46 +73,74 @@
             "spawned": true,
             "status": "PASSED",
             "issues": [],
-            "actual_spawn_distance": 500.0,
+            "actual_spawn_distance": 800.0,
             "actual_scale": 2.0,
             "actual_radius": 160.0,
-            "actual_width": 156,
-            "actual_height": 384,
+            "actual_width": 512,
+            "actual_height": 64,
             "initial_screen_x": 1648,
-            "initial_screen_y": 405,
+            "initial_screen_y": 725,
             "first_physical_collision": {
-                "world_distance": 1115.0,
-                "trigger_distance": 500.0,
+                "world_distance": 1415.0,
+                "trigger_distance": 800.0,
                 "delta": 615.0
             },
             "first_proximity_collision": {
-                "world_distance": 1165.0,
-                "trigger_distance": 500.0,
-                "delta": 665.0
+                "world_distance": 1575.0,
+                "trigger_distance": 800.0,
+                "delta": 775.0
             },
-            "total_frames_tracked": 269,
-            "total_x_scrolled": 1340,
-            "avg_scroll_per_frame": 4.981412639405204,
-            "expected_screen_x": 308.0,
-            "actual_screen_x": 308,
+            "total_frames_tracked": 179,
+            "total_x_scrolled": 890,
+            "avg_scroll_per_frame": 4.972067039106145,
+            "expected_screen_x": 758.0,
+            "actual_screen_x": 758,
             "screen_x_error": 0.0,
             "position_samples": [
                 {
                     "frame": 0,
                     "x": 1648,
-                    "y": 405
+                    "y": 725
                 },
                 {
-                    "frame": 134,
-                    "x": 978,
-                    "y": 405
+                    "frame": 89,
+                    "x": 1203,
+                    "y": 725
                 },
                 {
-                    "frame": 268,
-                    "x": 308,
-                    "y": 405
+                    "frame": 178,
+                    "x": 758,
+                    "y": 725
                 }
             ]
+        },
+        {
+            "id": 12,
+            "type": "npc",
+            "title": "The Scythe Whispers",
+            "registry_key": "generic_npc_shadow_warrior",
+            "json_distance": 1800.0,
+            "json_scale": 2.0,
+            "json_radius": 160.0,
+            "registry_scale": 2.0,
+            "registry_ground_offset": 34,
+            "spawned": false,
+            "status": "SKIPPED (not reached)",
+            "issues": []
+        },
+        {
+            "id": 13,
+            "type": "npc",
+            "title": "WARNING: Gatekeeper Territory",
+            "registry_key": "generic_npc_goblin",
+            "json_distance": 2800.0,
+            "json_scale": 2.0,
+            "json_radius": 160.0,
+            "registry_scale": 2.0,
+            "registry_ground_offset": 34,
+            "spawned": false,
+            "status": "SKIPPED (not reached)",
+            "issues": []
         },
         {
             "id": 1,
@@ -75,6 +157,20 @@
             "issues": []
         },
         {
+            "id": 14,
+            "type": "npc",
+            "title": "The Fabricator Watches",
+            "registry_key": "generic_npc_wizard_npc",
+            "json_distance": 4500.0,
+            "json_scale": 2.0,
+            "json_radius": 160.0,
+            "registry_scale": 2.0,
+            "registry_ground_offset": 34,
+            "spawned": false,
+            "status": "SKIPPED (not reached)",
+            "issues": []
+        },
+        {
             "id": 2,
             "type": "boss",
             "title": "The Blight Incarnate",
@@ -84,6 +180,20 @@
             "json_radius": 160.0,
             "registry_scale": 2.0,
             "registry_ground_offset": 35,
+            "spawned": false,
+            "status": "SKIPPED (not reached)",
+            "issues": []
+        },
+        {
+            "id": 15,
+            "type": "npc",
+            "title": "The Scythe Speaks",
+            "registry_key": "generic_npc_evil_jack",
+            "json_distance": 6500.0,
+            "json_scale": 2.0,
+            "json_radius": 160.0,
+            "registry_scale": 2.0,
+            "registry_ground_offset": 34,
             "spawned": false,
             "status": "SKIPPED (not reached)",
             "issues": []
