@@ -93,12 +93,19 @@ class VisualEffectManager:
         - If entity is Player, Blood Zombie, Green Monster, Goblin or has `has_blood == True`, spawns blood burst.
         """
         if vfx_type is None and entity is not None:
-            has_blood = getattr(entity, "has_blood", None)
-            is_skeleton = getattr(entity, "is_skeleton", False)
-            if has_blood is False or is_skeleton:
-                vfx_type = "magic_shot"
-            else:
-                vfx_type = "blood"
+            try:
+                from src.game.plugins.vfx_plugin import VFXPlugin
+                rule = VFXPlugin.get_rule(entity)
+                vfx_type = rule["vfx_type"]
+                if scale == 1.0:
+                    scale = float(rule.get("vfx_scale", 2.5))
+            except Exception:
+                has_blood = getattr(entity, "has_blood", None)
+                is_skeleton = getattr(entity, "is_skeleton", False)
+                if has_blood is False or is_skeleton:
+                    vfx_type = "magic_shot"
+                else:
+                    vfx_type = "blood"
 
         if not vfx_type:
             vfx_type = "blood"
