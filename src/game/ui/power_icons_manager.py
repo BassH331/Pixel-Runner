@@ -73,6 +73,9 @@ class PowerIconsManager:
             self.label_font = pg.font.Font(None, 12)
             self.timer_font = pg.font.Font(None, 16)
 
+        self._badge_cache: dict = {}
+        self._cd_surface_cache: dict = {}
+
     def load_config(self):
         """Load power icons layout configuration from JSON file."""
         if os.path.exists(self.config_path):
@@ -385,9 +388,12 @@ class PowerIconsManager:
                 cd_ratio = cooldowns.get(pkey, 0.0)
                 if cd_ratio > 0.0:
                     cd_ratio = min(1.0, max(0.0, cd_ratio))
-                    cd_surf = pg.Surface((rect.width, rect.height), pg.SRCALPHA)
-                    cd_surf.fill((0, 0, 0, 160))
-                    # Crop height proportional to cooldown remaining
+                    size_key = (rect.width, rect.height)
+                    if size_key not in self._cd_surface_cache:
+                        cd_s = pg.Surface(size_key, pg.SRCALPHA).convert_alpha()
+                        cd_s.fill((0, 0, 0, 160))
+                        self._cd_surface_cache[size_key] = cd_s
+                    cd_surf = self._cd_surface_cache[size_key]
                     cd_height = int(rect.height * cd_ratio)
                     surface.blit(cd_surf, rect.topleft, area=pg.Rect(0, 0, rect.width, cd_height))
 
@@ -396,7 +402,9 @@ class PowerIconsManager:
                 keybind = self.get_keybind_badge_label(pkey, raw_keybind)
                 if show_badges and keybind:
                     badge_bg = tuple(pdata.get("badge_bg", [0, 140, 200]))
-                    badge_txt = self.badge_font.render(keybind, True, (255, 255, 255))
+                    if keybind not in self._badge_cache:
+                        self._badge_cache[keybind] = self.badge_font.render(keybind, True, (255, 255, 255))
+                    badge_txt = self._badge_cache[keybind]
                     bw = badge_txt.get_width() + 8
                     bh = 16
                     bx = rect.centerx - bw // 2

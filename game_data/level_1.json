@@ -115,7 +115,7 @@
                 "title": "Act I: The Entry",
                 "text": "The end of the long nightmare is in sight. 1,000 more monster souls, and the contract is fulfilled. Reclaim your freedom!!",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/totem",
+                "sprite_dir": "assets/graphics/masked_man",
                 "scale": 2.0
             }
         },
@@ -128,7 +128,7 @@
                 "title": "A Dying Villager",
                 "text": "The creatures... they came from the rift. The Shepherd said he would protect us... he lied. Run, stranger. This forest devours all who linger.",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/totem",
+                "sprite_dir": "assets/graphics/Fairy",
                 "scale": 2.0
             }
         },
@@ -141,7 +141,7 @@
                 "title": "The Scythe Whispers",
                 "text": "You feel the Umbral Scythe pulling at your soul with every swing. The dark steel hums with satisfaction. Something is wrong... but the contract must be fulfilled.",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/totem",
+                "sprite_dir": "assets/shadow_warrior/idle",
                 "scale": 2.0
             }
         },
@@ -154,7 +154,7 @@
                 "title": "WARNING: Gatekeeper Territory",
                 "text": "The trees twist and blacken ahead. A demonic presence drives the monsters into a frenzy here. The Gatekeeper is near. Prepare yourself, Kaelen.",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/totem",
+                "sprite_dir": "assets/graphics/Goblin/Idle",
                 "scale": 2.0
             }
         },
@@ -189,7 +189,7 @@
                 "title": "The Fabricator Watches",
                 "text": "You feel eyes upon you from beyond the veil. 'Closer, closer,' a silken voice hisses. 'Every soul you reap binds you tighter to my design.' The contract burns in your chest.",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/totem",
+                "sprite_dir": "assets/graphics/Wizard_NPC",
                 "scale": 2.0
             }
         },
@@ -222,7 +222,7 @@
                 "title": "The Scythe Speaks",
                 "text": "The blade thrums with dark energy. 'One more. Just one more, and you will be free...' But something in its tone feels wrong. Like a predator soothing its prey before the final strike.",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/totem",
+                "sprite_dir": "assets/graphics/Evil_jack/idle",
                 "scale": 2.0
             }
         },

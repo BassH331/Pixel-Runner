@@ -915,7 +915,7 @@ class GameState(State):
         if isinstance(enemy, FireWizard):
             enemy_type = "boss"
         elif hasattr(enemy, "name"):
-            enemy_type = str(enemy.name).lower()
+            enemy_type = str(getattr(enemy, "name", "enemy")).lower()
 
         enemy_id = getattr(enemy, "id", f"enemy_{id(enemy)}")
         # Unified is_dead check — covers Skeleton, FireWizard, GreenMonster, BloodZombie
@@ -1078,7 +1078,7 @@ class GameState(State):
         if isinstance(skeleton, FireWizard):
             enemy_type = "boss"
         elif hasattr(skeleton, "name"):
-            enemy_type = str(skeleton.name).lower()
+            enemy_type = str(getattr(skeleton, "name", "skeleton")).lower()
 
         CombatCollisionLogger.get_instance(self.audio_manager).log_collision(
             attacker=enemy_type,

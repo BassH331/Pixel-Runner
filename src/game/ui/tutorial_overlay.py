@@ -297,6 +297,10 @@ class TutorialOverlay:
         # ── Oracle tower animation frames ───────────────────────────────────
         self._oracle_frames = self._load_scaled_frames(oracle_dir, oracle_scale)
 
+        # ── Surface Caches ──────────────────────────────────────────────────
+        self._prompt_surf_cache: dict = {}
+        self._counter_surf_cache: dict = {}
+
         # ── Pre-load key images per step ────────────────────────────────────
         self._step_key_imgs: list[list[pg.Surface]] = []
         for step in self._steps:
@@ -432,15 +436,20 @@ class TutorialOverlay:
 
         for img in key_imgs:
             pw, ph = int(img.get_width() * pulse), int(img.get_height() * pulse)
-            pulsed = pg.transform.scale(img, (pw, ph))
+            if pw == img.get_width() and ph == img.get_height():
+                pulsed = img
+            else:
+                pulsed = pg.transform.scale(img, (pw, ph))
             surface.blit(pulsed, pulsed.get_rect(midtop=(kx + img.get_width() // 2, ky)))
             kx += img.get_width() + self._key_spacing
 
         # ── 8. "Press KEY to continue" prompt ──────────────────────────────
         alpha = 160 + int(95 * abs(((pg.time.get_ticks() // 8) % 200 - 100) / 100))
-        prompt_surf = self._prompt_font.render(
-            f"Press {' / '.join(step.key_names)} to continue", True, self._prompt_color
-        )
+        prompt_key = (self._step_idx, tuple(step.key_names))
+        if prompt_key not in self._prompt_surf_cache:
+            prompt_str = f"Press {' / '.join(step.key_names)} to continue"
+            self._prompt_surf_cache[prompt_key] = self._prompt_font.render(prompt_str, True, self._prompt_color)
+        prompt_surf = self._prompt_surf_cache[prompt_key].copy()
         prompt_surf.set_alpha(alpha)
         surface.blit(prompt_surf, prompt_surf.get_rect(
             centerx=p["prompt_centerx"],
@@ -448,9 +457,10 @@ class TutorialOverlay:
         ))
 
         # ── 9. Step counter (bottom-right) ─────────────────────────────────
-        counter_surf = self._prompt_font.render(
-            f"{self._step_idx + 1} / {len(self._steps)}", True, self._counter_color
-        )
+        if self._step_idx not in self._counter_surf_cache:
+            counter_str = f"{self._step_idx + 1} / {len(self._steps)}"
+            self._counter_surf_cache[self._step_idx] = self._prompt_font.render(counter_str, True, self._counter_color)
+        counter_surf = self._counter_surf_cache[self._step_idx]
         surface.blit(counter_surf, counter_surf.get_rect(
             right=p["counter_right"],
             bottom=p["counter_bottom"],

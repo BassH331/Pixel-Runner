@@ -29,32 +29,7 @@ class HitboxRegistry:
     _cached_config: dict[str, HitboxMargins] = {}
     _rollback_checkpoint: dict[str, HitboxMargins] = {}
 
-    @classmethod
-    def _load_config(cls) -> None:
-        """Loads dimensions from ConfigClient, falling back to local JSON or defaults."""
-        data = None
-        try:
-            from ..services import ConfigClient
-            data = ConfigClient.fetch_config("entity_dimensions")
-        except Exception as e:
-            print(f"[CACHE NOTE] Could not fetch hitbox config from client services: {e}")
 
-        if not data:
-            if not os.path.exists(CONFIG_PATH):
-                cls._cached_config = dict(cls.DEFAULTS)
-                cls.save_all()
-                cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
-                return
-
-            try:
-                with open(CONFIG_PATH, "r") as f:
-                    fcntl.flock(f, fcntl.LOCK_EX)
-                    data = json.load(f)
-            except Exception as e:
-                print(f"Error loading local {CONFIG_PATH}: {e}. Falling back to default margins.")
-                cls._cached_config = dict(cls.DEFAULTS)
-                cls._rollback_checkpoint = copy.deepcopy(cls._cached_config)
-                return
 
     @classmethod
     def _normalize_key(cls, key: str) -> str:
