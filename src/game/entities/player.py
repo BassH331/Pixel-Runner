@@ -810,6 +810,7 @@ class Player(Actor):
         margins = HitboxRegistry.get_margins("player")
         self.scale = margins.scale
         self.right_bound_ratio: float = self._RUN_RIGHT_BOUND_RATIO
+        self.has_blood: bool = True
         
         # Enhanced form state and animation tracking
         self._is_enhanced = False

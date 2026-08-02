@@ -88,6 +88,75 @@ class ToxicGlob(pg.sprite.Sprite):
         surface.blit(self.image, self.rect)
 
 
+class MagicShotProjectile(pg.sprite.Sprite):
+    """An animated magic projectile fired during Gatekeeper's Enraged phase."""
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        direction: int,
+        scale: float,
+        damage: float,
+        knockback: float,
+        player: Player,
+    ) -> None:
+        super().__init__()
+        self._player = player
+        self.direction = direction
+        self.speed = 8.5
+        self.damage = damage
+        self.knockback = knockback
+
+        raw_frames = AssetManager.get_animation_frames("assets/graphics/Magic shots/1")
+        if not raw_frames:
+            surf = pg.Surface((28, 28), pg.SRCALPHA)
+            pg.draw.circle(surf, (200, 50, 255), (14, 14), 12)
+            raw_frames = [surf]
+
+        self.frames: list[pg.Surface] = []
+        for frame in raw_frames:
+            w = int(frame.get_width() * scale * 1.5)
+            h = int(frame.get_height() * scale * 1.5)
+            self.frames.append(pg.transform.scale(frame, (w, h)))
+
+        self.frame_index: float = 0.0
+        self.image = self.frames[0]
+        self.rect = self.image.get_rect(center=(x, y))
+        self.is_projectile = True
+        self.is_boss = False
+
+    def update(self, dt: Optional[float] = None, scroll_speed: int = 0) -> None:
+        delta = dt if dt is not None else 0.016
+        self.rect.x -= scroll_speed
+        self.rect.x += int(self.direction * self.speed)
+
+        self.frame_index = (self.frame_index + delta * 25) % len(self.frames)
+        self.image = self.frames[int(self.frame_index)]
+
+        if self.rect.right < -200 or self.rect.left > 2200:
+            self.kill()
+            return
+
+        if self.rect.colliderect(self._player.rect):
+            if not self._player.is_invincible:
+                damage_applied = self._player.take_damage(self.damage)
+                if damage_applied and self.knockback > 0:
+                    apply_kb = getattr(self._player, "apply_knockback", None)
+                    if apply_kb:
+                        kb_dir = -1 if self.rect.centerx > self._player.rect.centerx else 1
+                        apply_kb(self.knockback * kb_dir)
+                try:
+                    from src.game.effects.vfx_manager import VisualEffectManager
+                    VisualEffectManager.spawn_hit_vfx(self.rect.centerx, self.rect.centery, entity=self._player)
+                except Exception:
+                    pass
+            self.kill()
+
+    def draw(self, surface: pg.Surface) -> None:
+        surface.blit(self.image, self.rect)
+
+
 class GatekeeperState(Enum):
     """Enumeration of all possible Gatekeeper behavioral states."""
 
@@ -149,6 +218,8 @@ class GreenMonster(EntityAudioMixin, Actor):
         self._player: Player = player
         self.state_configs = self.STATE_CONFIGS
         self.tier = tier
+        self.has_blood: bool = True
+        self.is_enraged: bool = False
         self._base_path: str = (sprite_root or "assets/graphics/green_monster").rstrip("/")
 
         # AI tuning -- overridden below by enemy_green_monster config if available
@@ -227,7 +298,8 @@ class GreenMonster(EntityAudioMixin, Actor):
             config = ConfigClient.fetch_config("enemy_green_monster")
             if config:
                 self.apply_config(config)
-                self._max_health = float(config.get("max_health", self._max_health))
+                if custom_health is None:
+                    self._max_health = float(config.get("max_health", self._max_health))
                 self._speed = float(config.get("speed", self._speed))
                 damage_scale = float(config.get("damage_scale", damage_scale))
                 knockback_scale = float(config.get("knockback_scale", knockback_scale))
@@ -464,6 +536,19 @@ class GreenMonster(EntityAudioMixin, Actor):
         for group in self.groups():
             group.add(glob)  # type: ignore
 
+        if self.is_enraged:
+            magic_shot = MagicShotProjectile(
+                x=spawn_x,
+                y=spawn_y - 12,
+                direction=direction,
+                scale=self.scale,
+                damage=damage * 1.3,
+                knockback=knockback,
+                player=self._player,
+            )
+            for group in self.groups():
+                group.add(magic_shot)  # type: ignore
+
     def _trigger_teleport_recharge(self) -> None:
         """Instantly teleport away from the player to recharge mana."""
         if self._player is None:
@@ -530,6 +615,13 @@ class GreenMonster(EntityAudioMixin, Actor):
 
         self._health = max(0, self._health - amount)
         self.attack_state.end()
+
+        # Check for Phase 2 Enrage transition (< 50% HP)
+        if self._health <= self._max_health * 0.5 and not self.is_enraged and self._health > 0:
+            self.is_enraged = True
+            self._speed *= 1.4
+            self._attack_cooldown_min = 0.5
+            self._attack_cooldown_max = 1.0
 
         # If stagnant, taking damage triggers hurt animation, then teleport retreat to recharge
         if self._is_stagnant and self._health > 0:

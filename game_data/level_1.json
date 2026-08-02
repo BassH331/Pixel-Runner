@@ -1,10 +1,10 @@
 {
     "level_name": "Level 1 - The Dark Forest",
-    "level_end_distance": 8000,
+    "level_end_distance": 36000,
     "spawn_rate_min": 5000,
     "spawn_rate_max": 15000,
     "soul_harvest": {
-        "starting_souls": 9000,
+        "starting_souls": 8500,
         "target_souls": 10000,
         "soul_values": {
             "skeleton_minion": 5,
@@ -17,10 +17,10 @@
     },
     "spawn_zones": [
         {
-            "min_dist": 520,
-            "max_dist": 1500,
+            "min_dist": 500,
+            "max_dist": 11500,
             "max_skeletons": 3,
-            "delay": 5000,
+            "delay": 4500,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {
@@ -33,9 +33,9 @@
             }
         },
         {
-            "min_dist": 1500,
-            "max_dist": 3200,
-            "max_skeletons": 5,
+            "min_dist": 13000,
+            "max_dist": 23000,
+            "max_skeletons": 4,
             "delay": 3500,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
@@ -49,26 +49,10 @@
             }
         },
         {
-            "min_dist": 3800,
-            "max_dist": 5200,
-            "max_skeletons": 6,
-            "delay": 2800,
-            "tier": "minion",
-            "sprite_root": "assets/skeleton",
-            "behaviour_map": {
-                "Skeleton_01_White_Attack1": "attack",
-                "Skeleton_01_White_Attack2": "attack",
-                "Skeleton_01_White_Die": "death",
-                "Skeleton_01_White_Hurt": "hurt",
-                "Skeleton_01_White_Idle": "idle",
-                "Skeleton_01_White_Walk": "walk"
-            }
-        },
-        {
-            "min_dist": 5800,
-            "max_dist": 7500,
-            "max_skeletons": 8,
-            "delay": 2000,
+            "min_dist": 25000,
+            "max_dist": 33000,
+            "max_skeletons": 5,
+            "delay": 3000,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {
@@ -102,12 +86,12 @@
     "world_events": [
         {
             "id": 10,
-            "distance": 194,
+            "distance": 500,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
                 "title": "Act I: The Entry",
-                "text": "The end of the long nightmare is in sight. 1,000 more monster souls, and the contract is fulfilled. Reclaim your freedom!!",
+                "text": "The end of the long nightmare is in sight. 1,500 more monster souls, and the contract is fulfilled. Reclaim your freedom!!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Necromancer/Idle",
                 "death_sprite_dir": "assets/graphics/Necromancer/Death",
@@ -117,7 +101,7 @@
         },
         {
             "id": 11,
-            "distance": 800,
+            "distance": 3500,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
@@ -130,7 +114,7 @@
         },
         {
             "id": 12,
-            "distance": 1800,
+            "distance": 7000,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
@@ -143,7 +127,7 @@
         },
         {
             "id": 13,
-            "distance": 2800,
+            "distance": 10500,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
@@ -156,14 +140,14 @@
         },
         {
             "id": 1,
-            "distance": 3400,
+            "distance": 12500,
             "type": "boss",
             "params": {
                 "title": "The Gatekeeper",
                 "scale": 2.63,
-                "health": 100.0,
+                "health": 300.0,
                 "tier": "elite",
-                "soul_value": 150,
+                "soul_value": 300,
                 "sprite_dir": "assets/graphics/green_monster",
                 "behaviour_map": {
                     "1atk": "attack",
@@ -178,7 +162,7 @@
         },
         {
             "id": 14,
-            "distance": 4500,
+            "distance": 18000,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
@@ -191,7 +175,7 @@
         },
         {
             "id": 2,
-            "distance": 5400,
+            "distance": 24000,
             "type": "boss",
             "params": {
                 "title": "The Blight Incarnate",
@@ -211,7 +195,7 @@
         },
         {
             "id": 15,
-            "distance": 6500,
+            "distance": 30000,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
@@ -224,7 +208,7 @@
         },
         {
             "id": 3,
-            "distance": 7663,
+            "distance": 34500,
             "type": "boss",
             "params": {
                 "title": "The Fabricator's Enforcer",

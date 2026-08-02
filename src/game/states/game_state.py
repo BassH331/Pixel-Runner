@@ -26,6 +26,7 @@ from src.game.entities.fire_wizard import FireWizard, FireWizardState
 from src.game.entities.green_monster import GreenMonster
 from src.game.entities.boss_manager import BossManager
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
+from src.game.effects.vfx_manager import VisualEffectManager
 from v3x_zulfiqar_gideon import AssetManager, State
 
 if TYPE_CHECKING:
@@ -908,6 +909,9 @@ class GameState(State):
         # Now we can compare before vs after.
         target_health_after = getattr(enemy, "_health", getattr(enemy, "health", 0.0))
         
+        # Spawn modular hit VFX (blood burst for fleshy entities, magic/sparks for skeletons)
+        VisualEffectManager.spawn_hit_vfx(enemy.rect.centerx, enemy.rect.centery, entity=enemy)
+        
         if self.tracker.enabled:
             self.tracker.log_event("damage_dealt", {
                 "attacker": "player",
@@ -1068,6 +1072,8 @@ class GameState(State):
         damage = skeleton.get_current_attack_damage()
         player_health_before = player.health
         damage_applied = player.take_damage(damage)
+        if damage_applied:
+            VisualEffectManager.spawn_hit_vfx(player.rect.centerx, player.rect.centery, entity=player)
         
         if damage_applied and self.tracker.enabled:
             self.tracker.log_event("damage_received", {
@@ -1554,6 +1560,7 @@ class GameState(State):
         self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
+        VisualEffectManager.update(dt, self.bg_scroll_speed)
         for npc in self.npc_group:
             if hasattr(npc, "world_x"):
                 npc.rect.x = int(getattr(npc, "world_x") - self.world_distance)
@@ -1909,6 +1916,9 @@ class GameState(State):
         # Enemies
         for enemy in self.obstacle_group:
             enemy.draw(surface)
+            
+        # Hit Visual Effects (Blood Bursts, Sparks, Magic Shots)
+        VisualEffectManager.draw(surface)
         
         # Debug visualization
         if self.debug_mode:
