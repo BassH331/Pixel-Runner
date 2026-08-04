@@ -17,7 +17,7 @@
     },
     "spawn_zones": [
         {
-            "min_dist": 500,
+            "min_dist": 800,
             "max_dist": 11500,
             "max_skeletons": 3,
             "delay": 4500,
@@ -86,16 +86,19 @@
     "world_events": [
         {
             "id": 10,
-            "distance": 500,
+            "distance": 650,
             "type": "npc",
             "params": {
                 "npc_type": "generic",
                 "title": "Act I: The Entry",
                 "text": "The end of the long nightmare is in sight. 1,500 more monster souls, and the contract is fulfilled. Reclaim your freedom!!",
-                "radius": 160,
+                "radius": 180,
                 "sprite_dir": "assets/graphics/Necromancer/Idle",
+                "walk_sprite_dir": "assets/graphics/Necromancer/Walk",
+                "spawn_sprite_dir": "assets/graphics/Necromancer/Spawn",
                 "death_sprite_dir": "assets/graphics/Necromancer/Death",
                 "play_death_on_interact": true,
+                "is_intro_npc": true,
                 "scale": 3.38
             }
         },

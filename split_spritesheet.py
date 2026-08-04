@@ -124,7 +124,7 @@ def main():
     parser.add_argument("--cols", "-c", type=int, default=None, help="Number of columns.")
     parser.add_argument("--rows", "-r", type=int, default=None, help="Number of rows.")
     parser.add_argument("--frame-width", "-w", type=int, default=None, help="Frame width in pixels.")
-    parser.add_argument("--frame-height", "-h", type=int, default=None, help="Frame height in pixels.")
+    parser.add_argument("--frame-height", "-fh", type=int, default=None, help="Frame height in pixels.")
     parser.add_argument("--prefix", "-p", default="frame", help="Prefix for output frames.")
     parser.add_argument("--pad", type=int, default=3, help="Digit padding width (default: 3).")
     parser.add_argument("--start", type=int, default=0, help="Starting index (default: 0).")

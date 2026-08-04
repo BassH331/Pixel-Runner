@@ -84,8 +84,6 @@ class Skeleton(EntityAudioMixin, Actor):
         self._player: Player = player
         self.state_configs = self.STATE_CONFIGS
         self.tier = tier
-        self.has_blood: bool = False
-        self.is_skeleton: bool = True
         
         # Load margins and scale first
         if self.tier == "boss":

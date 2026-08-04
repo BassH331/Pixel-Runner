@@ -218,7 +218,6 @@ class GreenMonster(EntityAudioMixin, Actor):
         self._player: Player = player
         self.state_configs = self.STATE_CONFIGS
         self.tier = tier
-        self.has_blood: bool = True
         self.is_enraged: bool = False
         self._base_path: str = (sprite_root or "assets/graphics/green_monster").rstrip("/")
 

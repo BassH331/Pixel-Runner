@@ -36,25 +36,14 @@ from src.game.entities.skeleton import Skeleton
 from src.game.entities.player import Player
 from src.game.entities.green_monster import GreenMonster, GatekeeperState, MagicShotProjectile
 
-def test_vfx_entity_blood_rules():
+def test_vfx_manager_spawn_impact():
     VisualEffectManager.clear()
     
     player = MagicMock()
-    player.has_blood = True
-    
-    skeleton = MagicMock()
-    skeleton.has_blood = False
-    skeleton.is_skeleton = True
-    
-    # Player hit -> blood VFX
     vfx_player = VisualEffectManager.spawn_hit_vfx(100, 100, entity=player)
     assert vfx_player is not None
     
-    # Skeleton hit -> spark/magic VFX (no blood for bones!)
-    vfx_skel = VisualEffectManager.spawn_hit_vfx(200, 200, entity=skeleton)
-    assert vfx_skel is not None
-    
-    assert len(VisualEffectManager._active_effects) == 2
+    assert len(VisualEffectManager._active_effects) == 1
 
 def test_gatekeeper_enraged_phase():
     with patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_texture") as mock_tex, \
@@ -68,7 +57,6 @@ def test_gatekeeper_enraged_phase():
         
         boss = GreenMonster(x=400, y=100, player=player, custom_health=300.0)
         assert boss._max_health == 300.0
-        assert boss.has_blood is True
         assert boss.is_enraged is False
         
         # Take 100 damage -> health 200 (> 50%) -> not enraged yet

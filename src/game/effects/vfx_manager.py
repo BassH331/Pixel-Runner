@@ -1,13 +1,12 @@
 """
-Modular Hit Visual Effect Manager (Hit FX, Blood Bursts, Magic Shot Effects).
+Modular Impact & Hit Visual Effect Manager.
 
-Manages cached animation frame sets and active temporary visual effect overlays.
-Rules:
-- Skeletons (has_blood=False) trigger spark / magic energy impact bursts.
-- Fleshy entities (Player, Blood Zombie, Green Monster, Goblin with has_blood=True) trigger blood bursts.
+Manages cached animation frame sets and active temporary visual effect overlays for
+magic shots, energy impacts, and spark effects.
 """
 
 import os
+import re
 from typing import Optional, List, Dict, Tuple, Any
 import pygame as pg
 
@@ -17,16 +16,28 @@ from v3x_zulfiqar_gideon import AssetManager
 class VisualEffect(pg.sprite.Sprite):
     """An animated visual effect sprite that plays once and self-destructs."""
 
-    def __init__(self, x: int, y: int, frames: List[pg.Surface], fps: float = 30.0):
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        frames: List[pg.Surface],
+        fps: float = 30.0,
+        target_entity: Optional[Any] = None,
+    ):
         super().__init__()
         self.frames = frames
         self.frame_duration = 1.0 / fps
         self.current_frame = 0.0
         self.image = self.frames[0]
         self.rect = self.image.get_rect(center=(x, y))
+        self.target_entity = target_entity
 
     def update(self, dt: float = 0.016, scroll_speed: int = 0) -> None:
-        self.rect.x -= scroll_speed
+        if self.target_entity is not None and hasattr(self.target_entity, "rect"):
+            self.rect.center = self.target_entity.rect.center
+        else:
+            self.rect.x -= scroll_speed
+
         self.current_frame += dt / self.frame_duration
         idx = int(self.current_frame)
         if idx >= len(self.frames):
@@ -45,8 +56,6 @@ class VisualEffectManager:
     _active_effects: pg.sprite.Group = pg.sprite.Group()
 
     VFX_PATHS = {
-        "blood": "assets/graphics/MiniBlood/Polished/1",
-        "blood_large": "assets/graphics/MiniBlood/Polished/3",
         "magic_shot": "assets/graphics/Magic shots/1",
         "magic_swirl": "assets/graphics/swirl magic shots/1",
     }
@@ -57,12 +66,30 @@ class VisualEffectManager:
         if cache_key in cls._vfx_cache:
             return cls._vfx_cache[cache_key]
 
-        path = cls.VFX_PATHS.get(effect_key, cls.VFX_PATHS["blood"])
-        raw_frames = AssetManager.get_animation_frames(path)
+        path = cls.VFX_PATHS.get(effect_key, cls.VFX_PATHS["magic_shot"])
+        raw_frames: List[pg.Surface] = []
+
+        if os.path.exists(path) and os.path.isdir(path):
+            try:
+                files = [f for f in os.listdir(path) if f.lower().endswith((".png", ".jpg"))]
+
+                def _sort_key(filename: str) -> int:
+                    m = re.search(r"\d+", filename)
+                    return int(m.group()) if m is not None else 0
+
+                files.sort(key=_sort_key)
+                for fname in files:
+                    fpath = os.path.join(path, fname)
+                    raw_frames.append(AssetManager.get_texture(fpath))
+            except Exception:
+                pass
+
         if not raw_frames:
-            # Fallback placeholder if path missing
+            raw_frames = AssetManager.get_animation_frames(path)
+
+        if not raw_frames:
             surf = pg.Surface((24, 24), pg.SRCALPHA)
-            pg.draw.circle(surf, (255, 0, 0, 200), (12, 12), 10)
+            pg.draw.circle(surf, (255, 200, 0, 200), (12, 12), 10)
             raw_frames = [surf]
 
         scaled_frames: List[pg.Surface] = []
@@ -85,40 +112,20 @@ class VisualEffectManager:
         entity: Optional[Any] = None,
         vfx_type: Optional[str] = None,
         scale: float = 1.0,
+        target_entity: Optional[Any] = None,
     ) -> Optional[VisualEffect]:
-        """Spawns an impact VFX at (x, y).
-
-        Rules:
-        - If entity is a Skeleton or has `has_blood == False`, spawns sparks/magic_shot VFX.
-        - If entity is Player, Blood Zombie, Green Monster, Goblin or has `has_blood == True`, spawns blood burst.
-        """
-        if vfx_type is None and entity is not None:
-            try:
-                from src.game.plugins.vfx_plugin import VFXPlugin
-                rule = VFXPlugin.get_rule(entity)
-                vfx_type = rule["vfx_type"]
-                if scale == 1.0:
-                    scale = float(rule.get("vfx_scale", 2.5))
-            except Exception:
-                has_blood = getattr(entity, "has_blood", None)
-                is_skeleton = getattr(entity, "is_skeleton", False)
-                if has_blood is False or is_skeleton:
-                    vfx_type = "magic_shot"
-                else:
-                    vfx_type = "blood"
-
+        """Spawns an impact magic/spark VFX at (x, y)."""
         if not vfx_type:
-            vfx_type = "blood"
+            vfx_type = "magic_shot"
 
-        # Apply prominent default scaling if not explicitly overridden (2.5x scale)
         if scale == 1.0:
-            scale = 2.5 if vfx_type in ("blood", "blood_large", "magic_shot", "magic_swirl") else 1.8
+            scale = 2.5
 
         frames = cls.get_effect_frames(vfx_type, scale=scale)
         if not frames:
             return None
 
-        vfx = VisualEffect(x, y, frames)
+        vfx = VisualEffect(x, y, frames, target_entity=target_entity or entity)
         cls._active_effects.add(vfx)
         return vfx
 

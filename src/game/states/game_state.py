@@ -309,6 +309,12 @@ class GameState(State):
             # Load World Events from JSON
             world_events = level_data.get("world_events", [])
 
+            # Pre-scan: does this level have an intro NPC sequence?
+            self._intro_npc_done: bool = not any(
+                e.get("params", {}).get("is_intro_npc", False)
+                for e in world_events
+            )
+
             # --- Simulation Expected NPCs Setup ---
             self._simulation_npcs = {}
             self._simulation_expected_npcs = {}
@@ -368,6 +374,7 @@ class GameState(State):
             self._spawn_zones = _DEFAULT_SPAWN_ZONES
             self._bat_min_count = 3
             self._bat_max_count = 5
+            self._intro_npc_done = True
     
     def _setup_triggers(self) -> None:
         """Configure time-based and flag-based objective triggers."""
@@ -445,6 +452,7 @@ class GameState(State):
             }
         """
         npc_type = params.get("npc_type", "generic")
+        is_intro = params.get("is_intro_npc", False)
         
         # Position all NPCs on the ground level (aligned with their config feet position)
         from src.game.entities.hitbox_registry import HitboxRegistry
@@ -475,8 +483,11 @@ class GameState(State):
             self.npc_group.add(npc)
         else:
             # Generic NPC — works with any sprite folder
+            is_intro = params.get("is_intro_npc", False)
+            # Intro NPCs spawn just off right edge and walk in; normal NPCs spawn just off-screen
+            spawn_x = self.width + 30 if is_intro else self.width + 50
             npc = GenericNPC(
-                x=self.width + 50,
+                x=spawn_x,
                 y=ground_y,
                 sprite_dir=params["sprite_dir"],
                 text=params["text"],
@@ -486,14 +497,20 @@ class GameState(State):
                 frame_duration=params.get("frame_duration", 0.15),
                 play_death_on_interact=params.get("play_death_on_interact", False),
                 death_sprite_dir=params.get("death_sprite_dir"),
+                walk_sprite_dir=params.get("walk_sprite_dir"),
+                spawn_sprite_dir=params.get("spawn_sprite_dir"),
+                is_intro_npc=is_intro,
             )
             setattr(npc, "event_id", params.get("_event_id"))
             setattr(npc, "event_distance", params.get("_event_distance"))
             self.npc_group.add(npc)
+            if is_intro:
+                print(f"[INTRO NPC] Spawned! x={spawn_x} y={ground_y} "
+                      f"is_walking={npc.is_walking} state={npc.state} "
+                      f"world_dist={self.world_distance:.0f}")
 
-        event_distance = float(params.get("_event_distance", self.world_distance))
-        spawn_lead_px = 50
-        setattr(npc, "world_x", event_distance + self.width + spawn_lead_px)
+        spawn_lead_px = 30 if is_intro else 50
+        setattr(npc, "world_x", self.world_distance + self.width + spawn_lead_px)
         setattr(npc, "spawn_world_distance", self.world_distance)
 
     def _handle_enemy_wave(self, params: dict) -> None:
@@ -628,14 +645,10 @@ class GameState(State):
             self.tutorial_overlay.handle_event(event)
             return
 
-        # While objective overlay is active, only listen for dismiss input
+        # While objective overlay is active, delegate event to objective display
         if self.objective_display.is_active:
-            dismiss_pressed = (
-                (event.type == pg.KEYDOWN and event.key in (pg.K_SPACE, pg.K_RETURN, pg.K_x)) or
-                (event.type == pg.JOYBUTTONDOWN and event.button in (0, 6))
-            )
-            if dismiss_pressed:
-                self.objective_display.dismiss()
+            dismissed = self.objective_display.handle_event(event)
+            if dismissed:
                 if hasattr(self, "_current_interacting_npc") and self._current_interacting_npc is not None:
                     if hasattr(self._current_interacting_npc, "trigger_death"):
                         if getattr(self._current_interacting_npc, "play_death_on_interact", False):
@@ -708,8 +721,8 @@ class GameState(State):
                 self.BAT_GROUP_MAX_DELAY,
             )
         
-        # Spawn skeletons (distance-scaled)
-        if zone is not None and current_time >= self.next_skeleton_spawn_time:
+        # Spawn skeletons (distance-scaled) — blocked until intro NPC sequence finishes
+        if self._intro_npc_done and zone is not None and current_time >= self.next_skeleton_spawn_time:
             current_skeletons = sum(1 for sprite in self.obstacle_group 
                                  if isinstance(sprite, Skeleton))
             
@@ -1072,8 +1085,14 @@ class GameState(State):
         damage = skeleton.get_current_attack_damage()
         player_health_before = player.health
         damage_applied = player.take_damage(damage)
-        if damage_applied:
-            VisualEffectManager.spawn_hit_vfx(player.rect.centerx, player.rect.centery, entity=player)
+        player_health_after = player.health
+        if damage_applied or player_health_after < player_health_before or damage > 0:
+            VisualEffectManager.spawn_hit_vfx(
+                player.rect.centerx,
+                player.rect.centery,
+                entity=player,
+                target_entity=player,
+            )
         
         if damage_applied and self.tracker.enabled:
             self.tracker.log_event("damage_received", {
@@ -1488,6 +1507,7 @@ class GameState(State):
             return
 
         if self.objective_display.is_active:
+            self.objective_display.update(dt)
             return
 
         # Update notification banner (runs independently of gameplay freeze)
@@ -1512,12 +1532,32 @@ class GameState(State):
         # Enemy spawning
         self.spawn_enemies(current_time)
         
-        # Calculate scroll speed based on player movement
+        # ── Intro NPC Sequence Movement Lock ──────────────────────────────────
+        # Lock only engages once the intro NPC has stopped walking (in range).
+        # While still walking toward the player, player can move normally.
+        intro_npc_locked = any(
+            getattr(npc, "is_intro_npc", False)
+            and not getattr(npc, "is_walking", False)
+            and not getattr(npc, "is_death_complete", False)
+            for npc in self.npc_group
+        )
         player_sprite = self.player.sprite
-        if player_sprite.is_running and not self._is_boss_active():
-            self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
-        else:
+        if intro_npc_locked:
+            player_sprite.can_move = False
             self.bg_scroll_speed = 0
+        else:
+            # If we had an intro NPC and it finished, unlock skeleton spawning
+            if not self._intro_npc_done:
+                intro_npcs = [n for n in self.npc_group if getattr(n, "is_intro_npc", False)]
+                # Only flip if there ARE intro NPCs and they've all finished dying
+                if intro_npcs and all(getattr(n, "is_death_complete", False) for n in intro_npcs):
+                    self._intro_npc_done = True
+                    print("[INTRO NPC] Sequence complete → Skeletons unlocked")
+            player_sprite.can_move = True
+            if player_sprite.is_running and not self._is_boss_active():
+                self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
+            else:
+                self.bg_scroll_speed = 0
 
         # ── Boss Arena Boundary Enforcement ──────────────────────────────────
         if self._arena_active:
@@ -1562,7 +1602,19 @@ class GameState(State):
         self.interaction_group.update(dt, self.bg_scroll_speed)
         VisualEffectManager.update(dt, self.bg_scroll_speed)
         for npc in self.npc_group:
-            if hasattr(npc, "world_x"):
+            is_intro_walking = (
+                getattr(npc, "is_intro_npc", False)
+                and getattr(npc, "is_walking", False)
+            )
+            if is_intro_walking and hasattr(npc, "world_x"):
+                # Move NPC in world space so its movement is physically bound to the scrolling ground tiles
+                delta_seconds = dt / 1000.0
+                curr_world_x = getattr(npc, "world_x")
+                new_world_x = curr_world_x + getattr(npc, "walk_speed", -150.0) * delta_seconds
+                setattr(npc, "world_x", new_world_x)
+                npc.rect.x = int(new_world_x - self.world_distance)
+                npc.update(dt, scroll_speed=0)
+            elif hasattr(npc, "world_x"):
                 npc.rect.x = int(getattr(npc, "world_x") - self.world_distance)
                 npc.update(dt, scroll_speed=0)
             else:
@@ -1572,9 +1624,13 @@ class GameState(State):
         for point in self.interaction_group:
             point.check_proximity(player_sprite.rect)
 
-        # Check proximity for NPCs
+        # Check proximity for NPCs & auto-trigger intro NPC dialogue
         for npc in self.npc_group:
-            npc.check_proximity(player_sprite.rect)
+            in_range = npc.check_proximity(player_sprite.rect)
+            if getattr(npc, "is_intro_npc", False) and in_range and npc.can_interact and not self.objective_display.is_active:
+                self.objective_display.show(npc.text, npc.title)
+                self._current_interacting_npc = npc
+                npc.mark_interacted()
 
         # Check time/flag triggers
         elapsed = (current_time - self._game_start_ticks) / 1000.0
