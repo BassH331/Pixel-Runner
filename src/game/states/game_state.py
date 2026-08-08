@@ -27,6 +27,7 @@ from src.game.entities.green_monster import GreenMonster
 from src.game.entities.boss_manager import BossManager
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
 from src.game.effects.vfx_manager import VisualEffectManager
+from src.game.systems.environment_manager import EnvironmentManager
 from v3x_zulfiqar_gideon import AssetManager, State
 
 if TYPE_CHECKING:
@@ -136,21 +137,11 @@ class GameState(State):
         self._setup_triggers()
         self._game_start_ticks: int = pg.time.get_ticks()
         
-        # Sky (parallax background)
-        self.sky = Sky(
-            self.width, 
-            self.height,
-            layer_paths=[f"assets/graphics/Clouds 3/{i}.png" for i in range(1, 5)],
-            speeds=[0, 0, 20, 40]
-        )
+        # Environment Manager (data-driven background & sky)
+        self.environment_manager = EnvironmentManager(self.width, self.height)
+        self.sky = self.environment_manager.sky
 
-        # Background parallax
-        self.bg_image = AssetManager.get_texture(
-            "assets/graphics/background images/new_bg_images/bg_image.png"
-        )
-        self.bg_image = pg.transform.smoothscale(
-            self.bg_image, (self.width, self.height)
-        )
+        # Background parallax variables
         self.bg_x1: int = 0
         self.bg_x2: int = self.width
         self.bg_scroll_speed: int = 0
@@ -254,6 +245,11 @@ class GameState(State):
             HitboxRegistry.sync_with_level_config(level_data)
             self.BAT_GROUP_MIN_DELAY = level_data.get("spawn_rate_min", 5000)
             self.BAT_GROUP_MAX_DELAY = level_data.get("spawn_rate_max", 15000)
+
+            # Environment configuration
+            if "environment" in level_data:
+                self.environment_manager.load_config(level_data["environment"])
+                self.sky = self.environment_manager.sky
 
             # Level metadata
             self._level_name = level_data.get("level_name", self._level_name)
@@ -1593,7 +1589,7 @@ class GameState(State):
                 print(f"[WARN] next_level '{next_path}' not found; staying on current state.")
         
         # Update systems
-        self.sky.update(dt / 1000.0)
+        self.environment_manager.update(dt / 1000.0, float(self.bg_scroll_speed * 60.0))
         self.update_background(self.bg_scroll_speed)
         self.player_ui.update()
         self.player.update()
@@ -1946,10 +1942,8 @@ class GameState(State):
         Args:
             surface: Target surface for rendering.
         """
-        # Background
-        self.sky.draw(surface)
-        surface.blit(self.bg_image, (self.bg_x1, 0))
-        surface.blit(self.bg_image, (self.bg_x2, 0))
+        # Background (data-driven environment manager)
+        self.environment_manager.draw(surface, cam_x=self.world_distance)
         
         # UI layer
         self.player_ui.draw(surface)

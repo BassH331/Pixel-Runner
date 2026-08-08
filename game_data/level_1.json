@@ -3,6 +3,200 @@
     "level_end_distance": 36000,
     "spawn_rate_min": 5000,
     "spawn_rate_max": 15000,
+    "environment": {
+        "bg_music_track": "game_loop",
+        "ground_y": 686,
+        "sky": {
+            "enabled": true,
+            "layers": [
+                {
+                    "path": "assets/graphics/Clouds 3/1.png",
+                    "speed": 0
+                },
+                {
+                    "path": "assets/graphics/Clouds 3/2.png",
+                    "speed": 0
+                },
+                {
+                    "path": "assets/graphics/Clouds 3/3.png",
+                    "speed": 20
+                },
+                {
+                    "path": "assets/graphics/Clouds 3/4.png",
+                    "speed": 40
+                }
+            ]
+        },
+        "layer_stacks": {
+            "1": {
+                "name": "L1: Sky & Far Parallax",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background1.png",
+                "scroll_ratio": 0.0,
+                "repeat_x": true,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "stretch_fill": false,
+                "pos_y_offset": 0,
+                "visible": true
+            },
+            "2": {
+                "name": "L2: Mid-Background",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background2.png",
+                "scroll_ratio": 0.0,
+                "repeat_x": true,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "stretch_fill": true,
+                "pos_y_offset": 0,
+                "visible": true
+            },
+            "3": {
+                "name": "L3: Ground & Terrain",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background3.png",
+                "scroll_ratio": 0.5,
+                "repeat_x": true,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "stretch_fill": true,
+                "pos_y_offset": 0,
+                "visible": true
+            },
+            "4": {
+                "name": "L4: Props & Objects",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background4.png",
+                "scroll_ratio": 1.0,
+                "repeat_x": true,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "stretch_fill": false,
+                "pos_y_offset": 0,
+                "visible": true
+            },
+            "5": {
+                "name": "L5: Foreground Foliage",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background5.png",
+                "scroll_ratio": 1.2,
+                "repeat_x": true,
+                "scale_x": 1.2,
+                "scale_y": 1.0,
+                "stretch_fill": true,
+                "pos_y_offset": 0,
+                "visible": true
+            },
+            "6": {
+                "name": "L6: Dynamic Layer 6",
+                "texture_path": "",
+                "scroll_ratio": 1.0,
+                "repeat_x": true,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "stretch_fill": false,
+                "pos_y_offset": 0,
+                "visible": true
+            }
+        },
+        "parallax_layers": [
+            {
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background1.png",
+                "scroll_ratio": 0.0,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background2.png",
+                "scroll_ratio": 0.0,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background3.png",
+                "scroll_ratio": 0.5,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background4.png",
+                "scroll_ratio": 1.0,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background5.png",
+                "scroll_ratio": 1.2,
+                "repeat_x": true
+            }
+        ],
+        "props": [
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 0.0,
+                "pos_y": 663.0,
+                "scale": 1.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid"
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 192.0,
+                "pos_y": 662.0,
+                "scale": 1.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid"
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 384.0,
+                "pos_y": 662.0,
+                "scale": 1.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid"
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 576.0,
+                "pos_y": 662.0,
+                "scale": 1.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid"
+            }
+        ]
+    },
     "soul_harvest": {
         "starting_souls": 8500,
         "target_souls": 10000,
