@@ -417,6 +417,19 @@ class EnvironmentManager:
             except Exception:
                 pass
 
+    def get_ground_y_at(self, x: float) -> float:
+        """Returns the highest solid ground surface Y coordinate at world position x, falling back to base ground_y."""
+        solid_ys = []
+        for prop in self.props:
+            if getattr(prop, "is_ground", True) and getattr(prop, "collision_type", "solid") in ("solid", "platform"):
+                px = prop.pos_x
+                pw = prop.width
+                if px <= x <= px + pw:
+                    solid_ys.append(prop.pos_y)
+        if solid_ys:
+            return float(min(solid_ys))
+        return float(self.ground_y)
+
     def update(self, dt: float, player_speed: float = 0.0) -> None:
         """Update sky and background parallax layers across all layer stacks."""
         if self.sky:
