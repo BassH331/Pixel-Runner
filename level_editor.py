@@ -1444,10 +1444,13 @@ class App:
     def __init__(self):
         pg.init()
         pg.display.set_caption("Level Spawner Editor  v2")
-        self.surf  = pg.display.set_mode((W, H))
+        self.surf  = pg.display.set_mode((W, H), pg.RESIZABLE)
         self.native_surf = pg.Surface((1280, 720))
         self.clock = pg.time.Clock()
         self.running = True
+        self.panels_collapsed = False
+        self.fullscreen = False
+        self.dragging_minimap = False
         self.tf = pg.font.SysFont("Arial", 22, bold=True)
         self.f  = pg.font.SysFont("Arial", 16)
         self.sf = pg.font.SysFont("Arial", 13)
@@ -1479,6 +1482,60 @@ class App:
         self.new_level_title_input: Optional[TextInput] = None
         self.new_level_filename_input: Optional[TextInput] = None
         self.scan()
+
+    def _update_minimap_scrub(self, mx: float):
+        map_w = min(650, max(200, W - 500))
+        map_x = max(10, (W - map_w) // 2)
+        end_dist = float(self.level_data.get("level_end_distance", 36000))
+        canvas_rect = self._get_s5_canvas_rect()
+        
+        # Calculate exact width of yellow viewport handle on track
+        cam_view_w = max(16, int(((canvas_rect.w / self.cam_zoom) / end_dist) * map_w))
+
+        # Clamp mouse X to the minimap track bounds
+        clamped_mx = max(float(map_x), min(float(map_x + map_w), float(mx)))
+
+        # Center the yellow handle precisely on clamped_mx
+        target_start_x = clamped_mx - (cam_view_w / 2.0)
+        r = (target_start_x - map_x) / float(map_w)
+
+        # Max camera world X coordinate so view never exceeds level end
+        max_cam_x = max(0.0, end_dist - 1280.0 / self.cam_zoom)
+        self.cam_x = max(0.0, min(max_cam_x, r * end_dist))
+
+    def _get_s5_avail_bounds(self) -> pg.Rect:
+        if getattr(self, "panels_collapsed", False):
+            return pg.Rect(10, 50, W - 20, max(200, H - 115))
+        return pg.Rect(280, 50, max(200, W - 560), max(200, H - 115))
+
+    def _get_s5_canvas_rect(self) -> pg.Rect:
+        avail = self._get_s5_avail_bounds()
+        avail_w = avail.w
+        avail_h = avail.h
+        target_ratio = 16.0 / 9.0
+
+        if avail_w / float(avail_h) > target_ratio:
+            fit_h = avail_h
+            fit_w = int(fit_h * target_ratio)
+        else:
+            fit_w = avail_w
+            fit_h = int(fit_w / target_ratio)
+
+        vp_x = avail.x + (avail_w - fit_w) // 2
+        vp_y = avail.y + (avail_h - fit_h) // 2
+        return pg.Rect(vp_x, vp_y, fit_w, fit_h)
+
+    def _toggle_panels(self):
+        self.panels_collapsed = not getattr(self, "panels_collapsed", False)
+
+    def _toggle_fullscreen(self):
+        global W, H
+        self.fullscreen = not getattr(self, "fullscreen", False)
+        if self.fullscreen:
+            self.surf = pg.display.set_mode((0, 0), pg.FULLSCREEN | pg.RESIZABLE)
+        else:
+            self.surf = pg.display.set_mode((W, H), pg.RESIZABLE)
+        W, H = self.surf.get_width(), self.surf.get_height()
 
 
 
@@ -1608,14 +1665,16 @@ class App:
         gy = float(self.env_mgr.ground_y)
         init_scale = 1.0
         slice_h = slice_rect[3] if slice_rect and len(slice_rect) >= 4 else 64
+        target_layer = self.active_layer_filter
+        target_ratio = 1.0 if target_layer in (3, 4) else self.env_mgr.layer_stacks.get(target_layer, {}).get("scroll_ratio", 1.0)
         new_prop = EnvironmentProp(
             texture_path=texture_path,
             slice_rect=slice_rect,
             pos_x=cam_center,
             pos_y=max(0.0, gy - float(slice_h * init_scale)),
             scale=init_scale,
-            layer_index=self.active_layer_filter,
-            parallax_ratio=self.env_mgr.layer_stacks.get(self.active_layer_filter, {}).get("scroll_ratio", 1.0),
+            layer_index=target_layer,
+            parallax_ratio=target_ratio,
             flip_x=False,
             flip_y=False,
             is_ground=True,
@@ -1638,6 +1697,9 @@ class App:
                 parallax_ratio=p.parallax_ratio,
                 flip_x=p.flip_x,
                 flip_y=p.flip_y,
+                is_ground=getattr(p, "is_ground", True),
+                collision_type=getattr(p, "collision_type", "solid"),
+                collision_offset_y=getattr(p, "collision_offset_y", 0.0),
             )
             self.env_mgr.props.append(cloned)
             self.selected_prop_idx = len(self.env_mgr.props) - 1
@@ -1683,6 +1745,8 @@ class App:
         if self.s5_ground_slider: self.s5_ground_slider.on(ev)
         if self.s5_ratio_slider: self.s5_ratio_slider.on(ev)
 
+        canvas_rect = self._get_s5_canvas_rect()
+
         if ev.type == pg.MOUSEBUTTONDOWN and ev.button == 1:
             mx, my = ev.pos
             mods = pg.key.get_mods()
@@ -1690,18 +1754,17 @@ class App:
 
             # Minimap scrubbing area (Y: H - 65 to H)
             if my >= H - 65:
-                map_x = 265
-                map_w = 700
-                end_dist = float(self.level_data.get("level_end_distance", 36000))
+                map_w = min(650, max(200, W - 500))
+                map_x = max(10, (W - map_w) // 2)
                 if map_x <= mx <= map_x + map_w:
-                    r = (mx - map_x) / float(map_w)
-                    self.cam_x = max(0.0, r * end_dist)
+                    self.dragging_minimap = True
+                    self._update_minimap_scrub(float(mx))
                     return
 
-            # Canvas Viewport area (X: 280 to W - 280, Y: 50 to H - 65)
-            if 280 <= mx <= W - 280 and 50 <= my <= H - 65:
-                native_x = (mx - 280) * (1280.0 / (W - 560))
-                native_y = (my - 50) * (720.0 / (H - 115))
+            # Canvas Viewport area (strictly 16:9 canvas_rect)
+            if canvas_rect.collidepoint(mx, my):
+                native_x = (mx - canvas_rect.x) * (1280.0 / float(canvas_rect.w))
+                native_y = (my - canvas_rect.y) * (720.0 / float(canvas_rect.h))
 
                 clicked_idx = -1
                 # Check prop collision on canvas across all layers
@@ -1728,14 +1791,17 @@ class App:
 
         elif ev.type == pg.MOUSEBUTTONUP and ev.button == 1:
             self.dragging_prop_idx = -1
+            self.dragging_minimap = False
 
         elif ev.type == pg.MOUSEMOTION:
-            if 0 <= self.dragging_prop_idx < len(self.env_mgr.props):
+            if getattr(self, "dragging_minimap", False):
+                self._update_minimap_scrub(float(ev.pos[0]))
+            elif 0 <= self.dragging_prop_idx < len(self.env_mgr.props):
                 mx, my = ev.pos
-                if 280 <= mx <= W - 280 and 50 <= my <= H - 65:
+                if canvas_rect.collidepoint(mx, my):
                     prop = self.env_mgr.props[self.dragging_prop_idx]
-                    native_x = (mx - 280) * (1280.0 / (W - 560))
-                    native_y = (my - 50) * (720.0 / (H - 115))
+                    native_x = (mx - canvas_rect.x) * (1280.0 / float(canvas_rect.w))
+                    native_y = (my - canvas_rect.y) * (720.0 / float(canvas_rect.h))
 
                     raw_x = self.cam_x * prop.parallax_ratio + native_x - prop.width // 2
                     raw_y = native_y - prop.height // 2
@@ -1750,7 +1816,7 @@ class App:
 
         elif ev.type == pg.MOUSEWHEEL:
             mx, my = pg.mouse.get_pos()
-            if 280 <= mx <= W - 280:
+            if canvas_rect.collidepoint(mx, my):
                 mods = pg.key.get_mods()
                 if mods & pg.KMOD_CTRL:
                     self.cam_zoom = max(0.2, min(3.0, self.cam_zoom + ev.y * 0.1))
@@ -1809,7 +1875,7 @@ class App:
             self.env_mgr.update(0.016, player_speed=0.0)
 
         # ── 1. NATIVE CANVAS VIEWPORT & PARALLAX RENDER ─────────────────────────
-        canvas_rect = pg.Rect(280, 50, W - 560, H - 115)
+        canvas_rect = self._get_s5_canvas_rect()
         native_surf = getattr(self, "native_surf", None)
         if native_surf is None:
             self.native_surf = pg.Surface((1280, 720))
@@ -1925,15 +1991,29 @@ class App:
             for bx, by in bat_coords:
                 native_surf.blit(bat_tex, (bx, by))
 
-        # Blit native 1280x720 surface scaled smoothly to the editor viewport
+        # Blit native 1280x720 surface scaled smoothly to the 16:9 editor viewport
+        avail_rect = self._get_s5_avail_bounds()
+        pg.draw.rect(self.surf, BG, avail_rect)
         scaled_viewport = pg.transform.smoothscale(native_surf, (canvas_rect.w, canvas_rect.h))
         self.surf.blit(scaled_viewport, (canvas_rect.x, canvas_rect.y))
-        pg.draw.rect(self.surf, BORDER, canvas_rect, width=1)
+        pg.draw.rect(self.surf, BORDER, canvas_rect, width=2)
+
+        # Top Bar Panel & Fullscreen Control Buttons
+        p_txt = "► Show Panels (Tab)" if getattr(self, "panels_collapsed", False) else "◄ Hide Panels (Tab)"
+        b_panels = Button(p_txt, W - 320, 10, 150, 32, self._toggle_panels, "ghost")
+        b_panels.draw(self.surf, self.sf)
+        self._s5b.append(b_panels)
+
+        fs_txt = "🖥️ Windowed (F11)" if getattr(self, "fullscreen", False) else "🖥️ Fullscreen (F11)"
+        b_fs = Button(fs_txt, W - 165, 10, 155, 32, self._toggle_fullscreen, "ghost")
+        b_fs.draw(self.surf, self.sf)
+        self._s5b.append(b_fs)
 
         # ── 2. LEFT SIDEBAR (ENVIRONMENT STUDIO & SLICER TOOLS) ─────────────────
         left_panel = pg.Rect(0, 50, 280, H - 115)
-        pg.draw.rect(self.surf, PANEL, left_panel)
-        pg.draw.line(self.surf, BORDER, (left_panel.right, left_panel.y), (left_panel.right, left_panel.bottom), 2)
+        if not getattr(self, "panels_collapsed", False):
+            pg.draw.rect(self.surf, PANEL, left_panel)
+            pg.draw.line(self.surf, BORDER, (left_panel.right, left_panel.y), (left_panel.right, left_panel.bottom), 2)
 
         if 0 <= self.selected_prop_idx < len(self.env_mgr.props):
             prop = self.env_mgr.props[self.selected_prop_idx]
@@ -2011,10 +2091,17 @@ class App:
             self.surf.blit(self.sf.render(f"Layer Depth: Layer {prop.layer_index}", True, TXT2), (14, left_panel.y + 230))
             def _adj_layer(d: int):
                 prop.layer_index = max(1, min(max_layer_key, prop.layer_index + d))
+                prop.parallax_ratio = self.env_mgr.layer_stacks.get(prop.layer_index, {}).get("scroll_ratio", 1.0)
                 self.level_data["environment"] = self.env_mgr.to_config_dict()
-            b_l_m = Button("⬇ Layer Back", 14, left_panel.y + 250, 115, 28, lambda: _adj_layer(-1), "ghost")
-            b_l_p = Button("⬆ Layer Front", 145, left_panel.y + 250, 115, 28, lambda: _adj_layer(1), "ghost")
-            b_l_m.draw(self.surf, self.sf); b_l_p.draw(self.surf, self.sf)
+            def _set_l6_ground():
+                prop.layer_index = 6
+                prop.parallax_ratio = 1.0
+                self.level_data["environment"] = self.env_mgr.to_config_dict()
+
+            b_l_m = Button("⬇ Back", 14, left_panel.y + 250, 75, 26, lambda: _adj_layer(-1), "ghost")
+            b_l_p = Button("⬆ Front", 94, left_panel.y + 250, 75, 26, lambda: _adj_layer(1), "ghost")
+            b_l_6 = Button("📌 L6 Ground", 174, left_panel.y + 250, 92, 26, _set_l6_ground, "primary")
+            b_l_m.draw(self.surf, self.sf); b_l_p.draw(self.surf, self.sf); b_l_6.draw(self.surf, self.sf)
 
             # Collision / Object Physics Type Selector
             col_type = getattr(prop, "collision_type", "solid")
@@ -2036,6 +2123,9 @@ class App:
                 next_t = types[(cur_i + 1) % len(types)]
                 prop.collision_type = next_t
                 prop.is_ground = (next_t != "deco")
+                if next_t in ("solid", "platform"):
+                    prop.layer_index = 6
+                    prop.parallax_ratio = 1.0
                 self.level_data["environment"] = self.env_mgr.to_config_dict()
 
             b_col_type = Button(col_labels.get(col_type, "🧱 Type: Solid Ground"), 14, left_panel.y + 304, 252, 30, _cycle_col_type, col_styles.get(col_type, "primary"))
@@ -2126,104 +2216,105 @@ class App:
 
         # ── 3. RIGHT SIDEBAR (LAYER PARALLAX INSPECTOR) ─────────────────────────
         right_panel = pg.Rect(W - 280, 50, 280, H - 115)
-        pg.draw.rect(self.surf, PANEL, right_panel)
-        pg.draw.line(self.surf, BORDER, (right_panel.x, right_panel.y), (right_panel.x, right_panel.bottom), 2)
+        if not getattr(self, "panels_collapsed", False):
+            pg.draw.rect(self.surf, PANEL, right_panel)
+            pg.draw.line(self.surf, BORDER, (right_panel.x, right_panel.y), (right_panel.x, right_panel.bottom), 2)
 
-        cur_stack = self.env_mgr.layer_stacks.get(self.active_layer_filter, {})
-        rhdr = self.tf.render(f"Layer {self.active_layer_filter} Inspector", True, SUCCESS)
-        self.surf.blit(rhdr, (right_panel.x + 14, right_panel.y + 14))
-
-        layer_title = cur_stack.get("name", f"Layer {self.active_layer_filter}")
-        self.surf.blit(self.f.render(layer_title, True, TXT), (right_panel.x + 14, right_panel.y + 40))
-
-        bg_path = cur_stack.get("texture_path", "")
-        bg_name = os.path.basename(bg_path) if bg_path else "None (Transparent)"
-        self.surf.blit(self.sf.render(f"Texture: {bg_name[:22]}", True, WARN if bg_path else TXT2), (right_panel.x + 14, right_panel.y + 64))
-
-        def _open_bg_picker():
             cur_stack = self.env_mgr.layer_stacks.get(self.active_layer_filter, {})
-            tpath = cur_stack.get("texture_path", "")
-            folder = os.path.dirname(tpath).replace("\\", "/") if tpath else getattr(self, "active_asset_folder", "assets/graphics/background images/new_bg_images")
-            self.bg_picker_modal = LinuxAssetExplorerModal(
-                select_cb=self._on_select_bg_from_modal,
-                cancel_cb=lambda: setattr(self, "bg_picker_modal", None),
-                current_dir=folder
-            )
+            rhdr = self.tf.render(f"Layer {self.active_layer_filter} Inspector", True, SUCCESS)
+            self.surf.blit(rhdr, (right_panel.x + 14, right_panel.y + 14))
 
-        bg_pick_btn = Button(f"🖼 Set L{self.active_layer_filter} Texture", right_panel.x + 14, right_panel.y + 88, 252, 34, _open_bg_picker, "primary")
-        bg_clear_btn = Button(f"🔄 Reset L{self.active_layer_filter} Layer", right_panel.x + 14, right_panel.y + 126, 252, 30, self.reset_active_layer, "danger")
-        bg_pick_btn.draw(self.surf, self.f); bg_clear_btn.draw(self.surf, self.sf)
-        self._s5b += [bg_pick_btn, bg_clear_btn]
+            layer_title = cur_stack.get("name", f"Layer {self.active_layer_filter}")
+            self.surf.blit(self.f.render(layer_title, True, TXT), (right_panel.x + 14, right_panel.y + 40))
 
-        if len(self.env_mgr.layer_stacks) > 1:
-            def _del_layer():
-                if self.env_mgr.delete_layer(self.active_layer_filter):
-                    self.active_layer_filter = min(self.env_mgr.layer_stacks.keys(), default=1)
+            bg_path = cur_stack.get("texture_path", "")
+            bg_name = os.path.basename(bg_path) if bg_path else "None (Transparent)"
+            self.surf.blit(self.sf.render(f"Texture: {bg_name[:22]}", True, WARN if bg_path else TXT2), (right_panel.x + 14, right_panel.y + 64))
+
+            def _open_bg_picker():
+                cur_stack = self.env_mgr.layer_stacks.get(self.active_layer_filter, {})
+                tpath = cur_stack.get("texture_path", "")
+                folder = os.path.dirname(tpath).replace("\\", "/") if tpath else getattr(self, "active_asset_folder", "assets/graphics/background images/new_bg_images")
+                self.bg_picker_modal = LinuxAssetExplorerModal(
+                    select_cb=self._on_select_bg_from_modal,
+                    cancel_cb=lambda: setattr(self, "bg_picker_modal", None),
+                    current_dir=folder
+                )
+
+            bg_pick_btn = Button(f"🖼 Set L{self.active_layer_filter} Texture", right_panel.x + 14, right_panel.y + 88, 252, 34, _open_bg_picker, "primary")
+            bg_clear_btn = Button(f"🔄 Reset L{self.active_layer_filter} Layer", right_panel.x + 14, right_panel.y + 126, 252, 30, self.reset_active_layer, "danger")
+            bg_pick_btn.draw(self.surf, self.f); bg_clear_btn.draw(self.surf, self.sf)
+            self._s5b += [bg_pick_btn, bg_clear_btn]
+
+            if len(self.env_mgr.layer_stacks) > 1:
+                def _del_layer():
+                    if self.env_mgr.delete_layer(self.active_layer_filter):
+                        self.active_layer_filter = min(self.env_mgr.layer_stacks.keys(), default=1)
+                        self.level_data["environment"] = self.env_mgr.to_config_dict()
+                del_layer_btn = Button(f"🗑 Delete Layer L{self.active_layer_filter}", right_panel.x + 14, right_panel.y + 160, 252, 28, _del_layer, "danger")
+                del_layer_btn.draw(self.surf, self.sf)
+                self._s5b.append(del_layer_btn)
+
+            if self.active_layer_filter == 1:
+                sky_on = (self.env_mgr.sky is not None)
+                def _toggle_sky():
+                    self.env_mgr.toggle_sky()
                     self.level_data["environment"] = self.env_mgr.to_config_dict()
-            del_layer_btn = Button(f"🗑 Delete Layer L{self.active_layer_filter}", right_panel.x + 14, right_panel.y + 160, 252, 28, _del_layer, "danger")
-            del_layer_btn.draw(self.surf, self.sf)
-            self._s5b.append(del_layer_btn)
+                sky_btn = Button("🌌 Sky Overlay: ON" if sky_on else "🌌 Sky Overlay: OFF", right_panel.x + 14, right_panel.y + 192, 252, 28, _toggle_sky, "success" if sky_on else "ghost")
+                sky_btn.draw(self.surf, self.sf)
+                self._s5b.append(sky_btn)
 
-        if self.active_layer_filter == 1:
-            sky_on = (self.env_mgr.sky is not None)
-            def _toggle_sky():
-                self.env_mgr.toggle_sky()
+            pg.draw.line(self.surf, BORDER, (right_panel.x + 14, right_panel.y + 226), (right_panel.right - 14, right_panel.y + 226))
+
+            self.surf.blit(self.sf.render(f"Scroll Ratio: {cur_stack.get('scroll_ratio', 0.1):.2f}", True, TXT2), (right_panel.x + 14, right_panel.y + 234))
+            def _adj_sratio(delta: float):
+                cur_stack["scroll_ratio"] = max(0.0, round(cur_stack.get("scroll_ratio", 0.1) + delta, 2))
+                if cur_stack.get("parallax_layer"):
+                    cur_stack["parallax_layer"].scroll_ratio = cur_stack["scroll_ratio"]
                 self.level_data["environment"] = self.env_mgr.to_config_dict()
-            sky_btn = Button("🌌 Sky Overlay: ON" if sky_on else "🌌 Sky Overlay: OFF", right_panel.x + 14, right_panel.y + 192, 252, 28, _toggle_sky, "success" if sky_on else "ghost")
-            sky_btn.draw(self.surf, self.sf)
-            self._s5b.append(sky_btn)
 
-        pg.draw.line(self.surf, BORDER, (right_panel.x + 14, right_panel.y + 226), (right_panel.right - 14, right_panel.y + 226))
+            b_sr_m = Button("-0.05", right_panel.x + 14, right_panel.y + 254, 115, 26, lambda: _adj_sratio(-0.05), "ghost")
+            b_sr_p = Button("+0.05", right_panel.x + 145, right_panel.y + 254, 115, 26, lambda: _adj_sratio(0.05), "ghost")
+            b_sr_m.draw(self.surf, self.sf); b_sr_p.draw(self.surf, self.sf)
+            self._s5b += [b_sr_m, b_sr_p]
 
-        self.surf.blit(self.sf.render(f"Scroll Ratio: {cur_stack.get('scroll_ratio', 0.1):.2f}", True, TXT2), (right_panel.x + 14, right_panel.y + 234))
-        def _adj_sratio(delta: float):
-            cur_stack["scroll_ratio"] = max(0.0, round(cur_stack.get("scroll_ratio", 0.1) + delta, 2))
-            if cur_stack.get("parallax_layer"):
-                cur_stack["parallax_layer"].scroll_ratio = cur_stack["scroll_ratio"]
-            self.level_data["environment"] = self.env_mgr.to_config_dict()
+            # Texture Stretch & Scale Controls
+            sx = cur_stack.get("scale_x", 1.0)
+            sy = cur_stack.get("scale_y", 1.0)
+            sf = cur_stack.get("stretch_fill", False)
 
-        b_sr_m = Button("-0.05", right_panel.x + 14, right_panel.y + 254, 115, 26, lambda: _adj_sratio(-0.05), "ghost")
-        b_sr_p = Button("+0.05", right_panel.x + 145, right_panel.y + 254, 115, 26, lambda: _adj_sratio(0.05), "ghost")
-        b_sr_m.draw(self.surf, self.sf); b_sr_p.draw(self.surf, self.sf)
-        self._s5b += [b_sr_m, b_sr_p]
+            self.surf.blit(self.sf.render(f"Scale X: {sx:.1f}x  |  Scale Y: {sy:.1f}x", True, TXT2), (right_panel.x + 14, right_panel.y + 286))
 
-        # Texture Stretch & Scale Controls
-        sx = cur_stack.get("scale_x", 1.0)
-        sy = cur_stack.get("scale_y", 1.0)
-        sf = cur_stack.get("stretch_fill", False)
+            def _adj_sx(d: float):
+                new_sx = max(0.1, round(cur_stack.get("scale_x", 1.0) + d, 1))
+                self.env_mgr.set_layer_texture(self.active_layer_filter, cur_stack.get("texture_path", ""), scale_x=new_sx)
+                self.level_data["environment"] = self.env_mgr.to_config_dict()
 
-        self.surf.blit(self.sf.render(f"Scale X: {sx:.1f}x  |  Scale Y: {sy:.1f}x", True, TXT2), (right_panel.x + 14, right_panel.y + 286))
+            def _adj_sy(d: float):
+                new_sy = max(0.1, round(cur_stack.get("scale_y", 1.0) + d, 1))
+                self.env_mgr.set_layer_texture(self.active_layer_filter, cur_stack.get("texture_path", ""), scale_y=new_sy)
+                self.level_data["environment"] = self.env_mgr.to_config_dict()
 
-        def _adj_sx(d: float):
-            new_sx = max(0.1, round(cur_stack.get("scale_x", 1.0) + d, 1))
-            self.env_mgr.set_layer_texture(self.active_layer_filter, cur_stack.get("texture_path", ""), scale_x=new_sx)
-            self.level_data["environment"] = self.env_mgr.to_config_dict()
+            b_sx_m = Button("-0.2x X", right_panel.x + 14, right_panel.y + 306, 115, 26, lambda: _adj_sx(-0.2), "ghost")
+            b_sx_p = Button("+0.2x X", right_panel.x + 145, right_panel.y + 306, 115, 26, lambda: _adj_sx(0.2), "ghost")
+            b_sy_m = Button("-0.2x Y", right_panel.x + 14, right_panel.y + 336, 115, 26, lambda: _adj_sy(-0.2), "ghost")
+            b_sy_p = Button("+0.2x Y", right_panel.x + 145, right_panel.y + 336, 115, 26, lambda: _adj_sy(0.2), "ghost")
+            b_sx_m.draw(self.surf, self.sf); b_sx_p.draw(self.surf, self.sf)
+            b_sy_m.draw(self.surf, self.sf); b_sy_p.draw(self.surf, self.sf)
+            self._s5b += [b_sx_m, b_sx_p, b_sy_m, b_sy_p]
 
-        def _adj_sy(d: float):
-            new_sy = max(0.1, round(cur_stack.get("scale_y", 1.0) + d, 1))
-            self.env_mgr.set_layer_texture(self.active_layer_filter, cur_stack.get("texture_path", ""), scale_y=new_sy)
-            self.level_data["environment"] = self.env_mgr.to_config_dict()
+            def _toggle_stretch():
+                new_sf = not cur_stack.get("stretch_fill", False)
+                self.env_mgr.set_layer_texture(self.active_layer_filter, cur_stack.get("texture_path", ""), stretch_fill=new_sf)
+                self.level_data["environment"] = self.env_mgr.to_config_dict()
 
-        b_sx_m = Button("-0.2x X", right_panel.x + 14, right_panel.y + 306, 115, 26, lambda: _adj_sx(-0.2), "ghost")
-        b_sx_p = Button("+0.2x X", right_panel.x + 145, right_panel.y + 306, 115, 26, lambda: _adj_sx(0.2), "ghost")
-        b_sy_m = Button("-0.2x Y", right_panel.x + 14, right_panel.y + 336, 115, 26, lambda: _adj_sy(-0.2), "ghost")
-        b_sy_p = Button("+0.2x Y", right_panel.x + 145, right_panel.y + 336, 115, 26, lambda: _adj_sy(0.2), "ghost")
-        b_sx_m.draw(self.surf, self.sf); b_sx_p.draw(self.surf, self.sf)
-        b_sy_m.draw(self.surf, self.sf); b_sy_p.draw(self.surf, self.sf)
-        self._s5b += [b_sx_m, b_sx_p, b_sy_m, b_sy_p]
+            b_stretch = Button("📐 Mode: Fill Canvas" if sf else "📐 Mode: Ratio Scale", right_panel.x + 14, right_panel.y + 366, 252, 28, _toggle_stretch, "primary" if sf else "ghost")
+            b_stretch.draw(self.surf, self.sf)
+            self._s5b.append(b_stretch)
 
-        def _toggle_stretch():
-            new_sf = not cur_stack.get("stretch_fill", False)
-            self.env_mgr.set_layer_texture(self.active_layer_filter, cur_stack.get("texture_path", ""), stretch_fill=new_sf)
-            self.level_data["environment"] = self.env_mgr.to_config_dict()
+            pg.draw.line(self.surf, BORDER, (right_panel.x + 14, right_panel.y + 280), (right_panel.right - 14, right_panel.y + 280))
 
-        b_stretch = Button("📐 Mode: Fill Canvas" if sf else "📐 Mode: Ratio Scale", right_panel.x + 14, right_panel.y + 366, 252, 28, _toggle_stretch, "primary" if sf else "ghost")
-        b_stretch.draw(self.surf, self.sf)
-        self._s5b.append(b_stretch)
-
-        pg.draw.line(self.surf, BORDER, (right_panel.x + 14, right_panel.y + 280), (right_panel.right - 14, right_panel.y + 280))
-
-        if self.s5_ground_slider: self.s5_ground_slider.draw(self.surf, self.f, self.sf)
+            if self.s5_ground_slider: self.s5_ground_slider.draw(self.surf, self.f, self.sf)
 
         # ── 4. BOTTOM TRACK MINIMAP & CONTROL BAR ───────────────────────────────
         bbar = pg.Rect(0, H - 65, W, 65)
@@ -2241,9 +2332,9 @@ class App:
             self._s5b.append(sb)
 
         # Track Minimap
-        map_x = 310
+        map_w = min(650, max(200, W - 500))
+        map_x = max(10, (W - map_w) // 2)
         map_y = bbar.y + 16
-        map_w = 650
         map_h = 32
         pg.draw.rect(self.surf, PANEL2, pg.Rect(map_x, map_y, map_w, map_h), border_radius=6)
         pg.draw.rect(self.surf, BORDER, pg.Rect(map_x, map_y, map_w, map_h), width=1, border_radius=6)
@@ -2646,6 +2737,18 @@ class App:
     def _handle(self):
         for ev in pg.event.get():
             if ev.type == pg.QUIT: self.running = False; return
+            if ev.type == pg.VIDEORESIZE:
+                global W, H
+                W, H = ev.w, ev.h
+                self.surf = pg.display.set_mode((W, H), pg.RESIZABLE)
+                continue
+            if ev.type == pg.KEYDOWN:
+                if ev.key == pg.K_F11:
+                    self._toggle_fullscreen()
+                    continue
+                elif ev.key == pg.K_TAB and self.stage == 5:
+                    self._toggle_panels()
+                    continue
             if self.modal:
                 self.modal.on(ev)
                 continue
