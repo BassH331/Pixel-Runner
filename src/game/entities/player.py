@@ -857,7 +857,7 @@ class Player(Actor):
         self._gravity: float = 0.0
         surf = pg.display.get_surface()
         height = surf.get_height() if surf else 720
-        self._ground_y: int = height - margins.ground_offset
+        self._ground_y: Optional[int] = height - margins.ground_offset
         
         # Movement state
         self._direction: int = 0
@@ -1378,7 +1378,7 @@ class Player(Actor):
         if self._stamina < self._THRUST_STAMINA_COST:
             return False
         # Ground attacks require the player to be on the ground
-        if self.rect.bottom < self._ground_y - 1:
+        if self._ground_y is None or self.rect.bottom < self._ground_y - 1:
             return False
         if not self._can_transition_to(PlayerState.ATTACK_THRUST):
             return False
@@ -1410,7 +1410,7 @@ class Player(Actor):
         if self._stamina < self._SMASH_STAMINA_COST:
             return False
         # Ground attacks require the player to be on the ground
-        if self.rect.bottom < self._ground_y - 1:
+        if self._ground_y is None or self.rect.bottom < self._ground_y - 1:
             return False
         if not self._can_transition_to(PlayerState.ATTACK_SMASH):
             return False
@@ -1442,7 +1442,7 @@ class Player(Actor):
         if self._stamina < self._POWER_STAMINA_COST:
             return False
         # Ground attacks require the player to be on the ground
-        if self.rect.bottom < self._ground_y - 1:
+        if self._ground_y is None or self.rect.bottom < self._ground_y - 1:
             return False
         if not self._can_transition_to(PlayerState.ATTACK_POWER):
             return False
@@ -1492,7 +1492,7 @@ class Player(Actor):
             return False
         if not self._can_transition_to(PlayerState.ROLL):
             return False
-        on_ground = self.rect.bottom >= self._ground_y - 1
+        on_ground = self._ground_y is not None and self.rect.bottom >= self._ground_y - 1
         if not on_ground:
             return False
         self._spend_stamina(self._ROLL_STAMINA_COST)
@@ -1580,7 +1580,7 @@ class Player(Actor):
             return False
             
         # Must be on ground
-        if self.rect.bottom < self._ground_y - self._AIRBORNE_THRESHOLD:
+        if self._ground_y is None or self.rect.bottom < self._ground_y - self._AIRBORNE_THRESHOLD:
             return False
             
         if not self._can_transition_to(PlayerState.JUMP_UP):
@@ -1769,13 +1769,17 @@ class Player(Actor):
     # Physics
     # ─────────────────────────────────────────────────────────────────────────
 
+    def set_ground_y(self, ground_y: Optional[int]) -> None:
+        """Update the physics ground floor level from the environment manager (None = freefall)."""
+        self._ground_y = ground_y
+
     def _apply_gravity(self) -> None:
         """Apply gravitational acceleration and ground collision."""
         self._gravity += self._GRAVITY_ACCELERATION
         self.rect.y += int(self._gravity)
 
-        # Ground collision
-        if self.rect.bottom >= self._ground_y:
+        # Ground collision (only if ground floor exists)
+        if self._ground_y is not None and self.rect.bottom >= self._ground_y:
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
 
@@ -1802,7 +1806,7 @@ class Player(Actor):
                 return
 
             # Use different speeds for ground and air movement
-            if self.rect.bottom >= self._ground_y - 1:  # On ground
+            if self._ground_y is not None and self.rect.bottom >= self._ground_y - 1:  # On ground
                 move_speed = self._MOVE_SPEED
             else:  # In air
                 move_speed = self._AIR_MOVE_SPEED
@@ -1862,7 +1866,7 @@ class Player(Actor):
 
     def _update_state_logic(self) -> None:
         """Auto-manage state transitions based on physics (grounded, airborne, etc.)."""
-        on_ground = self.rect.bottom >= self._ground_y - 1
+        on_ground = self._ground_y is not None and self.rect.bottom >= self._ground_y - 1
 
         # Airborne state management
         if not on_ground:

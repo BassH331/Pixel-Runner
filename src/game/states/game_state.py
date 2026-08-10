@@ -301,6 +301,10 @@ class GameState(State):
                     player_data["x"],
                     player_data["y"],
                 )
+
+            # Sync player ground level with the environment manager's ground_y
+            env_ground_y = self.environment_manager.ground_y
+            self.player.sprite.set_ground_y(env_ground_y)
             
             # Load World Events from JSON
             world_events = level_data.get("world_events", [])
@@ -463,7 +467,7 @@ class GameState(State):
             npc_key = f"generic_npc_{folder_name.lower()}"
 
         margins = HitboxRegistry.get_margins(npc_key)
-        ground_y = self.height - margins.ground_offset
+        ground_y = self.environment_manager.ground_y
 
         if npc_type == "wizard":
             npc = WizardNPC(
@@ -1588,6 +1592,18 @@ class GameState(State):
             elif next_path:
                 print(f"[WARN] next_level '{next_path}' not found; staying on current state.")
         
+        # Dynamically evaluate solid ground prop surfaces for Player and Obstacles/Enemies
+        player_world_x = player_sprite.rect.centerx + self.world_distance
+        p_ground = self.environment_manager.get_ground_y_at(player_world_x)
+        player_sprite.set_ground_y(int(p_ground) if p_ground is not None else None)
+
+        for enemy in self.obstacle_group:
+            raw_wx = getattr(enemy, "world_x", None)
+            e_world_x = float(raw_wx) if raw_wx is not None else float(enemy.rect.centerx + self.world_distance)
+            e_ground = self.environment_manager.get_ground_y_at(e_world_x)
+            if hasattr(enemy, "set_ground_y"):
+                enemy.set_ground_y(int(e_ground) if e_ground is not None else None)
+
         # Update systems
         self.environment_manager.update(dt / 1000.0, float(self.bg_scroll_speed * 60.0))
         self.update_background(self.bg_scroll_speed)
@@ -1615,6 +1631,26 @@ class GameState(State):
                 npc.update(dt, scroll_speed=0)
             else:
                 npc.update(dt, scroll_speed=self.bg_scroll_speed)
+
+        # Player fall off-screen (safe-out for testing)
+        if player_sprite.rect.top > self.height + 200:
+            print("[FALL DEATH] Player fell off the world grid — exiting safely.")
+            pg.quit()
+            import sys
+            sys.exit(0)
+
+        # Enemy fall off-screen (reap soul award & remove from memory)
+        soul_values = self._soul_harvest_config.get("soul_values", {})
+        for enemy in list(self.obstacle_group):
+            if enemy.rect.top > self.height + 200:
+                tier = getattr(enemy, "tier", "minion")
+                soul_reward = soul_values.get(f"skeleton_{tier}", soul_values.get("skeleton_minion", 5))
+                if soul_reward > 0:
+                    self.total_souls += soul_reward
+                    self.player_ui.add_souls(soul_reward)
+                self.trigger_manager.set_flag("first_kill")
+                print(f"[FALL KILL] Enemy {enemy} fell off world grid — reaped +{soul_reward} souls and removed from memory.")
+                enemy.kill()
 
         # Check proximity for interaction points
         for point in self.interaction_group:

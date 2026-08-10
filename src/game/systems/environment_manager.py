@@ -88,6 +88,7 @@ class EnvironmentProp:
         flip_y: bool = False,
         is_ground: bool = True,
         collision_type: str = "solid",  # "solid", "platform", "deco"
+        collision_offset_y: float = 0.0,
     ) -> None:
         self.texture_path = texture_path
         self.slice_rect = slice_rect
@@ -100,6 +101,7 @@ class EnvironmentProp:
         self.flip_y = flip_y
         self.is_ground = is_ground
         self.collision_type = collision_type
+        self.collision_offset_y = collision_offset_y
 
         raw_texture = AssetManager.get_texture(texture_path)
         if slice_rect and len(slice_rect) == 4:
@@ -130,6 +132,22 @@ class EnvironmentProp:
         draw_y = int(self.pos_y)
         surface.blit(self.image, (draw_x, draw_y))
 
+    @staticmethod
+    def auto_detect_offset_y(surface: pg.Surface) -> float:
+        """Scan surface rows top to bottom for the first row with solid alpha pixel density."""
+        w, h = surface.get_size()
+        for y in range(h):
+            solid_count = sum(1 for x in range(w) if surface.get_at((x, y)).a > 50)
+            if solid_count >= max(3, int(w * 0.35)):
+                return float(y)
+        return 0.0
+
+    def auto_detect_collision_offset(self) -> float:
+        """Auto-detect top solid surface row for this prop's image."""
+        if hasattr(self, "image") and self.image:
+            self.collision_offset_y = EnvironmentProp.auto_detect_offset_y(self.image)
+        return self.collision_offset_y
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "texture_path": self.texture_path,
@@ -143,6 +161,7 @@ class EnvironmentProp:
             "flip_y": self.flip_y,
             "is_ground": self.is_ground,
             "collision_type": self.collision_type,
+            "collision_offset_y": self.collision_offset_y,
         }
 
 
@@ -413,22 +432,24 @@ class EnvironmentManager:
                     flip_y=pdata.get("flip_y", False),
                     is_ground=pdata.get("is_ground", True),
                     collision_type=pdata.get("collision_type", "solid"),
+                    collision_offset_y=pdata.get("collision_offset_y", 0.0),
                 ))
             except Exception:
                 pass
 
-    def get_ground_y_at(self, x: float) -> float:
-        """Returns the highest solid ground surface Y coordinate at world position x, falling back to base ground_y."""
+    def get_ground_y_at(self, x: float) -> Optional[float]:
+        """Returns the top Y of the highest solid ground prop at world position x, or None if no ground."""
         solid_ys = []
         for prop in self.props:
             if getattr(prop, "is_ground", True) and getattr(prop, "collision_type", "solid") in ("solid", "platform"):
                 px = prop.pos_x
                 pw = prop.width
                 if px <= x <= px + pw:
-                    solid_ys.append(prop.pos_y)
+                    offset_y = getattr(prop, "collision_offset_y", 0.0)
+                    solid_ys.append(prop.pos_y + offset_y)
         if solid_ys:
             return float(min(solid_ys))
-        return float(self.ground_y)
+        return None
 
     def update(self, dt: float, player_speed: float = 0.0) -> None:
         """Update sky and background parallax layers across all layer stacks."""

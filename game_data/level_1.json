@@ -138,8 +138,9 @@
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco"
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
@@ -150,14 +151,15 @@
                     53
                 ],
                 "pos_x": 192.0,
-                "pos_y": 662.0,
+                "pos_y": 663.0,
                 "scale": 1.0,
                 "layer_index": 6,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco"
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
@@ -168,14 +170,15 @@
                     53
                 ],
                 "pos_x": 384.0,
-                "pos_y": 662.0,
+                "pos_y": 663.0,
                 "scale": 1.0,
                 "layer_index": 6,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco"
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
@@ -186,14 +189,15 @@
                     53
                 ],
                 "pos_x": 576.0,
-                "pos_y": 662.0,
+                "pos_y": 663.0,
                 "scale": 1.0,
                 "layer_index": 6,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco"
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
             }
         ]
     },

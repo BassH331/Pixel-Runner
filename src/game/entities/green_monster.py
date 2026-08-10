@@ -333,7 +333,7 @@ class GreenMonster(EntityAudioMixin, Actor):
         self._gravity: float = 0.0
         surf = pg.display.get_surface()
         height = surf.get_height() if surf else 720
-        self._ground_y: int = height - margins.ground_offset
+        self._ground_y: Optional[int] = height - margins.ground_offset
         self.rect.bottom = self._ground_y
 
         self.spawn_zone: Optional[dict] = None
@@ -427,10 +427,14 @@ class GreenMonster(EntityAudioMixin, Actor):
             self._chase_delay_timer = 0.0
             self._chase_delay_active = False
 
+    def set_ground_y(self, ground_y: Optional[int]) -> None:
+        """Update physics ground floor level from environment manager (None = freefall)."""
+        self._ground_y = ground_y
+
     def _apply_gravity(self) -> None:
         self._gravity += 1.0
         self.rect.y += int(self._gravity)
-        if self.rect.bottom >= self._ground_y:
+        if self._ground_y is not None and self.rect.bottom >= self._ground_y:
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
 
@@ -509,10 +513,11 @@ class GreenMonster(EntityAudioMixin, Actor):
             # sin wave: 0 -> 1 -> 0
             dive = math.sin(min(1.0, progress) * math.pi)
             # Scale the jump height based on his size/scale
-            jump_height = int(90 * self.scale)
-            self.rect.bottom = int(self._ground_y - dive * jump_height)
+            if self._ground_y is not None:
+                jump_height = int(90 * self.scale)
+                self.rect.bottom = int(self._ground_y - dive * jump_height)
         else:
-            if self.rect.bottom > self._ground_y:
+            if self._ground_y is not None and self.rect.bottom > self._ground_y:
                 self.rect.bottom = self._ground_y
 
     def _spawn_toxic_glob(self) -> None:
@@ -566,7 +571,8 @@ class GreenMonster(EntityAudioMixin, Actor):
         target_x = max(50, min(1200, target_x))
 
         self.rect.centerx = target_x
-        self.rect.bottom = self._ground_y
+        if self._ground_y is not None:
+            self.rect.bottom = self._ground_y
         self._gravity = 0.0
 
         self._is_recharging = True
@@ -596,7 +602,8 @@ class GreenMonster(EntityAudioMixin, Actor):
 
                     target_x = max(50, min(1200, target_x))
                     self.rect.centerx = target_x
-                    self.rect.bottom = self._ground_y
+                    if self._ground_y is not None:
+                        self.rect.bottom = self._ground_y
                     self._gravity = 0.0
 
                     self._mana = max(self._mana, self._spell_mana_cost)

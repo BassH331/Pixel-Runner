@@ -1858,6 +1858,18 @@ class App:
             for cx, cy in [(prect.left, prect.top), (prect.right, prect.top), (prect.left, prect.bottom), (prect.right, prect.bottom)]:
                 pg.draw.rect(native_surf, (241, 196, 15), pg.Rect(cx - 4, cy - 4, 8, 8))
 
+            # Cyan Ground Contact Line Gizmo (for Solid & Platform props)
+            if getattr(prop, "collision_type", "solid") in ("solid", "platform"):
+                offset_y = getattr(prop, "collision_offset_y", 0.0)
+                contact_draw_y = int(draw_y + offset_y)
+                # Cyan solid line across prop width
+                pg.draw.line(native_surf, (0, 255, 255), (prect.left, contact_draw_y), (prect.right, contact_draw_y), 3)
+                # Draw small handle point at center
+                pg.draw.circle(native_surf, (0, 255, 255), (prect.centerx, contact_draw_y), 5)
+                # Tag label
+                c_lbl = self.sf.render(f"CONTACT Y: +{int(offset_y)}px", True, (0, 255, 255))
+                native_surf.blit(c_lbl, (prect.right + 8, contact_draw_y - c_lbl.get_height() // 2))
+
             col_icon = "🧱 SOLID" if getattr(prop, "collision_type", "solid") == "solid" else ("🪜 PLATFORM" if getattr(prop, "collision_type", "solid") == "platform" else "🌿 DECO")
             ptag = self.sf.render(f"[{col_icon}] L{prop.layer_index} | Pos: ({int(prop.pos_x)}, {int(prop.pos_y)}) | Size: {prop.width}x{prop.height}px | Scale: {prop.scale:.1f}x", True, (20, 20, 20))
             tag_box = ptag.get_rect(midbottom=(prect.centerx, max(12, prect.y - 6))).inflate(12, 6)
@@ -1865,18 +1877,31 @@ class App:
             native_surf.blit(ptag, ptag.get_rect(center=tag_box.center))
 
         # Render Player Character Guide / Simulation Sprite (100% compliance with game physics)
-        player_tex_path = "assets/graphics/Player/player_stand.png"
-        player_tex = AssetManager.get_texture(player_tex_path)
-        if player_tex and player_tex.get_width() > 1:
+        player_tex_path = "assets/shadow_warrior/idle/idle_1.png"
+        player_tex_raw = AssetManager.get_texture(player_tex_path)
+        if player_tex_raw and player_tex_raw.get_width() > 1:
+            # Scale to match game (3x = player scale from entity_dimensions.json)
+            player_scale = 3.0
+            player_tex = pg.transform.smoothscale(
+                player_tex_raw,
+                (int(player_tex_raw.get_width() * player_scale),
+                 int(player_tex_raw.get_height() * player_scale))
+            )
             pw, ph = player_tex.get_width(), player_tex.get_height()
             px = 120
-            eff_gy = self.env_mgr.get_ground_y_at(px + self.cam_x)
+            eff_gy_val = self.env_mgr.get_ground_y_at(px + self.cam_x)
+            eff_gy = eff_gy_val if eff_gy_val is not None else float(self.env_mgr.ground_y)
             py = int(eff_gy - ph)
             if self.simulating:
                 t_step = int((pg.time.get_ticks() / 150) % 2) + 1
-                w_path = f"assets/graphics/Player/player_walk_{t_step}.png"
-                w_tex = AssetManager.get_texture(w_path)
-                if w_tex and w_tex.get_width() > 1:
+                w_path = f"assets/shadow_warrior/run/run_{t_step}.png"
+                w_tex_raw = AssetManager.get_texture(w_path)
+                if w_tex_raw and w_tex_raw.get_width() > 1:
+                    w_tex = pg.transform.smoothscale(
+                        w_tex_raw,
+                        (int(w_tex_raw.get_width() * player_scale),
+                         int(w_tex_raw.get_height() * player_scale))
+                    )
                     native_surf.blit(w_tex, (px, int(eff_gy - w_tex.get_height())))
                 else:
                     native_surf.blit(player_tex, (px, py))
@@ -2015,6 +2040,34 @@ class App:
 
             b_col_type = Button(col_labels.get(col_type, "🧱 Type: Solid Ground"), 14, left_panel.y + 304, 252, 30, _cycle_col_type, col_styles.get(col_type, "primary"))
             b_col_type.draw(self.surf, self.sf)
+
+            # Ground Surface Contact Y Offset Controls (for Solid & Platform props)
+            if col_type in ("solid", "platform"):
+                offset_y = getattr(prop, "collision_offset_y", 0.0)
+                eff_contact_y = int(prop.pos_y + offset_y)
+                lbl_offset = self.sf.render(f"Contact Offset: +{int(offset_y)}px (Y: {eff_contact_y}px)", True, ACCENT)
+                self.surf.blit(lbl_offset, (14, left_panel.y + 342))
+
+                def _adj_offset(delta: float):
+                    cur = getattr(prop, "collision_offset_y", 0.0)
+                    new_val = max(0.0, min(float(prop.height - 1), cur + delta))
+                    prop.collision_offset_y = new_val
+                    self.level_data["environment"] = self.env_mgr.to_config_dict()
+
+                def _auto_detect_offset():
+                    prop.auto_detect_collision_offset()
+                    self.level_data["environment"] = self.env_mgr.to_config_dict()
+
+                b_off_m5 = Button("-5px", 14, left_panel.y + 364, 55, 24, lambda: _adj_offset(-5.0), "ghost")
+                b_off_p5 = Button("+5px", 74, left_panel.y + 364, 55, 24, lambda: _adj_offset(5.0), "ghost")
+                b_off_m1 = Button("-1px", 134, left_panel.y + 364, 55, 24, lambda: _adj_offset(-1.0), "ghost")
+                b_off_p1 = Button("+1px", 194, left_panel.y + 364, 55, 24, lambda: _adj_offset(1.0), "ghost")
+                b_off_auto = Button("🪄 Auto Detect Contact Line", 14, left_panel.y + 394, 252, 28, _auto_detect_offset, "primary")
+
+                b_off_m5.draw(self.surf, self.sf); b_off_p5.draw(self.surf, self.sf)
+                b_off_m1.draw(self.surf, self.sf); b_off_p1.draw(self.surf, self.sf)
+                b_off_auto.draw(self.surf, self.sf)
+                self._s5b += [b_off_m5, b_off_p5, b_off_m1, b_off_p1, b_off_auto]
 
             # Duplicate & Delete Buttons
             b_dup = Button("📋 Duplicate (Ctrl+D)", 14, left_panel.bottom - 95, 252, 36, self.duplicate_selected_prop, "primary")

@@ -282,7 +282,7 @@ class FireWizard(EntityAudioMixin, Actor):
         self._gravity: float = 0.0
         surf = pg.display.get_surface()
         height = surf.get_height() if surf else 720
-        self._ground_y: int = height - margins.ground_offset
+        self._ground_y: Optional[int] = height - margins.ground_offset
         
         # AI bounds
         self._detection_range: int = 3000 if self.tier == "boss" else 1000
@@ -509,7 +509,8 @@ class FireWizard(EntityAudioMixin, Actor):
         target_x = max(50, min(1200, target_x))
         
         self.rect.centerx = target_x
-        self.rect.bottom = self._ground_y
+        if self._ground_y is not None:
+            self.rect.bottom = self._ground_y
         self._gravity = 0.0
         
         self._is_recharging = True
@@ -540,7 +541,8 @@ class FireWizard(EntityAudioMixin, Actor):
                         
                     target_x = max(50, min(1200, target_x))
                     self.rect.centerx = target_x
-                    self.rect.bottom = self._ground_y
+                    if self._ground_y is not None:
+                        self.rect.bottom = self._ground_y
                     self._gravity = 0.0
                     
                     # Recharge enough mana to cast counter spell
@@ -662,10 +664,14 @@ class FireWizard(EntityAudioMixin, Actor):
             self.facing_left = (dist_x > 0)
             self.set_state(FireWizardState.IDLE)
             
+    def set_ground_y(self, ground_y: Optional[int]) -> None:
+        """Update physics ground floor level from environment manager (None = freefall)."""
+        self._ground_y = ground_y
+
     def _apply_gravity(self) -> None:
         self._gravity += 1.0
         self.rect.y += int(self._gravity)
-        if self.rect.bottom >= self._ground_y:
+        if self._ground_y is not None and self.rect.bottom >= self._ground_y:
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
             

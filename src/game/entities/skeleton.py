@@ -307,7 +307,7 @@ class Skeleton(EntityAudioMixin, Actor):
         # Load dynamic ground offset from HitboxRegistry using the active display surface height
         surf = pg.display.get_surface()
         height = surf.get_height() if surf else 720
-        self._ground_y: int = height - margins.ground_offset
+        self._ground_y: Optional[int] = height - margins.ground_offset
         
         # AI configuration
         if not hasattr(self, "_detection_range"):
@@ -531,13 +531,17 @@ class Skeleton(EntityAudioMixin, Actor):
     # Private: Physics
     # ─────────────────────────────────────────────────────────────────────────
     
+    def set_ground_y(self, ground_y: Optional[int]) -> None:
+        """Update physics ground floor level from environment manager (None = freefall)."""
+        self._ground_y = ground_y
+
     def _apply_gravity(self) -> None:
         """Apply gravitational acceleration and ground collision."""
         self._gravity += 1.0
         self.rect.y += int(self._gravity)
         
         # Ground collision
-        if self.rect.bottom >= self._ground_y:
+        if self._ground_y is not None and self.rect.bottom >= self._ground_y:
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
     
