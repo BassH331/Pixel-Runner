@@ -57,19 +57,32 @@ class ParallaxLayer:
         self.x1 -= speed * dt
         self.x2 -= speed * dt
 
-        if self.x1 <= -self.width:
-            self.x1 = self.x2 + self.width
-        if self.x2 <= -self.width:
-            self.x2 = self.x1 + self.width
-
-    def draw(self, surface: pg.Surface) -> None:
-        if self.stretch_fill:
-            y_pos = int(self.pos_y_offset)
+        if speed >= 0:
+            if self.x1 <= -self.width:
+                self.x1 = self.x2 + self.width
+            if self.x2 <= -self.width:
+                self.x2 = self.x1 + self.width
         else:
-            y_pos = (self.screen_height - self.height) + int(self.pos_y_offset)
+            if self.x1 >= self.width:
+                self.x1 = self.x2 - self.width
+            if self.x2 >= self.width:
+                self.x2 = self.x1 - self.width
+
+    def draw(self, surface: pg.Surface, cam_y: float = 0.0) -> None:
+        if self.stretch_fill:
+            y_pos = int(self.pos_y_offset - cam_y * self.scroll_ratio)
+        else:
+            y_pos = (self.screen_height - self.height) + int(self.pos_y_offset - cam_y * self.scroll_ratio)
+        
         surface.blit(self.image, (int(self.x1), y_pos))
         if self.repeat_x:
             surface.blit(self.image, (int(self.x2), y_pos))
+            leftmost = min(self.x1, self.x2)
+            rightmost = max(self.x1, self.x2) + self.width
+            if leftmost > 0:
+                surface.blit(self.image, (int(leftmost - self.width), y_pos))
+            if rightmost < self.screen_width:
+                surface.blit(self.image, (int(rightmost), y_pos))
 
 
 class EnvironmentProp:
@@ -127,9 +140,9 @@ class EnvironmentProp:
         self.width = self.image.get_width()
         self.height = self.image.get_height()
 
-    def draw(self, surface: pg.Surface, cam_x: float = 0.0) -> None:
+    def draw(self, surface: pg.Surface, cam_x: float = 0.0, cam_y: float = 0.0) -> None:
         draw_x = int(self.pos_x - cam_x * self.parallax_ratio)
-        draw_y = int(self.pos_y)
+        draw_y = int(self.pos_y - cam_y)
         surface.blit(self.image, (draw_x, draw_y))
 
     @staticmethod
@@ -460,7 +473,7 @@ class EnvironmentManager:
             if player_layer and stack.get("visible", True):
                 player_layer.update(player_speed, dt)
 
-    def draw(self, surface: pg.Surface, cam_x: float = 0.0, max_layer: Optional[int] = None) -> None:
+    def draw(self, surface: pg.Surface, cam_x: float = 0.0, cam_y: float = 0.0, max_layer: Optional[int] = None) -> None:
         """Draw sky followed by explicit layers in strict back-to-front depth order."""
         surface.fill((20, 20, 32))
 
@@ -483,11 +496,11 @@ class EnvironmentManager:
             if stack:
                 player_layer = stack.get("parallax_layer")
                 if player_layer:
-                    player_layer.draw(surface)
+                    player_layer.draw(surface, cam_y=cam_y)
 
             for prop in self.props:
                 if prop.layer_index == l_idx:
-                    prop.draw(surface, cam_x=cam_x)
+                    prop.draw(surface, cam_x=cam_x, cam_y=cam_y)
 
     def to_config_dict(self) -> Dict[str, Any]:
         """Exports current environment configuration dictionary for saving."""

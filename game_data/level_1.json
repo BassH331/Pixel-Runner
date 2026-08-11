@@ -5,43 +5,26 @@
     "spawn_rate_max": 15000,
     "environment": {
         "bg_music_track": "game_loop",
-        "ground_y": 686,
+        "ground_y": 706,
         "sky": {
-            "enabled": true,
-            "layers": [
-                {
-                    "path": "assets/graphics/Clouds 3/1.png",
-                    "speed": 0
-                },
-                {
-                    "path": "assets/graphics/Clouds 3/2.png",
-                    "speed": 0
-                },
-                {
-                    "path": "assets/graphics/Clouds 3/3.png",
-                    "speed": 20
-                },
-                {
-                    "path": "assets/graphics/Clouds 3/4.png",
-                    "speed": 40
-                }
-            ]
+            "enabled": false,
+            "layers": []
         },
         "layer_stacks": {
             "1": {
                 "name": "L1: Sky & Far Parallax",
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background1.png",
-                "scroll_ratio": 0.0,
+                "texture_path": "",
+                "scroll_ratio": 0.05,
                 "repeat_x": true,
-                "scale_x": 1.0,
-                "scale_y": 1.0,
+                "scale_x": 1.4,
+                "scale_y": 1.6,
                 "stretch_fill": false,
                 "pos_y_offset": 0,
                 "visible": true
             },
             "2": {
                 "name": "L2: Mid-Background",
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background2.png",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background1.png",
                 "scroll_ratio": 0.0,
                 "repeat_x": true,
                 "scale_x": 1.0,
@@ -52,7 +35,7 @@
             },
             "3": {
                 "name": "L3: Ground & Terrain",
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background3.png",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background2.png",
                 "scroll_ratio": 0.5,
                 "repeat_x": true,
                 "scale_x": 1.0,
@@ -63,7 +46,7 @@
             },
             "4": {
                 "name": "L4: Props & Objects",
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background4.png",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background3.png",
                 "scroll_ratio": 1.0,
                 "repeat_x": true,
                 "scale_x": 1.0,
@@ -74,7 +57,7 @@
             },
             "5": {
                 "name": "L5: Foreground Foliage",
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background5.png",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background4.png",
                 "scroll_ratio": 1.2,
                 "repeat_x": true,
                 "scale_x": 1.2,
@@ -85,6 +68,28 @@
             },
             "6": {
                 "name": "L6: Ground & Objects L6",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background5.png",
+                "scroll_ratio": 1.0,
+                "repeat_x": true,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "stretch_fill": false,
+                "pos_y_offset": 0,
+                "visible": true
+            },
+            "7": {
+                "name": "L7: Ground & Objects L7",
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background6.png",
+                "scroll_ratio": 1.0,
+                "repeat_x": true,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "stretch_fill": false,
+                "pos_y_offset": 0,
+                "visible": true
+            },
+            "8": {
+                "name": "L8: Ground & Objects L8",
                 "texture_path": "",
                 "scroll_ratio": 1.0,
                 "repeat_x": true,
@@ -103,22 +108,27 @@
             },
             {
                 "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background2.png",
-                "scroll_ratio": 0.0,
-                "repeat_x": true
-            },
-            {
-                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background3.png",
                 "scroll_ratio": 0.5,
                 "repeat_x": true
             },
             {
-                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background4.png",
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background3.png",
                 "scroll_ratio": 1.0,
                 "repeat_x": true
             },
             {
-                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background5.png",
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background4.png",
                 "scroll_ratio": 1.2,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background5.png",
+                "scroll_ratio": 1.0,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background6.png",
+                "scroll_ratio": 1.0,
                 "repeat_x": true
             }
         ],
@@ -127,247 +137,1387 @@
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
                 "slice_rect": [
                     928,
-                    507,
+                    59,
                     192,
                     53
                 ],
                 "pos_x": 0.0,
-                "pos_y": 672.0,
+                "pos_y": 681.5555555555555,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 8,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
+                "collision_offset_y": 23.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
                 "slice_rect": [
                     928,
-                    507,
+                    59,
                     192,
                     53
                 ],
                 "pos_x": 192.0,
-                "pos_y": 672.0,
+                "pos_y": 681.5555555555555,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 8,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
+                "collision_offset_y": 23.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
                 "slice_rect": [
                     928,
-                    507,
+                    59,
                     192,
                     53
                 ],
                 "pos_x": 384.0,
-                "pos_y": 672.0,
+                "pos_y": 681.5555555555555,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 8,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
+                "collision_offset_y": 23.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
                 "slice_rect": [
                     928,
-                    507,
+                    59,
                     192,
                     53
                 ],
                 "pos_x": 576.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 768.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 960.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 1152.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 1280.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 1472.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 1664.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 1856.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 2048.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 2240.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 2432.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 2624.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 2816.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    928,
+                    59,
+                    192,
+                    53
+                ],
+                "pos_x": 3008.0,
+                "pos_y": 681.5555555555555,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 23.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 188.03179650238474,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 380.03179650238474,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 476.03179650238474,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 860.0317965023847,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 956.0317965023847,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 988.0317965023847,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 300.03179650238474,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1116.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1148.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1276.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1404.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1516.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1644.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1756.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1868.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 1996.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 2108.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 2220.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 2332.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 2444.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 2556.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 2684.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 2812.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 2924.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3052.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3084.0317965023846,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 572.0317965023847,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 636.0317965023847,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 764.0317965023847,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 0.0,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 96.0,
+                "pos_y": 732.6252354048963,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    794,
+                    160,
+                    70,
+                    128
+                ],
+                "pos_x": 3152.0,
+                "pos_y": 608.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    1200,
+                    160,
+                    70,
+                    128
+                ],
+                "pos_x": 3248.0,
+                "pos_y": 736.0,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    1200,
+                    160,
+                    70,
+                    128
+                ],
+                "pos_x": 3280.0,
+                "pos_y": 624.0,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    1068,
+                    201,
+                    104,
+                    39
+                ],
+                "pos_x": 3153.566833802128,
+                "pos_y": 570.3305084745763,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 7.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    640,
+                    18,
+                    32,
+                    14
+                ],
+                "pos_x": 3184.0,
+                "pos_y": 560.0,
+                "scale": 1.5,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "hazard",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    1068,
+                    201,
+                    104,
+                    39
+                ],
+                "pos_x": 3242.0882964412376,
+                "pos_y": 587.6186440677966,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 7.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3120.0,
+                "pos_y": 736.0,
+                "scale": 4.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3168.0,
+                "pos_y": 592.0,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3200.0,
+                "pos_y": 592.0,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3232.0,
+                "pos_y": 592.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3200.0,
+                "pos_y": 624.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3232.0,
+                "pos_y": 624.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3264.0,
+                "pos_y": 624.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3296.0,
+                "pos_y": 608.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3248.0,
+                "pos_y": 608.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3248.0,
+                "pos_y": 656.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3248.0,
+                "pos_y": 688.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3248.0,
+                "pos_y": 720.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3232.0,
+                "pos_y": 736.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3216.0,
+                "pos_y": 704.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3216.0,
                 "pos_y": 672.0,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 7,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
-            },
-            {
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background6.png",
-                "slice_rect": [
-                    0,
-                    256,
-                    426,
-                    128
-                ],
-                "pos_x": -32.0,
-                "pos_y": 576.0,
-                "scale": 1.0,
-                "layer_index": 5,
-                "parallax_ratio": 1.2,
-                "flip_x": false,
-                "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco",
-                "collision_offset_y": 0.0
-            },
-            {
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background6.png",
-                "slice_rect": [
-                    0,
-                    256,
-                    426,
-                    128
-                ],
-                "pos_x": 384.0,
-                "pos_y": 576.0,
-                "scale": 1.0,
-                "layer_index": 5,
-                "parallax_ratio": 1.2,
-                "flip_x": false,
-                "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco",
-                "collision_offset_y": 0.0
-            },
-            {
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background6.png",
-                "slice_rect": [
-                    0,
-                    256,
-                    426,
-                    128
-                ],
-                "pos_x": 800.0,
-                "pos_y": 576.0,
-                "scale": 1.0,
-                "layer_index": 5,
-                "parallax_ratio": 1.2,
-                "flip_x": false,
-                "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco",
-                "collision_offset_y": 0.0
-            },
-            {
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background6.png",
-                "slice_rect": [
-                    0,
-                    256,
-                    426,
-                    128
-                ],
-                "pos_x": 1216.0,
-                "pos_y": 576.0,
-                "scale": 1.0,
-                "layer_index": 5,
-                "parallax_ratio": 1.2,
-                "flip_x": false,
-                "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco",
                 "collision_offset_y": 0.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
                 "slice_rect": [
-                    928,
-                    507,
-                    192,
-                    53
+                    720,
+                    112,
+                    32,
+                    32
                 ],
-                "pos_x": 919.1111111111111,
-                "pos_y": 507.33333333333326,
+                "pos_x": 3216.0,
+                "pos_y": 656.0,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 7,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
+                "collision_offset_y": 0.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
                 "slice_rect": [
-                    928,
-                    507,
-                    192,
-                    53
+                    720,
+                    112,
+                    32,
+                    32
                 ],
-                "pos_x": 1141.3333333333333,
-                "pos_y": 675.3333333333333,
+                "pos_x": 3248.0,
+                "pos_y": 656.0,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 7,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
+                "collision_offset_y": 0.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
                 "slice_rect": [
-                    928,
-                    507,
-                    192,
-                    53
+                    890,
+                    647,
+                    38,
+                    112
                 ],
-                "pos_x": 1325.3333333333333,
-                "pos_y": 675.3333333333333,
+                "pos_x": 3616.0,
+                "pos_y": 592.0,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 8,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
+                "collision_offset_y": 0.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
                 "slice_rect": [
-                    928,
-                    507,
-                    192,
-                    53
-                ],
-                "pos_x": 1517.3333333333333,
-                "pos_y": 675.3333333333333,
-                "scale": 1.0,
-                "layer_index": 6,
-                "parallax_ratio": 1.0,
-                "flip_x": false,
-                "flip_y": false,
-                "is_ground": true,
-                "collision_type": "solid",
-                "collision_offset_y": 22.0
-            },
-            {
-                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/Background/background6.png",
-                "slice_rect": [
-                    0,
-                    256,
-                    426,
+                    794,
+                    608,
+                    70,
                     128
                 ],
-                "pos_x": 1632.0,
-                "pos_y": 576.0,
+                "pos_x": 3632.0,
+                "pos_y": 672.0,
                 "scale": 1.0,
-                "layer_index": 5,
-                "parallax_ratio": 1.2,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
-                "is_ground": false,
-                "collision_type": "deco",
+                "is_ground": true,
+                "collision_type": "solid",
                 "collision_offset_y": 0.0
             },
             {
@@ -378,16 +1528,320 @@
                     192,
                     53
                 ],
-                "pos_x": 1709.3333333333333,
-                "pos_y": 675.3333333333333,
+                "pos_x": 3648.0,
+                "pos_y": 576.0,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 8,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
+                "collision_offset_y": 24.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3632.0,
+                "pos_y": 624.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3696.0,
+                "pos_y": 624.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3760.0,
+                "pos_y": 624.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3680.0,
+                "pos_y": 688.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3680.0,
+                "pos_y": 736.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3728.0,
+                "pos_y": 736.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3744.0,
+                "pos_y": 672.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3808.0,
+                "pos_y": 624.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3792.0,
+                "pos_y": 688.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3776.0,
+                "pos_y": 720.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3792.0,
+                "pos_y": 736.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3856.0,
+                "pos_y": 688.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3872.0,
+                "pos_y": 640.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3840.0,
+                "pos_y": 624.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3920.0,
+                "pos_y": 608.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3968.0,
+                "pos_y": 608.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
             },
             {
                 "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
@@ -397,16 +1851,472 @@
                     192,
                     53
                 ],
-                "pos_x": 1901.3333333333333,
-                "pos_y": 675.3333333333333,
+                "pos_x": 3840.0,
+                "pos_y": 576.0,
                 "scale": 1.0,
-                "layer_index": 6,
+                "layer_index": 8,
                 "parallax_ratio": 1.0,
                 "flip_x": false,
                 "flip_y": false,
                 "is_ground": true,
                 "collision_type": "solid",
-                "collision_offset_y": 22.0
+                "collision_offset_y": 24.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3904.0,
+                "pos_y": 656.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3280.0,
+                "pos_y": 592.0,
+                "scale": 1.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    944,
+                    652,
+                    38,
+                    104
+                ],
+                "pos_x": 4016.0,
+                "pos_y": 592.0,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    1200,
+                    608,
+                    70,
+                    128
+                ],
+                "pos_x": 3984.0,
+                "pos_y": 656.0,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3952.0,
+                "pos_y": 672.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3904.0,
+                "pos_y": 704.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3920.0,
+                "pos_y": 736.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3840.0,
+                "pos_y": 736.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3872.0,
+                "pos_y": 736.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3936.0,
+                "pos_y": 736.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    794,
+                    608,
+                    70,
+                    128
+                ],
+                "pos_x": 3664.0,
+                "pos_y": 784.0,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    1200,
+                    608,
+                    70,
+                    128
+                ],
+                "pos_x": 3952.0,
+                "pos_y": 784.0,
+                "scale": 1.0,
+                "layer_index": 8,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3712.0,
+                "pos_y": 800.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3904.0,
+                "pos_y": 800.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3760.0,
+                "pos_y": 800.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3824.0,
+                "pos_y": 800.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3872.0,
+                "pos_y": 800.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3728.0,
+                "pos_y": 848.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3760.0,
+                "pos_y": 848.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3792.0,
+                "pos_y": 848.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3824.0,
+                "pos_y": 848.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3856.0,
+                "pos_y": 848.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3888.0,
+                "pos_y": 848.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
+            },
+            {
+                "texture_path": "assets/graphics/background images/PixelPlatformerSet2v.1.1/main_lev_buildA.png",
+                "slice_rect": [
+                    720,
+                    112,
+                    32,
+                    32
+                ],
+                "pos_x": 3920.0,
+                "pos_y": 848.0,
+                "scale": 2.0,
+                "layer_index": 7,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": true,
+                "collision_type": "solid",
+                "collision_offset_y": 0.0
             }
         ]
     },

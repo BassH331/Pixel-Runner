@@ -142,10 +142,10 @@ class GameState(State):
         self.sky = self.environment_manager.sky
 
         # Background parallax variables
-        self.bg_x1: int = 0
-        self.bg_x2: int = self.width
-        self.bg_scroll_speed: int = 0
-        self.max_bg_scroll_speed: int = 5
+        self.bg_x1: float = 0.0
+        self.bg_x2: float = float(self.width)
+        self.bg_scroll_speed: float = 0.0
+        self.max_bg_scroll_speed: float = 5.0
         
         # Game state
         self.score: int = 0
@@ -777,7 +777,7 @@ class GameState(State):
     # Background Parallax
     # ─────────────────────────────────────────────────────────────────────────
     
-    def update_background(self, scroll_delta: int) -> None:
+    def update_background(self, scroll_delta: float) -> None:
         """
         Update parallax background positions.
         
@@ -1141,6 +1141,40 @@ class GameState(State):
         trigger_flash = getattr(player, 'trigger_hit_flash', None)
         if trigger_flash:
             trigger_flash()
+
+    def _check_environmental_hazards(self) -> None:
+        """Detect collision between Player and environmental hazard props (e.g. spikes, traps)."""
+        player_sprite = self.player.sprite
+        if not player_sprite or player_sprite.is_invincible or getattr(player_sprite, "health", 1) <= 0:
+            return
+
+        for prop in self.environment_manager.props:
+            if getattr(prop, "collision_type", "solid") == "hazard":
+                draw_x = int(prop.pos_x - self.world_distance * prop.parallax_ratio)
+                draw_y = int(prop.pos_y)
+                prop_rect = pg.Rect(draw_x, draw_y, prop.width, prop.height)
+                
+                # Check collision with player bounding box
+                if player_sprite.rect.colliderect(prop_rect):
+                    damage = 15.0
+                    damage_applied = player_sprite.take_damage(damage)
+                    if damage_applied:
+                        VisualEffectManager.spawn_hit_vfx(
+                            player_sprite.rect.centerx,
+                            player_sprite.rect.centery,
+                            entity=player_sprite,
+                            target_entity=player_sprite,
+                        )
+                        if self.tracker.enabled:
+                            self.tracker.log_event("damage_received", {
+                                "attacker": f"HazardSpike_{os.path.basename(prop.texture_path)}",
+                                "attacker_is_boss": False,
+                                "damage": damage,
+                                "health_remaining": player_sprite.health,
+                                "world_distance": float(self.world_distance),
+                            })
+                        print(f"[HAZARD SPIKE] Player hit environmental hazard '{os.path.basename(prop.texture_path)}'! Dealt {damage} damage.")
+                        break
             
         # Update score if needed (e.g., for tracking hits taken)
         if hasattr(self, 'score'):
@@ -1554,10 +1588,15 @@ class GameState(State):
                     self._intro_npc_done = True
                     print("[INTRO NPC] Sequence complete → Skeletons unlocked")
             player_sprite.can_move = True
-            if player_sprite.is_running and not self._is_boss_active():
-                self.bg_scroll_speed = self.max_bg_scroll_speed * player_sprite.direction
+            if not self._is_boss_active():
+                if player_sprite.direction > 0:
+                    self.bg_scroll_speed = self.max_bg_scroll_speed
+                elif player_sprite.direction < 0 and self.world_distance > 0:
+                    self.bg_scroll_speed = -self.max_bg_scroll_speed
+                else:
+                    self.bg_scroll_speed = 0.0
             else:
-                self.bg_scroll_speed = 0
+                self.bg_scroll_speed = 0.0
 
         # ── Boss Arena Boundary Enforcement ──────────────────────────────────
         if self._arena_active:
@@ -1609,6 +1648,7 @@ class GameState(State):
         self.update_background(self.bg_scroll_speed)
         self.player_ui.update()
         self.player.update()
+        self._check_environmental_hazards()
         self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)

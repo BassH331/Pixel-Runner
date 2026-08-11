@@ -1640,7 +1640,11 @@ class App:
         self.bg_picker_modal = None
         self.slicer_modal = None
         self.cam_x = 0.0
+        self.cam_y = 0.0
         self.cam_zoom = 1.0
+        self.panning_canvas = False
+        self.pan_start_pos = (0, 0)
+        self.pan_start_cam = (0.0, 0.0)
         self.selected_prop_idx = -1
         self.dragging_prop_idx = -1
         self.active_layer_filter = 3  # 1: Sky, 2: Mid-BG, 3: Ground & Terrain, 4: Props, 5: Foreground
@@ -1653,6 +1657,11 @@ class App:
         env_cfg = self.level_data.get("environment", {})
         self.env_mgr = EnvironmentManager(W, H, env_config=env_cfg)
         self._init_s5_widgets()
+
+    def _recenter_cam(self):
+        self.cam_x = 0.0
+        self.cam_y = 0.0
+        self.cam_zoom = 1.0
 
     def _init_s5_widgets(self):
         gy = self.env_mgr.ground_y
@@ -1747,64 +1756,101 @@ class App:
 
         canvas_rect = self._get_s5_canvas_rect()
 
-        if ev.type == pg.MOUSEBUTTONDOWN and ev.button == 1:
+        if ev.type == pg.MOUSEBUTTONDOWN:
             mx, my = ev.pos
             mods = pg.key.get_mods()
             is_alt = bool(mods & pg.KMOD_ALT)
 
-            # Minimap scrubbing area (Y: H - 65 to H)
-            if my >= H - 65:
-                map_w = min(650, max(200, W - 500))
-                map_x = max(10, (W - map_w) // 2)
-                if map_x <= mx <= map_x + map_w:
-                    self.dragging_minimap = True
-                    self._update_minimap_scrub(float(mx))
-                    return
+            # Canvas Panning start (Middle click, Right click, or Shift+Left click)
+            if canvas_rect.collidepoint(mx, my) and (ev.button in (2, 3) or (ev.button == 1 and bool(mods & pg.KMOD_SHIFT))):
+                self.panning_canvas = True
+                self.pan_start_pos = (mx, my)
+                self.pan_start_cam = (self.cam_x, self.cam_y)
+                return
 
-            # Canvas Viewport area (strictly 16:9 canvas_rect)
-            if canvas_rect.collidepoint(mx, my):
-                native_x = (mx - canvas_rect.x) * (1280.0 / float(canvas_rect.w))
-                native_y = (my - canvas_rect.y) * (720.0 / float(canvas_rect.h))
+            if ev.button == 1:
+                # Minimap scrubbing area (Y: H - 65 to H)
+                if my >= H - 65:
+                    map_w = min(650, max(200, W - 500))
+                    map_x = max(10, (W - map_w) // 2)
+                    if map_x <= mx <= map_x + map_w:
+                        self.dragging_minimap = True
+                        self._update_minimap_scrub(float(mx))
+                        return
 
-                clicked_idx = -1
-                # Check prop collision on canvas across all layers
-                for pidx, prop in reversed(list(enumerate(self.env_mgr.props))):
-                    draw_x = int(prop.pos_x - self.cam_x * prop.parallax_ratio)
-                    draw_y = int(prop.pos_y)
-                    prect = pg.Rect(draw_x, draw_y, prop.width, prop.height)
-                    if prect.collidepoint(int(native_x), int(native_y)):
-                        clicked_idx = pidx
-                        break
+                # Canvas Viewport area (strictly 16:9 canvas_rect)
+                if canvas_rect.collidepoint(mx, my):
+                    nx = (mx - canvas_rect.x) * (1280.0 / float(canvas_rect.w))
+                    ny = (my - canvas_rect.y) * (720.0 / float(canvas_rect.h))
 
-                if clicked_idx >= 0:
-                    self.selected_prop_idx = clicked_idx
-                    self.active_layer_filter = self.env_mgr.props[clicked_idx].layer_index
+                    clicked_idx = -1
+                    # Priority 1: Check props on active layer first
+                    for pidx in reversed(range(len(self.env_mgr.props))):
+                        prop = self.env_mgr.props[pidx]
+                        if prop.layer_index == self.active_layer_filter:
+                            draw_x = int(prop.pos_x - self.cam_x * prop.parallax_ratio)
+                            draw_y = int(prop.pos_y - self.cam_y)
+                            prect = pg.Rect(draw_x, draw_y, prop.width, prop.height)
+                            if prect.collidepoint(int(nx), int(ny)):
+                                clicked_idx = pidx
+                                break
 
-                    # FL Studio Alt-Drag Duplication!
-                    if is_alt:
-                        self.duplicate_selected_prop()
-                        self.dragging_prop_idx = self.selected_prop_idx
+                    # Priority 2: If no match on active layer, check across all visible layers
+                    if clicked_idx < 0:
+                        for pidx in reversed(range(len(self.env_mgr.props))):
+                            prop = self.env_mgr.props[pidx]
+                            draw_x = int(prop.pos_x - self.cam_x * prop.parallax_ratio)
+                            draw_y = int(prop.pos_y - self.cam_y)
+                            prect = pg.Rect(draw_x, draw_y, prop.width, prop.height)
+                            if prect.collidepoint(int(nx), int(ny)):
+                                clicked_idx = pidx
+                                break
+
+                    if clicked_idx >= 0:
+                        self.selected_prop_idx = clicked_idx
+                        self.active_layer_filter = self.env_mgr.props[clicked_idx].layer_index
+
+                        # FL Studio Alt-Drag Duplication!
+                        if is_alt:
+                            self.duplicate_selected_prop()
+                            self.dragging_prop_idx = self.selected_prop_idx
+                        else:
+                            self.dragging_prop_idx = clicked_idx
                     else:
-                        self.dragging_prop_idx = clicked_idx
-                else:
-                    self.selected_prop_idx = -1
+                        self.selected_prop_idx = -1
 
-        elif ev.type == pg.MOUSEBUTTONUP and ev.button == 1:
-            self.dragging_prop_idx = -1
-            self.dragging_minimap = False
+        elif ev.type == pg.MOUSEBUTTONUP:
+            if ev.button in (1, 2, 3):
+                self.panning_canvas = False
+            if ev.button == 1:
+                self.dragging_prop_idx = -1
+                self.dragging_minimap = False
 
         elif ev.type == pg.MOUSEMOTION:
-            if getattr(self, "dragging_minimap", False):
+            if getattr(self, "panning_canvas", False):
+                mx, my = ev.pos
+                scale_w = 1280.0 / float(canvas_rect.w)
+                scale_h = 720.0 / float(canvas_rect.h)
+                dx = (mx - self.pan_start_pos[0]) * scale_w
+                dy = (my - self.pan_start_pos[1]) * scale_h
+                self.cam_x = max(0.0, self.pan_start_cam[0] - dx)
+                self.cam_y = self.pan_start_cam[1] - dy
+            elif getattr(self, "dragging_minimap", False):
                 self._update_minimap_scrub(float(ev.pos[0]))
             elif 0 <= self.dragging_prop_idx < len(self.env_mgr.props):
                 mx, my = ev.pos
                 if canvas_rect.collidepoint(mx, my):
                     prop = self.env_mgr.props[self.dragging_prop_idx]
-                    native_x = (mx - canvas_rect.x) * (1280.0 / float(canvas_rect.w))
-                    native_y = (my - canvas_rect.y) * (720.0 / float(canvas_rect.h))
+                    nx = (mx - canvas_rect.x) * (1280.0 / float(canvas_rect.w))
+                    ny = (my - canvas_rect.y) * (720.0 / float(canvas_rect.h))
 
-                    raw_x = self.cam_x * prop.parallax_ratio + native_x - prop.width // 2
-                    raw_y = native_y - prop.height // 2
+                    # Target screen position for prop top-left corner
+                    target_draw_x = nx - prop.width / 2.0
+                    target_draw_y = ny - prop.height / 2.0
+
+                    # Convert screen position back to world coordinates
+                    raw_x = target_draw_x + self.cam_x * prop.parallax_ratio
+                    raw_y = target_draw_y + self.cam_y
 
                     if self.grid_snap > 0:
                         prop.pos_x = float(round(raw_x / float(self.grid_snap)) * self.grid_snap)
@@ -1818,16 +1864,30 @@ class App:
             mx, my = pg.mouse.get_pos()
             if canvas_rect.collidepoint(mx, my):
                 mods = pg.key.get_mods()
-                if mods & pg.KMOD_CTRL:
+                if mods & pg.KMOD_SHIFT:
+                    self.cam_y -= ev.y * 40.0
+                elif mods & pg.KMOD_CTRL:
                     self.cam_zoom = max(0.2, min(3.0, self.cam_zoom + ev.y * 0.1))
                 else:
                     self.cam_x = max(0.0, self.cam_x - ev.y * (250.0 / self.cam_zoom))
 
         elif ev.type == pg.KEYDOWN:
             mods = pg.key.get_mods()
+            if ev.key == pg.K_HOME:
+                self._recenter_cam()
+                return
+
+            if mods & pg.KMOD_SHIFT:
+                if ev.key == pg.K_UP:
+                    self.cam_y -= 40.0
+                    return
+                elif ev.key == pg.K_DOWN:
+                    self.cam_y += 40.0
+                    return
+
             step = float(self.grid_snap) if self.grid_snap > 0 else 4.0
 
-            # Arrow keys nudge selected prop (unless Shift is held for camera pan)
+            # Arrow keys nudge selected prop
             if self.selected_prop_idx >= 0 and 0 <= self.selected_prop_idx < len(self.env_mgr.props):
                 p = self.env_mgr.props[self.selected_prop_idx]
                 if ev.key == pg.K_LEFT and not (mods & pg.KMOD_SHIFT):
@@ -1838,11 +1898,11 @@ class App:
                     p.pos_x += step
                     self.level_data["environment"] = self.env_mgr.to_config_dict()
                     return
-                elif ev.key == pg.K_UP:
+                elif ev.key == pg.K_UP and not (mods & pg.KMOD_SHIFT):
                     p.pos_y -= step
                     self.level_data["environment"] = self.env_mgr.to_config_dict()
                     return
-                elif ev.key == pg.K_DOWN:
+                elif ev.key == pg.K_DOWN and not (mods & pg.KMOD_SHIFT):
                     p.pos_y += step
                     self.level_data["environment"] = self.env_mgr.to_config_dict()
                     return
@@ -1883,7 +1943,7 @@ class App:
 
         # Render Sky, Background Parallax, and Environment Props onto native game surface
         # (env_mgr.draw fills surface first, then renders all layers — same pipeline as game)
-        self.env_mgr.draw(native_surf, cam_x=self.cam_x)
+        self.env_mgr.draw(native_surf, cam_x=self.cam_x, cam_y=self.cam_y)
 
         # FL Studio Piano Roll Style Snap Grid Overlay (semi-transparent, over the scene)
         if self.grid_snap > 0:
@@ -1901,31 +1961,34 @@ class App:
 
         # Render Ground Line Indicator
         gy = self.env_mgr.ground_y
-        pg.draw.line(native_surf, SUCCESS, (0, gy), (1280, gy), 2)
+        gy_draw = int(gy - self.cam_y)
+        pg.draw.line(native_surf, SUCCESS, (0, gy_draw), (1280, gy_draw), 2)
 
         # Render Ruler Ticks
         start_m = int(self.cam_x // 500 * 500)
         for dist_m in range(start_m, start_m + int(1280 / self.cam_zoom) + 1000, 500):
             cx = int((dist_m - self.cam_x) * self.cam_zoom)
             if 0 <= cx <= 1280:
-                pg.draw.line(native_surf, BORDER, (cx, gy), (cx, gy + 15), 2)
+                pg.draw.line(native_surf, BORDER, (cx, gy_draw), (cx, gy_draw + 15), 2)
                 t = self.sf.render(f"{dist_m}m", True, TXT2)
-                native_surf.blit(t, (cx - t.get_width() // 2, gy + 18))
+                native_surf.blit(t, (cx - t.get_width() // 2, gy_draw + 18))
 
         # Render Prop Selection Highlights & Corner Gizmos on Canvas
         if 0 <= self.selected_prop_idx < len(self.env_mgr.props):
             prop = self.env_mgr.props[self.selected_prop_idx]
             draw_x = int(prop.pos_x - self.cam_x * prop.parallax_ratio)
-            draw_y = int(prop.pos_y)
+            draw_y = int(prop.pos_y - self.cam_y)
             prect = pg.Rect(draw_x, draw_y, prop.width, prop.height)
             
-            # Cyan Selection Bounding Box & Corner Gizmos
-            pg.draw.rect(native_surf, ACCENT, prect, width=2, border_radius=4)
+            col_type_val = getattr(prop, "collision_type", "solid")
+            col_icon = "🧱 SOLID" if col_type_val == "solid" else ("🪜 PLATFORM" if col_type_val == "platform" else ("⚠️ HAZARD" if col_type_val == "hazard" else "🌿 DECO"))
+            box_col = (231, 76, 60) if col_type_val == "hazard" else ACCENT
+            pg.draw.rect(native_surf, box_col, prect, width=2, border_radius=4)
             for cx, cy in [(prect.left, prect.top), (prect.right, prect.top), (prect.left, prect.bottom), (prect.right, prect.bottom)]:
                 pg.draw.rect(native_surf, (241, 196, 15), pg.Rect(cx - 4, cy - 4, 8, 8))
 
             # Cyan Ground Contact Line Gizmo (for Solid & Platform props)
-            if getattr(prop, "collision_type", "solid") in ("solid", "platform"):
+            if col_type_val in ("solid", "platform"):
                 offset_y = getattr(prop, "collision_offset_y", 0.0)
                 contact_draw_y = int(draw_y + offset_y)
                 # Cyan solid line across prop width
@@ -1936,10 +1999,9 @@ class App:
                 c_lbl = self.sf.render(f"CONTACT Y: +{int(offset_y)}px", True, (0, 255, 255))
                 native_surf.blit(c_lbl, (prect.right + 8, contact_draw_y - c_lbl.get_height() // 2))
 
-            col_icon = "🧱 SOLID" if getattr(prop, "collision_type", "solid") == "solid" else ("🪜 PLATFORM" if getattr(prop, "collision_type", "solid") == "platform" else "🌿 DECO")
             ptag = self.sf.render(f"[{col_icon}] L{prop.layer_index} | Pos: ({int(prop.pos_x)}, {int(prop.pos_y)}) | Size: {prop.width}x{prop.height}px | Scale: {prop.scale:.1f}x", True, (20, 20, 20))
             tag_box = ptag.get_rect(midbottom=(prect.centerx, max(12, prect.y - 6))).inflate(12, 6)
-            pg.draw.rect(native_surf, ACCENT, tag_box, border_radius=4)
+            pg.draw.rect(native_surf, box_col, tag_box, border_radius=4)
             native_surf.blit(ptag, ptag.get_rect(center=tag_box.center))
 
         # Render Player Character Guide / Simulation Sprite (100% compliance with game physics)
@@ -1957,7 +2019,7 @@ class App:
             px = 120
             eff_gy_val = self.env_mgr.get_ground_y_at(px + self.cam_x)
             eff_gy = eff_gy_val if eff_gy_val is not None else float(self.env_mgr.ground_y)
-            py = int(eff_gy - ph)
+            py = int(eff_gy - ph - self.cam_y)
             if self.simulating:
                 t_step = int((pg.time.get_ticks() / 150) % 2) + 1
                 w_path = f"assets/shadow_warrior/run/run_{t_step}.png"
@@ -1968,7 +2030,7 @@ class App:
                         (int(w_tex_raw.get_width() * player_scale),
                          int(w_tex_raw.get_height() * player_scale))
                     )
-                    native_surf.blit(w_tex, (px, int(eff_gy - w_tex.get_height())))
+                    native_surf.blit(w_tex, (px, int(eff_gy - w_tex.get_height() - self.cam_y)))
                 else:
                     native_surf.blit(player_tex, (px, py))
             else:
@@ -1983,10 +2045,10 @@ class App:
         if bat_tex and bat_tex.get_width() > 1:
             ticks = pg.time.get_ticks() / 1000.0
             bat_coords = [
-                (450, 180 + int(math.sin(ticks * 2.0) * 10)),
-                (520, 240 + int(math.sin(ticks * 2.5 + 1.0) * 12)),
-                (550, 280 + int(math.sin(ticks * 2.2 + 2.0) * 8)),
-                (600, 220 + int(math.sin(ticks * 2.8 + 1.5) * 14))
+                (450, int(180 + math.sin(ticks * 2.0) * 10 - self.cam_y * 0.1)),
+                (520, int(240 + math.sin(ticks * 2.5 + 1.0) * 12 - self.cam_y * 0.1)),
+                (550, int(280 + math.sin(ticks * 2.2 + 2.0) * 8 - self.cam_y * 0.1)),
+                (600, int(220 + math.sin(ticks * 2.8 + 1.5) * 14 - self.cam_y * 0.1))
             ]
             for bx, by in bat_coords:
                 native_surf.blit(bat_tex, (bx, by))
@@ -1998,9 +2060,13 @@ class App:
         self.surf.blit(scaled_viewport, (canvas_rect.x, canvas_rect.y))
         pg.draw.rect(self.surf, BORDER, canvas_rect, width=2)
 
-        # Top Bar Panel & Fullscreen Control Buttons
+        # Top Bar Panel, Fullscreen, and Recenter View Control Buttons
+        b_recenter = Button("🎯 Recenter (Home)", W - 485, 10, 155, 32, self._recenter_cam, "ghost")
+        b_recenter.draw(self.surf, self.sf)
+        self._s5b.append(b_recenter)
+
         p_txt = "► Show Panels (Tab)" if getattr(self, "panels_collapsed", False) else "◄ Hide Panels (Tab)"
-        b_panels = Button(p_txt, W - 320, 10, 150, 32, self._toggle_panels, "ghost")
+        b_panels = Button(p_txt, W - 325, 10, 150, 32, self._toggle_panels, "ghost")
         b_panels.draw(self.surf, self.sf)
         self._s5b.append(b_panels)
 
@@ -2103,27 +2169,28 @@ class App:
             b_l_6 = Button("📌 L6 Ground", 174, left_panel.y + 250, 92, 26, _set_l6_ground, "primary")
             b_l_m.draw(self.surf, self.sf); b_l_p.draw(self.surf, self.sf); b_l_6.draw(self.surf, self.sf)
 
-            # Collision / Object Physics Type Selector
             col_type = getattr(prop, "collision_type", "solid")
             col_labels = {
                 "solid": "🧱 Type: Solid Ground",
                 "platform": "🪜 Type: Jump Platform",
+                "hazard": "⚠️ Type: Hazard / Trap (Spikes)",
                 "deco": "🌿 Type: Decorative"
             }
             col_styles = {
                 "solid": "success",
                 "platform": "primary",
+                "hazard": "warning",
                 "deco": "ghost"
             }
             self.surf.blit(self.sf.render("Physics & Collision Type:", True, TXT2), (14, left_panel.y + 284))
 
             def _cycle_col_type():
-                types = ["solid", "platform", "deco"]
+                types = ["solid", "platform", "hazard", "deco"]
                 cur_i = types.index(getattr(prop, "collision_type", "solid")) if getattr(prop, "collision_type", "solid") in types else 0
                 next_t = types[(cur_i + 1) % len(types)]
                 prop.collision_type = next_t
-                prop.is_ground = (next_t != "deco")
-                if next_t in ("solid", "platform"):
+                prop.is_ground = (next_t in ("solid", "platform"))
+                if next_t in ("solid", "platform", "hazard"):
                     prop.layer_index = 6
                     prop.parallax_ratio = 1.0
                 self.level_data["environment"] = self.env_mgr.to_config_dict()
