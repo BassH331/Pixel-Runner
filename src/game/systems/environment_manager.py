@@ -450,18 +450,25 @@ class EnvironmentManager:
             except Exception:
                 pass
 
-    def get_ground_y_at(self, x: float) -> Optional[float]:
-        """Returns the top Y of the highest solid ground prop at world position x, or None if no ground."""
+    def get_ground_y_at(self, x: float | tuple[float, float] | list[float], fallback_to_default: bool = True) -> Optional[float]:
+        """Returns the top Y of the highest solid ground prop at world position x (or range x_min..x_max), or default ground_y if fallback_to_default is True and no solid prop contact line exists."""
+        if isinstance(x, (tuple, list)):
+            x_min, x_max = float(x[0]), float(x[1])
+        else:
+            x_min, x_max = float(x), float(x)
+
         solid_ys = []
         for prop in self.props:
             if getattr(prop, "is_ground", True) and getattr(prop, "collision_type", "solid") in ("solid", "platform"):
                 px = prop.pos_x
                 pw = prop.width
-                if px <= x <= px + pw:
+                if max(px, x_min) <= min(px + pw, x_max):
                     offset_y = getattr(prop, "collision_offset_y", 0.0)
                     solid_ys.append(prop.pos_y + offset_y)
         if solid_ys:
             return float(min(solid_ys))
+        if fallback_to_default:
+            return float(self.ground_y)
         return None
 
     def update(self, dt: float, player_speed: float = 0.0) -> None:

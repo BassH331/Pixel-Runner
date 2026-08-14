@@ -80,3 +80,12 @@ def test_ldtk_importer_conversion():
     assert config["level_end_distance"] == 10000
     assert len(config["world_events"]) == 1
     assert config["world_events"][0]["params"]["title"] == "Test NPC"
+
+
+def test_get_ground_y_at_fallback_default():
+    env = EnvironmentManager(1280, 720, env_config={"ground_y": 540})
+    # When no props are present, get_ground_y_at returns ground_y by default
+    assert env.get_ground_y_at(100) == 540.0
+    # When fallback_to_default=False, it returns None
+    assert env.get_ground_y_at(100, fallback_to_default=False) is None
+

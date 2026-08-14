@@ -76,13 +76,20 @@ class HitboxRegistry:
                 default_margins = cls.DEFAULTS.get(norm_name) or (
                     HitboxMargins(0, 0, 0, 0, 34, scale=2.0) if norm_name.startswith("generic_npc_") else HitboxMargins(0, 0, 0, 0, 0, scale=1.0)
                 )
+                left_val = item.get("left")
+                right_val = item.get("right")
+                top_val = item.get("top")
+                bottom_val = item.get("bottom")
+                offset_val = item.get("ground_offset")
+                scale_val = item.get("scale")
+
                 cls._cached_config[norm_name] = HitboxMargins(
-                    left=item.get("left", default_margins.left),
-                    right=item.get("right", default_margins.right),
-                    top=item.get("top", default_margins.top),
-                    bottom=item.get("bottom", default_margins.bottom),
-                    ground_offset=item.get("ground_offset", default_margins.ground_offset),
-                    scale=item.get("scale", default_margins.scale),
+                    left=default_margins.left if left_val is None else int(left_val),
+                    right=default_margins.right if right_val is None else int(right_val),
+                    top=default_margins.top if top_val is None else int(top_val),
+                    bottom=default_margins.bottom if bottom_val is None else int(bottom_val),
+                    ground_offset=default_margins.ground_offset if offset_val is None else int(offset_val),
+                    scale=default_margins.scale if scale_val is None else float(scale_val),
                 )
             
             # Populate any missing default entries

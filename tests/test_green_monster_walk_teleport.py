@@ -42,6 +42,7 @@ def test_green_monster_apply_config():
 
 def test_green_monster_gravity_and_grounding():
     monster = _make_green_monster()
+    assert monster._ground_y is not None
     monster.rect.bottom = monster._ground_y - 200
     monster._gravity = 0.0
 

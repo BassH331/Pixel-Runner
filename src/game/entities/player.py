@@ -654,9 +654,12 @@ class Player(Actor):
     
     # Physics constants
     _GRAVITY_ACCELERATION: Final[float] = 0.8
-    _JUMP_VELOCITY: Final[float] = -22  # Reduced from -29.0 to make jumps lower
+    _JUMP_VELOCITY: Final[float] = -25.5
+    _DOUBLE_JUMP_VELOCITY: Final[float] = -24.0
     _GROUND_OFFSET: Final[int] = 34
-    _AIRBORNE_THRESHOLD: Final[int] = 230
+    _AIRBORNE_THRESHOLD: Final[int] = 5
+    _COYOTE_TIME_DURATION: Final[float] = 0.12
+    _MAX_JUMPS: Final[int] = 2
     
     # Movement constants
     _MOVE_SPEED: Final[float] = 3.4
@@ -858,6 +861,9 @@ class Player(Actor):
         surf = pg.display.get_surface()
         height = surf.get_height() if surf else 720
         self._ground_y: Optional[int] = height - margins.ground_offset
+        self._coyote_timer: float = 0.0
+        self._jump_count: int = 0
+        self._jump_key_was_pressed: bool = False
         
         # Movement state
         self._direction: int = 0
@@ -1569,29 +1575,40 @@ class Player(Actor):
     
     def jump(self) -> bool:
         """
-        Initiate jump.
+        Initiate jump (or double jump if airborne).
 
         Button: ``SPACE`` (keyboard) / Gamepad button 0 / Left-stick up (axis 1 < -0.9)
 
         Returns:
-            True if jump started, False if not grounded, low stamina, or blocked.
+            True if jump started, False if max jumps reached, low stamina, or blocked.
         """
         if self._stamina < self._JUMP_STAMINA_COST:
             return False
             
-        # Must be on ground
-        if self._ground_y is None or self.rect.bottom < self._ground_y - self._AIRBORNE_THRESHOLD:
-            return False
+        is_on_ground = self._ground_y is not None and self.rect.bottom >= self._ground_y - self._AIRBORNE_THRESHOLD
+        
+        if is_on_ground or self._coyote_timer > 0.0:
+            if not self._can_transition_to(PlayerState.JUMP_UP):
+                return False
+            self._jump_count = 1
+            self._gravity = self._JUMP_VELOCITY
+            self._coyote_timer = 0.0
+            self._transition_to(PlayerState.JUMP_UP)
+            self._spend_stamina(self._JUMP_STAMINA_COST)
+            self._audio_manager.play_sound("jump_grunt")
+            self._audio_manager.play_sound("jump")
+            return True
+        elif self._jump_count < self._MAX_JUMPS:
+            # Execute Mid-Air Double Jump
+            self._jump_count = 2
+            self._gravity = self._DOUBLE_JUMP_VELOCITY
+            self.set_state(PlayerState.JUMP_UP, force=True)
+            self._spend_stamina(self._JUMP_STAMINA_COST)
+            self._audio_manager.play_sound("jump_grunt")
+            self._audio_manager.play_sound("jump")
+            return True
             
-        if not self._can_transition_to(PlayerState.JUMP_UP):
-            return False
-            
-        self._gravity = self._JUMP_VELOCITY
-        self._transition_to(PlayerState.JUMP_UP)
-        self._spend_stamina(self._JUMP_STAMINA_COST)
-        self._audio_manager.play_sound("jump_grunt")
-        self._audio_manager.play_sound("jump")
-        return True
+        return False
     
     def grant_invincibility(self, duration: float) -> None:
         """
@@ -1737,8 +1754,16 @@ class Player(Actor):
         """Process action button input via ControlsManager."""
         controls_mgr = ControlsManager()
 
-        if controls_mgr.is_action_pressed("JUMP", keys, joystick):
-            self.jump()
+        jump_is_down = controls_mgr.is_action_pressed("JUMP", keys, joystick)
+        if jump_is_down:
+            if not self._jump_key_was_pressed:
+                self.jump()
+            self._jump_key_was_pressed = True
+        else:
+            # Key released: short hop / cut jump short if rising
+            if self._jump_key_was_pressed and self._gravity < -5.0:
+                self._gravity *= 0.55
+            self._jump_key_was_pressed = False
 
         if controls_mgr.is_action_pressed("ATTACK_THRUST", keys, joystick):
             self.attack_thrust()
@@ -1866,7 +1891,9 @@ class Player(Actor):
 
     def _update_state_logic(self) -> None:
         """Auto-manage state transitions based on physics (grounded, airborne, etc.)."""
-        on_ground = self._ground_y is not None and self.rect.bottom >= self._ground_y - 1
+        on_ground = self._ground_y is not None and self.rect.bottom >= self._ground_y - 5
+        if on_ground:
+            self._jump_count = 0
 
         # Airborne state management
         if not on_ground:
@@ -1979,6 +2006,13 @@ class Player(Actor):
 
         if self._invincibility_timer > 0:
             self._invincibility_timer -= dt
+
+        # Update Coyote Time window
+        is_on_ground = self._ground_y is not None and self.rect.bottom >= self._ground_y - 5
+        if is_on_ground:
+            self._coyote_timer = self._COYOTE_TIME_DURATION
+        else:
+            self._coyote_timer = max(0.0, self._coyote_timer - dt)
 
         self._update_resources(dt)
 

@@ -152,6 +152,7 @@ class TestPlayerMoves(unittest.TestCase):
         self.player.set_state(PlayerState.IDLE, force=True)
 
         # Put player in the air
+        assert self.player._ground_y is not None
         self.player.rect.bottom = self.player._ground_y - 100
 
         self.assertFalse(self.player.attack_thrust(),
@@ -169,6 +170,7 @@ class TestPlayerMoves(unittest.TestCase):
         """Ground attacks should succeed when player is on the ground."""
         self.player.set_state(PlayerState.IDLE, force=True)
         # Ensure player is grounded
+        assert self.player._ground_y is not None
         self.player.rect.bottom = self.player._ground_y
 
         self.assertTrue(self.player.attack_thrust(),
@@ -211,6 +213,7 @@ class TestPlayerMoves(unittest.TestCase):
     def test_attack_stamina_consumption_and_gating(self):
         """Verify attacks consume substantial stamina and are blocked when stamina is insufficient."""
         self.player.set_state(PlayerState.IDLE, force=True)
+        assert self.player._ground_y is not None
         self.player.rect.bottom = self.player._ground_y
         self.player._stamina = 100.0
 
@@ -238,6 +241,7 @@ class TestPlayerMoves(unittest.TestCase):
     def test_jump_stamina_consumption_and_gating(self):
         """Verify jump consumes stamina and fails when stamina is insufficient."""
         self.player.set_state(PlayerState.IDLE, force=True)
+        assert self.player._ground_y is not None
         self.player.rect.bottom = self.player._ground_y
         self.player._stamina = 100.0
 
@@ -251,5 +255,67 @@ class TestPlayerMoves(unittest.TestCase):
         self.player._stamina = 5.0
         success = self.player.jump()
         self.assertFalse(success, "Jump should fail when stamina is below _JUMP_STAMINA_COST")
+
+    def test_midair_jump_prevention(self):
+        """Verify that a 3rd jump while airborne is blocked once max jumps (2) are used."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player._stamina = 100.0
+        self.player._ground_y = 500
+        self.player._coyote_timer = 0.0
+        self.player._jump_count = 2  # Max jumps already used
+        
+        # Position player 50px above ground (airborne)
+        self.player.rect.bottom = 440
+        success = self.player.jump()
+        self.assertFalse(success, "3rd jump should fail when max jumps (2) are used")
+
+    def test_coyote_time_jump(self):
+        """Verify that Coyote Time allows jumping shortly after leaving ground."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player._stamina = 100.0
+        self.player._ground_y = 500
+        self.player.rect.bottom = 500
+        
+        # Update once while on ground to prime coyote timer
+        self.player.update(1.0 / 60.0)
+        self.assertGreater(self.player._coyote_timer, 0.0)
+        
+        # Move off ground into air
+        self.player._ground_y = None
+        self.player.rect.bottom = 400
+        
+        # Should still be able to jump within coyote window
+        success = self.player.jump()
+        self.assertTrue(success, "Jump should succeed during Coyote Time window")
+        self.assertEqual(self.player._coyote_timer, 0.0, "Coyote timer should reset to 0 after jump")
+
+    def test_double_jump_execution(self):
+        """Verify that 1st ground jump sets jump_count=1 and 2nd mid-air jump executes double jump with jump_count=2."""
+        self.player.set_state(PlayerState.IDLE, force=True)
+        self.player._stamina = 100.0
+        self.player._ground_y = 500
+        self.player.rect.bottom = 500
+        
+        # 1st Jump (Ground)
+        first_success = self.player.jump()
+        self.assertTrue(first_success, "1st ground jump should succeed")
+        self.assertEqual(self.player._jump_count, 1)
+        self.assertEqual(self.player._gravity, self.player._JUMP_VELOCITY)
+        
+        # Move into mid-air
+        self.player._ground_y = None
+        self.player._coyote_timer = 0.0
+        self.player.rect.bottom = 420
+        
+        # 2nd Jump (Mid-Air Double Jump)
+        double_success = self.player.jump()
+        self.assertTrue(double_success, "2nd mid-air double jump should succeed")
+        self.assertEqual(self.player._jump_count, 2)
+        self.assertEqual(self.player._gravity, self.player._DOUBLE_JUMP_VELOCITY)
+        
+        # 3rd Jump attempt (Should fail)
+        third_success = self.player.jump()
+        self.assertFalse(third_success, "3rd jump in air should be blocked")
+
 
 

@@ -333,8 +333,9 @@ class GreenMonster(EntityAudioMixin, Actor):
         self._gravity: float = 0.0
         surf = pg.display.get_surface()
         height = surf.get_height() if surf else 720
-        self._ground_y: Optional[int] = height - margins.ground_offset
-        self.rect.bottom = self._ground_y
+        ground_y = height - margins.ground_offset
+        self._ground_y: Optional[int] = ground_y
+        self.rect.bottom = ground_y
 
         self.spawn_zone: Optional[dict] = None
 

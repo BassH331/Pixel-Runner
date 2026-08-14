@@ -1633,7 +1633,10 @@ class GameState(State):
         
         # Dynamically evaluate solid ground prop surfaces for Player and Obstacles/Enemies
         player_world_x = player_sprite.rect.centerx + self.world_distance
-        p_ground = self.environment_manager.get_ground_y_at(player_world_x)
+        foot_span = max(10.0, float(player_sprite.rect.width) * 0.25)
+        p_ground = self.environment_manager.get_ground_y_at(
+            (player_world_x - foot_span, player_world_x + foot_span)
+        )
         player_sprite.set_ground_y(int(p_ground) if p_ground is not None else None)
 
         for enemy in self.obstacle_group:
