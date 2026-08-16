@@ -35,6 +35,9 @@ class _GenericNPCState(Enum):
     DEATH = 1
     WALK = 2
     SPAWN = 3
+    LAND = 4
+    JUMP_START = 5
+    JUMP_LOOP = 6
 
 
 class GenericNPC(Actor):
@@ -154,28 +157,84 @@ class GenericNPC(Actor):
             spawn_sprite_dir = _find_action_folder(sprite_dir, ["spawn"])
         self.spawn_sprite_dir = spawn_sprite_dir
 
-        # ── Spirit of the Scythe Specific Identification ───────────────────────
+        # ── Spirit of the Scythe & Gatekeeper Identification ────────────────────
         self.is_spirit_of_scythe: bool = (
             "spirit of the scythe" in str(self.title).lower() or
             "scythe whispers" in str(self.title).lower() or
             "evil eye beast" in str(self.death_sprite_dir or "").lower() or
             "evil eye beast" in str(sprite_dir).lower()
         )
+        self.is_sky_fall_npc: bool = (
+            "moonstone_keeper" in str(sprite_dir).lower() or
+            "gatekeeper" in str(self.title).lower()
+        )
         self.is_trance_active: bool = False
-        self._trance_phase: int = 0  # 0: None, 1: Spawning (Eye Opening), 2: Floating Text, 3: Eye Closing
+        self._trance_phase: int = 0  # 0: Sky Fly-In Descent, 1: Eye Opening (Reverse Death), 2: Floating Text, 3: Eye Closing
         self._trance_text_timer: float = 0.0
         self._trance_text_duration: float = 3.5  # seconds text stays floating on screen
+        self._fly_in_progress: float = 0.0
+        self._fly_in_duration: float = 1.0  # 1.0 second smooth sky descent
+
+        self._sky_fall_phase: int = 0  # 0: Waiting, 1: Falling, 2: Landing, 3: Speech (8s), 4: Jump Charge, 5: Sky Launch Out
+        self._sky_fall_timer: float = 0.0
+        self._sky_fall_text_duration: float = 8.0  # 8 seconds speech focused zoom
+
+        self.visible: bool = not (self.is_spirit_of_scythe or self.is_sky_fall_npc)  # Hidden until player enters proximity!
+
+        # Load animated flame frames for the Eyeball fire border
+        self._flame_frames: list[pg.Surface] = []
+        self._flame_index: float = 0.0
+        if self.is_spirit_of_scythe:
+            flame_dir = "assets/graphics/Fire Effect 2/Explosion2_frames"
+            if os.path.exists(flame_dir):
+                raw_flames = AssetManager.get_animation_frames(flame_dir)
+                if raw_flames:
+                    self._flame_frames = [pg.transform.smoothscale(f, (80, 80)) for f in raw_flames]
 
         # Resolve registry key and margins early to determine scale
         folder_name = os.path.basename(sprite_dir.rstrip("/"))
-        if folder_name.lower() == "idle":
+        if folder_name.lower() in ("idle", "no bg", "with bg"):
             parent_dir = os.path.dirname(sprite_dir.rstrip("/"))
             folder_name = os.path.basename(parent_dir)
+            if folder_name.lower() in ("idle", "no bg", "with bg"):
+                folder_name = os.path.basename(os.path.dirname(parent_dir))
         sprite_key = f"generic_npc_{folder_name.lower()}"
         margins = HitboxRegistry.get_margins(sprite_key)
 
         final_scale = scale if scale is not None else margins.scale
         self.scale = final_scale
+
+        # Pre-load LAND, JUMP_START, JUMP_LOOP animation frames for Sky-Fall NPC
+        if self.is_sky_fall_npc:
+            land_dir = _find_action_folder(sprite_dir, ["land"])
+            if land_dir and os.path.exists(land_dir):
+                raw_land = AssetManager.get_animation_frames(land_dir)
+                if raw_land:
+                    self.animations[_GenericNPCState.LAND] = [
+                        pg.transform.scale(f, (int(f.get_width() * final_scale), int(f.get_height() * final_scale)))
+                        for f in raw_land
+                    ]
+                    self.state_configs[_GenericNPCState.LAND] = type("SC", (), {"animation_speed": frame_duration, "loops": False, "interruptible": False})()
+
+            js_dir = _find_action_folder(sprite_dir, ["jump start"])
+            if js_dir and os.path.exists(js_dir):
+                raw_js = AssetManager.get_animation_frames(js_dir)
+                if raw_js:
+                    self.animations[_GenericNPCState.JUMP_START] = [
+                        pg.transform.scale(f, (int(f.get_width() * final_scale), int(f.get_height() * final_scale)))
+                        for f in raw_js
+                    ]
+                    self.state_configs[_GenericNPCState.JUMP_START] = type("SC", (), {"animation_speed": frame_duration, "loops": False, "interruptible": False})()
+
+            jl_dir = _find_action_folder(sprite_dir, ["jump loop"])
+            if jl_dir and os.path.exists(jl_dir):
+                raw_jl = AssetManager.get_animation_frames(jl_dir)
+                if raw_jl:
+                    self.animations[_GenericNPCState.JUMP_LOOP] = [
+                        pg.transform.scale(f, (int(f.get_width() * final_scale), int(f.get_height() * final_scale)))
+                        for f in raw_jl
+                    ]
+                    self.state_configs[_GenericNPCState.JUMP_LOOP] = type("SC", (), {"animation_speed": frame_duration, "loops": True, "interruptible": False})()
 
         # ── 1. Load IDLE animation frames ──────────────────────────────────
         raw_idle_frames = AssetManager.get_animation_frames(sprite_dir)
@@ -297,8 +356,8 @@ class GenericNPC(Actor):
 
     @property
     def can_interact(self) -> bool:
-        if self.is_spirit_of_scythe:
-            return False  # Spirit of the Scythe is hands-free, no "Talk" prompt or dialogue box
+        if self.is_spirit_of_scythe or self.is_sky_fall_npc:
+            return False  # Hands-free floating dialogue cutscenes
         return self._in_range and not self._interacted and not self.is_dying_or_dead and not self.is_walking and not self.is_spawning
 
     @property
@@ -316,6 +375,18 @@ class GenericNPC(Actor):
         position (rect.bottom minus per-state bottom offset) and preserve it
         across transitions so the NPC's feet stay pinned to the ground.
         """
+        if getattr(self, "_sky_fall_phase", 0) in (1, 5) or getattr(self, "is_death_complete", False):
+            curr_bottom = self.rect.bottom
+            super().set_state(new_state, force=force)
+            frames = self.animations.get(self.state)
+            if frames:
+                self.image = frames[int(self.animation_index)]
+                old_centerx = self.rect.centerx
+                self.rect = self.image.get_rect()
+                self.rect.centerx = old_centerx
+                self.rect.bottom = curr_bottom
+            return
+
         old_state = self.state
         old_offset = getattr(self, '_state_bottom_offsets', {}).get(old_state, 0)
         visual_ground = self.rect.bottom - old_offset  # where the feet are
@@ -354,18 +425,25 @@ class GenericNPC(Actor):
         if self.is_spirit_of_scythe and not self.is_trance_active and not self.is_death_complete and not self._interacted:
             if distance <= self.proximity_radius:
                 self.is_trance_active = True
-                self._trance_phase = 1
-                self.is_spawning = True
+                self.visible = True
+                self._trance_phase = 0  # Phase 0: Sky Fly-In Descent
+                self._fly_in_progress = 0.0
+                self._target_ground_y = self.rect.centery
+                self.rect.centery = -120  # Start off-screen top!
                 self.facing_left = self.rect.centerx > player_rect.centerx
-                print(f"[SPIRIT NPC] Trance proximity reached! dist={distance:.0f}px  Eye.x={self.rect.centerx}  Player.x={player_rect.centerx}")
-                if _GenericNPCState.SPAWN in self.animations:
-                    self.set_state(_GenericNPCState.SPAWN, force=True)
-                    print("[SPIRIT NPC] → Playing Reverse Death (Eye Opening) animation")
-                else:
-                    self.is_spawning = False
-                    self._trance_phase = 2
-                    self._trance_text_timer = self._trance_text_duration
-                    self.set_state(_GenericNPCState.IDLE, force=True)
+                print(f"[SPIRIT NPC] Trance proximity reached! dist={distance:.0f}px  Eye flying in from top of screen!")
+
+        if self.is_sky_fall_npc and not self.is_trance_active and not self.is_death_complete and not self._interacted:
+            if distance <= self.proximity_radius:
+                self.is_trance_active = True
+                self.visible = True
+                self._sky_fall_phase = 1  # Phase 1: Sky Fall Descent
+                self._target_ground_y = self.rect.bottom
+                self.facing_left = self.rect.centerx > player_rect.centerx
+                if _GenericNPCState.JUMP_LOOP in self.animations:
+                    self.set_state(_GenericNPCState.JUMP_LOOP, force=True)
+                self.rect.bottom = -200  # Start off-screen top!
+                print(f"[SKY FALL NPC] Proximity reached! Gatekeeper falling from sky dist={distance:.0f}px")
 
         if self.is_walking and distance <= self.proximity_radius:
             self.is_walking = False
@@ -395,7 +473,28 @@ class GenericNPC(Actor):
                 self.rect.x += int(self.walk_speed * delta_seconds)
 
         if self.is_spirit_of_scythe and self.is_trance_active:
-            if self._trance_phase == 1:
+            if self._trance_phase == 0:
+                # Phase 0: Sky Fly-In Descent (starts at y = -120, eases down to _target_ground_y)
+                self._fly_in_progress += delta_seconds / self._fly_in_duration
+                t = min(1.0, max(0.0, self._fly_in_progress))
+                # Ease-Out Quad interpolation: e(t) = 1 - (1-t)^2
+                ease_t = 1.0 - (1.0 - t) * (1.0 - t)
+                start_y = -120
+                target_y = getattr(self, "_target_ground_y", 450)
+                self.rect.centery = int(start_y + ease_t * (target_y - start_y))
+
+                if self._fly_in_progress >= 1.0:
+                    self._trance_phase = 1
+                    self.is_spawning = True
+                    if _GenericNPCState.SPAWN in self.animations:
+                        self.set_state(_GenericNPCState.SPAWN, force=True)
+                        print("[SPIRIT NPC] Sky Fly-In complete → Phase 1: Eye Opening (Reverse Death) animation")
+                    else:
+                        self.is_spawning = False
+                        self._trance_phase = 2
+                        self._trance_text_timer = self._trance_text_duration
+                        self.set_state(_GenericNPCState.IDLE, force=True)
+            elif self._trance_phase == 1:
                 # Phase 1: Eye Opening (Reverse Death SPAWN)
                 spawn_frames = self.animations.get(_GenericNPCState.SPAWN)
                 if spawn_frames and self.animation_index >= len(spawn_frames) - 1:
@@ -419,6 +518,60 @@ class GenericNPC(Actor):
                     self.is_trance_active = False
                     self._trance_phase = 0
                     print("[SPIRIT NPC] Eye closed and despawned → Player unlocked")
+        elif self.is_sky_fall_npc and self.is_trance_active:
+            if self._sky_fall_phase == 1:
+                # Phase 1: Falling down from sky (y = -200 -> _target_ground_y)
+                fall_speed = 1300.0  # px/s rapid drop
+                self.rect.bottom += int(fall_speed * delta_seconds)
+                target_bottom = getattr(self, "_target_ground_y", 609)
+                if self.rect.bottom >= target_bottom:
+                    self.rect.bottom = target_bottom
+                    self._sky_fall_phase = 2
+                    if _GenericNPCState.LAND in self.animations:
+                        self.set_state(_GenericNPCState.LAND, force=True)
+                        print("[SKY FALL NPC] Impact landing on ground → Phase 2: LAND animation")
+                    else:
+                        self._sky_fall_phase = 3
+                        self._sky_fall_timer = self._sky_fall_text_duration
+                        self.set_state(_GenericNPCState.IDLE, force=True)
+            elif self._sky_fall_phase == 2:
+                # Phase 2: Impact Landing animation finishes -> Phase 3 Speech (8s)
+                land_frames = self.animations.get(_GenericNPCState.LAND)
+                if not land_frames or self.animation_index >= len(land_frames) - 1.05:
+                    self._sky_fall_phase = 3
+                    self._sky_fall_timer = self._sky_fall_text_duration
+                    self.set_state(_GenericNPCState.IDLE, force=True)
+                    print("[SKY FALL NPC] Land anim complete → Phase 3: In-world floating text (8s duration)")
+            elif self._sky_fall_phase == 3:
+                # Phase 3: Speech timer (8.0s)
+                self._sky_fall_timer -= delta_seconds
+                if self._sky_fall_timer <= 0.0:
+                    self._sky_fall_phase = 4
+                    if _GenericNPCState.JUMP_START in self.animations:
+                        self.set_state(_GenericNPCState.JUMP_START, force=True)
+                        print("[SKY FALL NPC] Speech finished → Phase 4: JUMP_START charge animation")
+                    else:
+                        self._sky_fall_phase = 5
+                        if _GenericNPCState.JUMP_LOOP in self.animations:
+                            self.set_state(_GenericNPCState.JUMP_LOOP, force=True)
+            elif self._sky_fall_phase == 4:
+                # Phase 4: JUMP_START charge anim finishes -> Phase 5 Launch Upward
+                js_frames = self.animations.get(_GenericNPCState.JUMP_START)
+                if not js_frames or self.animation_index >= len(js_frames) - 1.05:
+                    self._sky_fall_phase = 5
+                    if _GenericNPCState.JUMP_LOOP in self.animations:
+                        self.set_state(_GenericNPCState.JUMP_LOOP, force=True)
+                    print("[SKY FALL NPC] Jump start complete → Phase 5: Launching upward into sky")
+            elif self._sky_fall_phase == 5:
+                # Phase 5: Sky Launch Out (y decreases rapidly -> off-screen top)
+                jump_speed = 1400.0  # px/s upward launch
+                self.rect.bottom -= int(jump_speed * delta_seconds)
+                if self.rect.bottom <= -200:
+                    self.rect.bottom = -500
+                    self.visible = False
+                    self.is_death_complete = True
+                    self.is_trance_active = False
+                    print("[SKY FALL NPC] Sky launch out complete → Despawned & Player unlocked")
         else:
             if self.state == _GenericNPCState.SPAWN:
                 spawn_frames = self.animations.get(_GenericNPCState.SPAWN)
@@ -436,13 +589,16 @@ class GenericNPC(Actor):
         super().update(delta_time)
 
     def draw(self, surface: pg.Surface) -> None:
+        if (self.is_spirit_of_scythe or self.is_sky_fall_npc) and not getattr(self, "visible", True):
+            return  # Invisible until proximity trigger!
+
         if self.is_death_complete and self.play_death_on_interact:
             return
 
         import math
         ticks = pg.time.get_ticks()
 
-        # ── Dual-Color Pulsing Glow Aura (Spirit of the Scythe only) ─────────
+        # ── Dual-Color Pulsing Glow Aura & Animated Fire Ring (Spirit only) ──
         if self.is_spirit_of_scythe:
             pulse = (math.sin(ticks * 0.008) + 1.0) * 0.5  # 0.0 to 1.0
             if self._trance_phase == 3:
@@ -458,39 +614,75 @@ class GenericNPC(Actor):
 
             if glow_alpha > 0 and self.image:
                 w, h = self.image.get_width(), self.image.get_height()
-                glow_surf = pg.Surface((w + 48, h + 48), pg.SRCALPHA)
+                glow_surf = pg.Surface((w + 64, h + 64), pg.SRCALPHA)
 
                 # Outer Character Border Glow (Dark Crimson / Purple)
                 outer_r = int(min(w, h) * 0.55 + 6 * pulse)
-                pg.draw.circle(glow_surf, (180, 20, 60, int(glow_alpha * 0.40)), (w // 2 + 24, h // 2 + 24), outer_r + 14)
+                pg.draw.circle(glow_surf, (180, 20, 60, int(glow_alpha * 0.40)), (w // 2 + 32, h // 2 + 32), outer_r + 16)
 
                 # Inner Core Object Glow (Flaming Red / Gold)
                 inner_r = int(min(w, h) * 0.40 + 4 * pulse)
-                pg.draw.circle(glow_surf, (255, 140, 0, int(glow_alpha * 0.65)), (w // 2 + 24, h // 2 + 24), inner_r + 6)
-                pg.draw.circle(glow_surf, (255, 40, 20, int(glow_alpha * 0.85)), (w // 2 + 24, h // 2 + 24), inner_r)
+                pg.draw.circle(glow_surf, (255, 140, 0, int(glow_alpha * 0.65)), (w // 2 + 32, h // 2 + 32), inner_r + 6)
+                pg.draw.circle(glow_surf, (255, 40, 20, int(glow_alpha * 0.85)), (w // 2 + 32, h // 2 + 32), inner_r)
 
-                gx = self.rect.centerx - (w + 48) // 2
-                gy = self.rect.centery - (h + 48) // 2
+                gx = self.rect.centerx - (w + 64) // 2
+                gy = self.rect.centery - (h + 64) // 2
                 surface.blit(glow_surf, (gx, gy))
+
+                # ── Animated Eyeball Fire Ring Border ────────────────────────
+                if self._flame_frames:
+                    self._flame_index += 0.35
+                    f_idx = int(self._flame_index) % len(self._flame_frames)
+                    flame_img = self._flame_frames[f_idx]
+                    flame_alpha = int(glow_alpha * 0.85)
+
+                    # Orbit 6 fire frames around the eyeball perimeter
+                    num_flames = 6
+                    orbit_r = min(w, h) * 0.60 + 8 * pulse
+                    for i in range(num_flames):
+                        angle = (ticks * 0.003) + (i * 2.0 * math.pi / num_flames)
+                        fx = self.rect.centerx + math.cos(angle) * orbit_r - flame_img.get_width() // 2
+                        fy = self.rect.centery + math.sin(angle) * orbit_r - flame_img.get_height() // 2
+                        f_copy = flame_img.copy()
+                        f_copy.set_alpha(flame_alpha)
+                        surface.blit(f_copy, (int(fx), int(fy)))
+
+                # ── Descending Fire Trail during Fly-In (Phase 0) ────────────
+                if self._trance_phase == 0 and self._flame_frames:
+                    f_idx = int(self._flame_index) % len(self._flame_frames)
+                    trail_img = self._flame_frames[f_idx]
+                    for trail_i in range(3):
+                        ty = self.rect.centery - (trail_i + 1) * 35
+                        tx = self.rect.centerx + math.sin(ticks * 0.02 + trail_i) * 12
+                        t_copy = trail_img.copy()
+                        t_copy.set_alpha(max(0, 200 - trail_i * 60))
+                        surface.blit(t_copy, (int(tx - trail_img.get_width() // 2), int(ty - trail_img.get_height() // 2)))
 
         super().draw(surface)
 
-        # ── In-World Floating Dialogue Text (Spirit of the Scythe only) ──────
-        if self.is_spirit_of_scythe and self._trance_phase == 2 and self.text:
-            # Alpha fade in / fade out
-            if self._trance_text_timer > 3.0:
-                text_alpha = int(255 * (3.5 - self._trance_text_timer) / 0.5)
-            elif self._trance_text_timer < 0.6:
-                text_alpha = int(255 * (self._trance_text_timer / 0.6))
+        # ── In-World Floating Dialogue Text (Spirit of Scythe & Gatekeeper) ──
+        if (self.is_spirit_of_scythe and self._trance_phase in (1, 2)) or (self.is_sky_fall_npc and self._sky_fall_phase in (2, 3)):
+            if self.is_sky_fall_npc:
+                if self._sky_fall_phase == 3 and self._sky_fall_timer > 7.5:
+                    text_alpha = int(255 * (8.0 - self._sky_fall_timer) / 0.5)
+                elif self._sky_fall_phase == 3 and self._sky_fall_timer < 0.6:
+                    text_alpha = int(255 * (self._sky_fall_timer / 0.6))
+                else:
+                    text_alpha = 255
             else:
-                text_alpha = 255
+                if self._trance_phase == 2 and self._trance_text_timer > 3.0:
+                    text_alpha = int(255 * (3.5 - self._trance_text_timer) / 0.5)
+                elif self._trance_phase == 2 and self._trance_text_timer < 0.6:
+                    text_alpha = int(255 * (self._trance_text_timer / 0.6))
+                else:
+                    text_alpha = 255
             text_alpha = max(0, min(255, text_alpha))
 
             float_y = math.sin(ticks * 0.005) * 4.0
 
             font = self._font
             max_w = 480
-            words = self.text.split(" ")
+            words = (self.text or "").split(" ")
             lines: list[str] = []
             curr = ""
             for word in words:

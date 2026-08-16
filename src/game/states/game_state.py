@@ -138,6 +138,16 @@ class GameState(State):
         self.trigger_manager = ObjectiveTriggerManager()
         self._setup_triggers()
         self._game_start_ticks: int = pg.time.get_ticks()
+
+        # Screen Border Flame Animation Frames (Spirit of the Scythe Trance)
+        self._screen_border_flames: list[pg.Surface] = []
+        flame_dir = "assets/graphics/Fire Effect 2/Explosion2_frames"
+        if os.path.exists(flame_dir):
+            raw_flames = AssetManager.get_animation_frames(flame_dir)
+            if raw_flames:
+                self._screen_border_flames = [
+                    pg.transform.smoothscale(f, (96, 96)) for f in raw_flames
+                ]
         
         # Environment Manager (data-driven background & sky)
         self.environment_manager = EnvironmentManager(self.width, self.height)
@@ -1084,6 +1094,10 @@ class GameState(State):
             player: Player sprite instance.
             skeleton: Attacking skeleton/wizard instance.
         """
+        # Gate 0: Player invulnerability during NPC dialogue, cutscene, or trance interaction
+        if self.is_interacting:
+            return
+
         # Gate 1: Entity must be in attack state
         state = getattr(skeleton, "state", None)
         if state is None or "ATTACK" not in getattr(state, "name", ""):
@@ -1546,12 +1560,47 @@ class GameState(State):
                 phy = npc["first_physical_collision"]
                 print(f"    - Physical Collision: world_dist={phy['world_distance']:.0f} (delta={phy['delta']:.0f})")
             if npc.get("first_proximity_collision"):
-                prox = npc["first_proximity_collision"]
-                print(f"    - Proximity Collision: world_dist={prox['world_distance']:.0f} (delta={prox['delta']:.0f})")
+                prox = npc.get("first_proximity_collision", {})
+                print(f"    - Proximity Collision: world_dist={prox.get('world_distance', 0):.0f} (delta={prox.get('delta', 0):.0f})")
             if npc.get("issues"):
                 for issue in npc["issues"]:
                     print(f"    ⚠ {issue}")
         print(f"{'='*60}")
+
+    @property
+    def is_interacting(self) -> bool:
+        """Whether player is currently locked in NPC dialogue, cutscene, or Spirit trance."""
+        intro_npc_locked = any(
+            getattr(npc, "is_intro_npc", False)
+            and getattr(npc, "_in_range", False)
+            and not getattr(npc, "is_walking", False)
+            and not getattr(npc, "is_death_complete", False)
+            for npc in self.npc_group
+        )
+        spirit_npc_locked = any(
+            getattr(npc, "is_spirit_of_scythe", False)
+            and getattr(npc, "is_trance_active", False)
+            and not getattr(npc, "is_death_complete", False)
+            for npc in self.npc_group
+        )
+        sky_fall_npc_locked = any(
+            getattr(npc, "is_sky_fall_npc", False)
+            and getattr(npc, "is_trance_active", False)
+            and not getattr(npc, "is_death_complete", False)
+            for npc in self.npc_group
+        )
+        active_dialogue_npc = (
+            self.objective_display.is_active
+            and self._current_interacting_npc is not None
+            and not getattr(self._current_interacting_npc, "is_death_complete", False)
+        )
+        return (
+            intro_npc_locked
+            or spirit_npc_locked
+            or sky_fall_npc_locked
+            or self.objective_display.is_active
+            or active_dialogue_npc
+        )
 
     def update(self, dt: float) -> None:
         """
@@ -1564,10 +1613,6 @@ class GameState(State):
         # Freeze gameplay while tutorial or objective overlay is active
         if self.tutorial_overlay.is_active:
             self.tutorial_overlay.update(dt)
-            return
-
-        if self.objective_display.is_active:
-            self.objective_display.update(dt)
             return
 
         # Update notification banner (runs independently of gameplay freeze)
@@ -1590,24 +1635,12 @@ class GameState(State):
         current_time = pg.time.get_ticks()
         
         # Enemy spawning
-        self.spawn_enemies(current_time)
+        if not self.is_interacting:
+            self.spawn_enemies(current_time)
         
         # ── Intro & Spirit NPC Sequence Movement Lock ──────────────────────────
-        # Lock engages during Intro NPC dialogue or Spirit of the Scythe trance.
-        intro_npc_locked = any(
-            getattr(npc, "is_intro_npc", False)
-            and not getattr(npc, "is_walking", False)
-            and not getattr(npc, "is_death_complete", False)
-            for npc in self.npc_group
-        )
-        spirit_npc_locked = any(
-            getattr(npc, "is_spirit_of_scythe", False)
-            and getattr(npc, "is_trance_active", False)
-            and not getattr(npc, "is_death_complete", False)
-            for npc in self.npc_group
-        )
         player_sprite = self.player.sprite
-        if intro_npc_locked or spirit_npc_locked:
+        if self.is_interacting:
             player_sprite.can_move = False
             self.bg_scroll_speed = 0
         else:
@@ -1682,12 +1715,19 @@ class GameState(State):
         self.update_background(self.bg_scroll_speed)
         self.player_ui.update()
         self.player.update()
-        self._check_environmental_hazards()
-        self.obstacle_group.update(dt, self.bg_scroll_speed)
+        if not self.is_interacting:
+            self._check_environmental_hazards()
+            self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
         VisualEffectManager.update(dt, self.bg_scroll_speed)
         self.trippy_zoom.update(dt / 1000.0)  # dt is in ms, effect expects seconds
+
+        # Gatekeeper / Sky Fall NPC Camera Zoom Focus during 8-second speech
+        for npc in self.npc_group:
+            if getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
+                if getattr(npc, "_sky_fall_phase", 0) == 3:
+                    self.trippy_zoom.trigger(int(npc.rect.centerx), int(npc.rect.centery), intensity=1.0, target_tier="elite")
         for npc in self.npc_group:
             is_intro_walking = (
                 getattr(npc, "is_intro_npc", False)
@@ -2113,6 +2153,31 @@ class GameState(State):
             pg.draw.rect(vignette, (15, 5, 25, v_alpha), (0, 0, self.width, self.height), width=90)
             pg.draw.rect(vignette, (45, 10, 35, int(v_alpha * 0.65)), (90, 90, self.width - 180, self.height - 180), width=60)
             target.blit(vignette, (0, 0))
+
+            # ── Animated Screen-Border Flames Overlay ─────────────────────────
+            if getattr(self, "_screen_border_flames", None):
+                f_idx = (ticks // 70) % len(self._screen_border_flames)
+                flame_img = self._screen_border_flames[f_idx]
+                flame_w, flame_h = flame_img.get_width(), flame_img.get_height()
+                f_alpha = int(210 + 35 * v_pulse)
+
+                # Top & Bottom Screen Edges
+                for x in range(0, self.width, flame_w - 16):
+                    top_f = pg.transform.flip(flame_img, False, True)
+                    top_f.set_alpha(f_alpha)
+                    target.blit(top_f, (x, -15))
+                    b_copy = flame_img.copy()
+                    b_copy.set_alpha(f_alpha)
+                    target.blit(b_copy, (x, self.height - flame_h + 15))
+
+                # Left & Right Screen Edges
+                for y in range(0, self.height, flame_h - 16):
+                    l_f = pg.transform.rotate(flame_img, 90)
+                    l_f.set_alpha(f_alpha)
+                    target.blit(l_f, (-15, y))
+                    r_f = pg.transform.rotate(flame_img, -90)
+                    r_f.set_alpha(f_alpha)
+                    target.blit(r_f, (self.width - l_f.get_width() + 15, y))
 
         # Boss Health Bar overlay
         self._draw_boss_health_bar(target)
