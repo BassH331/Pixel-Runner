@@ -154,6 +154,18 @@ class GenericNPC(Actor):
             spawn_sprite_dir = _find_action_folder(sprite_dir, ["spawn"])
         self.spawn_sprite_dir = spawn_sprite_dir
 
+        # ── Spirit of the Scythe Specific Identification ───────────────────────
+        self.is_spirit_of_scythe: bool = (
+            "spirit of the scythe" in str(self.title).lower() or
+            "scythe whispers" in str(self.title).lower() or
+            "evil eye beast" in str(self.death_sprite_dir or "").lower() or
+            "evil eye beast" in str(sprite_dir).lower()
+        )
+        self.is_trance_active: bool = False
+        self._trance_phase: int = 0  # 0: None, 1: Spawning (Eye Opening), 2: Floating Text, 3: Eye Closing
+        self._trance_text_timer: float = 0.0
+        self._trance_text_duration: float = 3.5  # seconds text stays floating on screen
+
         # Resolve registry key and margins early to determine scale
         folder_name = os.path.basename(sprite_dir.rstrip("/"))
         if folder_name.lower() == "idle":
@@ -195,7 +207,20 @@ class GenericNPC(Actor):
                 )()
 
         # ── 3. Load SPAWN animation frames ──────────────────────────────────
-        if self.spawn_sprite_dir and os.path.exists(self.spawn_sprite_dir):
+        # For Spirit of the Scythe, use Reverse Death frames (closed eye -> opens into glowing iris)
+        if self.is_spirit_of_scythe and self.death_sprite_dir and os.path.exists(self.death_sprite_dir):
+            raw_death_for_spawn = AssetManager.get_animation_frames(self.death_sprite_dir)
+            if raw_death_for_spawn:
+                reversed_spawn = raw_death_for_spawn[::-1]
+                scaled_spawn = [
+                    pg.transform.scale(f, (int(f.get_width() * final_scale), int(f.get_height() * final_scale)))
+                    for f in reversed_spawn
+                ]
+                self.animations[_GenericNPCState.SPAWN] = scaled_spawn
+                self.state_configs[_GenericNPCState.SPAWN] = type(
+                    "SC", (), {"animation_speed": frame_duration, "loops": False, "interruptible": False}
+                )()
+        elif self.spawn_sprite_dir and os.path.exists(self.spawn_sprite_dir):
             raw_spawn_frames = AssetManager.get_animation_frames(self.spawn_sprite_dir)
             if raw_spawn_frames:
                 scaled_spawn = [
@@ -272,6 +297,8 @@ class GenericNPC(Actor):
 
     @property
     def can_interact(self) -> bool:
+        if self.is_spirit_of_scythe:
+            return False  # Spirit of the Scythe is hands-free, no "Talk" prompt or dialogue box
         return self._in_range and not self._interacted and not self.is_dying_or_dead and not self.is_walking and not self.is_spawning
 
     @property
@@ -324,6 +351,22 @@ class GenericNPC(Actor):
         dy = abs(self.rect.centery - player_rect.centery)
         distance = (dx * dx + dy * dy) ** 0.5
 
+        if self.is_spirit_of_scythe and not self.is_trance_active and not self.is_death_complete and not self._interacted:
+            if distance <= self.proximity_radius:
+                self.is_trance_active = True
+                self._trance_phase = 1
+                self.is_spawning = True
+                self.facing_left = self.rect.centerx > player_rect.centerx
+                print(f"[SPIRIT NPC] Trance proximity reached! dist={distance:.0f}px  Eye.x={self.rect.centerx}  Player.x={player_rect.centerx}")
+                if _GenericNPCState.SPAWN in self.animations:
+                    self.set_state(_GenericNPCState.SPAWN, force=True)
+                    print("[SPIRIT NPC] → Playing Reverse Death (Eye Opening) animation")
+                else:
+                    self.is_spawning = False
+                    self._trance_phase = 2
+                    self._trance_text_timer = self._trance_text_duration
+                    self.set_state(_GenericNPCState.IDLE, force=True)
+
         if self.is_walking and distance <= self.proximity_radius:
             self.is_walking = False
             self.is_spawning = True
@@ -351,25 +394,132 @@ class GenericNPC(Actor):
             if self.state == _GenericNPCState.WALK:
                 self.rect.x += int(self.walk_speed * delta_seconds)
 
-        if self.state == _GenericNPCState.SPAWN:
-            spawn_frames = self.animations.get(_GenericNPCState.SPAWN)
-            if spawn_frames and self.animation_index >= len(spawn_frames) - 1:
-                self.is_spawning = False
-                self.set_state(_GenericNPCState.IDLE, force=True)
-                print("[INTRO NPC] Spawn anim complete → IDLE (ready for dialogue)")
-        elif self.state == _GenericNPCState.DEATH:
-            death_frames = self.animations.get(_GenericNPCState.DEATH)
-            if death_frames and self.animation_index >= len(death_frames) - 1:
-                if not self.is_death_complete:
-                    print("[INTRO NPC] Death anim complete → Player unlocked")
-                self.is_death_complete = True
+        if self.is_spirit_of_scythe and self.is_trance_active:
+            if self._trance_phase == 1:
+                # Phase 1: Eye Opening (Reverse Death SPAWN)
+                spawn_frames = self.animations.get(_GenericNPCState.SPAWN)
+                if spawn_frames and self.animation_index >= len(spawn_frames) - 1:
+                    self._trance_phase = 2
+                    self._trance_text_timer = self._trance_text_duration
+                    self.is_spawning = False
+                    self.set_state(_GenericNPCState.IDLE, force=True)
+                    print("[SPIRIT NPC] Eye opened → Phase 2: In-world floating text displaying")
+            elif self._trance_phase == 2:
+                # Phase 2: In-world Floating Text Timer (~3.5s)
+                self._trance_text_timer -= delta_seconds
+                if self._trance_text_timer <= 0.0:
+                    self._trance_phase = 3
+                    print("[SPIRIT NPC] Text finished → Phase 3: Eye Closing (Normal Death)")
+                    self.trigger_death()
+            elif self._trance_phase == 3:
+                # Phase 3: Eye Closing (Normal DEATH)
+                death_frames = self.animations.get(_GenericNPCState.DEATH)
+                if death_frames and self.animation_index >= len(death_frames) - 1:
+                    self.is_death_complete = True
+                    self.is_trance_active = False
+                    self._trance_phase = 0
+                    print("[SPIRIT NPC] Eye closed and despawned → Player unlocked")
+        else:
+            if self.state == _GenericNPCState.SPAWN:
+                spawn_frames = self.animations.get(_GenericNPCState.SPAWN)
+                if spawn_frames and self.animation_index >= len(spawn_frames) - 1:
+                    self.is_spawning = False
+                    self.set_state(_GenericNPCState.IDLE, force=True)
+                    print("[INTRO NPC] Spawn anim complete → IDLE (ready for dialogue)")
+            elif self.state == _GenericNPCState.DEATH:
+                death_frames = self.animations.get(_GenericNPCState.DEATH)
+                if death_frames and self.animation_index >= len(death_frames) - 1:
+                    if not self.is_death_complete:
+                        print("[INTRO NPC] Death anim complete → Player unlocked")
+                    self.is_death_complete = True
 
         super().update(delta_time)
 
     def draw(self, surface: pg.Surface) -> None:
         if self.is_death_complete and self.play_death_on_interact:
             return
+
+        import math
+        ticks = pg.time.get_ticks()
+
+        # ── Dual-Color Pulsing Glow Aura (Spirit of the Scythe only) ─────────
+        if self.is_spirit_of_scythe:
+            pulse = (math.sin(ticks * 0.008) + 1.0) * 0.5  # 0.0 to 1.0
+            if self._trance_phase == 3:
+                # Fade out glow alpha during death animation
+                death_frames = self.animations.get(_GenericNPCState.DEATH)
+                if death_frames:
+                    prog = 1.0 - (self.animation_index / max(1, len(death_frames) - 1))
+                    glow_alpha = int(220 * max(0.0, prog))
+                else:
+                    glow_alpha = 0
+            else:
+                glow_alpha = int(160 + 75 * pulse)
+
+            if glow_alpha > 0 and self.image:
+                w, h = self.image.get_width(), self.image.get_height()
+                glow_surf = pg.Surface((w + 48, h + 48), pg.SRCALPHA)
+
+                # Outer Character Border Glow (Dark Crimson / Purple)
+                outer_r = int(min(w, h) * 0.55 + 6 * pulse)
+                pg.draw.circle(glow_surf, (180, 20, 60, int(glow_alpha * 0.40)), (w // 2 + 24, h // 2 + 24), outer_r + 14)
+
+                # Inner Core Object Glow (Flaming Red / Gold)
+                inner_r = int(min(w, h) * 0.40 + 4 * pulse)
+                pg.draw.circle(glow_surf, (255, 140, 0, int(glow_alpha * 0.65)), (w // 2 + 24, h // 2 + 24), inner_r + 6)
+                pg.draw.circle(glow_surf, (255, 40, 20, int(glow_alpha * 0.85)), (w // 2 + 24, h // 2 + 24), inner_r)
+
+                gx = self.rect.centerx - (w + 48) // 2
+                gy = self.rect.centery - (h + 48) // 2
+                surface.blit(glow_surf, (gx, gy))
+
         super().draw(surface)
+
+        # ── In-World Floating Dialogue Text (Spirit of the Scythe only) ──────
+        if self.is_spirit_of_scythe and self._trance_phase == 2 and self.text:
+            # Alpha fade in / fade out
+            if self._trance_text_timer > 3.0:
+                text_alpha = int(255 * (3.5 - self._trance_text_timer) / 0.5)
+            elif self._trance_text_timer < 0.6:
+                text_alpha = int(255 * (self._trance_text_timer / 0.6))
+            else:
+                text_alpha = 255
+            text_alpha = max(0, min(255, text_alpha))
+
+            float_y = math.sin(ticks * 0.005) * 4.0
+
+            font = self._font
+            max_w = 480
+            words = self.text.split(" ")
+            lines: list[str] = []
+            curr = ""
+            for word in words:
+                test_l = f"{curr} {word}".strip() if curr else word
+                if font.size(test_l)[0] <= max_w:
+                    curr = test_l
+                else:
+                    if curr: lines.append(curr)
+                    curr = word
+            if curr: lines.append(curr)
+
+            line_h = font.get_linesize() + 2
+            total_text_h = len(lines) * line_h
+            start_y = self.rect.top - total_text_h - 30 + int(float_y)
+
+            for i, line_str in enumerate(lines):
+                tx = self.rect.centerx - font.size(line_str)[0] // 2
+                ty = start_y + i * line_h
+
+                # Dark drop shadow
+                shd_surf = font.render(line_str, True, (20, 0, 10))
+                shd_surf.set_alpha(int(text_alpha * 0.85))
+                surface.blit(shd_surf, (tx + 2, ty + 2))
+
+                # Main Ethereal Gold text
+                txt_surf = font.render(line_str, True, (255, 220, 90))
+                txt_surf.set_alpha(text_alpha)
+                surface.blit(txt_surf, (tx, ty))
+            return
 
         if not self.can_interact:
             return

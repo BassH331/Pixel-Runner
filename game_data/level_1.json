@@ -231,16 +231,12 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "Act I: The Entry",
-                "text": "The end of the long nightmare is in sight. 1,500 more monster souls, and the contract is fulfilled. Reclaim your freedom!!",
+                "title": "Veritas Distoria - It Begins",
+                "text": "Necromanta Arcanorum, the Master of Secrets. You need not speak for Iknow your story and it's end.. We shall meet again towards the end of your pact with \"Umbra Lapsa\". Choose wisely...",
                 "radius": 180,
                 "sprite_dir": "assets/graphics/Necromancer/Idle",
-                "walk_sprite_dir": "assets/graphics/Necromancer/Walk",
-                "spawn_sprite_dir": "assets/graphics/Necromancer/Spawn",
-                "death_sprite_dir": "assets/graphics/Necromancer/Death",
-                "play_death_on_interact": true,
-                "is_intro_npc": true,
-                "scale": 3.38
+                "scale": 3.38,
+                "is_intro_npc": true
             }
         },
         {
@@ -249,10 +245,10 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "A Dying Villager",
-                "text": "The creatures... they came from the rift. The Shepherd said he would protect us... he lied. Run, stranger. This forest devours all who linger.",
+                "title": "Spirit of the Scythe",
+                "text": "I hunger for more souls solder, Pasce oves meas!!!",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/Moonstone_Keeper Eldermoon_Grove - By SUCART/Idle-MoonstoneKeeper-SUCART/No BG",
+                "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0
             }
         },
@@ -265,7 +261,7 @@
                 "title": "The Scythe Whispers",
                 "text": "You feel the Umbral Scythe pulling at your soul with every swing. The dark steel hums with satisfaction. Something is wrong... but the contract must be fulfilled.",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/totem",
+                "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0
             }
         },

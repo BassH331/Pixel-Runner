@@ -485,7 +485,7 @@ class GameState(State):
             self.npc_group.add(npc)
         else:
             # Generic NPC — works with any sprite folder
-            is_intro = params.get("is_intro_npc", True)
+            is_intro = params.get("is_intro_npc", False)
             play_death = params.get("play_death_on_interact", True)
             # Intro NPCs spawn just off right edge and walk in; normal NPCs spawn just off-screen
             spawn_x = self.width + 30 if is_intro else self.width + 50
@@ -928,7 +928,18 @@ class GameState(State):
         # Spawn modular hit VFX (blood burst for fleshy entities, magic/sparks for skeletons)
         VisualEffectManager.spawn_hit_vfx(enemy.rect.centerx, enemy.rect.centery, entity=enemy)
         
-        # ── Trippy Zoom: Combat impact dolly zoom ────────────────────────────
+        # ── Trippy Zoom & Screen Vibration: Combat impact camera effect ──────
+        # Determine target tier for vibration & zoom scaling
+        is_boss = getattr(enemy, "is_boss", False)
+        tier = getattr(enemy, "tier", "minion")
+
+        if is_boss or tier == "boss":
+            target_tier = "boss"
+        elif tier == "elite":
+            target_tier = "elite"
+        else:
+            target_tier = "minion"
+
         # Focal point = midpoint between player and enemy (pulls zoom toward impact)
         midpoint_x = (player.rect.centerx + enemy.rect.centerx) // 2
         midpoint_y = (player.rect.centery + enemy.rect.centery) // 2
@@ -936,6 +947,7 @@ class GameState(State):
             focal_x=midpoint_x,
             focal_y=midpoint_y,
             intensity=damage / 25.0,
+            target_tier=target_tier,
         )
         # ─────────────────────────────────────────────────────────────────────
         
@@ -1580,17 +1592,22 @@ class GameState(State):
         # Enemy spawning
         self.spawn_enemies(current_time)
         
-        # ── Intro NPC Sequence Movement Lock ──────────────────────────────────
-        # Lock only engages once the intro NPC has stopped walking (in range).
-        # While still walking toward the player, player can move normally.
+        # ── Intro & Spirit NPC Sequence Movement Lock ──────────────────────────
+        # Lock engages during Intro NPC dialogue or Spirit of the Scythe trance.
         intro_npc_locked = any(
             getattr(npc, "is_intro_npc", False)
             and not getattr(npc, "is_walking", False)
             and not getattr(npc, "is_death_complete", False)
             for npc in self.npc_group
         )
+        spirit_npc_locked = any(
+            getattr(npc, "is_spirit_of_scythe", False)
+            and getattr(npc, "is_trance_active", False)
+            and not getattr(npc, "is_death_complete", False)
+            for npc in self.npc_group
+        )
         player_sprite = self.player.sprite
-        if intro_npc_locked:
+        if intro_npc_locked or spirit_npc_locked:
             player_sprite.can_move = False
             self.bg_scroll_speed = 0
         else:
@@ -2079,6 +2096,23 @@ class GameState(State):
         # Debug visualization
         if self.debug_mode:
             self._draw_debug_info(target)
+
+        # Spirit of the Scythe Trance Screen Edge Vignette Overlay
+        spirit_trance_active = any(
+            getattr(npc, "is_spirit_of_scythe", False)
+            and getattr(npc, "is_trance_active", False)
+            and not getattr(npc, "is_death_complete", False)
+            for npc in self.npc_group
+        )
+        if spirit_trance_active:
+            import math
+            vignette = pg.Surface((self.width, self.height), pg.SRCALPHA)
+            ticks = pg.time.get_ticks()
+            v_pulse = (math.sin(ticks * 0.006) + 1.0) * 0.5
+            v_alpha = int(170 + 45 * v_pulse)
+            pg.draw.rect(vignette, (15, 5, 25, v_alpha), (0, 0, self.width, self.height), width=90)
+            pg.draw.rect(vignette, (45, 10, 35, int(v_alpha * 0.65)), (90, 90, self.width - 180, self.height - 180), width=60)
+            target.blit(vignette, (0, 0))
 
         # Boss Health Bar overlay
         self._draw_boss_health_bar(target)

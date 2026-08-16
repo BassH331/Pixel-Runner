@@ -111,6 +111,112 @@ class TextInput:
             elif event.unicode.isprintable(): self.val += event.unicode
 
 
+class TextArea:
+    """Multiline text area component with auto-wrapping, vertical scrolling, and line/char counters."""
+
+    def __init__(self, label: str, x: int, y: int, w: int, h: int = 110,
+                 initial: str = "", placeholder: str = ""):
+        self.label = label
+        self.rect = pg.Rect(x, y, w, h)
+        self.val = str(initial)
+        self.placeholder = placeholder
+        self.active = False
+        self.scroll = 0
+
+    def _wrap_text(self, f: pg.font.Font, max_w: int) -> list[str]:
+        lines: list[str] = []
+        raw_paragraphs = self.val.split("\n") if self.val else [""]
+        for paragraph in raw_paragraphs:
+            if not paragraph:
+                lines.append("")
+                continue
+            words = paragraph.split(" ")
+            curr_line = ""
+            for word in words:
+                test_line = f"{curr_line} {word}".strip() if curr_line else word
+                if f.size(test_line)[0] <= max_w:
+                    curr_line = test_line
+                else:
+                    if curr_line:
+                        lines.append(curr_line)
+                    curr_line = word
+            if curr_line:
+                lines.append(curr_line)
+        return lines
+
+    def draw(self, surf: pg.Surface, f: pg.font.Font, lf: pg.font.Font):
+        # Label above
+        surf.blit(lf.render(self.label, True, TXT2), (self.rect.x, self.rect.y - 21))
+
+        # Background and border
+        bg_col = (35, 38, 55) if self.active else PANEL2
+        border_col = ACCENT if self.active else BORDER
+        pg.draw.rect(surf, bg_col, self.rect, border_radius=6)
+        pg.draw.rect(surf, border_col, self.rect, width=2 if self.active else 1, border_radius=6)
+
+        max_text_w = self.rect.w - 24
+        wrapped_lines = self._wrap_text(f, max_text_w)
+
+        # Character & Line counter badge at top right
+        info_text = f"{len(self.val)} chars  ·  {len(wrapped_lines)} lines"
+        info_surf = lf.render(info_text, True, WARN if self.active else TXT3)
+        surf.blit(info_surf, (self.rect.right - info_surf.get_width() - 4, self.rect.y - 21))
+
+        # Clipping container
+        clip_rect = pg.Rect(self.rect.x + 8, self.rect.y + 6, self.rect.w - 20, self.rect.h - 12)
+        surf.set_clip(clip_rect)
+
+        line_h = f.get_linesize() + 3
+        total_h = len(wrapped_lines) * line_h
+        max_scroll = max(0, total_h - clip_rect.h)
+        self.scroll = max(0, min(self.scroll, max_scroll))
+
+        # Render wrapped lines
+        tcol = TXT if self.val else TXT3
+        if not self.val and self.placeholder:
+            ph = f.render(self.placeholder, True, TXT3)
+            surf.blit(ph, (self.rect.x + 10, self.rect.y + 8))
+        else:
+            for i, line_str in enumerate(wrapped_lines):
+                ly = self.rect.y + 8 + i * line_h - self.scroll
+                if ly + line_h < clip_rect.y or ly > clip_rect.bottom:
+                    continue
+                t_surf = f.render(line_str, True, tcol)
+                surf.blit(t_surf, (self.rect.x + 10, ly))
+
+        # Blinking cursor at the end of the text when active
+        if self.active and (pg.time.get_ticks() // 500) % 2 == 0:
+            last_line = wrapped_lines[-1] if wrapped_lines else ""
+            last_line_idx = len(wrapped_lines) - 1 if wrapped_lines else 0
+            cursor_x = self.rect.x + 10 + f.size(last_line)[0]
+            cursor_y = self.rect.y + 8 + last_line_idx * line_h - self.scroll
+            if clip_rect.y <= cursor_y <= clip_rect.bottom:
+                pg.draw.line(surf, TXT, (cursor_x + 2, cursor_y + 2), (cursor_x + 2, cursor_y + line_h - 2), 2)
+
+        surf.set_clip(None)
+
+        # Scrollbar if text exceeds height
+        if total_h > clip_rect.h:
+            bar_h = max(16, int(clip_rect.h * clip_rect.h / total_h))
+            bar_y = clip_rect.y + int(self.scroll * (clip_rect.h - bar_h) / max(1, max_scroll))
+            pg.draw.rect(surf, BORDER, pg.Rect(self.rect.right - 8, bar_y, 5, bar_h), border_radius=3)
+
+    def on(self, event: pg.event.Event):
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            self.active = self.rect.collidepoint(event.pos)
+        elif event.type == pg.MOUSEWHEEL and self.rect.collidepoint(pg.mouse.get_pos()):
+            self.scroll -= event.y * 22
+        elif event.type == pg.KEYDOWN and self.active:
+            if event.key == pg.K_BACKSPACE:
+                self.val = self.val[:-1]
+            elif event.key == pg.K_RETURN:
+                self.val += "\n"
+            elif event.key == pg.K_TAB:
+                self.val += "    "
+            elif event.unicode and event.unicode.isprintable():
+                self.val += event.unicode
+
+
 class Slider:
     def __init__(self, label: str, x: int, y: int, w: int,
                  mn: float, mx: float, val: float, is_float: bool = False):
@@ -1471,7 +1577,7 @@ class App:
         self.prev_idx   = 0
         self.prev_dir   = ""
         self.browser    = FolderBrowser("assets",
-                                         pg.Rect(12, CONTENT_Y+34, 438, CONTENT_H-50), allow_parent=True)
+                                         pg.Rect(12, CONTENT_Y+52, 438, CONTENT_H-68), allow_parent=True)
         from wave_editor import BehaviourMapper
         self.bmap       = BehaviourMapper(pg.Rect(856, CONTENT_Y+48, 412, CONTENT_H-68))
         self._topback: Optional[Button] = None
@@ -2495,10 +2601,10 @@ class App:
 
             self.s3_ui = {
                 "npc_type": nt,
-                "title":  TextInput("NPC Title", 472, CONTENT_Y+48,  782, initial=p.get("title","New NPC")),
-                "text":   TextInput("Dialogue",  472, CONTENT_Y+132, 782, initial=p.get("text","...")),
-                "radius": Slider("Proximity Radius", 472, CONTENT_Y+218, 782, 50, 400, float(p.get("radius",160))),
-                "dist":   Slider("Trigger Distance", 472, CONTENT_Y+308, 782, 0, end, dist),
+                "title":  TextInput("NPC Title", 472, CONTENT_Y+56,  782, initial=p.get("title","New NPC")),
+                "text":   TextArea("Dialogue",   472, CONTENT_Y+116, 782, 110, initial=p.get("text","..."), placeholder="Enter dialogue text..."),
+                "radius": Slider("Proximity Radius", 472, CONTENT_Y+252, 782, 50, 400, float(p.get("radius",160))),
+                "dist":   Slider("Trigger Distance", 472, CONTENT_Y+320, 782, 0, end, dist),
                 "scale":  Slider("Scale", 472, CONTENT_Y+388, 782, 0.5, 6.0, default_scale, True),
             }
             self.browser.selected = p.get("sprite_dir") or None
@@ -2516,10 +2622,10 @@ class App:
             self.bmap.load(self.browser.selected, p.get("behaviour_map"))
         else:
             self.s3_ui = {
-                "title":  TextInput("Title",    160, CONTENT_Y+90,  940, initial=p.get("title","Sign")),
-                "text":   TextInput("Dialogue", 160, CONTENT_Y+180, 940, initial=p.get("text","...")),
-                "radius": Slider("Proximity Radius", 160, CONTENT_Y+280, 940, 50, 400, float(p.get("radius",160))),
-                "dist":   Slider("Trigger Distance", 160, CONTENT_Y+370, 940, 0, end, dist),
+                "title":  TextInput("Title",    160, CONTENT_Y+60,  940, initial=p.get("title","Sign")),
+                "text":   TextArea("Dialogue", 160, CONTENT_Y+124, 940, 140, initial=p.get("text","..."), placeholder="Enter dialogue text..."),
+                "radius": Slider("Proximity Radius", 160, CONTENT_Y+294, 940, 50, 400, float(p.get("radius",160))),
+                "dist":   Slider("Trigger Distance", 160, CONTENT_Y+374, 940, 0, end, dist),
             }
         self.prev_frames, self.prev_timer, self.prev_idx, self.prev_dir = [], 0.0, 0, ""
 
@@ -3112,7 +3218,7 @@ class App:
         TYPE_LBL = {"npc":"NPC Event","interaction":"Interaction","boss":"Boss Fight"}
         mode_str = "Create" if self.s3_mode == "create" else "Edit"
         self.surf.blit(self.tf.render(f"{mode_str}  ·  {TYPE_LBL.get(self.s3_type,'')}", True, WARN),
-                       (14, CONTENT_Y+10))
+                       (14, CONTENT_Y+6))
 
         if self.s3_type == "npc":
             self.browser.draw(self.surf, self.f, self.sf)
@@ -3124,13 +3230,13 @@ class App:
                 if "scale" in self.s3_ui:
                     self.s3_ui["scale"].val = _scale_from_registry("npc", new_nt, sprite_dir, self.s3_ui["scale"].val)
                 self.prev_frames = []; self.prev_dir = ""
-            tb = Button(f"Type: {nt.capitalize()}  (toggle)", 472, CONTENT_Y+10, 380, 32, _tgl, "ghost")
+            tb = Button(f"Type: {nt.capitalize()}  (toggle)", 472, CONTENT_Y+10, 240, 32, _tgl, "ghost")
             tb.draw(self.surf, self.sf)
             self._s3b.append(tb)
             if nt == "generic":
                 sel = self.browser.selected or "—  select folder on left"
                 st  = self.sf.render(f"Sprite Folder:  {sel}", True, WARN if self.browser.selected else TXT3)
-                self.surf.blit(st, (472, CONTENT_Y+47))
+                self.surf.blit(st, (724, CONTENT_Y+17))
             for v in self.s3_ui.values():
                 if hasattr(v,"draw"): v.draw(self.surf, self.f, self.sf)
             sprite_dir = "" if nt == "wizard" else (self.browser.selected or "")
@@ -3147,7 +3253,7 @@ class App:
                 comp_text = f"JSON config scale: {current_val:.2f}  |  Registry scale: {registry_scale:.2f}"
                 color = SUCCESS if abs(current_val - registry_scale) < 0.01 else WARN
                 self.surf.blit(self.sf.render(comp_text, True, color), (self.s3_ui["scale"].track.x, comp_y))
-            pbox = pg.Rect(472, CONTENT_Y+460, 782, 160)
+            pbox = pg.Rect(472, CONTENT_Y+458, 782, 142)
             pg.draw.rect(self.surf, PANEL2, pbox, border_radius=8)
             pg.draw.rect(self.surf, BORDER, pbox, width=1, border_radius=8)
             self.surf.blit(self.sf.render("Live Preview", True, TXT2), (pbox.x+8, pbox.y+6))
