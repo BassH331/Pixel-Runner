@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import MagicMock, patch
 import pygame as pg
 
@@ -57,24 +56,25 @@ def test_generic_npc_intro_sequence_lifecycle():
     in_range = npc.check_proximity(player_rect)
 
     assert npc.is_walking is False
-    assert npc.is_spawning is True
+    assert npc.is_trance_active is True
+    assert npc._trance_phase == 1
     assert npc.state == _GenericNPCState.SPAWN
 
-    # 3. Simulate SPAWN animation finishing
+    # 3. Simulate SPAWN animation finishing -> Phase 2 (Camera Zoom-In)
     npc.animation_index = len(npc.animations[_GenericNPCState.SPAWN]) - 1
-    npc.update(dt=0.016, scroll_speed=0)
+    npc.update(dt=16.67, scroll_speed=0)
 
     assert npc.is_spawning is False
+    assert npc._trance_phase == 2
     assert npc.state == _GenericNPCState.IDLE
-    assert npc.can_interact is True
 
-    # 4. Trigger dialogue completion -> DEATH state
+    # 4. Trigger dialogue completion -> DEATH state (Phase 5)
     npc.trigger_death()
     assert npc.state == _GenericNPCState.DEATH
     assert npc.is_death_complete is False
 
-    # 5. Simulate DEATH disintegration animation finishing
+    # 5. Simulate DEATH disintegration animation finishing -> Complete & Unlocked
     npc.animation_index = len(npc.animations[_GenericNPCState.DEATH]) - 1
-    npc.update(dt=0.016, scroll_speed=0)
+    npc.update(dt=16.67, scroll_speed=0)
 
     assert npc.is_death_complete is True

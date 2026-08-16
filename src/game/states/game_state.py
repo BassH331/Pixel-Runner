@@ -19,7 +19,7 @@ import pygame as pg
 from src.game.entities.enemy import Enemy
 from v3x_zulfiqar_gideon import WorldEventManager, InteractionPoint, WorldLoader, Sky
 from src.game.entities.wizard_npc import WizardNPC
-from src.game.entities.generic_npc import GenericNPC
+from src.game.entities.generic_npc import GenericNPC, _GenericNPCState
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
 from src.game.entities.fire_wizard import FireWizard, FireWizardState
@@ -679,14 +679,22 @@ class GameState(State):
         if cutscene_advance_pressed:
             for npc in self.npc_group:
                 if getattr(npc, "is_spirit_of_scythe", False) and getattr(npc, "is_trance_active", False):
-                    if getattr(npc, "_trance_phase", 0) == 2:
-                        npc._trance_text_timer = 0.0  # Advance dialogue immediately!
-                        print("[SPIRIT NPC] Player pressed key → Advancing dialogue")
+                    if getattr(npc, "_trance_phase", 0) in (2, 3):
+                        npc._trance_text_timer = 0.0
+                        npc._trance_phase = 4  # Fades text and starts Zoom-Out
+                        print("[SPIRIT NPC] Player pressed key → Fading text & starting Zoom-Out")
                         return
                 if getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
-                    if getattr(npc, "_sky_fall_phase", 0) == 3:
-                        npc._sky_fall_timer = 0.0  # Advance dialogue immediately!
-                        print("[SKY FALL NPC] Player pressed key → Advancing dialogue")
+                    if getattr(npc, "_sky_fall_phase", 0) in (3, 4):
+                        npc._sky_fall_timer = 0.0
+                        npc._sky_fall_phase = 5  # Fades text and starts Zoom-Out
+                        print("[SKY FALL NPC] Player pressed key → Fading text & starting Zoom-Out")
+                        return
+                if getattr(npc, "is_intro_npc", False) and getattr(npc, "is_trance_active", False):
+                    if getattr(npc, "_trance_phase", 0) in (2, 3):
+                        npc._trance_text_timer = 0.0
+                        npc._trance_phase = 4  # Fades text and starts Zoom-Out
+                        print("[INTRO NPC] Player pressed key → Fading text & starting Zoom-Out")
                         return
 
         # Check for interaction input (ENTER / X / gamepad btn 6).
@@ -1592,8 +1600,7 @@ class GameState(State):
         """Whether player is currently locked in NPC dialogue, cutscene, or Spirit trance."""
         intro_npc_locked = any(
             getattr(npc, "is_intro_npc", False)
-            and getattr(npc, "_in_range", False)
-            and not getattr(npc, "is_walking", False)
+            and getattr(npc, "is_trance_active", False)
             and not getattr(npc, "is_death_complete", False)
             for npc in self.npc_group
         )
@@ -1743,16 +1750,60 @@ class GameState(State):
         VisualEffectManager.update(dt, self.bg_scroll_speed)
         self.trippy_zoom.update(dt / 1000.0)  # dt is in ms, effect expects seconds
 
-        # Clean Camera Zoom & Focus during cutscene speech (Spirit Eye & Gatekeeper)
+        # Clean Camera Zoom & Focus during cutscene phases (Spirit Eye & Gatekeeper)
         active_speech_npc = None
         for npc in self.npc_group:
             if getattr(npc, "is_spirit_of_scythe", False) and getattr(npc, "is_trance_active", False):
-                if getattr(npc, "_trance_phase", 0) == 2:
+                t_phase = getattr(npc, "_trance_phase", 0)
+                if t_phase in (2, 3):
                     active_speech_npc = npc
+                    if t_phase == 2 and self.clean_camera_zoom.current_zoom >= 1.35:
+                        npc._trance_phase = 3
+                        npc._trance_text_timer = npc._trance_text_duration
+                        print("[SPIRIT NPC] Camera Zoom-In complete → Phase 3: Dialogue text displaying")
                     break
+                elif t_phase == 4:
+                    if self.clean_camera_zoom.current_zoom <= 1.005:
+                        npc._trance_phase = 5
+                        npc.trigger_death()
+                        print("[SPIRIT NPC] Camera Zoom-Out complete → Phase 5: Eye Closing (Normal Death)")
+                    break
+
             elif getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
-                if getattr(npc, "_sky_fall_phase", 0) == 3:
+                s_phase = getattr(npc, "_sky_fall_phase", 0)
+                if s_phase in (3, 4):
                     active_speech_npc = npc
+                    if s_phase == 3 and self.clean_camera_zoom.current_zoom >= 1.35:
+                        npc._sky_fall_phase = 4
+                        npc._sky_fall_timer = npc._sky_fall_text_duration
+                        print("[SKY FALL NPC] Camera Zoom-In complete → Phase 4: Dialogue text displaying")
+                    break
+                elif s_phase == 5:
+                    if self.clean_camera_zoom.current_zoom <= 1.005:
+                        if _GenericNPCState.JUMP_START in npc.animations:
+                            npc._sky_fall_phase = 6
+                            npc.set_state(_GenericNPCState.JUMP_START, force=True)
+                            print("[SKY FALL NPC] Camera Zoom-Out complete → Phase 6: JUMP_START charge animation")
+                        else:
+                            npc._sky_fall_phase = 7
+                            if _GenericNPCState.JUMP_LOOP in npc.animations:
+                                npc.set_state(_GenericNPCState.JUMP_LOOP, force=True)
+                    break
+
+            elif getattr(npc, "is_intro_npc", False) and getattr(npc, "is_trance_active", False):
+                t_phase = getattr(npc, "_trance_phase", 0)
+                if t_phase in (2, 3):
+                    active_speech_npc = npc
+                    if t_phase == 2 and self.clean_camera_zoom.current_zoom >= 1.35:
+                        npc._trance_phase = 3
+                        npc._trance_text_timer = npc._trance_text_duration
+                        print("[INTRO NPC] Camera Zoom-In complete → Phase 3: Dialogue text displaying")
+                    break
+                elif t_phase == 4:
+                    if self.clean_camera_zoom.current_zoom <= 1.005:
+                        npc._trance_phase = 5
+                        npc.trigger_death()
+                        print("[INTRO NPC] Camera Zoom-Out complete → Phase 5: Death animation starting")
                     break
 
         if active_speech_npc is not None:
@@ -1804,13 +1855,9 @@ class GameState(State):
         for point in self.interaction_group:
             point.check_proximity(player_sprite.rect)
 
-        # Check proximity for NPCs & auto-trigger intro NPC dialogue
+        # Check proximity for NPCs
         for npc in self.npc_group:
-            in_range = npc.check_proximity(player_sprite.rect)
-            if getattr(npc, "is_intro_npc", False) and in_range and npc.can_interact and not self.objective_display.is_active:
-                self.objective_display.show(npc.text, npc.title)
-                self._current_interacting_npc = npc
-                npc.mark_interacted()
+            npc.check_proximity(player_sprite.rect)
 
         # Check time/flag triggers
         elapsed = (current_time - self._game_start_ticks) / 1000.0
@@ -2170,48 +2217,6 @@ class GameState(State):
         if self.debug_mode:
             self._draw_debug_info(target)
 
-        # Spirit of the Scythe Trance Screen Edge Vignette Overlay
-        spirit_trance_active = any(
-            getattr(npc, "is_spirit_of_scythe", False)
-            and getattr(npc, "is_trance_active", False)
-            and not getattr(npc, "is_death_complete", False)
-            for npc in self.npc_group
-        )
-        if spirit_trance_active:
-            import math
-            vignette = pg.Surface((self.width, self.height), pg.SRCALPHA)
-            ticks = pg.time.get_ticks()
-            v_pulse = (math.sin(ticks * 0.006) + 1.0) * 0.5
-            v_alpha = int(170 + 45 * v_pulse)
-            pg.draw.rect(vignette, (15, 5, 25, v_alpha), (0, 0, self.width, self.height), width=90)
-            pg.draw.rect(vignette, (45, 10, 35, int(v_alpha * 0.65)), (90, 90, self.width - 180, self.height - 180), width=60)
-            target.blit(vignette, (0, 0))
-
-            # ── Animated Screen-Border Flames Overlay ─────────────────────────
-            if getattr(self, "_screen_border_flames", None):
-                f_idx = (ticks // 70) % len(self._screen_border_flames)
-                flame_img = self._screen_border_flames[f_idx]
-                flame_w, flame_h = flame_img.get_width(), flame_img.get_height()
-                f_alpha = int(210 + 35 * v_pulse)
-
-                # Top & Bottom Screen Edges
-                for x in range(0, self.width, flame_w - 16):
-                    top_f = pg.transform.flip(flame_img, False, True)
-                    top_f.set_alpha(f_alpha)
-                    target.blit(top_f, (x, -15))
-                    b_copy = flame_img.copy()
-                    b_copy.set_alpha(f_alpha)
-                    target.blit(b_copy, (x, self.height - flame_h + 15))
-
-                # Left & Right Screen Edges
-                for y in range(0, self.height, flame_h - 16):
-                    l_f = pg.transform.rotate(flame_img, 90)
-                    l_f.set_alpha(f_alpha)
-                    target.blit(l_f, (-15, y))
-                    r_f = pg.transform.rotate(flame_img, -90)
-                    r_f.set_alpha(f_alpha)
-                    target.blit(r_f, (self.width - l_f.get_width() + 15, y))
-
         # Boss Health Bar overlay
         self._draw_boss_health_bar(target)
 
@@ -2223,7 +2228,8 @@ class GameState(State):
         if self.trippy_zoom.is_active:
             result = self.trippy_zoom.apply(target)
             surface.blit(result, (0, 0))
-        # ─────────────────────────────────────────────────────────────────────
+        # ── Top-Center Cutscene Dialogue Text & Helper Prompt Overlay ────────
+        self._draw_cutscene_dialogue_overlay(surface)
 
         # Objective overlay (drawn on top of everything — AFTER effect)
         self.objective_display.draw(surface)
@@ -2237,6 +2243,129 @@ class GameState(State):
     def _draw_boss_health_bar(self, surface: pg.Surface) -> None:
         """Render a premium boss health bar overlay if a boss is active."""
         BossManager.draw_boss_health_bar(surface, self.obstacle_group, self.width)
+
+    def _draw_cutscene_dialogue_overlay(self, surface: pg.Surface) -> None:
+        """
+        Render cutscene dialogue text & glowing continue prompt in top-center screen area.
+        
+        Rendered AFTER CleanCameraZoom post-processing to guarantee 100% crisp, unzoomed,
+        unobscured text that never renders behind/over player sprites or eyeballs.
+        """
+        active_npc = None
+        for npc in self.npc_group:
+            if getattr(npc, "is_spirit_of_scythe", False) and getattr(npc, "is_trance_active", False):
+                if getattr(npc, "_trance_phase", 0) == 3:
+                    active_npc = npc
+                    break
+            elif getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
+                if getattr(npc, "_sky_fall_phase", 0) == 4:
+                    active_npc = npc
+                    break
+            elif getattr(npc, "is_intro_npc", False) and getattr(npc, "is_trance_active", False):
+                if getattr(npc, "_trance_phase", 0) == 3:
+                    active_npc = npc
+                    break
+
+        if active_npc is None or not active_npc.text:
+            return
+
+        import math
+        ticks = pg.time.get_ticks()
+
+        # Calculate text fade alpha
+        if active_npc.is_sky_fall_npc:
+            timer = getattr(active_npc, "_sky_fall_timer", 8.0)
+            if timer > 7.5:
+                text_alpha = int(255 * (8.0 - timer) / 0.5)
+            elif timer < 0.6:
+                text_alpha = int(255 * (timer / 0.6))
+            else:
+                text_alpha = 255
+        else:
+            timer = getattr(active_npc, "_trance_text_timer", 8.0)
+            if timer > 7.5:
+                text_alpha = int(255 * (8.0 - timer) / 0.5)
+            elif timer < 0.6:
+                text_alpha = int(255 * (timer / 0.6))
+            else:
+                text_alpha = 255
+
+        text_alpha = max(0, min(255, text_alpha))
+        if text_alpha <= 0:
+            return
+
+        font = getattr(active_npc, "_font", None)
+        if font is None:
+            return
+
+        float_y = math.sin(ticks * 0.005) * 4.0
+
+        # Word wrap text into lines (max 650px wide for top-center display)
+        max_w = 650
+        words = active_npc.text.split(" ")
+        lines: list[str] = []
+        curr = ""
+        for word in words:
+            test_l = f"{curr} {word}".strip() if curr else word
+            if font.size(test_l)[0] <= max_w:
+                curr = test_l
+            else:
+                if curr:
+                    lines.append(curr)
+                curr = word
+        if curr:
+            lines.append(curr)
+
+        line_h = font.get_linesize() + 4
+        total_text_h = len(lines) * line_h
+
+        # Position text in the top-center screen area (y = 90px to 180px)
+        start_y = 90 + int(float_y)
+        center_x = self.width // 2
+
+        # Draw subtle translucent dark background box behind text for maximum legibility
+        bg_padding = 16
+        max_line_w = max(font.size(l)[0] for l in lines) if lines else 400
+        bg_rect = pg.Rect(
+            center_x - max_line_w // 2 - bg_padding,
+            start_y - bg_padding,
+            max_line_w + bg_padding * 2,
+            total_text_h + bg_padding * 2 + 30
+        )
+        bg_surf = pg.Surface((bg_rect.width, bg_rect.height), pg.SRCALPHA)
+        bg_surf.fill((10, 5, 18, int(text_alpha * 0.65)))
+        pg.draw.rect(bg_surf, (255, 180, 40, int(text_alpha * 0.45)), (0, 0, bg_rect.width, bg_rect.height), width=2, border_radius=8)
+        surface.blit(bg_surf, bg_rect.topleft)
+
+        # Render Gold Dialogue Text
+        for i, line_str in enumerate(lines):
+            tx = center_x - font.size(line_str)[0] // 2
+            ty = start_y + i * line_h
+
+            # Dark drop shadow
+            shd_surf = font.render(line_str, True, (0, 0, 0))
+            shd_surf.set_alpha(int(text_alpha * 0.90))
+            surface.blit(shd_surf, (tx + 2, ty + 2))
+
+            # Main Ethereal Gold text
+            txt_surf = font.render(line_str, True, (255, 215, 80))
+            txt_surf.set_alpha(text_alpha)
+            surface.blit(txt_surf, (tx, ty))
+
+        # Render Pulsing Continue Helper Prompt below dialogue box
+        p_alpha = int(160 + 80 * abs(((ticks // 8) % 200 - 100) / 100))
+        p_alpha = min(text_alpha, p_alpha)
+        prompt_str = "[ PRESS ENTER OR SPACE TO CONTINUE ]"
+        ptx = center_x - font.size(prompt_str)[0] // 2
+        pty = start_y + len(lines) * line_h + 12
+
+        p_shd = font.render(prompt_str, True, (0, 0, 0))
+        p_shd.set_alpha(int(p_alpha * 0.85))
+        surface.blit(p_shd, (ptx + 2, pty + 2))
+
+        p_txt = font.render(prompt_str, True, (200, 240, 255))
+        p_txt.set_alpha(p_alpha)
+        surface.blit(p_txt, (ptx, pty))
     
     def _draw_debug_info(self, surface: pg.Surface) -> None:
         """

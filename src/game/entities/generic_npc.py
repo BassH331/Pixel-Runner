@@ -185,6 +185,7 @@ class GenericNPC(Actor):
         self._flame_frames: list[pg.Surface] = []
         self._flame_index: float = 0.0
         if self.is_spirit_of_scythe:
+            self.facing_left = False
             flame_dir = "assets/graphics/Fire Effect 2/Explosion2_frames"
             if os.path.exists(flame_dir):
                 raw_flames = AssetManager.get_animation_frames(flame_dir)
@@ -409,6 +410,8 @@ class GenericNPC(Actor):
         self._interacted = True
         self.is_dying_or_dead = True
         self.is_death_complete = False
+        if self.is_intro_npc:
+            self._trance_phase = 5
         if _GenericNPCState.DEATH in self.animations:
             self.set_state(_GenericNPCState.DEATH, force=True)
         else:
@@ -430,7 +433,7 @@ class GenericNPC(Actor):
                 self._fly_in_progress = 0.0
                 self._target_ground_y = self.rect.centery
                 self.rect.centery = -120  # Start off-screen top!
-                self.facing_left = self.rect.centerx > player_rect.centerx
+                self.facing_left = False  # Eyeball naturally faces left unflipped
                 print(f"[SPIRIT NPC] Trance proximity reached! dist={distance:.0f}px  Eye flying in from top of screen!")
 
         if self.is_sky_fall_npc and not self.is_trance_active and not self.is_death_complete and not self._interacted:
@@ -445,19 +448,22 @@ class GenericNPC(Actor):
                 self.rect.bottom = -200  # Start off-screen top!
                 print(f"[SKY FALL NPC] Proximity reached! Gatekeeper falling from sky dist={distance:.0f}px")
 
-        if self.is_walking and distance <= self.proximity_radius:
-            self.is_walking = False
-            self.is_spawning = True
-            # Face toward the player
-            self.facing_left = self.rect.centerx > player_rect.centerx
-            print(f"[INTRO NPC] Proximity reached! dist={distance:.0f}px  NPC.x={self.rect.centerx}  Player.x={player_rect.centerx}  facing_left={self.facing_left}")
-            if _GenericNPCState.SPAWN in self.animations:
-                self.set_state(_GenericNPCState.SPAWN, force=True)
-                print("[INTRO NPC] → Playing SPAWN animation")
-            else:
-                self.is_spawning = False
-                self.set_state(_GenericNPCState.IDLE, force=True)
-                print("[INTRO NPC] → No spawn anim, going to IDLE")
+        if self.is_intro_npc and not self.is_trance_active and not self.is_death_complete and not self._interacted:
+            if distance <= self.proximity_radius:
+                self.is_trance_active = True
+                self.is_walking = False
+                self._interacted = True
+                self.facing_left = self.rect.centerx > player_rect.centerx
+                if _GenericNPCState.SPAWN in self.animations:
+                    self._trance_phase = 1
+                    self.is_spawning = True
+                    self.set_state(_GenericNPCState.SPAWN, force=True)
+                    print(f"[INTRO NPC] Proximity reached! dist={distance:.0f}px → Phase 1: SPAWN animation")
+                else:
+                    self._trance_phase = 2  # Start Camera Zoom-In immediately
+                    self.is_spawning = False
+                    self.set_state(_GenericNPCState.IDLE, force=True)
+                    print(f"[INTRO NPC] Proximity reached! dist={distance:.0f}px → Phase 2: Camera Zoom-In starting")
 
         self._in_range = distance <= self.proximity_radius
         return self._in_range
@@ -474,10 +480,9 @@ class GenericNPC(Actor):
 
         if self.is_spirit_of_scythe and self.is_trance_active:
             if self._trance_phase == 0:
-                # Phase 0: Sky Fly-In Descent (starts at y = -120, eases down to _target_ground_y)
+                # Phase 0: Sky Fly-In Descent (No Zoom, starts at y = -120, eases down to _target_ground_y)
                 self._fly_in_progress += delta_seconds / self._fly_in_duration
                 t = min(1.0, max(0.0, self._fly_in_progress))
-                # Ease-Out Quad interpolation: e(t) = 1 - (1-t)^2
                 ease_t = 1.0 - (1.0 - t) * (1.0 - t)
                 start_y = -120
                 target_y = getattr(self, "_target_ground_y", 450)
@@ -491,27 +496,29 @@ class GenericNPC(Actor):
                         print("[SPIRIT NPC] Sky Fly-In complete → Phase 1: Eye Opening (Reverse Death) animation")
                     else:
                         self.is_spawning = False
-                        self._trance_phase = 2
-                        self._trance_text_timer = self._trance_text_duration
-                        self.set_state(_GenericNPCState.IDLE, force=True)
+                        self._trance_phase = 2  # Start Camera Zoom-In
             elif self._trance_phase == 1:
-                # Phase 1: Eye Opening (Reverse Death SPAWN)
+                # Phase 1: Eye Opening (Reverse Death SPAWN, No Zoom)
                 spawn_frames = self.animations.get(_GenericNPCState.SPAWN)
                 if spawn_frames and self.animation_index >= len(spawn_frames) - 1:
-                    self._trance_phase = 2
-                    self._trance_text_timer = self._trance_text_duration
+                    self._trance_phase = 2  # Eye opened → Start Phase 2: Camera Zoom-In
                     self.is_spawning = False
                     self.set_state(_GenericNPCState.IDLE, force=True)
-                    print("[SPIRIT NPC] Eye opened → Phase 2: In-world floating text displaying")
+                    print("[SPIRIT NPC] Eye opened → Phase 2: Camera Zoom-In starting")
             elif self._trance_phase == 2:
-                # Phase 2: In-world Floating Text Timer (~3.5s)
+                # Phase 2: Camera Zoom-In (handled by GameState lerp). Once zoomed, GameState sets phase to 3
+                pass
+            elif self._trance_phase == 3:
+                # Phase 3: Dialogue Text Display (~8.0s)
                 self._trance_text_timer -= delta_seconds
                 if self._trance_text_timer <= 0.0:
-                    self._trance_phase = 3
-                    print("[SPIRIT NPC] Text finished → Phase 3: Eye Closing (Normal Death)")
-                    self.trigger_death()
-            elif self._trance_phase == 3:
-                # Phase 3: Eye Closing (Normal DEATH)
+                    self._trance_phase = 4  # Text finished → Phase 4: Camera Zoom-Out
+                    print("[SPIRIT NPC] Text finished → Phase 4: Camera Zoom-Out starting")
+            elif self._trance_phase == 4:
+                # Phase 4: Camera Zoom-Out (handled by GameState lerp). Once zoomed out, GameState sets phase to 5
+                pass
+            elif self._trance_phase == 5:
+                # Phase 5: Eye Closing (Normal DEATH)
                 death_frames = self.animations.get(_GenericNPCState.DEATH)
                 if death_frames and self.animation_index >= len(death_frames) - 1:
                     self.is_death_complete = True
@@ -520,7 +527,7 @@ class GenericNPC(Actor):
                     print("[SPIRIT NPC] Eye closed and despawned → Player unlocked")
         elif self.is_sky_fall_npc and self.is_trance_active:
             if self._sky_fall_phase == 1:
-                # Phase 1: Falling down from sky (y = -200 -> _target_ground_y)
+                # Phase 1: Falling down from sky (No Zoom, y = -200 -> _target_ground_y)
                 fall_speed = 1300.0  # px/s rapid drop
                 self.rect.bottom += int(fall_speed * delta_seconds)
                 target_bottom = getattr(self, "_target_ground_y", 609)
@@ -531,39 +538,36 @@ class GenericNPC(Actor):
                         self.set_state(_GenericNPCState.LAND, force=True)
                         print("[SKY FALL NPC] Impact landing on ground → Phase 2: LAND animation")
                     else:
-                        self._sky_fall_phase = 3
-                        self._sky_fall_timer = self._sky_fall_text_duration
-                        self.set_state(_GenericNPCState.IDLE, force=True)
+                        self._sky_fall_phase = 3  # Start Camera Zoom-In
             elif self._sky_fall_phase == 2:
-                # Phase 2: Impact Landing animation finishes -> Phase 3 Speech (8s)
+                # Phase 2: Impact Landing animation finishes -> Phase 3 Camera Zoom-In
                 land_frames = self.animations.get(_GenericNPCState.LAND)
                 if not land_frames or self.animation_index >= len(land_frames) - 1.05:
-                    self._sky_fall_phase = 3
-                    self._sky_fall_timer = self._sky_fall_text_duration
+                    self._sky_fall_phase = 3  # Land complete → Phase 3: Camera Zoom-In
                     self.set_state(_GenericNPCState.IDLE, force=True)
-                    print("[SKY FALL NPC] Land anim complete → Phase 3: In-world floating text (8s duration)")
+                    print("[SKY FALL NPC] Land anim complete → Phase 3: Camera Zoom-In starting")
             elif self._sky_fall_phase == 3:
-                # Phase 3: Speech timer (8.0s)
+                # Phase 3: Camera Zoom-In (handled by GameState lerp). Once zoomed, GameState sets phase to 4
+                pass
+            elif self._sky_fall_phase == 4:
+                # Phase 4: Speech timer (8.0s)
                 self._sky_fall_timer -= delta_seconds
                 if self._sky_fall_timer <= 0.0:
-                    self._sky_fall_phase = 4
-                    if _GenericNPCState.JUMP_START in self.animations:
-                        self.set_state(_GenericNPCState.JUMP_START, force=True)
-                        print("[SKY FALL NPC] Speech finished → Phase 4: JUMP_START charge animation")
-                    else:
-                        self._sky_fall_phase = 5
-                        if _GenericNPCState.JUMP_LOOP in self.animations:
-                            self.set_state(_GenericNPCState.JUMP_LOOP, force=True)
-            elif self._sky_fall_phase == 4:
-                # Phase 4: JUMP_START charge anim finishes -> Phase 5 Launch Upward
+                    self._sky_fall_phase = 5  # Speech finished → Phase 5: Camera Zoom-Out
+                    print("[SKY FALL NPC] Speech finished → Phase 5: Camera Zoom-Out starting")
+            elif self._sky_fall_phase == 5:
+                # Phase 5: Camera Zoom-Out (handled by GameState lerp). Once zoomed out, GameState sets phase to 6
+                pass
+            elif self._sky_fall_phase == 6:
+                # Phase 6: JUMP_START charge anim finishes -> Phase 7 Launch Upward
                 js_frames = self.animations.get(_GenericNPCState.JUMP_START)
                 if not js_frames or self.animation_index >= len(js_frames) - 1.05:
-                    self._sky_fall_phase = 5
+                    self._sky_fall_phase = 7
                     if _GenericNPCState.JUMP_LOOP in self.animations:
                         self.set_state(_GenericNPCState.JUMP_LOOP, force=True)
-                    print("[SKY FALL NPC] Jump start complete → Phase 5: Launching upward into sky")
-            elif self._sky_fall_phase == 5:
-                # Phase 5: Sky Launch Out (y decreases rapidly -> off-screen top)
+                    print("[SKY FALL NPC] Jump start complete → Phase 7: Launching upward into sky")
+            elif self._sky_fall_phase == 7:
+                # Phase 7: Sky Launch Out (y decreases rapidly -> off-screen top)
                 jump_speed = 1400.0  # px/s upward launch
                 self.rect.bottom -= int(jump_speed * delta_seconds)
                 if self.rect.bottom <= -200:
@@ -572,6 +576,35 @@ class GenericNPC(Actor):
                     self.is_death_complete = True
                     self.is_trance_active = False
                     print("[SKY FALL NPC] Sky launch out complete → Despawned & Player unlocked")
+        elif self.is_intro_npc and self.is_trance_active:
+            if self._trance_phase == 1:
+                # Phase 1: SPAWN animation (No Zoom)
+                spawn_frames = self.animations.get(_GenericNPCState.SPAWN)
+                if not spawn_frames or self.animation_index >= len(spawn_frames) - 1:
+                    self._trance_phase = 2  # Spawn finished → Start Phase 2: Camera Zoom-In
+                    self.is_spawning = False
+                    self.set_state(_GenericNPCState.IDLE, force=True)
+                    print("[INTRO NPC] Spawn anim complete → Phase 2: Camera Zoom-In starting")
+            elif self._trance_phase == 2:
+                # Phase 2: Camera Zoom-In (handled by GameState lerp). Once zoomed, GameState sets phase to 3
+                pass
+            elif self._trance_phase == 3:
+                # Phase 3: Dialogue Text Display (~8.0s)
+                self._trance_text_timer -= delta_seconds
+                if self._trance_text_timer <= 0.0:
+                    self._trance_phase = 4  # Text finished → Phase 4: Camera Zoom-Out
+                    print("[INTRO NPC] Text finished → Phase 4: Camera Zoom-Out starting")
+            elif self._trance_phase == 4:
+                # Phase 4: Camera Zoom-Out (handled by GameState lerp). Once zoomed out, GameState sets phase to 5
+                pass
+            elif self._trance_phase == 5:
+                # Phase 5: Normal DEATH animation
+                death_frames = self.animations.get(_GenericNPCState.DEATH)
+                if not death_frames or self.animation_index >= len(death_frames) - 1:
+                    self.is_death_complete = True
+                    self.is_trance_active = False
+                    self._trance_phase = 0
+                    print("[INTRO NPC] Death anim complete → Player unlocked & Skeletons unlocked")
         else:
             if self.state == _GenericNPCState.SPAWN:
                 spawn_frames = self.animations.get(_GenericNPCState.SPAWN)
@@ -660,74 +693,7 @@ class GenericNPC(Actor):
 
         super().draw(surface)
 
-        # ── In-World Floating Dialogue Text (Spirit of Scythe & Gatekeeper) ──
-        if (self.is_spirit_of_scythe and self._trance_phase in (1, 2)) or (self.is_sky_fall_npc and self._sky_fall_phase in (2, 3)):
-            if self.is_sky_fall_npc:
-                if self._sky_fall_phase == 3 and self._sky_fall_timer > 7.5:
-                    text_alpha = int(255 * (8.0 - self._sky_fall_timer) / 0.5)
-                elif self._sky_fall_phase == 3 and self._sky_fall_timer < 0.6:
-                    text_alpha = int(255 * (self._sky_fall_timer / 0.6))
-                else:
-                    text_alpha = 255
-            else:
-                if self._trance_phase == 2 and self._trance_text_timer > 3.0:
-                    text_alpha = int(255 * (3.5 - self._trance_text_timer) / 0.5)
-                elif self._trance_phase == 2 and self._trance_text_timer < 0.6:
-                    text_alpha = int(255 * (self._trance_text_timer / 0.6))
-                else:
-                    text_alpha = 255
-            text_alpha = max(0, min(255, text_alpha))
-
-            float_y = math.sin(ticks * 0.005) * 4.0
-
-            font = self._font
-            max_w = 480
-            words = (self.text or "").split(" ")
-            lines: list[str] = []
-            curr = ""
-            for word in words:
-                test_l = f"{curr} {word}".strip() if curr else word
-                if font.size(test_l)[0] <= max_w:
-                    curr = test_l
-                else:
-                    if curr: lines.append(curr)
-                    curr = word
-            if curr: lines.append(curr)
-
-            line_h = font.get_linesize() + 2
-            total_text_h = len(lines) * line_h
-            start_y = self.rect.top - total_text_h - 30 + int(float_y)
-
-            for i, line_str in enumerate(lines):
-                tx = self.rect.centerx - font.size(line_str)[0] // 2
-                ty = start_y + i * line_h
-
-                # Dark drop shadow
-                shd_surf = font.render(line_str, True, (20, 0, 10))
-                shd_surf.set_alpha(int(text_alpha * 0.85))
-                surface.blit(shd_surf, (tx + 2, ty + 2))
-
-                # Main Ethereal Gold text
-                txt_surf = font.render(line_str, True, (255, 220, 90))
-                txt_surf.set_alpha(text_alpha)
-                surface.blit(txt_surf, (tx, ty))
-
-            # Pulsing continue prompt
-            p_alpha = int(160 + 80 * abs(((ticks // 8) % 200 - 100) / 100))
-            p_alpha = min(text_alpha, p_alpha)
-            prompt_str = "[ Press ENTER or SPACE to Continue ]"
-            p_font = self._font
-            ptx = self.rect.centerx - p_font.size(prompt_str)[0] // 2
-            pty = start_y + len(lines) * line_h + 10
-            
-            p_shd = p_font.render(prompt_str, True, (0, 0, 0))
-            p_shd.set_alpha(int(p_alpha * 0.8))
-            surface.blit(p_shd, (ptx + 1, pty + 1))
-
-            p_txt = p_font.render(prompt_str, True, (200, 240, 255))
-            p_txt.set_alpha(p_alpha)
-            surface.blit(p_txt, (ptx, pty))
-            return
+        # (In-world cutscene dialogue text is rendered on the top-center screen overlay layer in GameState)
 
         if not self.can_interact:
             return

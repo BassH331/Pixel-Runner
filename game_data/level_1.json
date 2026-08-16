@@ -259,7 +259,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "The Scythe Whispers",
-                "text": "You feel the Umbral Scythe pulling at your soul with every swing. The dark steel hums with satisfaction. Something is wrong... but the contract must be fulfilled.",
+                "text": "Delicious souls are worth more than skeleton garbage!! That Green glob has been on my menu for millenia. March on Soldier!!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0
