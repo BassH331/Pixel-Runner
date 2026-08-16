@@ -27,6 +27,7 @@ from src.game.entities.green_monster import GreenMonster
 from src.game.entities.boss_manager import BossManager
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
 from src.game.effects.vfx_manager import VisualEffectManager
+from src.game.effects.trippy_zoom import TrIPPyZoomEffect
 from src.game.systems.environment_manager import EnvironmentManager
 from v3x_zulfiqar_gideon import AssetManager, State
 
@@ -129,6 +130,7 @@ class GameState(State):
         self._current_interacting_npc = None
         self.notification_banner = NotificationBanner(scale=0.6, icon_scale=0.6)
         self.tutorial_overlay = TutorialOverlay()
+        self.trippy_zoom = TrIPPyZoomEffect(self.width, self.height)
         self._show_objective_on_start: bool = True
         self._show_tutorial_on_start: bool = True
 
@@ -483,7 +485,8 @@ class GameState(State):
             self.npc_group.add(npc)
         else:
             # Generic NPC — works with any sprite folder
-            is_intro = params.get("is_intro_npc", False)
+            is_intro = params.get("is_intro_npc", True)
+            play_death = params.get("play_death_on_interact", True)
             # Intro NPCs spawn just off right edge and walk in; normal NPCs spawn just off-screen
             spawn_x = self.width + 30 if is_intro else self.width + 50
             npc = GenericNPC(
@@ -495,7 +498,7 @@ class GameState(State):
                 scale=params.get("scale"),  # Respect level configuration scale
                 proximity_radius=params.get("radius", 160),
                 frame_duration=params.get("frame_duration", 0.15),
-                play_death_on_interact=params.get("play_death_on_interact", False),
+                play_death_on_interact=play_death,
                 death_sprite_dir=params.get("death_sprite_dir"),
                 walk_sprite_dir=params.get("walk_sprite_dir"),
                 spawn_sprite_dir=params.get("spawn_sprite_dir"),
@@ -925,6 +928,17 @@ class GameState(State):
         # Spawn modular hit VFX (blood burst for fleshy entities, magic/sparks for skeletons)
         VisualEffectManager.spawn_hit_vfx(enemy.rect.centerx, enemy.rect.centery, entity=enemy)
         
+        # ── Trippy Zoom: Combat impact dolly zoom ────────────────────────────
+        # Focal point = midpoint between player and enemy (pulls zoom toward impact)
+        midpoint_x = (player.rect.centerx + enemy.rect.centerx) // 2
+        midpoint_y = (player.rect.centery + enemy.rect.centery) // 2
+        self.trippy_zoom.trigger(
+            focal_x=midpoint_x,
+            focal_y=midpoint_y,
+            intensity=damage / 25.0,
+        )
+        # ─────────────────────────────────────────────────────────────────────
+        
         if self.tracker.enabled:
             self.tracker.log_event("damage_dealt", {
                 "attacker": "player",
@@ -1183,7 +1197,7 @@ class GameState(State):
             
         # Debug output if in debug mode
         if hasattr(self, 'debug_mode') and self.debug_mode:
-            print(f"Player hit by skeleton! Health: {player.health}")
+            print(f"Player hit by hazard! Health: {player_sprite.health}")
     
     def _apply_knockback_to_player(
         self,
@@ -1656,6 +1670,7 @@ class GameState(State):
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
         VisualEffectManager.update(dt, self.bg_scroll_speed)
+        self.trippy_zoom.update(dt / 1000.0)  # dt is in ms, effect expects seconds
         for npc in self.npc_group:
             is_intro_walking = (
                 getattr(npc, "is_intro_npc", False)
@@ -2018,51 +2033,69 @@ class GameState(State):
         """
         Render the game state.
         
+        When the trippy zoom effect is active, all game-world elements
+        are rendered to an off-screen buffer. The buffer is then distorted
+        (dolly zoom + sinusoidal phase warp) and blitted to the display.
+        UI overlays (objective, notifications, tutorial) are drawn AFTER
+        the effect so they remain crisp and undistorted.
+        
         Args:
             surface: Target surface for rendering.
         """
+        # Choose render target: buffer (if effect active) or screen directly
+        if self.trippy_zoom.is_active:
+            target = self.trippy_zoom.buffer
+        else:
+            target = surface
+
         # Background (data-driven environment manager)
-        self.environment_manager.draw(surface, cam_x=self.world_distance)
+        self.environment_manager.draw(target, cam_x=self.world_distance)
         
         # UI layer
-        self.player_ui.draw(surface)
+        self.player_ui.draw(target)
         
         # NPCs (drawn before player so they appear behind)
         for npc in self.npc_group:
-            npc.draw(surface)
+            npc.draw(target)
 
         # Interaction point prompts ("Talk" indicators)
         for point in self.interaction_group:
-            point.draw(surface)
+            point.draw(target)
 
         # Ambient creatures (sorted by scale so further ones are drawn behind closer ones)
         for ambient in sorted(self.ambient_group, key=lambda a: getattr(a, 'depth_scale_factor', 1.0)):
-            ambient.draw(surface)
+            ambient.draw(target)
 
         # Player (drawn after NPCs so player appears in front)
-        self.player.sprite.draw(surface)
+        self.player.sprite.draw(target)
         
         # Enemies
         for enemy in self.obstacle_group:
-            enemy.draw(surface)
+            enemy.draw(target)
             
         # Hit Visual Effects (Blood Bursts, Sparks, Magic Shots)
-        VisualEffectManager.draw(surface)
+        VisualEffectManager.draw(target)
         
         # Debug visualization
         if self.debug_mode:
-            self._draw_debug_info(surface)
+            self._draw_debug_info(target)
 
         # Boss Health Bar overlay
-        self._draw_boss_health_bar(surface)
+        self._draw_boss_health_bar(target)
 
-        # Objective overlay (drawn on top of everything)
+        # ── Apply trippy zoom post-processing ─────────────────────────────────
+        if self.trippy_zoom.is_active:
+            result = self.trippy_zoom.apply(target)
+            surface.blit(result, (0, 0))
+        # ─────────────────────────────────────────────────────────────────────
+
+        # Objective overlay (drawn on top of everything — AFTER effect)
         self.objective_display.draw(surface)
 
-        # Notification banner (topmost layer)
+        # Notification banner (topmost layer — AFTER effect)
         self.notification_banner.draw(surface)
 
-        # Tutorial overlay (above everything)
+        # Tutorial overlay (above everything — AFTER effect)
         self.tutorial_overlay.draw(surface)
 
     def _draw_boss_health_bar(self, surface: pg.Surface) -> None:

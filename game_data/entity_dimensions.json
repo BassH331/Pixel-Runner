@@ -166,5 +166,21 @@
         "bottom": 0,
         "ground_offset": 34,
         "scale": 3.38
+    },
+    "generic_npc_props": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_no bg": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
     }
 }

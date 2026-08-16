@@ -53,6 +53,57 @@ class GenericNPC(Actor):
     _PROMPT_OFFSET_Y = -70
     _PROMPT_BORDER_RADIUS = 8
 
+def _find_action_folder(sprite_dir: str, keywords: list[str]) -> Optional[str]:
+    """Find a sibling/ancestor folder matching action keywords (e.g. walk, death, spawn)."""
+    abs_sdir = os.path.abspath(sprite_dir.rstrip("/"))
+    curr = abs_sdir
+    is_rel = not os.path.isabs(sprite_dir)
+    for _ in range(3):
+        parent = os.path.dirname(curr)
+        if not parent or parent == curr:
+            break
+        try:
+            subdirs = [d for d in os.listdir(parent) if os.path.isdir(os.path.join(parent, d))]
+        except OSError:
+            break
+
+        rel_from_parent = os.path.relpath(abs_sdir, parent)
+        rel_parts = rel_from_parent.split(os.sep)
+        sub_tail = rel_parts[-1] if len(rel_parts) > 1 and rel_parts[-1].lower() in ("no bg", "with bg") else ""
+
+        for s in subdirs:
+            s_lo = s.lower()
+            if any(kw in s_lo for kw in keywords):
+                cand = os.path.join(parent, s)
+                res = None
+                if sub_tail:
+                    cand_tail = os.path.join(cand, sub_tail)
+                    if os.path.isdir(cand_tail):
+                        res = cand_tail
+                if res is None and os.path.isdir(cand):
+                    res = cand
+                if res:
+                    return os.path.relpath(res, os.getcwd()) if is_rel else res
+        curr = parent
+    return None
+
+
+class GenericNPC(Actor):
+    """A reusable NPC driven entirely by constructor arguments.
+
+    Supports custom walk entrance, spawn animation, dialogue interaction, and death disintegration.
+    """
+
+    # Prompt styling (same as WizardNPC for visual consistency)
+    _FONT_PATH = "assets/graphics/Darinia/Darinia.ttf"
+    _FONT_SIZE = 30
+    _PROMPT_COLOR = (255, 255, 255)
+    _PROMPT_BG_COLOR = (30, 30, 30, 200)
+    _PROMPT_PADDING_X = 16
+    _PROMPT_PADDING_Y = 8
+    _PROMPT_OFFSET_Y = -70
+    _PROMPT_BORDER_RADIUS = 8
+
     def __init__(
         self,
         x: int,
@@ -64,7 +115,7 @@ class GenericNPC(Actor):
         proximity_radius: int = 180,
         frame_duration: float = 0.15,
         prompt_text: str = "Talk  [ X / ENTER ]",
-        play_death_on_interact: bool = False,
+        play_death_on_interact: bool = True,
         death_sprite_dir: Optional[str] = None,
         walk_sprite_dir: Optional[str] = None,
         spawn_sprite_dir: Optional[str] = None,
@@ -88,31 +139,19 @@ class GenericNPC(Actor):
         self.walk_speed: float = walk_speed
 
         # Auto-detect folder paths if not specified
-        sdir = sprite_dir.rstrip("/")
-        parent = os.path.dirname(sdir) if os.path.basename(sdir).lower() == "idle" else sdir
-
-        if self.play_death_on_interact and not death_sprite_dir:
-            for candidate in ["Death", "death", "DEATH"]:
-                cand_path = os.path.join(parent, candidate)
-                if os.path.isdir(cand_path):
-                    death_sprite_dir = cand_path
-                    break
+        if not death_sprite_dir:
+            death_sprite_dir = _find_action_folder(sprite_dir, ["death", "die"])
         self.death_sprite_dir = death_sprite_dir
+        if self.death_sprite_dir:
+            self.play_death_on_interact = True
+            self.is_death_complete = False
 
-        if self.is_intro_npc and not walk_sprite_dir:
-            for candidate in ["Walk", "walk", "WALK"]:
-                cand_path = os.path.join(parent, candidate)
-                if os.path.isdir(cand_path):
-                    walk_sprite_dir = cand_path
-                    break
+        if not walk_sprite_dir:
+            walk_sprite_dir = _find_action_folder(sprite_dir, ["walk", "run"])
         self.walk_sprite_dir = walk_sprite_dir
 
-        if self.is_intro_npc and not spawn_sprite_dir:
-            for candidate in ["Spawn", "spawn", "SPAWN"]:
-                cand_path = os.path.join(parent, candidate)
-                if os.path.isdir(cand_path):
-                    spawn_sprite_dir = cand_path
-                    break
+        if not spawn_sprite_dir:
+            spawn_sprite_dir = _find_action_folder(sprite_dir, ["spawn"])
         self.spawn_sprite_dir = spawn_sprite_dir
 
         # Resolve registry key and margins early to determine scale
@@ -195,6 +234,7 @@ class GenericNPC(Actor):
         if self.is_walking and _GenericNPCState.WALK in self.animations:
             self.set_state(_GenericNPCState.WALK, force=True)
         else:
+            self.is_walking = False
             self.set_state(_GenericNPCState.IDLE, force=True)
 
         if self.state in self.animations:
@@ -327,6 +367,8 @@ class GenericNPC(Actor):
         super().update(delta_time)
 
     def draw(self, surface: pg.Surface) -> None:
+        if self.is_death_complete and self.play_death_on_interact:
+            return
         super().draw(surface)
 
         if not self.can_interact:

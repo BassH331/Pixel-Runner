@@ -252,7 +252,7 @@
                 "title": "A Dying Villager",
                 "text": "The creatures... they came from the rift. The Shepherd said he would protect us... he lied. Run, stranger. This forest devours all who linger.",
                 "radius": 160,
-                "sprite_dir": "assets/graphics/Fairy",
+                "sprite_dir": "assets/graphics/Moonstone_Keeper Eldermoon_Grove - By SUCART/Idle-MoonstoneKeeper-SUCART/No BG",
                 "scale": 2.0
             }
         },
@@ -265,7 +265,7 @@
                 "title": "The Scythe Whispers",
                 "text": "You feel the Umbral Scythe pulling at your soul with every swing. The dark steel hums with satisfaction. Something is wrong... but the contract must be fulfilled.",
                 "radius": 160,
-                "sprite_dir": "assets/shadow_warrior/idle",
+                "sprite_dir": "assets/graphics/totem",
                 "scale": 2.0
             }
         },
