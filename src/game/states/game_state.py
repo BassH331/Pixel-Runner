@@ -28,6 +28,7 @@ from src.game.entities.boss_manager import BossManager
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
 from src.game.effects.vfx_manager import VisualEffectManager
 from src.game.effects.trippy_zoom import TrIPPyZoomEffect
+from src.game.effects.clean_camera_zoom import CleanCameraZoom
 from src.game.systems.environment_manager import EnvironmentManager
 from v3x_zulfiqar_gideon import AssetManager, State
 
@@ -131,6 +132,7 @@ class GameState(State):
         self.notification_banner = NotificationBanner(scale=0.6, icon_scale=0.6)
         self.tutorial_overlay = TutorialOverlay()
         self.trippy_zoom = TrIPPyZoomEffect(self.width, self.height)
+        self.clean_camera_zoom = CleanCameraZoom(self.width, self.height)
         self._show_objective_on_start: bool = True
         self._show_tutorial_on_start: bool = True
 
@@ -668,6 +670,24 @@ class GameState(State):
                             self._current_interacting_npc.trigger_death()
                     self._current_interacting_npc = None
             return
+
+        # Check for cutscene dialogue advance input (ENTER / SPACE / E / X or gamepad)
+        cutscene_advance_pressed = (
+            (event.type == pg.KEYDOWN and event.key in (pg.K_RETURN, pg.K_SPACE, pg.K_e, pg.K_x)) or
+            (event.type == pg.JOYBUTTONDOWN and event.button in (0, 1, 6))
+        )
+        if cutscene_advance_pressed:
+            for npc in self.npc_group:
+                if getattr(npc, "is_spirit_of_scythe", False) and getattr(npc, "is_trance_active", False):
+                    if getattr(npc, "_trance_phase", 0) == 2:
+                        npc._trance_text_timer = 0.0  # Advance dialogue immediately!
+                        print("[SPIRIT NPC] Player pressed key → Advancing dialogue")
+                        return
+                if getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
+                    if getattr(npc, "_sky_fall_phase", 0) == 3:
+                        npc._sky_fall_timer = 0.0  # Advance dialogue immediately!
+                        print("[SKY FALL NPC] Player pressed key → Advancing dialogue")
+                        return
 
         # Check for interaction input (ENTER / X / gamepad btn 6).
         interact_pressed = (
@@ -1723,11 +1743,24 @@ class GameState(State):
         VisualEffectManager.update(dt, self.bg_scroll_speed)
         self.trippy_zoom.update(dt / 1000.0)  # dt is in ms, effect expects seconds
 
-        # Gatekeeper / Sky Fall NPC Camera Zoom Focus during 8-second speech
+        # Clean Camera Zoom & Focus during cutscene speech (Spirit Eye & Gatekeeper)
+        active_speech_npc = None
         for npc in self.npc_group:
-            if getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
+            if getattr(npc, "is_spirit_of_scythe", False) and getattr(npc, "is_trance_active", False):
+                if getattr(npc, "_trance_phase", 0) == 2:
+                    active_speech_npc = npc
+                    break
+            elif getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
                 if getattr(npc, "_sky_fall_phase", 0) == 3:
-                    self.trippy_zoom.trigger(int(npc.rect.centerx), int(npc.rect.centery), intensity=1.0, target_tier="elite")
+                    active_speech_npc = npc
+                    break
+
+        if active_speech_npc is not None:
+            self.clean_camera_zoom.zoom_in(active_speech_npc.rect.centerx, active_speech_npc.rect.centery, target_zoom=1.38)
+        else:
+            self.clean_camera_zoom.zoom_out()
+
+        self.clean_camera_zoom.update(dt / 1000.0)
         for npc in self.npc_group:
             is_intro_walking = (
                 getattr(npc, "is_intro_npc", False)
@@ -2182,7 +2215,11 @@ class GameState(State):
         # Boss Health Bar overlay
         self._draw_boss_health_bar(target)
 
-        # ── Apply trippy zoom post-processing ─────────────────────────────────
+        # ── Apply Clean Camera Zoom & Focus (NPC Cutscenes & Speech) ─────────
+        if self.clean_camera_zoom.is_active:
+            self.clean_camera_zoom.apply(target, target)
+
+        # ── Apply trippy zoom post-processing (Combat Impact Strikes) ───────
         if self.trippy_zoom.is_active:
             result = self.trippy_zoom.apply(target)
             surface.blit(result, (0, 0))

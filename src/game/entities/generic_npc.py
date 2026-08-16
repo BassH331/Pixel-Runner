@@ -171,7 +171,7 @@ class GenericNPC(Actor):
         self.is_trance_active: bool = False
         self._trance_phase: int = 0  # 0: Sky Fly-In Descent, 1: Eye Opening (Reverse Death), 2: Floating Text, 3: Eye Closing
         self._trance_text_timer: float = 0.0
-        self._trance_text_duration: float = 3.5  # seconds text stays floating on screen
+        self._trance_text_duration: float = 8.0  # 8.0 seconds text stays floating (can press ENTER/SPACE to advance)
         self._fly_in_progress: float = 0.0
         self._fly_in_duration: float = 1.0  # 1.0 second smooth sky descent
 
@@ -711,6 +711,22 @@ class GenericNPC(Actor):
                 txt_surf = font.render(line_str, True, (255, 220, 90))
                 txt_surf.set_alpha(text_alpha)
                 surface.blit(txt_surf, (tx, ty))
+
+            # Pulsing continue prompt
+            p_alpha = int(160 + 80 * abs(((ticks // 8) % 200 - 100) / 100))
+            p_alpha = min(text_alpha, p_alpha)
+            prompt_str = "[ Press ENTER or SPACE to Continue ]"
+            p_font = self._font
+            ptx = self.rect.centerx - p_font.size(prompt_str)[0] // 2
+            pty = start_y + len(lines) * line_h + 10
+            
+            p_shd = p_font.render(prompt_str, True, (0, 0, 0))
+            p_shd.set_alpha(int(p_alpha * 0.8))
+            surface.blit(p_shd, (ptx + 1, pty + 1))
+
+            p_txt = p_font.render(prompt_str, True, (200, 240, 255))
+            p_txt.set_alpha(p_alpha)
+            surface.blit(p_txt, (ptx, pty))
             return
 
         if not self.can_interact:
