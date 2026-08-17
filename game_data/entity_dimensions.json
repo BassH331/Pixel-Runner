@@ -127,22 +127,6 @@
         "ground_offset": 34,
         "scale": 2.0
     },
-    "generic_npc_wizard_npc": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
-    },
-    "generic_npc_evil_jack": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
-    },
     "generic_npc_agis": {
         "left": 0,
         "right": 0,
@@ -190,5 +174,13 @@
         "bottom": 0,
         "ground_offset": 34,
         "scale": 2.0
+    },
+    "boss:skeletonzombie": {
+        "left": 65,
+        "right": 65,
+        "top": 20,
+        "bottom": 0,
+        "ground_offset": 35,
+        "scale": 3.05
     }
 }

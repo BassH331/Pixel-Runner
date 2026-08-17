@@ -7,8 +7,25 @@
         "bg_music_track": "game_loop",
         "ground_y": 609,
         "sky": {
-            "enabled": false,
-            "layers": []
+            "enabled": true,
+            "layers": [
+                {
+                    "path": "assets/graphics/Clouds 3/1.png",
+                    "speed": 0
+                },
+                {
+                    "path": "assets/graphics/Clouds 3/2.png",
+                    "speed": 0
+                },
+                {
+                    "path": "assets/graphics/Clouds 3/3.png",
+                    "speed": 20
+                },
+                {
+                    "path": "assets/graphics/Clouds 3/4.png",
+                    "speed": 40
+                }
+            ]
         },
         "layer_stacks": {
             "1": {
@@ -158,10 +175,11 @@
     },
     "spawn_zones": [
         {
-            "min_dist": 800,
+            "min_dist": 1080,
             "max_dist": 11500,
-            "max_skeletons": 3,
+            "max_skeletons": 6,
             "delay": 4500,
+            "required_kills": 0,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {
@@ -298,52 +316,6 @@
                     "idle": "idle",
                     "walk": "walk"
                 }
-            }
-        },
-        {
-            "id": 14,
-            "distance": 18000,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "The Fabricator Watches",
-                "text": "You feel eyes upon you from beyond the veil. 'Closer, closer,' a silken voice hisses. 'Every soul you reap binds you tighter to my design.' The contract burns in your chest.",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/Wizard_NPC",
-                "scale": 2.0
-            }
-        },
-        {
-            "id": 2,
-            "distance": 24000,
-            "type": "boss",
-            "params": {
-                "title": "The Blight Incarnate",
-                "scale": 2.0,
-                "health": 100.0,
-                "tier": "elite",
-                "soul_value": 300,
-                "sprite_dir": "assets/graphics/bloodZombie",
-                "behaviour_map": {
-                    "Attack1": "attack",
-                    "Attack2": "attack",
-                    "Death": "death",
-                    "Idle": "idle",
-                    "Move": "walk"
-                }
-            }
-        },
-        {
-            "id": 15,
-            "distance": 30000,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "The Scythe Speaks",
-                "text": "The blade thrums with dark energy. 'One more. Just one more, and you will be free...' But something in its tone feels wrong. Like a predator soothing its prey before the final strike.",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/Evil_jack/idle",
-                "scale": 2.0
             }
         },
         {

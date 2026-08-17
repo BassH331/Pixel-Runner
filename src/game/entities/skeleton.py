@@ -157,6 +157,8 @@ class Skeleton(EntityAudioMixin, Actor):
                         frames.append(pg.transform.scale(frame, (w, h)))
                 return frames
                 
+            self.natively_facing_left: bool = bool(sprite_root and "skeletonzombie" in sprite_root.lower())
+
             if "idle" in tag_to_folders:
                 self.animations[SkeletonState.IDLE] = load_from_folders(tag_to_folders["idle"])
             if "walk" in tag_to_folders or "chase" in tag_to_folders:
@@ -176,6 +178,10 @@ class Skeleton(EntityAudioMixin, Actor):
                 self.animations[SkeletonState.HURT] = load_from_folders(tag_to_folders["hurt"])
             if "death" in tag_to_folders:
                 self.animations[SkeletonState.DEATH] = load_from_folders(tag_to_folders["death"])
+            elif "die" in tag_to_folders:
+                self.animations[SkeletonState.DEATH] = load_from_folders(tag_to_folders["die"])
+            elif "hurt" in tag_to_folders:
+                self.animations[SkeletonState.DEATH] = load_from_folders(tag_to_folders["hurt"])
                 
         # 3. Apply Tier Scaling (Health, Speed, Size)
         damage_scale = 1.0
@@ -434,6 +440,8 @@ class Skeleton(EntityAudioMixin, Actor):
         self._update_ai()
         
         super().update(dt) # Handles state machines and animations
+        if getattr(self, "natively_facing_left", False) and self.image:
+            self.image = pg.transform.flip(self.image, True, False)
         self._update_animation_audio()
         
         # Cleanup on death animation completion

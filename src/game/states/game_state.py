@@ -30,7 +30,12 @@ from src.game.effects.vfx_manager import VisualEffectManager
 from src.game.effects.trippy_zoom import TrIPPyZoomEffect
 from src.game.effects.clean_camera_zoom import CleanCameraZoom
 from src.game.systems.environment_manager import EnvironmentManager
-from v3x_zulfiqar_gideon import AssetManager, State
+from src.game.systems.combat_system import CombatSystem
+from src.game.systems.cutscene_manager import CutsceneManager
+from src.game.effects.particle_system import ParticleManager
+from src.game.services.save_manager import SaveManager
+from src.game.debug.simulation_runner import SimulationRunner
+from v3x_zulfiqar_gideon import AssetManager, State, EventBus, EntityDied, Camera
 
 if TYPE_CHECKING:
     from v3x_zulfiqar_gideon import StateManager
@@ -84,6 +89,23 @@ class GameState(State):
         display_surface = pg.display.get_surface()
         self.width: int = display_surface.get_width()
         self.height: int = display_surface.get_height()
+        
+        # Event Bus messaging system
+        self.event_bus = EventBus()
+        self.event_bus.subscribe(EntityDied, self._on_entity_died)
+
+        # Decoupled Combat & Cutscene Systems
+        self.combat_system = CombatSystem(self)
+        self.cutscene_manager = CutsceneManager(self)
+        
+        # Procedural Particle Engine
+        self.particle_manager = ParticleManager(self.event_bus)
+        
+        # Unified Camera System
+        self.camera = Camera(self.width, self.height, event_bus=self.event_bus)
+        
+        # Simulation Runner
+        self.sim_runner = SimulationRunner(self)
         
         # Gameplay Telemetry Tracker
         from src.game.debug.gameplay_tracker import GameplayTracker
@@ -406,23 +428,26 @@ class GameState(State):
         """Initial interaction points (none — they spawn by distance now)."""
         pass  # Entities are spawned dynamically in _spawn_world_entities()
 
-    def _get_spawn_zone(self) -> Optional[dict]:
-        """Get the current spawn zone based on how far the player has traveled.
+    def _get_active_spawn_zones(self) -> list[dict]:
+        """Get all active spawn zones based on current player distance.
 
-        Zones come from level_1.json → "spawn_zones".
-        If the JSON didn't have that key, self._spawn_zones was set to
-        _DEFAULT_SPAWN_ZONES during __init__.
-
-        Returns the zone where min_dist <= max_distance_reached <= max_dist.
+        Supports multiple simultaneous spawn zones for different minion types!
+        Returns all zones where min_dist <= max_distance_reached <= max_dist.
         """
-        for zone in reversed(self._spawn_zones):
+        active_zones = []
+        for zone in self._spawn_zones:
             min_dist = zone.get("min_dist", 0)
             max_dist = zone.get("max_dist")
             
             if self.max_distance_reached >= min_dist:
                 if max_dist is None or self.max_distance_reached <= max_dist:
-                    return zone
-        return None
+                    active_zones.append(zone)
+        return active_zones
+
+    def _get_spawn_zone(self) -> Optional[dict]:
+        """Get primary active spawn zone (for single-zone backward compatibility)."""
+        active = self._get_active_spawn_zones()
+        return active[0] if active else None
 
     def _setup_world_events(self) -> None:
         """Register handlers for world events. Scheduling is handled via JSON config."""
@@ -671,31 +696,9 @@ class GameState(State):
                     self._current_interacting_npc = None
             return
 
-        # Check for cutscene dialogue advance input (ENTER / SPACE / E / X or gamepad)
-        cutscene_advance_pressed = (
-            (event.type == pg.KEYDOWN and event.key in (pg.K_RETURN, pg.K_SPACE, pg.K_e, pg.K_x)) or
-            (event.type == pg.JOYBUTTONDOWN and event.button in (0, 1, 6))
-        )
-        if cutscene_advance_pressed:
-            for npc in self.npc_group:
-                if getattr(npc, "is_spirit_of_scythe", False) and getattr(npc, "is_trance_active", False):
-                    if getattr(npc, "_trance_phase", 0) in (2, 3):
-                        npc._trance_text_timer = 0.0
-                        npc._trance_phase = 4  # Fades text and starts Zoom-Out
-                        print("[SPIRIT NPC] Player pressed key → Fading text & starting Zoom-Out")
-                        return
-                if getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
-                    if getattr(npc, "_sky_fall_phase", 0) in (3, 4):
-                        npc._sky_fall_timer = 0.0
-                        npc._sky_fall_phase = 5  # Fades text and starts Zoom-Out
-                        print("[SKY FALL NPC] Player pressed key → Fading text & starting Zoom-Out")
-                        return
-                if getattr(npc, "is_intro_npc", False) and getattr(npc, "is_trance_active", False):
-                    if getattr(npc, "_trance_phase", 0) in (2, 3):
-                        npc._trance_text_timer = 0.0
-                        npc._trance_phase = 4  # Fades text and starts Zoom-Out
-                        print("[INTRO NPC] Player pressed key → Fading text & starting Zoom-Out")
-                        return
+        # Check for cutscene dialogue advance input
+        if self.cutscene_manager.handle_advance_input(event):
+            return
 
         # Check for interaction input (ENTER / X / gamepad btn 6).
         interact_pressed = (
@@ -763,22 +766,30 @@ class GameState(State):
             )
         
         # Spawn skeletons (distance-scaled) — blocked until intro NPC sequence finishes
-        if self._intro_npc_done and zone is not None and current_time >= self.next_skeleton_spawn_time:
-            current_skeletons = sum(1 for sprite in self.obstacle_group 
-                                 if isinstance(sprite, Skeleton))
-            
-            required_kills = zone.get("required_kills", 0)
-            killed_count = zone.get("killed_count", 0)
-            
-            if required_kills == 0 or killed_count < required_kills:
-                if current_skeletons < zone.get("max_skeletons", 0):
-                    self.spawn_skeleton(zone)
-                    self.next_skeleton_spawn_time = current_time + zone.get("delay", 6000)
-                    print(f"[SPAWN] Skeleton spawned! "
-                          f"alive={current_skeletons + 1}/{zone.get('max_skeletons', 0)} "
-                          f"delay={zone.get('delay', 6000)}ms "
-                          f"dist={int(self.max_distance_reached)} "
-                          f"kills={killed_count}/{required_kills if required_kills > 0 else 'inf'}")
+        active_zones = self._get_active_spawn_zones()
+        if self._intro_npc_done and active_zones:
+            for active_z in active_zones:
+                next_spawn = active_z.get("_next_spawn_time", 0)
+                if current_time >= next_spawn:
+                    zone_skeletons = sum(
+                        1 for sprite in self.obstacle_group
+                        if isinstance(sprite, Skeleton) and getattr(sprite, "spawn_zone", None) is active_z
+                    )
+                    
+                    required_kills = active_z.get("required_kills", 0)
+                    killed_count = active_z.get("killed_count", 0)
+                    
+                    if required_kills == 0 or killed_count < required_kills:
+                        if zone_skeletons < active_z.get("max_skeletons", 0):
+                            self.spawn_skeleton(active_z)
+                            delay = active_z.get("delay", 6000)
+                            active_z["_next_spawn_time"] = current_time + delay
+                            print(f"[SPAWN] Skeleton spawned! "
+                                  f"zone='{active_z.get('sprite_root', 'default')}' "
+                                  f"alive={zone_skeletons + 1}/{active_z.get('max_skeletons', 0)} "
+                                  f"delay={delay}ms "
+                                  f"dist={int(self.max_distance_reached)} "
+                                  f"kills={killed_count}/{required_kills if required_kills > 0 else 'inf'}")
     
     def spawn_skeleton(self, zone: Optional[dict] = None) -> None:
         """Spawn a new skeleton at a random position on the right side of the screen."""
@@ -847,787 +858,64 @@ class GameState(State):
     def _handle_combat_collisions(self) -> None:
         """
         Process combat interactions between player and enemies.
-        
-        Uses frame-accurate hit detection for both player and enemy attacks,
-        ensuring damage is only applied during configured hit frames with
-        duplicate hit prevention.
+        Delegates to CombatSystem.
         """
-        player_sprite = self.player.sprite
-        
-        if player_sprite.is_dead:
-            return
-        
-        # Process player attacks against all enemies
-        self._process_player_attacks(player_sprite)
-        
-        # Process enemy attacks against player
-        self._process_enemy_attacks(player_sprite)
-        
-        # (Skeleton spawning is handled by spawn_enemies() — no duplicate spawn here)
-    
-    def _process_player_attacks(self, player: Player) -> None:
-        """
-        Process player attacks against all enemies using frame-based detection.
-        
-        Damage is only applied when:
-        1. Player is on an active hit frame
-        2. Attack hitbox collides with enemy hitbox
-        3. Enemy has not already been hit this attack
-        
-        Args:
-            player: Player sprite instance.
-        """
-        # Gate 1: Player must be on an active hit frame
-        if not player.should_deal_damage():
-            return
-        
-        # Get the attack hitbox for precise collision
-        attack_hitbox = player.get_attack_hitbox()
-        if attack_hitbox is None:
-            return
-        
-        # Check against all obstacles
-        colliderect = attack_hitbox.colliderect
-        try_register_hit = player.try_register_hit
-        
-        for obstacle in self.obstacle_group:
-            # Skip dead enemies
-            if getattr(obstacle, "is_dead", False):
-                continue
-            
-            # Skip invincible enemies
-            if getattr(obstacle, "is_invincible", False):
-                continue
-            
-            # Get enemy hitbox (prefer .hitbox, fallback to .rect)
-            target_hitbox = getattr(obstacle, "low_hitbox", None) or getattr(obstacle, "hitbox", obstacle.rect)
-            if target_hitbox is None:
-                continue
-            
-            # Gate 2: Check hitbox collision
-            if not colliderect(target_hitbox):
-                continue
-            
-            # Gate 3: Check if already hit this attack (prevent duplicates)
-            target_id = getattr(obstacle, "entity_id", None)
-            if target_id is None:
-                target_id = id(obstacle)
-            
-            if not try_register_hit(target_id):
-                continue
-            
-            # ─────────────────────────────────────────────────────────────────
-            # HIT CONFIRMED - Apply damage and effects
-            # ─────────────────────────────────────────────────────────────────
-            
-            self._apply_player_damage_to_enemy(player, obstacle)
-    
-    def _apply_player_damage_to_enemy(
-        self,
-        player: Player,
-        enemy: Enemy | Skeleton | FireWizard,
-    ) -> None:
-        """
-        Apply player attack damage and effects to an enemy.
-        
-        Retrieves frame-specific damage and knockback from the player's
-        active attack configuration.
-        
-        Args:
-            player: Player sprite instance.
-            enemy: Enemy sprite that was hit.
-        """
-        # Get frame-specific damage from attack state
-        damage = player.get_current_attack_damage()
-        
-        # Calculate knockback vector toward enemy
-        knockback = player.get_attack_knockback(enemy.rect.center)
-        
-        # Apply damage to enemy
-        target_health_before = getattr(enemy, "_health", getattr(enemy, "health", 0.0))
-        if isinstance(enemy, (Skeleton, FireWizard)):
-            enemy.take_damage(damage, knockback)
-        elif isinstance(enemy, Enemy):
-            enemy.take_damage(damage, knockback)
-        elif hasattr(enemy, 'take_damage'):
-            # Fallback: call take_damage dynamically
-            try:
-                enemy.take_damage(damage, knockback)  # type: ignore
-            except TypeError:
-                enemy.take_damage(damage)  # type: ignore
-        else:
-            # Non-damageable obstacle - just destroy it
-            enemy.kill()
+        self.combat_system.process_combat()
 
-        # Save health AFTER damage.
-        # Now we can compare before vs after.
-        target_health_after = getattr(enemy, "_health", getattr(enemy, "health", 0.0))
-        
-        # Spawn modular hit VFX (blood burst for fleshy entities, magic/sparks for skeletons)
-        VisualEffectManager.spawn_hit_vfx(enemy.rect.centerx, enemy.rect.centery, entity=enemy)
-        
-        # ── Trippy Zoom & Screen Vibration: Combat impact camera effect ──────
-        # Determine target tier for vibration & zoom scaling
-        is_boss = getattr(enemy, "is_boss", False)
-        tier = getattr(enemy, "tier", "minion")
+    def _on_entity_died(self, event: EntityDied) -> None:
+        """Event handler invoked via EventBus when an entity dies."""
+        enemy = event.entity
+        soul_reward = event.soul_value
 
-        if is_boss or tier == "boss":
-            target_tier = "boss"
-        elif tier == "elite":
-            target_tier = "elite"
-        else:
-            target_tier = "minion"
+        if event.is_boss:
+            # ── Deactivate Boss Arena ─────────────────────────────────
+            self._arena_active = False
+            if self.player.sprite:
+                self.player.sprite.right_bound_ratio = getattr(self.player.sprite, "_RUN_RIGHT_BOUND_RATIO", 0.65)
+            # ─────────────────────────────────────────────────────────
 
-        # Focal point = midpoint between player and enemy (pulls zoom toward impact)
-        midpoint_x = (player.rect.centerx + enemy.rect.centerx) // 2
-        midpoint_y = (player.rect.centery + enemy.rect.centery) // 2
-        self.trippy_zoom.trigger(
-            focal_x=midpoint_x,
-            focal_y=midpoint_y,
-            intensity=damage / 25.0,
-            target_tier=target_tier,
-        )
-        # ─────────────────────────────────────────────────────────────────────
-        
-        if self.tracker.enabled:
-            self.tracker.log_event("damage_dealt", {
-                "attacker": "player",
-                "target": enemy.__class__.__name__,
-                "target_is_boss": getattr(enemy, "is_boss", False),
-                "damage": damage,
-                "target_health_before": target_health_before,
-                "target_health_after": getattr(enemy, "_health", getattr(enemy, "health", 0.0)),
-                "world_distance": self.world_distance
-            })
-        
-        # Audio feedback & collision logging via single source of truth (CombatCollisionLogger)
-        from src.game.audio import CombatCollisionLogger
-        enemy_type = "skeleton"
-        if isinstance(enemy, FireWizard):
-            enemy_type = "boss"
-        elif hasattr(enemy, "name"):
-            enemy_type = str(getattr(enemy, "name", "enemy")).lower()
-
-        enemy_id = getattr(enemy, "id", f"enemy_{id(enemy)}")
-        # Unified is_dead check — covers Skeleton, FireWizard, GreenMonster, BloodZombie
-        is_dead = getattr(enemy, "is_dead", False)
-
-        if is_dead and not getattr(enemy, "_death_sound_played", False):
-            # Death sound is handled by entity audio config (per-frame triggers)
-            setattr(enemy, "_death_sound_played", True)
-        elif not is_dead:
-            CombatCollisionLogger.get_instance().log_collision(
-                attacker="player",
-                defender=enemy_type,
-                defender_id=enemy_id,
-                action="hit",
-                defender_state="alive"
-            )
-
-        if is_dead and getattr(enemy, "_death_sound_played", False):
-            # ── Soul Harvest: variable rewards per enemy type ─────────────
-            soul_values = self._soul_harvest_config.get("soul_values", {})
-            soul_reward = 0
-
-            if getattr(enemy, "is_boss", False):
-                # Check for boss-specific soul_value from level JSON
-                boss_soul_value = getattr(enemy, "soul_value", 0)
-                if boss_soul_value == "remaining":
-                    # Final boss: award whatever's left to hit 10,000
-                    remaining = self.player_ui.soul_harvest_target - self.player_ui.current_soul_total
-                    soul_reward = max(0, remaining)
-                elif isinstance(boss_soul_value, (int, float)) and boss_soul_value > 0:
-                    soul_reward = int(boss_soul_value)
+            if getattr(enemy, "tier", "boss") == "boss":
+                if not self._soul_quota_reached:
+                    pass
                 else:
-                    # Fallback to tier-based values
-                    tier = getattr(enemy, "tier", "boss")
-                    if tier == "boss":
-                        soul_reward = soul_values.get("final_boss_remaining", 0)
-                        if soul_reward is True:
-                            remaining = self.player_ui.soul_harvest_target - self.player_ui.current_soul_total
-                            soul_reward = max(0, remaining)
-                    else:
-                        soul_reward = soul_values.get("elite_boss", 150)
-
-                # ── Deactivate Boss Arena ─────────────────────────────────
-                self._arena_active = False
-                if self.player.sprite:
-                    self.player.sprite.right_bound_ratio = getattr(self.player.sprite, "_RUN_RIGHT_BOUND_RATIO", 0.65)
-                # ─────────────────────────────────────────────────────────
-
-                # Check for final boss defeat (tier == "boss")
-                if getattr(enemy, "tier", "boss") == "boss":
-                    if not self._soul_quota_reached:
-                        # The quota callback handles the story climax
-                        pass
-                    else:
-                        self._level_complete = True
-                else:
-                    self.notification_banner.show(
-                        f"VICTORY: {getattr(enemy, 'boss_title', 'Mini-boss').upper()} DEFEATED!",
-                        notification="green"
-                    )
+                    self._level_complete = True
             else:
-                # Regular enemy — look up tier-based soul values
-                tier = getattr(enemy, "tier", "minion")
-                soul_reward = soul_values.get(f"skeleton_{tier}", soul_values.get("skeleton_minion", 5))
+                self.notification_banner.show(
+                    f"VICTORY: {getattr(enemy, 'boss_title', 'Mini-boss').upper()} DEFEATED!",
+                    notification="green"
+                )
 
-            # Apply soul reward through the UI system (handles pulse + completion)
-            if soul_reward > 0:
-                self.total_souls += soul_reward
-                self.player_ui.add_souls(soul_reward)
+            # Auto-save progress upon boss defeat
+            SaveManager.auto_save(self)
 
-            # Track zone kills
-            zone = getattr(enemy, "spawn_zone", None)
-            if zone is not None:
-                zone["killed_count"] = zone.get("killed_count", 0) + 1
-                print(f"[KILL] Enemy from zone killed! "
-                      f"kills={zone['killed_count']}/{zone.get('required_kills', 0)} "
-                      f"souls+={soul_reward} total={self.player_ui.current_soul_total}")
+        if soul_reward > 0:
+            self.total_souls += soul_reward
+            self.player_ui.add_souls(soul_reward)
 
-            # Fire "first_kill" flag for objective triggers
-            self.trigger_manager.set_flag("first_kill")
-        
-        # Score reward
-        self.score += self._SCORE_PER_HIT
+        zone = event.spawn_zone
+        if zone is not None:
+            zone["killed_count"] = zone.get("killed_count", 0) + 1
+            print(f"[KILL] Enemy from zone killed! "
+                  f"kills={zone['killed_count']}/{zone.get('required_kills', 0)} "
+                  f"souls+={soul_reward} total={self.player_ui.current_soul_total}")
+
+        self.trigger_manager.set_flag("first_kill")
 
     def _is_boss_active(self) -> bool:
         """Check if any boss is currently active and alive in the scene."""
         return BossManager.is_boss_active(self.obstacle_group)
-
-    def _process_enemy_attacks(self, player: Player) -> None:
-        """
-        Process all enemy attacks against the player.
-        
-        Iterates through all obstacles and delegates to type-specific
-        attack handlers.
-        
-        Args:
-            player: Player sprite instance.
-        """
-        # Skip if player is invincible
-        if player.is_invincible:
-            return
-            
-        # Process attacks from all obstacles that can attack
-        for obstacle in self.obstacle_group:
-            if isinstance(obstacle, (Skeleton, FireWizard, GreenMonster)):
-                self._handle_skeleton_attack(player, obstacle)
-
-    def _handle_skeleton_attack(self, player: Player, skeleton: Skeleton | FireWizard | GreenMonster) -> None:
-        """
-        Handle skeleton attack collision with frame-precise damage.
-        
-        Args:
-            player: Player sprite instance.
-            skeleton: Attacking skeleton/wizard instance.
-        """
-        # Gate 0: Player invulnerability during NPC dialogue, cutscene, or trance interaction
-        if self.is_interacting:
-            return
-
-        # Gate 1: Entity must be in attack state
-        state = getattr(skeleton, "state", None)
-        if state is None or "ATTACK" not in getattr(state, "name", ""):
-            return
-        
-        # Gate 2: Must be on a hit frame and not already registered
-        if not skeleton.should_deal_damage():
-            return 
-        
-        # Gate 3: Check hitbox collision (use skeleton's attack hitbox if available)
-        skeleton_hitbox = getattr(skeleton, 'get_attack_hitbox', None)
-        if skeleton_hitbox is not None:
-            skeleton_hitbox = skeleton_hitbox()
-        else:
-            skeleton_hitbox = skeleton.rect
-            
-        if skeleton_hitbox is None or not skeleton_hitbox.colliderect(player.rect):
-            return
-        
-        # Always register the hit attempt to prevent multi-hit exploitation.
-        # This ensures the skeleton can't "save" its hit for when i-frames end.
-        skeleton.register_hit(id(player))
-        
-        # Gate 4: Player invincibility check (handled inside take_damage)
-        damage = skeleton.get_current_attack_damage()
-        player_health_before = player.health
-        damage_applied = player.take_damage(damage)
-        player_health_after = player.health
-        if damage_applied or player_health_after < player_health_before or damage > 0:
-            VisualEffectManager.spawn_hit_vfx(
-                player.rect.centerx,
-                player.rect.centery,
-                entity=player,
-                target_entity=player,
-            )
-        
-        if damage_applied and self.tracker.enabled:
-            self.tracker.log_event("damage_received", {
-                "attacker": skeleton.__class__.__name__,
-                "attacker_is_boss": getattr(skeleton, "is_boss", False),
-                "damage": damage,
-                "player_health_before": player_health_before,
-                "player_health_after": player.health,
-                "world_distance": self.world_distance
-            })
-            self._logged_damage_this_tick = True
-            
-        # Only apply secondary effects if damage went through
-        if not damage_applied:
-            return
-        
-        # Audio feedback & collision logging for skeleton -> player hit
-        from src.game.audio import CombatCollisionLogger
-        enemy_type = "skeleton"
-        if isinstance(skeleton, FireWizard):
-            enemy_type = "boss"
-        elif hasattr(skeleton, "name"):
-            enemy_type = str(getattr(skeleton, "name", "skeleton")).lower()
-
-        CombatCollisionLogger.get_instance(self.audio_manager).log_collision(
-            attacker=enemy_type,
-            defender="player",
-            defender_id=getattr(skeleton, "id", f"skeleton_{id(skeleton)}"),
-            action="hit",
-            defender_state="alive"
-        )
-        
-        # Apply knockback
-        knockback = skeleton.get_current_attack_knockback()
-        if knockback > 0:
-            knockback_direction = (
-                -1 if skeleton.rect.centerx > player.rect.centerx else 1
-            )
-            self._apply_knockback_to_player(
-                player,
-                knockback * knockback_direction,
-            )
-        
-        # Audio feedback handled by player/entity audio configs (per-frame triggers)
-        
-        trigger_flash = getattr(player, 'trigger_hit_flash', None)
-        if trigger_flash:
-            trigger_flash()
-
-    def _check_environmental_hazards(self) -> None:
-        """Detect collision between Player and environmental hazard props (e.g. spikes, traps)."""
-        player_sprite = self.player.sprite
-        if not player_sprite or player_sprite.is_invincible or getattr(player_sprite, "health", 1) <= 0:
-            return
-
-        for prop in self.environment_manager.props:
-            if getattr(prop, "collision_type", "solid") == "hazard":
-                draw_x = int(prop.pos_x - self.world_distance * prop.parallax_ratio)
-                draw_y = int(prop.pos_y)
-                prop_rect = pg.Rect(draw_x, draw_y, prop.width, prop.height)
-                
-                # Check collision with player bounding box
-                if player_sprite.rect.colliderect(prop_rect):
-                    damage = 15.0
-                    damage_applied = player_sprite.take_damage(damage)
-                    if damage_applied:
-                        VisualEffectManager.spawn_hit_vfx(
-                            player_sprite.rect.centerx,
-                            player_sprite.rect.centery,
-                            entity=player_sprite,
-                            target_entity=player_sprite,
-                        )
-                        if self.tracker.enabled:
-                            self.tracker.log_event("damage_received", {
-                                "attacker": f"HazardSpike_{os.path.basename(prop.texture_path)}",
-                                "attacker_is_boss": False,
-                                "damage": damage,
-                                "health_remaining": player_sprite.health,
-                                "world_distance": float(self.world_distance),
-                            })
-                        print(f"[HAZARD SPIKE] Player hit environmental hazard '{os.path.basename(prop.texture_path)}'! Dealt {damage} damage.")
-                        break
-            
-        # Update score if needed (e.g., for tracking hits taken)
-        if hasattr(self, 'score'):
-            # Optional: Deduct points for getting hit
-            self.score = max(0, self.score - 5)
-            
-        # Debug output if in debug mode
-        if hasattr(self, 'debug_mode') and self.debug_mode:
-            print(f"Player hit by hazard! Health: {player_sprite.health}")
-    
-    def _apply_knockback_to_player(
-        self,
-        player: Player,
-        force: float,
-    ) -> None:
-        """
-        Apply horizontal knockback force to the player.
-        
-        Delegates to player's knockback method if available, otherwise
-        applies a simple position offset as fallback.
-        
-        Args:
-            player: Player sprite instance.
-            force: Horizontal knockback force (negative = left, positive = right).
-        """
-        apply_kb = getattr(player, 'apply_knockback', None)
-        if apply_kb:
-            apply_kb(force)
-        else:
-            # Fallback: Direct position offset with screen bounds clamping
-            player.rect.x += int(force)
-            player.rect.left = max(player.rect.left, 0)
-            
-            screen_width = pg.display.get_surface().get_width()
-            player.rect.right = min(player.rect.right, screen_width)
     
     # ─────────────────────────────────────────────────────────────────────────
     # Main Update Loop
     # ─────────────────────────────────────────────────────────────────────────
     def _write_simulation_report(self) -> None:
-        import json
-        import os
-        from src.game.entities.hitbox_registry import HitboxRegistry
-        
-        if getattr(self, "_sim_type", "level") == "wave":
-            overall_passed = len(self._simulation_wave_enemies) > 0
-            
-            report_data = {
-                "status": "PASSED" if overall_passed else "FAILED",
-                "timestamp": pg.time.get_ticks(),
-                "duration_ms": self._simulation_timer,
-                "start_distance": getattr(self, "_sim_start_distance", 0.0),
-                "final_distance": self.world_distance,
-                "scroll_speed": self.max_bg_scroll_speed,
-                "type": "wave",
-                "enemies": self._simulation_wave_enemies
-            }
-            
-            markdown_lines = [
-                "# Pixel-Runner Wave Simulation Report",
-                "",
-                f"**Overall Status:** {'PASSED ✅' if overall_passed else 'FAILED ❌'}",
-                f"**Final Distance:** {self.world_distance:.1f}",
-                f"**Simulation Duration:** {self._simulation_timer:.1f}ms",
-                f"**Dynamic Enemies Spawned:** {len(self._simulation_wave_enemies)}",
-                ""
-            ]
-            
-            if not overall_passed:
-                markdown_lines.append("## Issues Found")
-                markdown_lines.append("1. No dynamic enemies spawned from configured spawn zones during the simulation.")
-                markdown_lines.append("")
-            
-            for enemy in self._simulation_wave_enemies:
-                eid = enemy["id"]
-                markdown_lines.append(f"### Enemy #{eid} ({enemy['type'].capitalize()})")
-                markdown_lines.append(f"- **Spawned at world_distance:** {enemy['spawn_distance']:.1f}m")
-                markdown_lines.append(f"- **Initial Screen Position:** ({enemy['initial_x']}, {enemy['initial_y']})")
-                
-                phy = enemy.get("first_physical_collision")
-                if phy:
-                    markdown_lines.append(f"- **Physical Collision:** reached at world_distance={phy['world_distance']:.1f}m (Screen: ({phy['screen_x']}, {phy['screen_y']}))")
-                else:
-                    markdown_lines.append(f"- **Physical Collision:** None (no player collision detected)")
-                
-                positions = enemy.get("positions", [])
-                if positions:
-                    markdown_lines.append(f"- **Frames Tracked:** {len(positions)}")
-                    samples = []
-                    sample_indices = [0, len(positions)//2, len(positions)-1]
-                    for si in sample_indices:
-                        if 0 <= si < len(positions):
-                            samples.append(f"Frame {si}: ({positions[si][0]}, {positions[si][1]})")
-                    markdown_lines.append(f"- **Position Samples:** {', '.join(samples)}")
-                markdown_lines.append("")
-                
-            os.makedirs("scratch", exist_ok=True)
-            with open("scratch/simulation_report.json", "w") as f:
-                json.dump(report_data, f, indent=4)
-                
-            with open("scratch/simulation_report.md", "w") as f:
-                f.write("\n".join(markdown_lines))
-                
-            print(f"\n{'='*60}")
-            print(f"[WAVE SIMULATION REPORT] Status: {report_data['status']}")
-            print(f"  Distance: {report_data.get('start_distance', 0):.0f} → {self.world_distance:.0f}")
-            print(f"  Duration: {self._simulation_timer:.0f}ms")
-            print(f"  Dynamic Enemies Spawned: {len(self._simulation_wave_enemies)}")
-            
-            if len(self._simulation_wave_enemies) > 0:
-                first_enemy = self._simulation_wave_enemies[0]
-                print(f"  First Spawned Enemy (Skeleton):")
-                print(f"    - Spawned at world_dist: {first_enemy['spawn_distance']:.1f}")
-                print(f"    - Initial Screen Position: ({first_enemy['initial_x']}, {first_enemy['initial_y']})")
-                phy = first_enemy.get("first_physical_collision")
-                if phy:
-                    print(f"    - First Physical Collision: world_dist={phy['world_distance']:.1f} (Screen: ({phy['screen_x']}, {phy['screen_y']}))")
-                else:
-                    print(f"    - First Physical Collision: None detected")
-            else:
-                print("  ⚠ No dynamic enemies spawned.")
-            print(f"{'='*60}")
-            return
-
-        report_data = {
-            "status": "PASSED",
-            "timestamp": pg.time.get_ticks(),
-            "duration_ms": self._simulation_timer,
-            "start_distance": getattr(self, "_sim_start_distance", 0.0),
-            "final_distance": self.world_distance,
-            "scroll_speed": self.max_bg_scroll_speed,
-            "npcs": []
-        }
-        
-        markdown_lines = [
-            "# Pixel-Runner Simulation Report",
-            "",
-            f"**Final Distance:** {self.world_distance:.1f}",
-            f"**Simulation Duration:** {self._simulation_timer:.1f}ms",
-            f"**Scroll Speed:** {self.max_bg_scroll_speed} px/frame",
-            ""
-        ]
-        
-        overall_passed = True
-        issues: list[str] = []
-        
-        for eid, exp in self._simulation_expected_npcs.items():
-            # Load what entity_dimensions.json has for this NPC
-            ntype = exp["type"]
-            reg_key = exp.get("registry_key", "generic_npc_")
-            
-            reg_margins = HitboxRegistry.get_margins(reg_key)
-            
-            npc_res: dict = {
-                "id": eid,
-                "type": ntype,
-                "title": exp["title"],
-                "registry_key": reg_key,
-                # What level_1.json says (params)
-                "json_distance": exp["distance"],
-                "json_scale": exp["scale"],
-                "json_radius": exp["radius"],
-                # What entity_dimensions.json says
-                "registry_scale": reg_margins.scale,
-                "registry_ground_offset": reg_margins.ground_offset,
-                "spawned": False,
-                "status": "NOT SPAWNED",
-                "issues": []
-            }
-            
-            # === Consistency Check 1: JSON scale vs Registry scale ===
-            if abs(exp["scale"] - reg_margins.scale) > 0.01:
-                npc_res["issues"].append(
-                    f"Scale mismatch: level JSON has {exp['scale']}, "
-                    f"entity_dimensions.json has {reg_margins.scale} for '{reg_key}'"
-                )
-            
-            spawned_data = self._simulation_npcs.get(eid)
-            if spawned_data:
-                npc_res["spawned"] = True
-                npc_res["actual_spawn_distance"] = spawned_data["spawn_distance"]
-                npc_res["actual_scale"] = spawned_data["actual_scale"]
-                npc_res["actual_radius"] = spawned_data["actual_radius"]
-                npc_res["actual_width"] = spawned_data["actual_width"]
-                npc_res["actual_height"] = spawned_data["actual_height"]
-                npc_res["initial_screen_x"] = spawned_data["initial_x"]
-                npc_res["initial_screen_y"] = spawned_data["initial_y"]
-                npc_res["first_physical_collision"] = spawned_data.get("first_physical_collision")
-                npc_res["first_proximity_collision"] = spawned_data.get("first_proximity_collision")
-                
-                positions = spawned_data["positions"]
-                npc_res["total_frames_tracked"] = len(positions)
-                
-                # === Consistency Check 2: Did the NPC spawn at the right world_distance? ===
-                dist_delta = abs(spawned_data["spawn_distance"] - exp["distance"])
-                if dist_delta > 20:  # Allow small tolerance for frame timing
-                    npc_res["issues"].append(
-                        f"Spawn distance mismatch: expected trigger at {exp['distance']}, "
-                        f"but first detected at world_distance={spawned_data['spawn_distance']:.1f} "
-                        f"(delta={dist_delta:.1f})"
-                    )
-                
-                # === Consistency Check 3: Does actual scale match JSON config? ===
-                if abs(spawned_data["actual_scale"] - exp["scale"]) > 0.01:
-                    npc_res["issues"].append(
-                        f"Runtime scale mismatch: JSON says {exp['scale']}, "
-                        f"but NPC spawned with scale={spawned_data['actual_scale']}"
-                    )
-                
-                # === Consistency Check 4: Does actual radius match JSON config? ===
-                if abs(spawned_data["actual_radius"] - exp["radius"]) > 0.01:
-                    npc_res["issues"].append(
-                        f"Runtime radius mismatch: JSON says {exp['radius']}, "
-                        f"but NPC spawned with radius={spawned_data['actual_radius']}"
-                    )
-                
-                # === Consistency Check 5: Scrolling behavior ===
-                if len(positions) >= 5:
-                    moved_left = positions[-1][0] < positions[0][0]
-                    if not moved_left:
-                        npc_res["issues"].append(
-                            f"NPC did not scroll left: start_x={positions[0][0]}, "
-                            f"end_x={positions[-1][0]}"
-                        )
-                    
-                    # Calculate actual scroll rate
-                    x_delta = positions[0][0] - positions[-1][0]
-                    npc_res["total_x_scrolled"] = x_delta
-                    npc_res["avg_scroll_per_frame"] = x_delta / len(positions) if positions else 0
-                else:
-                    # Too few frames to assess scrolling — spawned near timeout boundary
-                    npc_res["insufficient_data"] = True
-
-                # === Consistency Check 6: Screen position accuracy ===
-                if "world_x" in spawned_data and spawned_data["world_x"] is not None:
-                    last_x = positions[-1][0]
-                    expected_x = spawned_data["world_x"] - self.world_distance
-                    x_error = abs(last_x - expected_x)
-                    npc_res["expected_screen_x"] = expected_x
-                    npc_res["actual_screen_x"] = last_x
-                    npc_res["screen_x_error"] = x_error
-                    if x_error > 5:
-                        npc_res["issues"].append(
-                            f"Screen position mismatch: expected x={expected_x:.1f}, "
-                            f"actual x={last_x:.1f}, error={x_error:.1f}"
-                        )
-                
-                # === Position sample: first, middle, last frames ===
-                samples = []
-                sample_indices = [0, len(positions)//2, len(positions)-1]
-                for si in sample_indices:
-                    if 0 <= si < len(positions):
-                        samples.append({"frame": si, "x": positions[si][0], "y": positions[si][1]})
-                npc_res["position_samples"] = samples
-                
-                # Determine pass/fail
-                if npc_res["issues"]:
-                    npc_res["status"] = "FAILED"
-                    overall_passed = False
-                elif npc_res.get("insufficient_data"):
-                    npc_res["status"] = "INCONCLUSIVE (too few frames)"
-                else:
-                    npc_res["status"] = "PASSED"
-            else:
-                if self.world_distance < exp["distance"]:
-                    npc_res["status"] = "SKIPPED (not reached)"
-                else:
-                    npc_res["status"] = "FAILED"
-                    npc_res["issues"].append(
-                        f"NPC should have spawned at distance {exp['distance']}, "
-                        f"world reached {self.world_distance:.1f} but NPC never appeared"
-                    )
-                    overall_passed = False
-            
-            issues.extend(npc_res["issues"])
-            report_data["npcs"].append(npc_res)
-            
-            # Build markdown section
-            status_emoji = "✅" if npc_res["status"] == "PASSED" else "❌" if "FAILED" in npc_res["status"] else "⚠️"
-            markdown_lines.append(f"### NPC #{eid}: {exp['title']} ({status_emoji} {npc_res['status']})")
-            markdown_lines.append(f"- **Registry Key:** `{reg_key}`")
-            markdown_lines.append(f"- **Trigger Distance:** JSON={exp['distance']}m | Spawned at={npc_res.get('actual_spawn_distance', 'N/A')}m")
-            markdown_lines.append(f"- **Scale:** JSON={exp['scale']} | Registry={reg_margins.scale} | Runtime={npc_res.get('actual_scale', 'N/A')}")
-            markdown_lines.append(f"- **Proximity Radius:** JSON={exp['radius']} | Runtime={npc_res.get('actual_radius', 'N/A')}")
-            if spawned_data:
-                markdown_lines.append(f"- **Image Dimensions:** {npc_res['actual_width']}×{npc_res['actual_height']}")
-                markdown_lines.append(f"- **Initial Screen Pos:** ({npc_res['initial_screen_x']}, {npc_res['initial_screen_y']})")
-                markdown_lines.append(f"- **Frames Tracked:** {npc_res['total_frames_tracked']}")
-                markdown_lines.append(f"- **Total X Scrolled:** {npc_res.get('total_x_scrolled', 'N/A')}px")
-                if npc_res.get("first_physical_collision"):
-                    phy = npc_res["first_physical_collision"]
-                    markdown_lines.append(f"- **Physical Collision:** reached at world_distance={phy['world_distance']:.1f}m (level editor trigger={phy['trigger_distance']}m, delta={phy['delta']:.1f}m)")
-                else:
-                    markdown_lines.append(f"- **Physical Collision:** None (no bounding box overlap)")
-                
-                if npc_res.get("first_proximity_collision"):
-                    prox = npc_res["first_proximity_collision"]
-                    markdown_lines.append(f"- **Proximity Collision:** reached at world_distance={prox['world_distance']:.1f}m (level editor trigger={prox['trigger_distance']}m, delta={prox['delta']:.1f}m)")
-                else:
-                    markdown_lines.append(f"- **Proximity Collision:** None (no interaction radius overlap)")
-                if npc_res.get("position_samples"):
-                    markdown_lines.append(f"- **Position Samples:**")
-                    for s in npc_res["position_samples"]:
-                        markdown_lines.append(f"  - Frame {s['frame']}: ({s['x']}, {s['y']})")
-            else:
-                markdown_lines.append(f"- **Spawned:** No")
-            
-            if npc_res["issues"]:
-                markdown_lines.append(f"- **⚠ Issues:**")
-                for issue in npc_res["issues"]:
-                    markdown_lines.append(f"  - {issue}")
-            markdown_lines.append("")
-            
-        if not overall_passed:
-            report_data["status"] = "FAILED"
-        
-        # Summary section
-        if issues:
-            markdown_lines.insert(2, f"**Overall Status:** FAILED ❌")
-            markdown_lines.insert(3, "")
-            markdown_lines.insert(4, "## Issues Found")
-            for i, issue in enumerate(issues):
-                markdown_lines.insert(5 + i, f"{i+1}. {issue}")
-            markdown_lines.insert(5 + len(issues), "")
-        else:
-            markdown_lines.insert(2, f"**Overall Status:** PASSED ✅")
-        
-        os.makedirs("scratch", exist_ok=True)
-        with open("scratch/simulation_report.json", "w") as f:
-            json.dump(report_data, f, indent=4)
-            
-        with open("scratch/simulation_report.md", "w") as f:
-            f.write("\n".join(markdown_lines))
-            
-        print(f"\n{'='*60}")
-        print(f"[SIMULATION REPORT] Status: {report_data['status']}")
-        print(f"  Distance: {report_data.get('start_distance', 0):.0f} → {self.world_distance:.0f}")
-        print(f"  Duration: {self._simulation_timer:.0f}ms")
-        for npc in report_data["npcs"]:
-            status = npc['status']
-            print(f"  NPC #{npc['id']} ({npc['title']}): {status}")
-            if npc.get("first_physical_collision"):
-                phy = npc["first_physical_collision"]
-                print(f"    - Physical Collision: world_dist={phy['world_distance']:.0f} (delta={phy['delta']:.0f})")
-            if npc.get("first_proximity_collision"):
-                prox = npc.get("first_proximity_collision", {})
-                print(f"    - Proximity Collision: world_dist={prox.get('world_distance', 0):.0f} (delta={prox.get('delta', 0):.0f})")
-            if npc.get("issues"):
-                for issue in npc["issues"]:
-                    print(f"    ⚠ {issue}")
-        print(f"{'='*60}")
+        """Delegates simulation report writing to SimulationRunner."""
+        self.sim_runner.write_simulation_report()
 
     @property
     def is_interacting(self) -> bool:
         """Whether player is currently locked in NPC dialogue, cutscene, or Spirit trance."""
-        intro_npc_locked = any(
-            getattr(npc, "is_intro_npc", False)
-            and getattr(npc, "is_trance_active", False)
-            and not getattr(npc, "is_death_complete", False)
-            for npc in self.npc_group
-        )
-        spirit_npc_locked = any(
-            getattr(npc, "is_spirit_of_scythe", False)
-            and getattr(npc, "is_trance_active", False)
-            and not getattr(npc, "is_death_complete", False)
-            for npc in self.npc_group
-        )
-        sky_fall_npc_locked = any(
-            getattr(npc, "is_sky_fall_npc", False)
-            and getattr(npc, "is_trance_active", False)
-            and not getattr(npc, "is_death_complete", False)
-            for npc in self.npc_group
-        )
-        active_dialogue_npc = (
-            self.objective_display.is_active
-            and self._current_interacting_npc is not None
-            and not getattr(self._current_interacting_npc, "is_death_complete", False)
-        )
-        return (
-            intro_npc_locked
-            or spirit_npc_locked
-            or sky_fall_npc_locked
-            or self.objective_display.is_active
-            or active_dialogue_npc
-        )
+        return self.cutscene_manager.is_interacting
 
     def update(self, dt: float) -> None:
         """
@@ -1743,75 +1031,21 @@ class GameState(State):
         self.player_ui.update()
         self.player.update()
         if not self.is_interacting:
-            self._check_environmental_hazards()
+            self.combat_system.check_environmental_hazards()
             self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
-        VisualEffectManager.update(dt, self.bg_scroll_speed)
+        VisualEffectManager.update(dt, int(self.bg_scroll_speed))
+        self.particle_manager.update(dt / 1000.0, float(self.bg_scroll_speed))
+        self.camera.update(dt / 1000.0)
         self.trippy_zoom.update(dt / 1000.0)  # dt is in ms, effect expects seconds
 
-        # Clean Camera Zoom & Focus during cutscene phases (Spirit Eye & Gatekeeper)
-        active_speech_npc = None
-        for npc in self.npc_group:
-            if getattr(npc, "is_spirit_of_scythe", False) and getattr(npc, "is_trance_active", False):
-                t_phase = getattr(npc, "_trance_phase", 0)
-                if t_phase in (2, 3):
-                    active_speech_npc = npc
-                    if t_phase == 2 and self.clean_camera_zoom.current_zoom >= 1.35:
-                        npc._trance_phase = 3
-                        npc._trance_text_timer = npc._trance_text_duration
-                        print("[SPIRIT NPC] Camera Zoom-In complete → Phase 3: Dialogue text displaying")
-                    break
-                elif t_phase == 4:
-                    if self.clean_camera_zoom.current_zoom <= 1.005:
-                        npc._trance_phase = 5
-                        npc.trigger_death()
-                        print("[SPIRIT NPC] Camera Zoom-Out complete → Phase 5: Eye Closing (Normal Death)")
-                    break
+        # Automated Simulation Tracking
+        if getattr(self, "_is_simulating", False):
+            self.sim_runner.update_simulation(dt)
 
-            elif getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
-                s_phase = getattr(npc, "_sky_fall_phase", 0)
-                if s_phase in (3, 4):
-                    active_speech_npc = npc
-                    if s_phase == 3 and self.clean_camera_zoom.current_zoom >= 1.35:
-                        npc._sky_fall_phase = 4
-                        npc._sky_fall_timer = npc._sky_fall_text_duration
-                        print("[SKY FALL NPC] Camera Zoom-In complete → Phase 4: Dialogue text displaying")
-                    break
-                elif s_phase == 5:
-                    if self.clean_camera_zoom.current_zoom <= 1.005:
-                        if _GenericNPCState.JUMP_START in npc.animations:
-                            npc._sky_fall_phase = 6
-                            npc.set_state(_GenericNPCState.JUMP_START, force=True)
-                            print("[SKY FALL NPC] Camera Zoom-Out complete → Phase 6: JUMP_START charge animation")
-                        else:
-                            npc._sky_fall_phase = 7
-                            if _GenericNPCState.JUMP_LOOP in npc.animations:
-                                npc.set_state(_GenericNPCState.JUMP_LOOP, force=True)
-                    break
-
-            elif getattr(npc, "is_intro_npc", False) and getattr(npc, "is_trance_active", False):
-                t_phase = getattr(npc, "_trance_phase", 0)
-                if t_phase in (2, 3):
-                    active_speech_npc = npc
-                    if t_phase == 2 and self.clean_camera_zoom.current_zoom >= 1.35:
-                        npc._trance_phase = 3
-                        npc._trance_text_timer = npc._trance_text_duration
-                        print("[INTRO NPC] Camera Zoom-In complete → Phase 3: Dialogue text displaying")
-                    break
-                elif t_phase == 4:
-                    if self.clean_camera_zoom.current_zoom <= 1.005:
-                        npc._trance_phase = 5
-                        npc.trigger_death()
-                        print("[INTRO NPC] Camera Zoom-Out complete → Phase 5: Death animation starting")
-                    break
-
-        if active_speech_npc is not None:
-            self.clean_camera_zoom.zoom_in(active_speech_npc.rect.centerx, active_speech_npc.rect.centery, target_zoom=1.38)
-        else:
-            self.clean_camera_zoom.zoom_out()
-
-        self.clean_camera_zoom.update(dt / 1000.0)
+        # Clean Camera Zoom & Focus during cutscene phases (delegated to CutsceneManager)
+        self.cutscene_manager.update(dt)
         for npc in self.npc_group:
             is_intro_walking = (
                 getattr(npc, "is_intro_npc", False)
@@ -1844,10 +1078,15 @@ class GameState(State):
             if enemy.rect.top > self.height + 200:
                 tier = getattr(enemy, "tier", "minion")
                 soul_reward = soul_values.get(f"skeleton_{tier}", soul_values.get("skeleton_minion", 5))
-                if soul_reward > 0:
-                    self.total_souls += soul_reward
-                    self.player_ui.add_souls(soul_reward)
-                self.trigger_manager.set_flag("first_kill")
+                self.event_bus.emit(EntityDied(
+                    entity=enemy,
+                    killer=None,
+                    position=(float(enemy.rect.centerx), float(enemy.rect.centery)),
+                    soul_value=soul_reward,
+                    is_boss=getattr(enemy, "is_boss", False),
+                    tier=tier,
+                    spawn_zone=getattr(enemy, "spawn_zone", None)
+                ))
                 print(f"[FALL KILL] Enemy {enemy} fell off world grid — reaped +{soul_reward} souls and removed from memory.")
                 enemy.kill()
 
@@ -2212,6 +1451,7 @@ class GameState(State):
             
         # Hit Visual Effects (Blood Bursts, Sparks, Magic Shots)
         VisualEffectManager.draw(target)
+        self.particle_manager.draw(target)
         
         # Debug visualization
         if self.debug_mode:
@@ -2229,7 +1469,7 @@ class GameState(State):
             result = self.trippy_zoom.apply(target)
             surface.blit(result, (0, 0))
         # ── Top-Center Cutscene Dialogue Text & Helper Prompt Overlay ────────
-        self._draw_cutscene_dialogue_overlay(surface)
+        self.cutscene_manager.draw_dialogue_overlay(surface)
 
         # Objective overlay (drawn on top of everything — AFTER effect)
         self.objective_display.draw(surface)

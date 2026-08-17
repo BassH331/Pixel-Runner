@@ -40,22 +40,6 @@ class _GenericNPCState(Enum):
     JUMP_LOOP = 6
 
 
-class GenericNPC(Actor):
-    """A reusable NPC driven entirely by constructor arguments.
-
-    Supports custom walk entrance, spawn animation, dialogue interaction, and death disintegration.
-    """
-
-    # Prompt styling (same as WizardNPC for visual consistency)
-    _FONT_PATH = "assets/graphics/Darinia/Darinia.ttf"
-    _FONT_SIZE = 30
-    _PROMPT_COLOR = (255, 255, 255)
-    _PROMPT_BG_COLOR = (30, 30, 30, 200)
-    _PROMPT_PADDING_X = 16
-    _PROMPT_PADDING_Y = 8
-    _PROMPT_OFFSET_Y = -70
-    _PROMPT_BORDER_RADIUS = 8
-
 def _find_action_folder(sprite_dir: str, keywords: list[str]) -> Optional[str]:
     """Find a sibling/ancestor folder matching action keywords (e.g. walk, death, spawn)."""
     abs_sdir = os.path.abspath(sprite_dir.rstrip("/"))
