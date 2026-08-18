@@ -13,6 +13,7 @@ from typing import Optional
 import pygame as pg
 
 sys.path.insert(0, os.path.dirname(__file__))
+from split_spritesheet import split_spritesheet
 from level_editor import (
     Button, Slider, FolderBrowser, ModalDialog,
     BG, PANEL, PANEL2, BORDER, ACCENT,
@@ -23,7 +24,7 @@ from level_editor import (
 
 STAGE_NAMES = {1: "Select Level", 2: "Zone Manager", 3: "Zone Builder"}
 TIERS = ["minion", "elite", "boss"]
-BTAGS = ["idle", "walk", "chase", "attack", "hurt", "death"]
+BTAGS = ["idle", "walk", "chase", "attack", "hurt", "death", "skip"]
 TIER_COL = {"minion": ACCENT, "elite": WARN, "boss": DANGER}
 
 
@@ -52,10 +53,31 @@ class BehaviourMapper:
         self.scroll = 0
         self._btns: list[tuple[pg.Rect, str]] = []
 
+    def auto_split(self, root: Optional[str]):
+        """Scan root for unsplit sprite sheet PNG files and slice them into frame subfolders."""
+        if not root or not os.path.isdir(root):
+            return
+        try:
+            png_files = [f for f in os.listdir(root)
+                         if f.lower().endswith(".png") and os.path.isfile(os.path.join(root, f))]
+        except OSError:
+            return
+        for f in png_files:
+            full_path = os.path.join(root, f)
+            raw_name = os.path.splitext(f)[0]
+            out_dir = os.path.join(root, f"{raw_name}_frames")
+            if not os.path.exists(out_dir):
+                try:
+                    split_spritesheet(input_path=full_path, output_dir=out_dir)
+                    print(f"[SpriteSplitter] Sliced sprite sheet '{f}' -> '{out_dir}'")
+                except Exception as err:
+                    print(f"[SpriteSplitter] Skipped '{f}': {err}")
+
     def load(self, root: Optional[str], existing: Optional[dict[str, str]] = None):
         self.subs, self.mapping, self.auto_tags, self.scroll = [], {}, {}, 0
         if not root or not os.path.isdir(root):
             return
+        self.auto_split(root)
         try:
             self.subs = sorted(d for d in os.listdir(root)
                                if os.path.isdir(os.path.join(root, d)))
@@ -82,11 +104,12 @@ class BehaviourMapper:
         return best
 
     def draw(self, surf: pg.Surface, f: pg.font.Font, sf: pg.font.Font):
-        # Header with match summary
-        mapped = sum(1 for s in self.subs if self.mapping.get(s) != "idle"
+        # Header with match summary excluding skip entries
+        active_subs = [s for s in self.subs if self.mapping.get(s) != "skip"]
+        mapped = sum(1 for s in active_subs if self.mapping.get(s) != "idle"
                      or self.auto_tags.get(s) != "idle")
         total = len(self.subs)
-        hdr = f"Behaviour Map  ({mapped}/{total} matched)" if total else "Behaviour Map"
+        hdr = f"Behaviour Map  ({mapped}/{len(active_subs)} active, {total - len(active_subs)} excluded)" if total else "Behaviour Map"
         surf.blit(sf.render(hdr, True, TXT2), (self.rect.x, self.rect.y - 18))
 
         pg.draw.rect(surf, PANEL, self.rect, border_radius=6)
@@ -102,7 +125,8 @@ class BehaviourMapper:
         m = pg.mouse.get_pos()
         self._btns = []
         TCOL = {"idle": ACCENT, "walk": (46, 204, 113), "chase": SUCCESS,
-                "attack": DANGER, "hurt": WARN, "death": (155, 89, 182)}
+                "attack": DANGER, "hurt": WARN, "death": (155, 89, 182),
+                "skip": (130, 130, 140)}
 
         for i, name in enumerate(self.subs):
             ry = self.rect.y + i * self.ROW_H - self.scroll
@@ -110,26 +134,39 @@ class BehaviourMapper:
                 continue
             row = pg.Rect(self.rect.x+4, ry+1, self.rect.w-8, self.ROW_H-2)
             hov = row.collidepoint(m) and self.rect.collidepoint(m)
-            pg.draw.rect(surf, (40,40,55) if hov else PANEL2, row, border_radius=4)
+
+            tag = self.mapping.get(name, "idle")
+            is_skip = (tag == "skip")
+            auto = self.auto_tags.get(name, "idle")
+            is_auto = (tag == auto)
+
+            if is_skip:
+                row_bg = (30, 30, 42) if hov else (22, 22, 30)
+                txt_col = TXT3
+                prefix = "✗ "
+                badge_str = f"{prefix}SKIP"
+                badge_bg = (55, 35, 40)
+            else:
+                row_bg = (40, 40, 55) if hov else PANEL2
+                txt_col = TXT
+                prefix = "✓ " if is_auto else "✎ "
+                badge_str = f"{prefix}{tag.upper()}"
+                badge_bg = (25, 50, 35) if is_auto else (50, 40, 25)
+
+            pg.draw.rect(surf, row_bg, row, border_radius=4)
 
             # Folder name (truncated if needed)
             display_name = name if len(name) < 30 else name[:27] + "…"
-            surf.blit(f.render(display_name, True, TXT),
+            surf.blit(f.render(display_name, True, txt_col),
                       (row.x+8, ry+(self.ROW_H-f.get_height())//2))
 
             # Tag badge
-            tag = self.mapping.get(name, "idle")
-            auto = self.auto_tags.get(name, "idle")
-            is_auto = (tag == auto)
             tc = TCOL.get(tag, TXT2)
-            # Show ✓ for auto-detected, ✎ for manually overridden
-            prefix = "✓ " if is_auto else "✎ "
-            bt = f.render(f"{prefix}{tag.upper()}", True, tc)
+            bt = f.render(badge_str, True, tc)
             bx = row.right - bt.get_width() - 8
             by = ry + (self.ROW_H - bt.get_height()) // 2
             br = pg.Rect(bx-4, by-2, bt.get_width()+8, bt.get_height()+4)
-            bg = (25, 50, 35) if is_auto else (50, 40, 25)
-            pg.draw.rect(surf, bg, br, border_radius=4)
+            pg.draw.rect(surf, badge_bg, br, border_radius=4)
             surf.blit(bt, (bx, by))
             self._btns.append((br, name))
 
@@ -262,7 +299,7 @@ class WaveEditorApp:
                     "tier": ui.get("tier", "minion")}
         if self.browser.selected:
             r["sprite_root"] = self.browser.selected
-            r["behaviour_map"] = dict(self.bmap.mapping)
+            r["behaviour_map"] = {k: v for k, v in self.bmap.mapping.items() if v != "skip"}
         return r
 
     def submit(self):
@@ -566,7 +603,15 @@ class WaveEditorApp:
         self.surf.blit(tier_lbl, (rx, CONTENT_Y+315))
         tb = Button(f"[ {tier.upper()} ]  click to cycle", rx+180, CONTENT_Y+311, 260, 24, _cyc, "ghost")
         tb.draw(self.surf, self.sf)
-        self._s3b.append(tb)
+
+        def _do_split():
+            if self.browser.selected:
+                self.bmap.auto_split(self.browser.selected)
+                self.bmap.load(self.browser.selected)
+        split_btn = Button("✂ Split Sprites", rx+450, CONTENT_Y+311, 160, 24, _do_split, "ghost")
+        split_btn.draw(self.surf, self.sf)
+
+        self._s3b.extend([tb, split_btn])
 
         # Behaviour mapper
         self.bmap.draw(self.surf, self.f, self.sf)

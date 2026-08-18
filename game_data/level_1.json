@@ -192,10 +192,27 @@
             }
         },
         {
+            "min_dist": 2430,
+            "max_dist": 4905,
+            "max_skeletons": 3,
+            "delay": 1260,
+            "required_kills": 5,
+            "tier": "elite",
+            "sprite_root": "assets/characters/Elementals_metal_bladekeeper_FREE_v1.1/PNG animations",
+            "behaviour_map": {
+                "01_idle": "idle",
+                "02_run": "chase",
+                "09_3_atk": "attack",
+                "12_take_hit": "hurt",
+                "13_death": "death"
+            }
+        },
+        {
             "min_dist": 13000,
-            "max_dist": 23000,
-            "max_skeletons": 4,
-            "delay": 3500,
+            "max_dist": 20520,
+            "max_skeletons": 6,
+            "delay": 1486,
+            "required_kills": 11,
             "tier": "minion",
             "sprite_root": "assets/skeleton",
             "behaviour_map": {

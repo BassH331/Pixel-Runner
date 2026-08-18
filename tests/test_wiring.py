@@ -334,7 +334,7 @@ class TestGameStateWiring(unittest.TestCase):
     def test_has_spawn_zones_from_json(self):
         """Spawn zones should be loaded from JSON or use defaults."""
         if self.game_state:
-            self.game_state.max_distance_reached = 1000.0
+            self.game_state.max_distance_reached = 1500.0
             zone = self.game_state._get_spawn_zone()
             self.assertIsNotNone(zone)
             assert zone is not None

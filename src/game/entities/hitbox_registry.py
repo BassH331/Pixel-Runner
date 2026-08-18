@@ -24,6 +24,8 @@ class HitboxRegistry:
         "wizard_npc": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
         "generic_npc_masked_man": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
         "generic_npc_goblin": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
+        "shadow_assassin": HitboxMargins(left=50, right=50, top=30, bottom=0, ground_offset=34, scale=2.0),
+        "dark_ronin": HitboxMargins(left=20, right=20, top=15, bottom=0, ground_offset=111, scale=2.5),
     }
 
     _cached_config: dict[str, HitboxMargins] = {}

@@ -145,6 +145,8 @@ class Skeleton(EntityAudioMixin, Actor):
             import os
             tag_to_folders = {}
             for sub, tag in behaviour_map.items():
+                if tag == "skip":
+                    continue
                 tag_to_folders.setdefault(tag, []).append(os.path.join(sprite_root, sub))
                 
             def load_from_folders(folders: list[str]) -> list[pg.Surface]:

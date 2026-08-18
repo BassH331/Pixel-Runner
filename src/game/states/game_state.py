@@ -26,10 +26,14 @@ from src.game.entities.fire_wizard import FireWizard, FireWizardState
 from src.game.entities.green_monster import GreenMonster
 from src.game.entities.boss_manager import BossManager
 from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
+from src.game.ui.hud_overlay import HUDOverlay
 from src.game.effects.vfx_manager import VisualEffectManager
 from src.game.effects.trippy_zoom import TrIPPyZoomEffect
 from src.game.effects.clean_camera_zoom import CleanCameraZoom
+from src.game.states.playing_state import PlayingState
 from src.game.systems.environment_manager import EnvironmentManager
+from src.game.systems.world_manager import WorldManager
+from src.game.systems.wave_manager import WaveManager
 from src.game.systems.combat_system import CombatSystem
 from src.game.systems.cutscene_manager import CutsceneManager
 from src.game.effects.particle_system import ParticleManager
@@ -58,7 +62,7 @@ _DEFAULT_SPAWN_ZONES: list[dict] = [
 ]
 
 
-class GameState(State):
+class GameState(PlayingState):
     """
     Primary gameplay state managing entities, physics, and game logic.
     
@@ -124,6 +128,8 @@ class GameState(State):
         
         # Audio system
         self.audio_manager = self.manager.audio_manager
+        if self.audio_manager and hasattr(self.audio_manager, "register_events"):
+            self.audio_manager.register_events(self.event_bus)
         self.bg_music_channel_id: Optional[int] = None
         
         # Attach audio manager to CombatCollisionLogger singleton
@@ -147,12 +153,13 @@ class GameState(State):
         # NPC group (animated world NPCs with dialogue)
         self.npc_group: pg.sprite.Group = pg.sprite.Group()
 
-        # UI
-        self.player_ui = PlayerUI()
-        self.objective_display = ObjectiveDisplay()
+        # HUD Overlay System (Player UI, Boss Health Bar, Banners, Objectives, Tutorials)
+        self.hud_overlay = HUDOverlay(self.width, self.height)
+        self.player_ui = self.hud_overlay.player_ui
+        self.objective_display = self.hud_overlay.objective_display
+        self.notification_banner = self.hud_overlay.notification_banner
+        self.tutorial_overlay = self.hud_overlay.tutorial_overlay
         self._current_interacting_npc = None
-        self.notification_banner = NotificationBanner(scale=0.6, icon_scale=0.6)
-        self.tutorial_overlay = TutorialOverlay()
         self.trippy_zoom = TrIPPyZoomEffect(self.width, self.height)
         self.clean_camera_zoom = CleanCameraZoom(self.width, self.height)
         self._show_objective_on_start: bool = True
@@ -173,9 +180,14 @@ class GameState(State):
                     pg.transform.smoothscale(f, (96, 96)) for f in raw_flames
                 ]
         
-        # Environment Manager (data-driven background & sky)
-        self.environment_manager = EnvironmentManager(self.width, self.height)
-        self.sky = self.environment_manager.sky
+        # World System (data-driven environment, parallax background, & distance events)
+        self.world_system = WorldManager(self.width, self.height)
+        self.environment_manager = self.world_system.environment_manager
+        self.world_manager = self.world_system.event_manager
+        self.sky = self.world_system.sky
+
+        # Wave Manager (enemy spawn zones & minion wave timers)
+        self.wave_manager = WaveManager()
 
         # Background parallax variables
         self.bg_x1: float = 0.0
@@ -249,8 +261,7 @@ class GameState(State):
         self._level_transitioned: bool = False
         self._level_name: str = "The Blight Begins"
 
-        # World Event System (distance-based triggers)
-        self.world_manager = WorldEventManager()
+        # World Event System setup
         self._setup_world_events()
         
         # Debug visualization
@@ -302,29 +313,11 @@ class GameState(State):
                 self.player_ui._soul_complete_callback = self._on_soul_quota_reached
             # ────────────────────────────────────────────────────────────────
 
-            # Spawn zones — loaded from level_1.json "spawn_zones" array.
-            # If the JSON doesn't have spawn_zones, we fall back to
-            # _DEFAULT_SPAWN_ZONES (defined below this class).
-            #
-            # ╔══════════════════════════════════════════════════════╗
-            # ║  TO CHANGE SPAWN BEHAVIOUR → edit level_1.json      ║
-            # ║  The defaults below are ONLY used if the JSON key   ║
-            # ║  "spawn_zones" is missing entirely.                  ║
-            # ╚══════════════════════════════════════════════════════╝
-            json_zones = level_data.get("spawn_zones", None)
-            if json_zones:
-                # Convert JSON sentinel (99999) to Python infinity for comparisons
-                for zone in json_zones:
-                    if zone["max_dist"] >= 99999:
-                        zone["max_dist"] = float("inf")
-                self._spawn_zones = json_zones
-            else:
-                self._spawn_zones = _DEFAULT_SPAWN_ZONES
-
-            # Bat spawn config
-            bat_cfg = level_data.get("bat_spawn", {})
-            self._bat_min_count: int = bat_cfg.get("min_count", 3)
-            self._bat_max_count: int = bat_cfg.get("max_count", 5)
+            # Wave Manager spawn zones & bat configuration
+            self.wave_manager.load_level_config(level_data)
+            self._spawn_zones = self.wave_manager.spawn_zones
+            self._bat_min_count = self.wave_manager.bat_min_count
+            self._bat_max_count = self.wave_manager.bat_max_count
             
             # Apply player position from level data
             player_data = next(
@@ -429,25 +422,12 @@ class GameState(State):
         pass  # Entities are spawned dynamically in _spawn_world_entities()
 
     def _get_active_spawn_zones(self) -> list[dict]:
-        """Get all active spawn zones based on current player distance.
-
-        Supports multiple simultaneous spawn zones for different minion types!
-        Returns all zones where min_dist <= max_distance_reached <= max_dist.
-        """
-        active_zones = []
-        for zone in self._spawn_zones:
-            min_dist = zone.get("min_dist", 0)
-            max_dist = zone.get("max_dist")
-            
-            if self.max_distance_reached >= min_dist:
-                if max_dist is None or self.max_distance_reached <= max_dist:
-                    active_zones.append(zone)
-        return active_zones
+        """Get all active spawn zones based on current player distance."""
+        return self.wave_manager.get_active_spawn_zones(self.max_distance_reached)
 
     def _get_spawn_zone(self) -> Optional[dict]:
         """Get primary active spawn zone (for single-zone backward compatibility)."""
-        active = self._get_active_spawn_zones()
-        return active[0] if active else None
+        return self.wave_manager.get_spawn_zone(self.max_distance_reached)
 
     def _setup_world_events(self) -> None:
         """Register handlers for world events. Scheduling is handled via JSON config."""
@@ -802,27 +782,33 @@ class GameState(State):
         if player_sprite is None:
             return  # Can't spawn skeleton without player
             
-        sprite_root = None
-        behaviour_map = None
-        tier = "minion"
-        if zone:
-            sprite_root = zone.get("sprite_root")
-            behaviour_map = zone.get("behaviour_map")
-            tier = zone.get("tier", "minion")
-            
-        # Create and add new skeleton
-        skeleton = Skeleton(
-            x=spawn_x,
-            y=spawn_y,
-            player=player_sprite,  # Pass the actual Player instance
-            sprite_root=sprite_root,
-            behaviour_map=behaviour_map,
-            tier=tier,
-            audio_manager=self.audio_manager,
-        )
-        self.obstacle_group.add(skeleton)
+        sprite_root = zone.get("sprite_root") if zone else None
+        behaviour_map = zone.get("behaviour_map") if zone else None
+        tier = zone.get("tier", "minion") if zone else "minion"
+        enemy_type = zone.get("enemy_type", "skeleton") if zone else "skeleton"
+
+        if enemy_type in ("dark_ronin", "ronin"):
+            from src.game.entities.dark_ronin import DarkRonin
+            enemy = DarkRonin(
+                x=spawn_x,
+                y=spawn_y,
+                player=player_sprite,
+                audio_manager=self.audio_manager,
+            )
+            print(f"[SPAWN] Dark Ronin elite spawned! dist={int(self.max_distance_reached)}")
+        else:
+            enemy = Skeleton(
+                x=spawn_x,
+                y=spawn_y,
+                player=player_sprite,
+                sprite_root=sprite_root,
+                behaviour_map=behaviour_map,
+                tier=tier,
+                audio_manager=self.audio_manager,
+            )
+        self.obstacle_group.add(enemy)
         if zone is not None:
-            skeleton.spawn_zone = zone
+            setattr(enemy, "spawn_zone", zone)
         self.audio_manager.play_sound(sound_name="skeleton_spawn", volume=0.15)
     
     # ─────────────────────────────────────────────────────────────────────────
@@ -1028,7 +1014,7 @@ class GameState(State):
         # Update systems
         self.environment_manager.update(dt / 1000.0, float(self.bg_scroll_speed * 60.0))
         self.update_background(self.bg_scroll_speed)
-        self.player_ui.update()
+        self.hud_overlay.update()
         self.player.update()
         if not self.is_interacting:
             self.combat_system.check_environmental_hazards()
@@ -1037,6 +1023,8 @@ class GameState(State):
         self.interaction_group.update(dt, self.bg_scroll_speed)
         VisualEffectManager.update(dt, int(self.bg_scroll_speed))
         self.particle_manager.update(dt / 1000.0, float(self.bg_scroll_speed))
+        if self.player.sprite:
+            self.camera.follow(self.player.sprite.rect, dt / 1000.0)
         self.camera.update(dt / 1000.0)
         self.trippy_zoom.update(dt / 1000.0)  # dt is in ms, effect expects seconds
 
@@ -1428,7 +1416,7 @@ class GameState(State):
         self.environment_manager.draw(target, cam_x=self.world_distance)
         
         # UI layer
-        self.player_ui.draw(target)
+        self.hud_overlay.draw_world_ui(target)
         
         # NPCs (drawn before player so they appear behind)
         for npc in self.npc_group:
@@ -1458,7 +1446,10 @@ class GameState(State):
             self._draw_debug_info(target)
 
         # Boss Health Bar overlay
-        self._draw_boss_health_bar(target)
+        self.hud_overlay.draw_boss_health_bar(target, self.obstacle_group)
+
+        # ── Apply Engine Camera (Trauma Shake & Viewport Transforms) ────────
+        target = self.camera.apply(target)
 
         # ── Apply Clean Camera Zoom & Focus (NPC Cutscenes & Speech) ─────────
         if self.clean_camera_zoom.is_active:
@@ -1471,18 +1462,8 @@ class GameState(State):
         # ── Top-Center Cutscene Dialogue Text & Helper Prompt Overlay ────────
         self.cutscene_manager.draw_dialogue_overlay(surface)
 
-        # Objective overlay (drawn on top of everything — AFTER effect)
-        self.objective_display.draw(surface)
-
-        # Notification banner (topmost layer — AFTER effect)
-        self.notification_banner.draw(surface)
-
-        # Tutorial overlay (above everything — AFTER effect)
-        self.tutorial_overlay.draw(surface)
-
-    def _draw_boss_health_bar(self, surface: pg.Surface) -> None:
-        """Render a premium boss health bar overlay if a boss is active."""
-        BossManager.draw_boss_health_bar(surface, self.obstacle_group, self.width)
+        # Screen-space HUD Overlays (Objectives, Notifications, Tutorials — AFTER camera & effects)
+        self.hud_overlay.draw_screen_overlays(surface)
 
     def _draw_cutscene_dialogue_overlay(self, surface: pg.Surface) -> None:
         """

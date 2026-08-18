@@ -1,11 +1,11 @@
 {
     "enemy": {
-        "left": 80,
-        "right": 80,
-        "top": 87,
+        "left": 69,
+        "right": 69,
+        "top": 69,
         "bottom": 66,
         "ground_offset": 169,
-        "scale": 2.0
+        "scale": 1.11
     },
     "player": {
         "left": 367,
@@ -21,7 +21,7 @@
         "top": 20,
         "bottom": 0,
         "ground_offset": 35,
-        "scale": 2.0
+        "scale": 2.09
     },
     "wizard_npc": {
         "left": 0,
@@ -29,7 +29,7 @@
         "top": 0,
         "bottom": 77,
         "ground_offset": 34,
-        "scale": 1.6
+        "scale": 3.0
     },
     "boss:wizard": {
         "left": 211,
@@ -53,7 +53,7 @@
         "top": 0,
         "bottom": 0,
         "ground_offset": 0,
-        "scale": 1.62
+        "scale": 3.0
     },
     "green_monster": {
         "left": 168,
@@ -61,7 +61,7 @@
         "top": 75,
         "bottom": 30,
         "ground_offset": 35,
-        "scale": 2.41
+        "scale": 3.0
     },
     "skeleton_zombie": {
         "left": 21,
@@ -69,7 +69,7 @@
         "top": 44,
         "bottom": 0,
         "ground_offset": 34,
-        "scale": 1.0
+        "scale": 3.0
     },
     "boss:bloodzombie": {
         "left": 87,
@@ -85,7 +85,7 @@
         "top": 208,
         "bottom": 154,
         "ground_offset": 34,
-        "scale": 2.0
+        "scale": 3.0
     },
     "generic_npc_masked_man": {
         "left": 0,
@@ -182,5 +182,21 @@
         "bottom": 0,
         "ground_offset": 35,
         "scale": 3.05
+    },
+    "shadow_assassin": {
+        "left": 50,
+        "right": 50,
+        "top": 30,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "dark_ronin": {
+        "left": 20,
+        "right": 20,
+        "top": 15,
+        "bottom": 0,
+        "ground_offset": 111,
+        "scale": 2.5
     }
 }

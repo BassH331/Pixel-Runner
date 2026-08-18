@@ -15,6 +15,7 @@ import pygame as pg
 
 from src.game.entities.enemy import Enemy
 from src.game.entities.skeleton import Skeleton
+from src.game.entities.dark_ronin import DarkRonin
 from src.game.entities.fire_wizard import FireWizard
 from src.game.entities.green_monster import GreenMonster
 from src.game.effects.vfx_manager import VisualEffectManager
@@ -184,15 +185,16 @@ class CombatSystem:
             return
 
         for obstacle in self.game.obstacle_group:
-            if isinstance(obstacle, (Skeleton, FireWizard, GreenMonster)):
+            if isinstance(obstacle, (Skeleton, FireWizard, GreenMonster, DarkRonin)) or hasattr(obstacle, "get_attack_hitbox"):
                 self._handle_skeleton_attack(player, obstacle)
 
     def _handle_skeleton_attack(self, player: Player, skeleton: Any) -> None:
         if self.game.is_interacting:
             return
 
-        state = getattr(skeleton, "state", None)
-        if state is None or "ATTACK" not in getattr(state, "name", ""):
+        state = getattr(skeleton, "state", getattr(skeleton, "_state", None))
+        state_name = getattr(state, "name", "")
+        if state is None or not ("ATTACK" in state_name or "STRIKE" in state_name):
             return
 
         if not skeleton.should_deal_damage():

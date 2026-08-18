@@ -1359,7 +1359,6 @@ class AssetBrowserModal:
             {"title": "Fire Wizard Boss", "path": "assets/wizard", "type": "boss", "category": "Bosses", "scale": 4.11},
             {"title": "Elise the Apostate", "path": "assets/graphics/bloodZombie", "type": "boss", "category": "Bosses", "scale": 2.0},
             {"title": "Green Monster", "path": "assets/graphics/green_monster", "type": "boss", "category": "Bosses", "scale": 2.5},
-            {"title": "Evil Jack", "path": "assets/graphics/Evil_jack", "type": "boss", "category": "Bosses", "scale": 2.2},
             {"title": "Ronin Warrior", "path": "assets/graphics/Ronin", "type": "npc", "category": "NPCs", "scale": 2.0},
             {"title": "Kobold Warrior", "path": "assets/graphics/Kobold_Warrior", "type": "minion_zone", "category": "Enemies", "scale": 2.0},
         ]
