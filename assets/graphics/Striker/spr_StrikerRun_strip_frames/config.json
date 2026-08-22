@@ -1,0 +1,10 @@
+{
+    "source": "/home/chosen333/Software/Pixel-Runner/assets/graphics/Striker/spr_StrikerRun_strip.png",
+    "sheet_width": 768,
+    "sheet_height": 96,
+    "cols": 8,
+    "rows": 1,
+    "frame_width": 96,
+    "frame_height": 96,
+    "total_frames": 8
+}

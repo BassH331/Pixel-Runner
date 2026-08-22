@@ -1,0 +1,10 @@
+{
+    "source": "/home/chosen333/Software/Pixel-Runner/assets/graphics/Player/player_walk_2.png",
+    "sheet_width": 64,
+    "sheet_height": 84,
+    "cols": 1,
+    "rows": 1,
+    "frame_width": 64,
+    "frame_height": 84,
+    "total_frames": 1
+}

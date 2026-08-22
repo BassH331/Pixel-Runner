@@ -1,0 +1,10 @@
+{
+    "source": "/home/chosen333/Software/Pixel-Runner/assets/graphics/Ronin/spr_RoninJump_strip.png",
+    "sheet_width": 960,
+    "sheet_height": 64,
+    "cols": 15,
+    "rows": 1,
+    "frame_width": 64,
+    "frame_height": 64,
+    "total_frames": 15
+}

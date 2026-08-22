@@ -1,0 +1,10 @@
+{
+    "source": "/home/chosen333/Software/Pixel-Runner/assets/graphics/Wasteland_Sky.png",
+    "sheet_width": 512,
+    "sheet_height": 256,
+    "cols": 2,
+    "rows": 1,
+    "frame_width": 256,
+    "frame_height": 256,
+    "total_frames": 2
+}

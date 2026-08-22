@@ -1,0 +1,11 @@
+- Size per frame (px): [Width]100 x [Height]100
+
+- Padding: 0
+
+
+The size is different only for "Ace_Projectile.png"
+Additionally, it is not included in "Ace.png" so please import it separately.
+
+- Size per frame (px): [Width]110 x [Height]40
+
+- Padding: 0
