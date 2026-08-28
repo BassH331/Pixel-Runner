@@ -91,7 +91,7 @@ class LocalCache:
                 cursor = conn.cursor()
                 cursor.execute(
                     "INSERT OR REPLACE INTO configs (key, data, updated_at) VALUES (?, ?, ?)",
-                    (config_type, compressed_data, datetime.now())
+                    (config_type, compressed_data, datetime.now().isoformat())
                 )
                 conn.commit()
                 conn.close()
@@ -111,7 +111,7 @@ class LocalCache:
                 cursor = conn.cursor()
                 cursor.execute(
                     "INSERT INTO telemetry_queue (endpoint, payload, created_at) VALUES (?, ?, ?)",
-                    (endpoint, compressed_data, datetime.now())
+                    (endpoint, compressed_data, datetime.now().isoformat())
                 )
                 conn.commit()
                 conn.close()

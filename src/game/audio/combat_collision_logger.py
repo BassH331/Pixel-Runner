@@ -62,10 +62,6 @@ class CombatCollisionLogger:
         # Load collision sound map from config (falls back to hardcoded default)
         self.collision_sound_map: Dict[str, str] = _load_collision_map_from_config()
 
-    def reload_collision_map(self) -> None:
-        """Re-read collision_map from disk (call after the editor saves changes)."""
-        self.collision_sound_map = _load_collision_map_from_config()
-
     @classmethod
     def get_instance(cls, audio_manager: Optional[AudioManager] = None) -> "CombatCollisionLogger":
         if cls._instance is None:
@@ -132,7 +128,3 @@ class CombatCollisionLogger:
     def get_encounter_logs(self) -> List[Dict[str, Any]]:
         """Return all logged combat encounter collisions."""
         return list(self.encounter_logs)
-
-    def clear_logs(self) -> None:
-        """Clear collision encounter log history."""
-        self.encounter_logs.clear()

@@ -189,14 +189,16 @@ def main():
                     "red": "assets/graphics/UI/PNG/Exclamation_Red.png",
                     "yellow": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
                 },
-                "font_path": "assets/graphics/Darinia/Darinia.ttf",
+                "font_path": "assets/font/Abaddon Bold.ttf",
             },
             "overlays": {
                 "stone_path": "assets/graphics/UI/PNG/UI board Medium  stone.png",
                 "parchment_path": "assets/graphics/UI/PNG/UI board Medium  parchment.png",
                 "title_font_path": "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
-                "body_font_path": "assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf",
+                "body_font_path": "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
                 "text_color": (60, 40, 20),
+                "font_size": 42,
+                "backdrop_alpha": 170,
             }
         }
     )

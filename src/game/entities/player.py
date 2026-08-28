@@ -1215,12 +1215,6 @@ class Player(Actor):
             return damage * 1.5
         return damage
 
-    def get_current_attack_frame(self) -> Optional[int]:
-        """Return the current animation frame index for the active attack."""
-        if not self.attack_state.is_active:
-            return None
-        return self.attack_state.current_frame
-
     def get_attack_knockback(
         self,
         target_position: tuple[float, float],
@@ -1243,16 +1237,11 @@ class Player(Actor):
             target_position,
             self.facing_left,
         )
-    
+
     def get_attack_knockback_force(self) -> float:
-        """
-        Get the raw knockback force magnitude for the current attack.
-        
-        Returns:
-            Knockback force value, or 0 if not attacking.
-        """
+        """Get the raw knockback force magnitude for the current attack."""
         return self.attack_state.get_knockback_force()
-    
+
     def has_hit_target(self, target_id: int) -> bool:
         """
         Check if a target has been hit during the current attack.
@@ -1276,38 +1265,6 @@ class Player(Actor):
             Number of registered hits.
         """
         return self.attack_state.get_hit_count(target_id)
-    
-    def process_attack_collisions(
-        self,
-        targets: list[tuple[int, pg.Rect]],
-    ) -> list[HitResult]:
-        """
-        Process attack collisions against multiple targets.
-        
-        This is a convenience method that handles the full collision
-        processing pipeline: hitbox generation, collision detection,
-        hit registration, and damage calculation.
-        
-        Args:
-            targets: List of (entity_id, bounding_rect) tuples.
-            
-        Returns:
-            List of HitResult for each successful hit. Apply these
-            results to the target entities.
-            
-        Example:
-            >>> targets = [(e.entity_id, e.rect) for e in enemies]
-            >>> hits = player.process_attack_collisions(targets)
-            >>> for hit in hits:
-            ...     enemy = get_entity(hit.target_id)
-            ...     enemy.take_damage(hit.damage, hit.knockback)
-        """
-        return CombatProcessor.process_attack_against_targets(
-            attack_state=self.attack_state,
-            attacker_rect=self.rect,  # type: ignore
-            attacker_facing_left=self.facing_left,
-            targets=targets,  # type: ignore
-        )
     
     # ─────────────────────────────────────────────────────────────────────────
     # State Machine Core
@@ -1569,10 +1526,6 @@ class Player(Actor):
         """Set absolute footstep volume for future customization."""
         self._footsteps.set_volume(volume)
 
-    def increase_footstep_volume(self, delta: float) -> None:
-        """Adjust current footstep volume relatively."""
-        self._footsteps.increase_volume(delta)
-    
     def jump(self) -> bool:
         """
         Initiate jump (or double jump if airborne).
@@ -1609,28 +1562,6 @@ class Player(Actor):
             return True
             
         return False
-    
-    def grant_invincibility(self, duration: float) -> None:
-        """
-        Grant temporary invincibility.
-        
-        Args:
-            duration: Invincibility duration in seconds.
-        """
-        self._invincibility_timer = max(self._invincibility_timer, duration)
-
-    def set_spawn_point(
-        self,
-        *,
-        midtop: Optional[tuple[int, int]] = None,
-        midbottom: Optional[tuple[int, int]] = None,
-    ) -> None:
-        """Update spawn location and reposition player accordingly."""
-        if midtop is not None:
-            self.rect.midtop = midtop
-        elif midbottom is not None:
-            self.rect.midbottom = midbottom
-        self._spawn_midtop = self.rect.midtop
 
     def set_state(self, new_state: Enum, force: bool = False) -> None:
         """Sets the player state, applying post-damage invincibility upon exiting HURT state."""
@@ -1698,34 +1629,7 @@ class Player(Actor):
                         self._joystick.init()
                 except pg.error:
                     self._joystick = None
-            return self._joystick
-        else:
-            self._joystick = None
         return None
-    
-    def _safe_get_axis(self, joystick: Optional[pg.joystick.JoystickType], axis_idx: int) -> float:
-        """Query joystick axis index safely, avoiding invalid axis crashes."""
-        if joystick is None:
-            return 0.0
-        try:
-            if axis_idx < joystick.get_numaxes():
-                return joystick.get_axis(axis_idx)
-        except Exception:
-            pass
-        return 0.0
-
-    def _safe_get_button(self, joystick: Optional[pg.joystick.JoystickType], button_idx: int) -> bool:
-        """Query joystick button index safely. A controller with fewer
-        buttons than button_idx would otherwise raise pygame.error and
-        silently drop every subsequent check in the same input poll."""
-        if joystick is None:
-            return False
-        try:
-            if button_idx < joystick.get_numbuttons():
-                return joystick.get_button(button_idx)
-        except Exception:
-            pass
-        return False
 
     def _process_movement_input(
         self,

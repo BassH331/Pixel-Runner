@@ -497,7 +497,6 @@ class GameplayTracker:
         TelemetryClient.submit_frames([frame_payload])
         
         self._write_entry(entry)
-    
     # ─────────────────────────────────────────────────────────────────────────
     # Pixel Signature Caching (Visual-Logical Verification)
     # ─────────────────────────────────────────────────────────────────────────
@@ -510,18 +509,7 @@ class GameplayTracker:
         bounding_box: tuple[int, int, int, int],
         sample_points: list[tuple[int, int]],
     ) -> None:
-        """Cache pixel signature for an entity (used for visual-logical alignment verification).
-        
-        This allows offline verification that sprite rendering matches game logic.
-        Particularly useful for bosses and complex animations.
-        
-        Args:
-            entity_id: Unique entity identifier
-            entity_type: Type of entity ("player", "boss", "skeleton", etc.)
-            image: Current rendered surface
-            bounding_box: (x, y, width, height) of entity bounds
-            sample_points: List of (x, y) coordinates to sample RGBA values from
-        """
+        """Cache pixel signature for an entity (used for visual-logical alignment verification)."""
         if not self.enabled or not self.pixel_signatures_enabled:
             return
         
@@ -534,7 +522,6 @@ class GameplayTracker:
                 "sample_points": [],
             }
             
-            # Count non-transparent pixels if alpha channel exists
             if image.get_flags() & pg.SRCALPHA:
                 try:
                     mask = pg.mask.from_surface(image)
@@ -542,7 +529,6 @@ class GameplayTracker:
                 except Exception:
                     pass
             
-            # Sample RGBA at specific points for verification
             for sx, sy in sample_points[:5]:
                 try:
                     color = image.get_at((sx, sy))
@@ -552,12 +538,9 @@ class GameplayTracker:
                         "rgba": list(color[:4]) if len(color) >= 4 else list(color),
                     })
                 except IndexError:
-                    pass  # Out of bounds — skip
+                    pass
             
             self.pixel_signatures[entity_id] = signature
-            
-            if self.console_output:
-                print(f"[TRACKER] Cached pixel signature for {entity_type}#{entity_id}")
         except Exception as e:
             print(f"[TRACKER ERROR] Failed to cache pixel signature: {e}")
     
@@ -567,18 +550,7 @@ class GameplayTracker:
         current_image: pg.Surface,
         is_flipped: bool = False,
     ) -> dict[str, Any]:
-        """Verify that visual appearance matches cached signature (accounting for flips).
-        
-        Useful for debugging animation/logic mismatches.
-        
-        Args:
-            entity_id: Entity to verify
-            current_image: Current rendered surface
-            is_flipped: Whether entity is horizontally flipped
-        
-        Returns:
-            Alignment verification result dict with 'verified' boolean and details
-        """
+        """Verify that visual appearance matches cached signature."""
         if not self.enabled or not self.pixel_signatures_enabled:
             return {"verified": False, "reason": "tracking disabled"}
         
@@ -594,14 +566,11 @@ class GameplayTracker:
                 "checks": {},
             }
             
-            # Check 1: Non-transparent pixel count (should be similar)
             if current_image.get_flags() & pg.SRCALPHA:
                 try:
                     mask = pg.mask.from_surface(current_image)
                     current_count = mask.count()
                     cached_count = cached["non_transparent_count"]
-                    
-                    # Allow ±10% variance
                     variance = abs(current_count - cached_count) / max(cached_count, 1)
                     result["checks"]["pixel_variance"] = {
                         "cached": cached_count,
@@ -609,55 +578,11 @@ class GameplayTracker:
                         "variance_pct": variance * 100,
                         "passed": variance < 0.1,
                     }
-                    
                     if not result["checks"]["pixel_variance"]["passed"]:
                         result["verified"] = False
                 except Exception:
-                    pass  # Graceful degradation
+                    pass
             
-            # Check 2: Color samples (should match cached sample points)
-            if "sample_points" in cached and cached["sample_points"]:
-                result["checks"]["color_samples"] = {
-                    "passed": True,
-                    "details": []
-                }
-                curr_w, curr_h = current_image.get_size()
-                for sample in cached["sample_points"]:
-                    sx, sy = sample["x"], sample["y"]
-                    # If flipped, map coordinate horizontally
-                    if is_flipped:
-                        sx = curr_w - 1 - sx
-                    
-                    try:
-                        current_color = current_image.get_at((sx, sy))
-                        current_rgba = list(current_color[:4]) if len(current_color) >= 4 else list(current_color)
-                        cached_rgba = sample["rgba"]
-                        
-                        # Compare colors with absolute tolerance of 2 per channel
-                        color_match = all(abs(c - r) <= 2 for c, r in zip(current_rgba, cached_rgba))
-                        
-                        result["checks"]["color_samples"]["details"].append({
-                            "x": sx,
-                            "y": sy,
-                            "cached_rgba": cached_rgba,
-                            "current_rgba": current_rgba,
-                            "passed": color_match
-                        })
-                        
-                        if not color_match:
-                            result["checks"]["color_samples"]["passed"] = False
-                            result["verified"] = False
-                    except IndexError:
-                        result["checks"]["color_samples"]["details"].append({
-                            "x": sx,
-                            "y": sy,
-                            "passed": False,
-                            "reason": "out of bounds"
-                        })
-                        result["checks"]["color_samples"]["passed"] = False
-                        result["verified"] = False
-
-            # Check 3: Bounding box size match
             if "bounding_box" in cached:
                 cached_box = cached["bounding_box"]
                 curr_w, curr_h = current_image.get_size()
@@ -672,7 +597,6 @@ class GameplayTracker:
             
             return result
         except Exception as e:
-            print(f"[TRACKER ERROR] Verification failed: {e}")
             return {"verified": False, "reason": "verification error"}
     
     # ─────────────────────────────────────────────────────────────────────────

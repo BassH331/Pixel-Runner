@@ -163,7 +163,7 @@ class TutorialOverlay:
         title_x: float       = 0.50,     # title horizontal centre
         title_y: float       = 0.19,     # title vertical position (top edge)
         text_x: float        = 0.50,     # description / keys horizontal centre
-        text_wrap_width: float = 0.35,   # max text width (fraction of banner)
+        text_wrap_width: float = 0.55,   # max text width (fraction of banner)
         oracle_x: float      = 0.50,     # oracle tower horizontal centre
         oracle_y: float      = 0.13,     # oracle tower vertical centre
         prompt_y: float      = 0.92,     # prompt vertical position (bottom edge)
@@ -172,8 +172,8 @@ class TutorialOverlay:
         # ── SPACING (pixels) ────────────────────────────────────────────────
         key_spacing: int     = 12,       # gap between adjacent key icons
         key_gap: int         = 16,       # gap between description and keys
-        desc_line_gap: int   = 4,        # gap between wrapped description lines
-        desc_title_gap: int  = 10,       # gap between title and first desc line
+        desc_line_gap: int   = 6,        # gap between wrapped description lines
+        desc_title_gap: int  = 12,       # gap between title and first desc line
 
         # ── ANIMATION ───────────────────────────────────────────────────────
         player_fps: float    = 0.08,     # seconds per player animation frame
@@ -189,11 +189,12 @@ class TutorialOverlay:
         counter_color: tuple = (120, 90, 60),
 
         # ── FONTS ───────────────────────────────────────────────────────────
-        title_font_size: int  = 36,
-        desc_font_size: int   = 24,
-        prompt_font_size: int = 20,
+        title_font_size: int  = 48,
+        desc_font_size: int   = 34,
+        prompt_font_size: int = 26,
 
         # ── ASSET PATHS ─────────────────────────────────────────────────────
+        font_path: str   = "assets/font/Abaddon Bold.ttf",
         banner_path: str = "assets/graphics/UI/PNG/UI board Medium  parchment.png",
         keys_dir: str    = "assets/graphics/KEYS",
         oracle_dir: str  = "assets/graphics/RedMoonTower",
@@ -232,8 +233,6 @@ class TutorialOverlay:
         self._pulse_timer  = 0.0
 
         # ── Load assets ─────────────────────────────────────────────────────
-        cfg = UITheme.get("notifications")
-        font_path = cfg["font_path"]
 
         # Parchment banner (single board — everything sits inside it)
         raw_banner = AssetManager.get_texture(banner_path)

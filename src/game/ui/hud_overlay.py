@@ -24,7 +24,7 @@ class HUDOverlay:
 
         self.player_ui = PlayerUI()
         self.objective_display = ObjectiveDisplay()
-        self.notification_banner = NotificationBanner(scale=0.6, icon_scale=0.6)
+        self.notification_banner = NotificationBanner(scale=0.85, icon_scale=0.7, hold=3.0)
         self.tutorial_overlay = TutorialOverlay()
 
     def update(self) -> None:

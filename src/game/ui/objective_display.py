@@ -28,6 +28,8 @@ class ObjectiveDisplay(ParchmentDisplay):
     """
 
     def __init__(self, **kwargs) -> None:
+        kwargs.setdefault("line_spacing", 12)
+        kwargs.setdefault("prompt_text", "[ Press ENTER or SPACE to continue ]")
         super().__init__(**kwargs)
         self._fx_state: FXState = FXState.COMPLETE
         self._current_theme: str = "necromancer_dark_fire"

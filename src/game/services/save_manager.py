@@ -95,15 +95,6 @@ class SaveManager:
             return None
 
     @classmethod
-    def list_slots(cls) -> List[Optional[SaveSlot]]:
-        """List all save slots (slots 1, 2, 3 and 'auto')."""
-        cls._ensure_dir()
-        slots: List[Optional[SaveSlot]] = []
-        for sid in ("1", "2", "3", "auto"):
-            slots.append(cls.load(sid))
-        return slots
-
-    @classmethod
     def delete(cls, slot_id: str) -> bool:
         """Delete a save slot file."""
         target_path = cls.SAVE_DIR / f"slot_{slot_id}.json"

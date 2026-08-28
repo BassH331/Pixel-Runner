@@ -675,8 +675,6 @@ class FireWizard(EntityAudioMixin, Actor):
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
             
-    def _apply_frame(self) -> None:
-        pass
 
     def draw(self, surface: pg.Surface) -> None:
         super().draw(surface)

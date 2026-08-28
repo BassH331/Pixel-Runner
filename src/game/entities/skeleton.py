@@ -555,10 +555,7 @@ class Skeleton(EntityAudioMixin, Actor):
             self.rect.bottom = self._ground_y
             self._gravity = 0.0
     
-    # ─────────────────────────────────────────────────────────────────────────
-    def _apply_frame(self) -> None:
-        pass # Handle by Actor superclass
-    
+
     # ─────────────────────────────────────────────────────────────────────────
     # Rendering
     # ─────────────────────────────────────────────────────────────────────────

@@ -11,9 +11,7 @@ import os
 import json
 from random import randint
 from typing import TYPE_CHECKING, Final, Optional, Any
-from dataclasses import dataclass
 
-import pygame
 import pygame as pg
 
 from src.game.entities.enemy import Enemy
@@ -22,10 +20,10 @@ from src.game.entities.wizard_npc import WizardNPC
 from src.game.entities.generic_npc import GenericNPC, _GenericNPCState
 from src.game.entities.player import Player
 from src.game.entities.skeleton import Skeleton, SkeletonState
-from src.game.entities.fire_wizard import FireWizard, FireWizardState
+from src.game.entities.fire_wizard import FireWizard
 from src.game.entities.green_monster import GreenMonster
 from src.game.entities.boss_manager import BossManager
-from src.game.ui import PlayerUI, ObjectiveDisplay, ObjectiveTriggerManager, NotificationBanner, TutorialOverlay
+from src.game.ui import ObjectiveTriggerManager
 from src.game.ui.hud_overlay import HUDOverlay
 from src.game.effects.vfx_manager import VisualEffectManager
 from src.game.effects.trippy_zoom import TrIPPyZoomEffect
@@ -1279,87 +1277,7 @@ class GameState(PlayingState):
             fps = self._fps_clock.get_fps()
             
             # 2. Check player state change
-            current_player_state = player_sprite.state
-            prev_p_state = self._prev_player_state
-            if prev_p_state is not None and current_player_state != prev_p_state:
-                self.tracker.log_event("player_state_changed", {
-                    "old_state": getattr(prev_p_state, "name", "").lower(),
-                    "new_state": getattr(current_player_state, "name", "").lower(),
-                    "frame": self._frame_count,
-                    "world_distance": self.world_distance
-                })
-            self._prev_player_state = current_player_state
-            
-            # 3. Check boss state change
-            from src.game.entities.boss_manager import BossManager
-            boss = BossManager.get_active_boss(self.obstacle_group)
-            prev_b_state = self._prev_boss_state
-            if boss:
-                current_boss_state = boss.state
-                if prev_b_state is not None and current_boss_state != prev_b_state:
-                    self.tracker.log_event("boss_state_changed", {
-                        "old_state": getattr(prev_b_state, "name", "").lower(),
-                        "new_state": getattr(current_boss_state, "name", "").lower(),
-                        "frame": self._frame_count,
-                        "world_distance": self.world_distance
-                    })
-                self._prev_boss_state = current_boss_state
-            else:
-                if prev_b_state is not None:
-                    self.tracker.log_event("boss_state_changed", {
-                        "old_state": getattr(prev_b_state, "name", "").lower(),
-                        "new_state": "none",
-                        "frame": self._frame_count,
-                        "world_distance": self.world_distance
-                    })
-                    self._prev_boss_state = None
-                    
-            # 4. Spawns and despawns of entities
-            current_entities = {
-                (id(e), e.__class__.__name__, getattr(e, "event_id", None))
-                for e in list(self.obstacle_group) + list(self.npc_group)
-            }
-            if self._prev_entities_ids:
-                spawned = current_entities - self._prev_entities_ids
-                despawned = self._prev_entities_ids - current_entities
-                for eid, class_name, event_id in spawned:
-                    self.tracker.log_event("entity_spawn", {
-                        "entity_id": eid,
-                        "type": class_name,
-                        "event_id": event_id,
-                        "frame": self._frame_count,
-                        "world_distance": self.world_distance
-                    })
-                for eid, class_name, event_id in despawned:
-                    self.tracker.log_event("entity_despawn", {
-                        "entity_id": eid,
-                        "type": class_name,
-                        "event_id": event_id,
-                        "frame": self._frame_count,
-                        "world_distance": self.world_distance
-                    })
-            self._prev_entities_ids = current_entities
-            
-            # 5. Check player health changes dynamically (fallback for hazards/projectiles)
-            if self._prev_player_health is not None and player_sprite.health < self._prev_player_health:
-                if not getattr(self, "_logged_damage_this_tick", False):
-                    # Check if any fireball overlaps the player
-                    has_fireball = any(
-                        e.__class__.__name__ == "Fireball" and e.rect.colliderect(player_sprite.rect)
-                        for e in self.obstacle_group
-                    )
-                    self.tracker.log_event("damage_received", {
-                        "attacker": "Fireball" if has_fireball else "Environment",
-                        "attacker_is_boss": False,
-                        "damage": self._prev_player_health - player_sprite.health,
-                        "player_health_before": self._prev_player_health,
-                        "player_health_after": player_sprite.health,
-                        "world_distance": self.world_distance
-                    })
-            self._prev_player_health = player_sprite.health
-            self._logged_damage_this_tick = False
-            
-            # 6. Periodic frame sampling
+            # 3. Periodic frame sampling
             sample_n = self.tracker.config["sample_every_n_frames"]
             if self._frame_count % sample_n == 0:
                 self.tracker.sample_frame(
@@ -1368,7 +1286,7 @@ class GameState(PlayingState):
                     fps=fps,
                     game_state_name=self.__class__.__name__,
                     player=player_sprite,
-                    boss=boss,
+                    boss=None,
                     world_distance=self.world_distance
                 )
                 
@@ -1387,26 +1305,14 @@ class GameState(PlayingState):
         # Wait for the game over delay before transitioning
         if (self._game_over_start_time is not None and 
             pg.time.get_ticks() - self._game_over_start_time >= self._GAME_OVER_DELAY_MS):
-            # TODO: Add game over state transition
             print("Game Over!")
-            # Reset game over state
             self._game_over_start_time = None
             player.reset()
     
     def draw(self, surface: pg.Surface) -> None:
         """
         Render the game state.
-        
-        When the trippy zoom effect is active, all game-world elements
-        are rendered to an off-screen buffer. The buffer is then distorted
-        (dolly zoom + sinusoidal phase warp) and blitted to the display.
-        UI overlays (objective, notifications, tutorial) are drawn AFTER
-        the effect so they remain crisp and undistorted.
-        
-        Args:
-            surface: Target surface for rendering.
         """
-        # Choose render target: buffer (if effect active) or screen directly
         if self.trippy_zoom.is_active:
             target = self.trippy_zoom.buffer
         else:
@@ -1418,7 +1324,7 @@ class GameState(PlayingState):
         # UI layer
         self.hud_overlay.draw_world_ui(target)
         
-        # NPCs (drawn before player so they appear behind)
+        # NPCs
         for npc in self.npc_group:
             npc.draw(target)
 
@@ -1426,18 +1332,18 @@ class GameState(PlayingState):
         for point in self.interaction_group:
             point.draw(target)
 
-        # Ambient creatures (sorted by scale so further ones are drawn behind closer ones)
+        # Ambient creatures
         for ambient in sorted(self.ambient_group, key=lambda a: getattr(a, 'depth_scale_factor', 1.0)):
             ambient.draw(target)
 
-        # Player (drawn after NPCs so player appears in front)
+        # Player
         self.player.sprite.draw(target)
         
         # Enemies
         for enemy in self.obstacle_group:
             enemy.draw(target)
             
-        # Hit Visual Effects (Blood Bursts, Sparks, Magic Shots)
+        # Hit Visual Effects
         VisualEffectManager.draw(target)
         self.particle_manager.draw(target)
         
@@ -1448,145 +1354,25 @@ class GameState(PlayingState):
         # Boss Health Bar overlay
         self.hud_overlay.draw_boss_health_bar(target, self.obstacle_group)
 
-        # ── Apply Engine Camera (Trauma Shake & Viewport Transforms) ────────
+        # ── Apply Engine Camera ──────────────────────────────────────────────
         target = self.camera.apply(target)
 
-        # ── Apply Clean Camera Zoom & Focus (NPC Cutscenes & Speech) ─────────
+        # ── Apply Clean Camera Zoom & Focus ──────────────────────────────────
         if self.clean_camera_zoom.is_active:
             self.clean_camera_zoom.apply(target, target)
 
-        # ── Apply trippy zoom post-processing (Combat Impact Strikes) ───────
+        # ── Apply trippy zoom post-processing ──────────────────────────────
         if self.trippy_zoom.is_active:
             result = self.trippy_zoom.apply(target)
             surface.blit(result, (0, 0))
-        # ── Top-Center Cutscene Dialogue Text & Helper Prompt Overlay ────────
+            
+        # ── Cutscene Dialogue Overlay ────────────────────────────────────────
         self.cutscene_manager.draw_dialogue_overlay(surface)
 
-        # Screen-space HUD Overlays (Objectives, Notifications, Tutorials — AFTER camera & effects)
+        # Screen-space HUD Overlays (Objectives, Notifications, Tutorials)
         self.hud_overlay.draw_screen_overlays(surface)
 
-    def _draw_cutscene_dialogue_overlay(self, surface: pg.Surface) -> None:
-        """
-        Render cutscene dialogue text & glowing continue prompt in top-center screen area.
-        
-        Rendered AFTER CleanCameraZoom post-processing to guarantee 100% crisp, unzoomed,
-        unobscured text that never renders behind/over player sprites or eyeballs.
-        """
-        active_npc = None
-        for npc in self.npc_group:
-            if getattr(npc, "is_spirit_of_scythe", False) and getattr(npc, "is_trance_active", False):
-                if getattr(npc, "_trance_phase", 0) == 3:
-                    active_npc = npc
-                    break
-            elif getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
-                if getattr(npc, "_sky_fall_phase", 0) == 4:
-                    active_npc = npc
-                    break
-            elif getattr(npc, "is_intro_npc", False) and getattr(npc, "is_trance_active", False):
-                if getattr(npc, "_trance_phase", 0) == 3:
-                    active_npc = npc
-                    break
 
-        if active_npc is None or not active_npc.text:
-            return
-
-        import math
-        ticks = pg.time.get_ticks()
-
-        # Calculate text fade alpha
-        if active_npc.is_sky_fall_npc:
-            timer = getattr(active_npc, "_sky_fall_timer", 8.0)
-            if timer > 7.5:
-                text_alpha = int(255 * (8.0 - timer) / 0.5)
-            elif timer < 0.6:
-                text_alpha = int(255 * (timer / 0.6))
-            else:
-                text_alpha = 255
-        else:
-            timer = getattr(active_npc, "_trance_text_timer", 8.0)
-            if timer > 7.5:
-                text_alpha = int(255 * (8.0 - timer) / 0.5)
-            elif timer < 0.6:
-                text_alpha = int(255 * (timer / 0.6))
-            else:
-                text_alpha = 255
-
-        text_alpha = max(0, min(255, text_alpha))
-        if text_alpha <= 0:
-            return
-
-        font = getattr(active_npc, "_font", None)
-        if font is None:
-            return
-
-        float_y = math.sin(ticks * 0.005) * 4.0
-
-        # Word wrap text into lines (max 650px wide for top-center display)
-        max_w = 650
-        words = active_npc.text.split(" ")
-        lines: list[str] = []
-        curr = ""
-        for word in words:
-            test_l = f"{curr} {word}".strip() if curr else word
-            if font.size(test_l)[0] <= max_w:
-                curr = test_l
-            else:
-                if curr:
-                    lines.append(curr)
-                curr = word
-        if curr:
-            lines.append(curr)
-
-        line_h = font.get_linesize() + 4
-        total_text_h = len(lines) * line_h
-
-        # Position text in the top-center screen area (y = 90px to 180px)
-        start_y = 90 + int(float_y)
-        center_x = self.width // 2
-
-        # Draw subtle translucent dark background box behind text for maximum legibility
-        bg_padding = 16
-        max_line_w = max(font.size(l)[0] for l in lines) if lines else 400
-        bg_rect = pg.Rect(
-            center_x - max_line_w // 2 - bg_padding,
-            start_y - bg_padding,
-            max_line_w + bg_padding * 2,
-            total_text_h + bg_padding * 2 + 30
-        )
-        bg_surf = pg.Surface((bg_rect.width, bg_rect.height), pg.SRCALPHA)
-        bg_surf.fill((10, 5, 18, int(text_alpha * 0.65)))
-        pg.draw.rect(bg_surf, (255, 180, 40, int(text_alpha * 0.45)), (0, 0, bg_rect.width, bg_rect.height), width=2, border_radius=8)
-        surface.blit(bg_surf, bg_rect.topleft)
-
-        # Render Gold Dialogue Text
-        for i, line_str in enumerate(lines):
-            tx = center_x - font.size(line_str)[0] // 2
-            ty = start_y + i * line_h
-
-            # Dark drop shadow
-            shd_surf = font.render(line_str, True, (0, 0, 0))
-            shd_surf.set_alpha(int(text_alpha * 0.90))
-            surface.blit(shd_surf, (tx + 2, ty + 2))
-
-            # Main Ethereal Gold text
-            txt_surf = font.render(line_str, True, (255, 215, 80))
-            txt_surf.set_alpha(text_alpha)
-            surface.blit(txt_surf, (tx, ty))
-
-        # Render Pulsing Continue Helper Prompt below dialogue box
-        p_alpha = int(160 + 80 * abs(((ticks // 8) % 200 - 100) / 100))
-        p_alpha = min(text_alpha, p_alpha)
-        prompt_str = "[ PRESS ENTER OR SPACE TO CONTINUE ]"
-        ptx = center_x - font.size(prompt_str)[0] // 2
-        pty = start_y + len(lines) * line_h + 12
-
-        p_shd = font.render(prompt_str, True, (0, 0, 0))
-        p_shd.set_alpha(int(p_alpha * 0.85))
-        surface.blit(p_shd, (ptx + 2, pty + 2))
-
-        p_txt = font.render(prompt_str, True, (200, 240, 255))
-        p_txt.set_alpha(p_alpha)
-        surface.blit(p_txt, (ptx, pty))
     
     def _draw_debug_info(self, surface: pg.Surface) -> None:
         """

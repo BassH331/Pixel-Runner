@@ -24,7 +24,7 @@ class PlayerUI:
         self._soul_pulse_scale: float = 1.0   # Current pulse scale multiplier
         self._soul_last_total: int = 9000     # Track changes for pulse trigger
         self._soul_complete: bool = False      # True once quota is met
-        self._soul_complete_callback: Optional[Callable[[], None]] = None    # Called once when quota is met
+        self._soul_complete_callback = None  # Optional[Callable[[], None]]
         # ─────────────────────────────────────────────────────────────────────
 
         # Load dragon HP bar sprite frames (0 = full, 7 = empty)
@@ -65,9 +65,13 @@ class PlayerUI:
         self.medium_font = AssetManager.get_font('assets/graphics/Darinia/Darinia.ttf', 22)
         self.small_font = AssetManager.get_font('assets/graphics/Darinia/Darinia.ttf', 16)
 
+        # Shadow color for text drop-shadows (improves readability over busy backgrounds)
+        self._shadow_color = (0, 0, 0)
+        self._shadow_offset = (1, 1)
+
         # Performance surface caches for low-end GPU/CPU hardware
         self._framed_icon_cache: dict = {}
-        self._souls_label_surf: pg.Surface = self.small_font.render("SOULS", True, (140, 120, 180))
+        self._souls_label_surf: pg.Surface = self._render_shadowed_text(self.small_font, "SOULS", (140, 120, 180))
         self._relics_cache: tuple = (None, None)
         self._time_cache: tuple = (None, None)
         self._dist_cache: tuple = (None, None)
@@ -111,24 +115,16 @@ class PlayerUI:
         pg.draw.polygon(surface, (255, 255, 255), flag_points)
         return surface
 
-    def _make_mana_icon(self, size):
-        """Small droplet placeholder icon for the Mana bar."""
-        surface = pg.Surface(size, pg.SRCALPHA)
-        w, h = size
-        points = [(w / 2, 0), (w - 1, h * 0.62), (w / 2, h - 1), (1, h * 0.62)]
-        pg.draw.polygon(surface, (100, 200, 255), points)
-        return surface
-
-    def _make_stamina_icon(self, size):
-        """Small lightning/bolt placeholder icon for the Stamina bar."""
-        surface = pg.Surface(size, pg.SRCALPHA)
-        w, h = size
-        points = [
-            (w * 0.55, 0), (w * 0.15, h * 0.55), (w * 0.50, h * 0.55),
-            (w * 0.40, h),       (w * 0.85, h * 0.42), (w * 0.50, h * 0.42),
-        ]
-        pg.draw.polygon(surface, (255, 220, 80), points)
-        return surface
+    def _render_shadowed_text(self, font, text: str, color: tuple) -> pg.Surface:
+        """Render text with a 1px dark drop-shadow for readability over any background."""
+        text_surf = font.render(text, True, color)
+        shadow_surf = font.render(text, True, self._shadow_color)
+        w, h = text_surf.get_size()
+        sx, sy = self._shadow_offset
+        combined = pg.Surface((w + abs(sx), h + abs(sy)), pg.SRCALPHA)
+        combined.blit(shadow_surf, (max(sx, 0), max(sy, 0)))
+        combined.blit(text_surf, (max(-sx, 0), max(-sy, 0)))
+        return combined
 
     def start_timer(self):
         self.start_time = pg.time.get_ticks()
@@ -142,19 +138,6 @@ class PlayerUI:
         mins = int(seconds // 60)
         secs = int(seconds % 60)
         return f"{mins:02d}:{secs:02d}"
-    
-    def update_health(self, amount):
-        self.current_health = max(0, min(self.max_health, self.current_health + amount))
-    
-    def add_relic(self, amount=1):
-        self.relics += amount
-    
-    def add_power_up(self, power_up_type, duration):
-        self.power_ups.append({
-            "type": power_up_type,
-            "start_time": pg.time.get_ticks(),
-            "duration": duration
-        })
     
     @property
     def current_soul_total(self) -> int:
@@ -299,7 +282,7 @@ class PlayerUI:
         relic_y = self.relic_icon_pos[1] + float_y
         self._draw_framed_icon(surface, self.relic_icon, (self.relic_icon_pos[0], relic_y), border_color=(255, 215, 0), opacity=255)
         if self._relics_cache[0] != self.relics:
-            relic_surf = self.medium_font.render(f"x {self.relics}", True, (255, 255, 255))
+            relic_surf = self._render_shadowed_text(self.medium_font, f"x {self.relics}", (255, 255, 255))
             self._relics_cache = (self.relics, relic_surf)
         if self._relics_cache[1] is not None:
             surface.blit(self._relics_cache[1], (self.relic_icon_pos[0] + 44, relic_y + 8))
@@ -312,13 +295,13 @@ class PlayerUI:
                 elapsed = pg.time.get_ticks() - power_up["start_time"]
                 remaining = max(0, power_up["duration"] - elapsed)
                 percent = int((remaining / power_up["duration"]) * 100)
-                time_text = self.small_font.render(f"{percent}%", True, (255, 255, 255))
+                time_text = self._render_shadowed_text(self.small_font, f"{percent}%", (255, 255, 255))
                 surface.blit(time_text, (self.power_up_icon_pos[0] + 35, self.power_up_icon_pos[1] + y_offset + 4))
                 y_offset += 35
         
         elapsed_seconds = self.get_elapsed_time()
         if self._time_cache[0] != elapsed_seconds:
-            time_surf = self.small_font.render(f"Time: {self.format_time(elapsed_seconds)}", True, (255, 255, 255))
+            time_surf = self._render_shadowed_text(self.small_font, f"Time: {self.format_time(elapsed_seconds)}", (255, 255, 255))
             self._time_cache = (elapsed_seconds, time_surf)
         time_text = self._time_cache[1]
         time_rect = time_text.get_rect(topright=(self.time_pos[0], self.time_pos[1] + float_y))
@@ -329,7 +312,7 @@ class PlayerUI:
         # Distance display (right below time)
         dist_int = int(self.distance)
         if self._dist_cache[0] != dist_int:
-            dist_surf = self.small_font.render(f"Dist: {dist_int}", True, (255, 255, 255))
+            dist_surf = self._render_shadowed_text(self.small_font, f"Dist: {dist_int}", (255, 255, 255))
             self._dist_cache = (dist_int, dist_surf)
         dist_text = self._dist_cache[1]
         dist_rect = dist_text.get_rect(topright=(self.time_pos[0], time_rect.bottom + 4))

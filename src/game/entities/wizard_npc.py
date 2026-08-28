@@ -26,7 +26,7 @@ class WizardNPC(Actor):
     _FONT_PATH = "assets/graphics/Darinia/Darinia.ttf"
     _FONT_SIZE = 30
     _PROMPT_COLOR = (255, 255, 255)
-    _PROMPT_BG_COLOR = (30, 30, 30, 200)
+    _PROMPT_BG_COLOR = (20, 20, 30, 220)
     _PROMPT_PADDING_X = 16
     _PROMPT_PADDING_Y = 8
     _PROMPT_OFFSET_Y = -70
@@ -104,7 +104,7 @@ class WizardNPC(Actor):
         )
         pg.draw.rect(
             bg,
-            (200, 200, 200, 120),
+            (220, 220, 230, 160),
             (0, 0, w, h),
             width=2,
             border_radius=self._PROMPT_BORDER_RADIUS,
