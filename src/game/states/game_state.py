@@ -34,6 +34,7 @@ from src.game.systems.world_manager import WorldManager
 from src.game.systems.wave_manager import WaveManager
 from src.game.systems.combat_system import CombatSystem
 from src.game.systems.cutscene_manager import CutsceneManager
+from src.game.systems.shadow_renderer import ShadowRenderer
 from src.game.effects.particle_system import ParticleManager
 from src.game.services.save_manager import SaveManager
 from src.game.debug.simulation_runner import SimulationRunner
@@ -1323,7 +1324,46 @@ class GameState(PlayingState):
         
         # UI layer
         self.hud_overlay.draw_world_ui(target)
-        
+
+        # ── Ground Shadows (Rendered directly onto ground plane before entities) ──
+        # 1. Airborne ambient creatures (Bats - shadows projected onto ground)
+        for ambient in self.ambient_group:
+            amb_wx = ambient.rect.centerx + self.world_distance
+            amb_ground = self.environment_manager.get_ground_y_at(amb_wx)
+            ShadowRenderer.render_entity_shadow(
+                target, ambient, amb_ground, base_alpha=95, squash_ratio=0.22, fade_height=650.0, ground_snap=0.0
+            )
+
+        # 2. NPCs (intro NPC, shopkeeper, spirit, etc.)
+        for npc in self.npc_group:
+            npc_ground = getattr(npc, "_target_ground_y", None)
+            ShadowRenderer.render_entity_shadow(
+                target, npc, npc_ground, base_alpha=120, squash_ratio=0.25, ground_snap=12.0
+            )
+
+        # 3. Enemies / Obstacles (Skeletons, Bosses, etc.)
+        for enemy in self.obstacle_group:
+            raw_wx = getattr(enemy, "world_x", None)
+            e_wx = float(raw_wx) if raw_wx is not None else float(enemy.rect.centerx + self.world_distance)
+            e_ground = getattr(enemy, "_ground_y", None)
+            if e_ground is None:
+                e_ground = self.environment_manager.get_ground_y_at(e_wx)
+            ShadowRenderer.render_entity_shadow(
+                target, enemy, e_ground, base_alpha=120, squash_ratio=0.25, ground_snap=12.0
+            )
+
+        # 4. Player
+        if self.player.sprite:
+            player_sprite = self.player.sprite
+            p_wx = player_sprite.rect.centerx + self.world_distance
+            p_ground = getattr(player_sprite, "_ground_y", None)
+            if p_ground is None:
+                p_ground = self.environment_manager.get_ground_y_at(p_wx)
+            ShadowRenderer.render_entity_shadow(
+                target, player_sprite, p_ground, base_alpha=125, squash_ratio=0.25, ground_snap=12.0
+            )
+
+        # ── Character Sprites & Entities ─────────────────────────────────────
         # NPCs
         for npc in self.npc_group:
             npc.draw(target)

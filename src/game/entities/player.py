@@ -690,6 +690,8 @@ class Player(Actor):
     _POWER_STAMINA_COST: Final[float] = 48.0
     _SPECIAL_ATTACK_STAMINA_COST: Final[float] = 60.0
 
+
+
     def __init__(self, x: int, y: int, audio_manager: AudioManager) -> None:
         super().__init__(x, y)
         
@@ -855,7 +857,7 @@ class Player(Actor):
         self.rect: pg.Rect = self.image.get_rect(midtop=(x, y))
         self._spawn_midtop: tuple[int, int] = self.rect.midtop
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
-        
+
         # Physics state
         self._gravity: float = 0.0
         surf = pg.display.get_surface()
@@ -1788,6 +1790,8 @@ class Player(Actor):
             super().update_animation(dt)
         finally:
             self.animations = orig_animations
+
+    # ─────────────────────────────────────────────────────────────────────────
 
     # ─────────────────────────────────────────────────────────────────────────
     # Per-Frame Logic Updates

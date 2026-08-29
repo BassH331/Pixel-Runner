@@ -23,6 +23,13 @@ class Enemy(EntityAudioMixin, Actor):
     """
     _fly_frames_caches: dict[float, list[pg.Surface]] = {}
 
+    # Shadow rendering constants (shared across all bat instances)
+    _SHADOW_SQUASH: float = 0.25
+    _SHADOW_ALPHA: int = 45
+    _SHADOW_FADE_HEIGHT: float = 400.0
+    _SHADOW_Y_OFFSET: int = -4
+    _SHADOW_GROUND_OFFSET: int = 34  # Same ground offset as the player
+
     def __init__(self, audio_manager=None):
         super().__init__(0, 0)
         self._bat_audio_manager = audio_manager  # store for post-init setup
@@ -102,6 +109,12 @@ class Enemy(EntityAudioMixin, Actor):
         # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
         self._init_entity_audio_config(self._bat_audio_manager, "bat")
 
+        # Shadow system: compute ground plane from screen height
+        surf = pg.display.get_surface()
+        screen_h = surf.get_height() if surf else 720
+        self._ground_y: int = screen_h - self._SHADOW_GROUND_OFFSET
+        self._shadow_cache: dict[tuple, pg.Surface] = {}
+
     def take_damage(self, amount: float, knockback: tuple[float, float] | None = None) -> None:
         """Apply damage to this enemy. Override in subclasses."""
         pass
@@ -157,3 +170,50 @@ class Enemy(EntityAudioMixin, Actor):
             
         super().update(dt)  # Actor handles animation and base components
         self._update_animation_audio()
+
+    def _generate_shadow_surface(self, source: pg.Surface, scale_factor: float = 1.0) -> pg.Surface:
+        """Generate a squashed black silhouette for a bat shadow."""
+        frame_idx = int(self.animation_index)
+        cache_key = (frame_idx, scale_factor >= 1.0)
+
+        if scale_factor >= 1.0 and cache_key in self._shadow_cache:
+            return self._shadow_cache[cache_key]
+
+        shadow = source.copy()
+        shadow.fill((0, 0, 0), special_flags=pg.BLEND_RGB_MIN)
+
+        w = max(1, int(shadow.get_width() * scale_factor))
+        h = max(1, int(shadow.get_height() * self._SHADOW_SQUASH * scale_factor))
+        shadow = pg.transform.smoothscale(shadow, (w, h))
+
+        alpha = int(self._SHADOW_ALPHA * min(scale_factor, 1.0))
+        shadow.set_alpha(max(0, alpha))
+
+        if scale_factor >= 1.0:
+            self._shadow_cache[cache_key] = shadow
+
+        return shadow
+
+    def draw(self, surface: pg.Surface) -> None:
+        """Draw the bat with a ground-projected shadow beneath it."""
+        # ── Shadow ────────────────────────────────────────────────────────
+        if self.image is not None:
+            air_height = max(0, self._ground_y - self.rect.bottom)
+
+            if air_height >= self._SHADOW_FADE_HEIGHT:
+                scale_factor = 0.0
+            else:
+                # Scale shadow by depth factor so farther bats cast smaller shadows
+                scale_factor = (1.0 - (air_height / self._SHADOW_FADE_HEIGHT)) * self.depth_scale_factor
+
+            if scale_factor > 0.05:
+                shadow_surf = self._generate_shadow_surface(self.image, scale_factor)
+
+                draw_pos = self.rect.topleft - self.image_offset
+                shadow_x = draw_pos[0] + (self.image.get_width() - shadow_surf.get_width()) // 2
+                shadow_y = self._ground_y - shadow_surf.get_height() + self._SHADOW_Y_OFFSET
+
+                surface.blit(shadow_surf, (shadow_x, shadow_y))
+
+        # ── Bat sprite ────────────────────────────────────────────────────
+        super().draw(surface)
