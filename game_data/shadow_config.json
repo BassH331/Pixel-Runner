@@ -1,0 +1,82 @@
+{
+    "default": {
+        "alpha": 120,
+        "squash_ratio": 0.25,
+        "y_offset": 0,
+        "fade_height": 250.0,
+        "ground_snap": 12.0,
+        "scale_mult": 1.0
+    },
+    "player": {
+        "alpha": 125,
+        "squash_ratio": 0.25,
+        "y_offset": 0,
+        "fade_height": 250.0,
+        "ground_snap": 12.0,
+        "scale_mult": 1.0
+    },
+    "skeleton": {
+        "alpha": 130,
+        "squash_ratio": 0.25,
+        "y_offset": 0,
+        "fade_height": 250.0,
+        "ground_snap": 12.0,
+        "scale_mult": 1.0
+    },
+    "enemy": {
+        "alpha": 95,
+        "squash_ratio": 0.22,
+        "y_offset": 0,
+        "fade_height": 650.0,
+        "ground_snap": 0.0,
+        "scale_mult": 1.0
+    },
+    "generic_npc_masked_man": {
+        "alpha": 120,
+        "squash_ratio": 0.25,
+        "y_offset": 0,
+        "fade_height": 250.0,
+        "ground_snap": 12.0,
+        "scale_mult": 1.0
+    },
+    "generic_npc_moonstone_keeper": {
+        "alpha": 120,
+        "squash_ratio": 0.25,
+        "y_offset": 0,
+        "fade_height": 250.0,
+        "ground_snap": 12.0,
+        "scale_mult": 1.0
+    },
+    "evil_eye": {
+        "alpha": 110,
+        "squash_ratio": 0.22,
+        "y_offset": 0,
+        "fade_height": 550.0,
+        "ground_snap": 0.0,
+        "scale_mult": 1.0
+    },
+    "wizard_npc": {
+        "alpha": 120,
+        "squash_ratio": 0.25,
+        "y_offset": 0,
+        "fade_height": 250.0,
+        "ground_snap": 12.0,
+        "scale_mult": 1.0
+    },
+    "fire_wizard": {
+        "alpha": 125,
+        "squash_ratio": 0.25,
+        "y_offset": 0,
+        "fade_height": 250.0,
+        "ground_snap": 12.0,
+        "scale_mult": 1.0
+    },
+    "green_monster": {
+        "alpha": 135,
+        "squash_ratio": 0.28,
+        "y_offset": 0,
+        "fade_height": 300.0,
+        "ground_snap": 15.0,
+        "scale_mult": 1.05
+    }
+}

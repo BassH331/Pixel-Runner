@@ -1330,16 +1330,22 @@ class GameState(PlayingState):
         for ambient in self.ambient_group:
             amb_wx = ambient.rect.centerx + self.world_distance
             amb_ground = self.environment_manager.get_ground_y_at(amb_wx)
-            ShadowRenderer.render_entity_shadow(
-                target, ambient, amb_ground, base_alpha=95, squash_ratio=0.22, fade_height=650.0, ground_snap=0.0
-            )
+            ShadowRenderer.render_entity_shadow(target, ambient, amb_ground)
 
-        # 2. NPCs (intro NPC, shopkeeper, spirit, etc.)
+        # 2. NPCs (intro NPC, shopkeeper, spirit, gatekeeper, etc.)
         for npc in self.npc_group:
-            npc_ground = getattr(npc, "_target_ground_y", None)
-            ShadowRenderer.render_entity_shadow(
-                target, npc, npc_ground, base_alpha=120, squash_ratio=0.25, ground_snap=12.0
-            )
+            # For floating Spirit of the Scythe (eyeball), project shadow down to terrain
+            if getattr(npc, "is_spirit_of_scythe", False):
+                npc_wx = npc.rect.centerx + self.world_distance
+                npc_ground = self.environment_manager.get_ground_y_at(npc_wx)
+            # For Sky-Fall Gatekeeper while falling from the sky in Phase 1
+            elif getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "_sky_fall_phase", 0) == 1:
+                npc_wx = npc.rect.centerx + self.world_distance
+                npc_ground = self.environment_manager.get_ground_y_at(npc_wx)
+            else:
+                npc_ground = None
+
+            ShadowRenderer.render_entity_shadow(target, npc, npc_ground)
 
         # 3. Enemies / Obstacles (Skeletons, Bosses, etc.)
         for enemy in self.obstacle_group:
@@ -1348,9 +1354,7 @@ class GameState(PlayingState):
             e_ground = getattr(enemy, "_ground_y", None)
             if e_ground is None:
                 e_ground = self.environment_manager.get_ground_y_at(e_wx)
-            ShadowRenderer.render_entity_shadow(
-                target, enemy, e_ground, base_alpha=120, squash_ratio=0.25, ground_snap=12.0
-            )
+            ShadowRenderer.render_entity_shadow(target, enemy, e_ground)
 
         # 4. Player
         if self.player.sprite:
@@ -1359,9 +1363,7 @@ class GameState(PlayingState):
             p_ground = getattr(player_sprite, "_ground_y", None)
             if p_ground is None:
                 p_ground = self.environment_manager.get_ground_y_at(p_wx)
-            ShadowRenderer.render_entity_shadow(
-                target, player_sprite, p_ground, base_alpha=125, squash_ratio=0.25, ground_snap=12.0
-            )
+            ShadowRenderer.render_entity_shadow(target, player_sprite, p_ground)
 
         # ── Character Sprites & Entities ─────────────────────────────────────
         # NPCs
