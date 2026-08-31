@@ -37,6 +37,15 @@ class PerceptionSystem:
         hearing_range: float = 600.0,
         reaction_delay_sec: float = 0.20,
     ) -> None:
+        import os
+        diff = os.environ.get("AI_DIFFICULTY", "").upper()
+        if diff == "NIGHTMARE":
+            reaction_delay_sec = 0.08
+        elif diff == "HARD":
+            reaction_delay_sec = 0.12
+        elif diff == "EASY":
+            reaction_delay_sec = 0.35
+
         self.fov_angle: float = fov_angle
         self.vision_range: float = vision_range
         self.hearing_range: float = hearing_range

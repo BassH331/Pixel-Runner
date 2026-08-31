@@ -45,9 +45,25 @@ class UtilityCombatEngine:
         self.preferred_spacing: float = preferred_spacing
 
         # Heuristic tuning factors (modified by telemetry)
-        self.aggression_weight: float = 1.0
-        self.whiff_sensitivity: float = 1.2
-        self.retract_chance: float = 0.45
+        import os
+        diff = os.environ.get("AI_DIFFICULTY", "").upper()
+        if diff == "NIGHTMARE":
+            self.aggression_weight = 1.4
+            self.whiff_sensitivity = 2.0
+            self.retract_chance = 0.85
+        elif diff == "HARD":
+            self.aggression_weight = 1.2
+            self.whiff_sensitivity = 1.6
+            self.retract_chance = 0.70
+        elif diff == "EASY":
+            self.aggression_weight = 0.8
+            self.whiff_sensitivity = 0.9
+            self.retract_chance = 0.25
+        else:
+            self.aggression_weight = 1.0
+            self.whiff_sensitivity = 1.2
+            self.retract_chance = 0.45
+
         self._last_telemetry_check_time: float = 0.0
 
     def evaluate_action(

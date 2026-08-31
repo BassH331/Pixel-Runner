@@ -23,6 +23,15 @@ class SquadTokenManager:
         return cls._instance
 
     def __init__(self, max_simultaneous_attackers: int = 2) -> None:
+        import os
+        diff = os.environ.get("AI_DIFFICULTY", "").upper()
+        if diff == "NIGHTMARE":
+            max_simultaneous_attackers = 4
+        elif diff == "HARD":
+            max_simultaneous_attackers = 3
+        elif diff == "EASY":
+            max_simultaneous_attackers = 1
+
         self.max_simultaneous_attackers: int = max_simultaneous_attackers
         self._active_tokens: Set[int] = set()
         self._registered_enemies: Dict[int, str] = {}  # id -> tier/type
@@ -52,7 +61,7 @@ class SquadTokenManager:
 
         if minion_tokens_active < self.max_simultaneous_attackers:
             self._active_tokens.add(enemy_id)
-            print(f"[AI SQUAD TOKEN] GRANTED to Enemy #{enemy_id % 10000:04d} ({tier}) -> Active Attackers: {minion_tokens_active + 1}/{self.max_simultaneous_attackers}")
+            print(f"[AI SQUAD TOKEN] Attack Permit GRANTED to Enemy #{enemy_id % 10000:04d} ({tier}) -> Active Attackers: {minion_tokens_active + 1}/{self.max_simultaneous_attackers}")
             return True
 
         # Throttle denied log to avoid per-frame console spam
@@ -60,7 +69,7 @@ class SquadTokenManager:
             self._last_denied_log = {}
         import time
         now = time.time()
-        if now - self._last_denied_log.get(enemy_id, 0.0) > 1.5:
+        if now - self._last_denied_log.get(enemy_id, 0.0) > 2.0:
             self._last_denied_log[enemy_id] = now
             print(f"[AI SQUAD TOKEN] DENIED to Enemy #{enemy_id % 10000:04d} ({tier}) -> Max attackers ({self.max_simultaneous_attackers}/{self.max_simultaneous_attackers}) active! Holding perimeter spacing.")
 
@@ -68,7 +77,11 @@ class SquadTokenManager:
 
     def release_attack_token(self, enemy_id: int) -> None:
         """Release an attack token when an attack animation or state ends."""
-        self._active_tokens.discard(enemy_id)
+        if enemy_id in self._active_tokens:
+            self._active_tokens.discard(enemy_id)
+            tier = self._registered_enemies.get(enemy_id, "minion")
+            if tier != "boss":
+                print(f"[AI SQUAD TOKEN] Attack Permit RELEASED by Enemy #{enemy_id % 10000:04d}")
 
     def clear(self) -> None:
         self._active_tokens.clear()

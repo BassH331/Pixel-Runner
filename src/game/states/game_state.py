@@ -1017,6 +1017,15 @@ class GameState(PlayingState):
         self.player.update()
         if not self.is_interacting:
             self.combat_system.check_environmental_hazards()
+            if player_sprite and hasattr(player_sprite, "rect"):
+                active_enemies_list = [
+                    (id(e), e.rect, bool(getattr(e, "alive", True) and getattr(e, "_health", 1.0) > 0))
+                    for e in self.obstacle_group.sprites()
+                ]
+                p_facing_left = getattr(player_sprite, "facing_left", False)
+                from src.game.ai import SquadCoordinator
+                SquadCoordinator.get_instance().update_squad_roles(active_enemies_list, player_sprite.rect, p_facing_left)
+
             self.obstacle_group.update(dt, self.bg_scroll_speed)
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)

@@ -18,7 +18,7 @@ from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from src.game.audio.entity_audio_mixin import EntityAudioMixin
 from .hitbox_registry import HitboxRegistry
 from ..services import ConfigClient
-from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, UtilityCombatEngine, TacticalAction
+from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, SquadCoordinator, SquadRole, UtilityCombatEngine, TacticalAction
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -521,9 +521,13 @@ class Skeleton(EntityAudioMixin, Actor):
         if self.state == SkeletonState.ATTACK:
             return
 
-        # 2. Check Attack Token from Squad Manager
+        # 2. Check Attack Token & Squad Coordinator Pincer Signals
         has_token = SquadTokenManager.get_instance().request_attack_token(id(self))
         dist_x = abs(self.rect.centerx - player_rect.centerx)
+
+        is_pincer = SquadCoordinator.get_instance().should_trigger_pincer_attack(
+            id(self), dist_x, can_attack=(dist_x <= self._attack_range + 25)
+        )
 
         # 3. Utility Engine Action Evaluation
         action = self.utility_engine.evaluate_action(
@@ -534,7 +538,7 @@ class Skeleton(EntityAudioMixin, Actor):
             dt_sec=dt_sec,
         )
 
-        if action == TacticalAction.PUNISH_WHIFF or action == TacticalAction.ATTACK:
+        if is_pincer or action == TacticalAction.PUNISH_WHIFF or action == TacticalAction.ATTACK:
             self._begin_attack()
         elif action == TacticalAction.RETRACT_SPACING:
             # Step back away from player swing (tactical spacing, no imaginary dodge anim)
@@ -560,12 +564,14 @@ class Skeleton(EntityAudioMixin, Actor):
         self.set_state(SkeletonState.ATTACK)
     
     def _chase_player(self, player_rect: pg.Rect) -> None:
-        if self.rect.centerx > player_rect.centerx:
-            self.rect.x -= int(self._speed)
-            self.facing_left = True
-        else:
-            self.rect.x += int(self._speed)
-            self.facing_left = False
+        target_x = SquadCoordinator.get_instance().get_target_offset_x(
+            id(self), player_rect, getattr(self._player, "facing_left", False), float(self._attack_range)
+        )
+        dx = target_x - self.rect.centerx
+        if abs(dx) > 5:
+            move_dir = 1 if dx > 0 else -1
+            self.rect.x += move_dir * int(self._speed)
+            self.facing_left = (self.rect.centerx > player_rect.centerx)
     
     # ─────────────────────────────────────────────────────────────────────────
     # Private: Physics

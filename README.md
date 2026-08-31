@@ -1,113 +1,174 @@
-# Guardian Runner ⚔️🔥
+# 🏃‍♂️ Pixel Runner
 
-Guardian Runner is a 2D action runner built with Pygame. Guide the last Star-Fire Guardian through story, menu, and gameplay states, unleash two melee attacks with frame-accurate hit windows, and enjoy the fully voiced/sampled audio set that now covers jumps, footsteps, attack cues, and enemy events.
+An action-packed 2D side-scrolling pixel-art game built in Python using **Pygame** and the **V3X Zulfiqar Gideon Engine**. 
 
-## ✨ Current Feature Set
+Pixel Runner features human-like enemy perception, multi-enemy squad flanking & pincer tactics, dynamic telemetry difficulty scaling, and a comprehensive suite of visual GUI plugin editors.
 
-- **State-driven flow** – Splash ➜ Story slideshow ➜ Animated Menu ➜ In-game StateMachine with pause/resume hooks.
-- **Responsive presentation** – Resizable window that rescales parallax backgrounds, UI, and buttons to the active monitor.
-- **Frame-precise combat** – Two attack types (Thrust/Smash) with per-frame hitboxes, hit-stop, and collision gating to prevent duplicate hits.
-- **Audio pass** – Unique sounds for jump grunt, landing, smash phases, thrusts, skeleton spawn/death, player hurt/hit, footsteps, and ambient forest loop. Attack Two now layers both animation cues and impact slices even without collisions.
-- **Input options** – Keyboard by default plus detected gamepads (tested with DualShock/Sony Wireless Controller) for movement, combat, and jump actions.
-- **Utilities** – Player reset flow, skeleton spawn manager, adaptive bat spawns, and debug toggles.
+---
 
-## 🧰 Requirements
+## 🚀 Quick Start
 
-- Python 3.10+ (project currently runs on Python 3.12.3)
-- Pygame 2.6+
-- Optional: A connected gamepad/joystick for analog control
-
-## 🚀 Setup & Launch
-
-1. **Clone the repo**
-   ```bash
-   git clone <repo-url>
-   cd Pixel-Runner
-   ```
-
-2. **(Optional) Create a virtual environment**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate      # Linux/macOS
-   # .venv\Scripts\activate      # Windows PowerShell
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install pygame
-   ```
-
-4. **Start the game**
-   ```bash
-   python main.py
-   ```
-
-Expect the console to log state transitions (Splash ➜ MainMenu ➜ Story ➜ Game). Audio initialization and joystick detection messages also appear here.
-
-## 🎮 Controls
-
-| Action | Keyboard | Gamepad |
-| --- | --- | --- |
-| Move | ← / → arrows | Left stick (horizontal axis)
-| Jump | Space | Button 0 (Cross / A) or pushing the left stick vertically
-| Attack One – Thrust | Q | Button 2 (Square / X)
-| Attack Two – Smash | E | Button 1 (Circle / B)
-| Advance Story / Confirm Menu | Space | Button 0
-| Toggle Debug Info (GameState) | D | —
-| Story Skip | Esc | Start / equivalent (mapped by OS)
-
-Controls are read every frame in `Player.player_input()`, so holding inputs is supported. Story slides advance on Space, while menu buttons also react to mouse hover/click.
-
-## 🔊 Audio Reference
-
-Key sound hooks (see `main.py` for exact asset paths):
-
-- `background_music` → `assets/audio/mixkit-fright-night-871.mp3`
-- `game_loop` → `assets/audio/game_loop.mp3`
-- Jump grunt / landing → `angry-grunt-103204.mp3`, `land2-43790.mp3`
-- Attack sounds → `smash.wav`, `sword-slash-and-swing-185432.mp3`, `sword-slice-2-393845.mp3`, plus the base impact slice `mixkit-quick-knife-slice-cutting-2152.mp3`
-- Player hurt/hit → `mixkit-fighting-man-voice-of-pain-2173.wav` and `mixkit-quick-knife-slice-cutting-2152.mp3`
-- Skeleton spawn/death/idle → `whoosh-cinematic-sound-effect-376889.mp3`, `skeletom scream.mp3`, `zombie-noise.mp3`
-- Ambient forest loop & bats → `dark-forest.ogg`, `bats.wav`
-
-### Story Spotlight Audio (`SpotlightSFXManager`)
-The `SpotlightSFXManager` allows you to trigger sound effects precisely synced to the visual spotlight transitions in the story screen.
-- Configured directly inside `main.py` via the `STORY_SFX_TIMING` dictionary.
-- **Variables & Randomness:** You can use tuples `(min, max)` to introduce randomized timing!
-  - `"delay": 2.5` - Starts exactly at 2.5s.
-  - `"delay": (1.0, 5.0)` - Starts randomly anywhere between 1s and 5s.
-  - `"loop": True` - Uses Pygame's native infinite loop (great for long ambient tracks).
-  - `"repeat": (0.5, 3.0)` - Re-triggers the sound over and over, waiting a random amount of time between 0.5s and 3.0s between each trigger (perfect for sporadic fire crackles or random lightning).
-
-```python
-2: [
-    {"name": "wind", "volume": 0.5, "loop": True},                      # Continuous ambient background
-    {"name": "smash", "volume": 1.0, "delay": (1.0, 3.0)},              # Plays ONCE at a random time
-    {"name": "crackle", "volume": 0.4, "repeat": (0.5, 2.0)},           # Re-triggers randomly forever
-]
+### 1. Installation
+Set up your virtual environment and install all dependencies:
+```bash
+make install
 ```
-- *Note:* Ensure any sounds referenced in the schedule are pre-registered in the `manifest.audio` dictionary.
 
-Gameplay state switches stop currently playing tracks before starting new ambience; modify `GameState.on_enter()` if you prefer uninterrupted background music.
+### 2. Launch the Game
+Run the game in standard story mode:
+```bash
+make run
+# Or directly:
+python main.py
+```
 
-## 📂 Project Structure
+---
 
-- `main.py` – Entry point (display setup, audio loading, StateManager loop)
-- `assets/` – Graphics, fonts, and all audio listed above
-- `src/`
-  - `game/entities/` – Player, skeletons, combat system
-  - `game/states/` – Splash, Story, Menu, Game, Intro, etc.
-  - `game/audio/` – Footstep controller helper
-  - `my_engine/` – Lightweight engine (StateMachine, AssetManager, AudioManager)
+## 🎮 Game Execution Modes & Command Line Flags
 
-## 🧪 Troubleshooting
+You can launch `main.py` in several distinct execution modes depending on whether you want to experience the story, jump straight into combat testing, or enable analytics:
 
-- **No music after entering gameplay** – `GameState.on_enter()` intentionally fades out menu music and loops `forest`. Remove the `stop_all_sounds()` call or replay `background_music` there if desired.
-- **No sound output** – Verify that `pygame.mixer` initialized successfully (console warning otherwise) and that your OS audio device is not muted. The game logs “Sound not found” if an asset fails to load.
-- **Controller not detected** – Ensure your controller is connected before launching the game so `pygame.joystick` can initialize it. Otherwise keyboard controls remain available.
+| Command Target | Direct CLI Command | Description |
+| :--- | :--- | :--- |
+| `make run` | `python main.py` | **Full Story Experience**: Starts from the intro splash screen, cutscenes, and main menu. |
+| `make dev` | `python main.py --dev` | **Developer Fast-Pass**: Bypasses all intro cutscenes and menus to spawn immediately into gameplay. |
+| `make track` | `python main.py --track` | **Telemetry Mode**: Enables live frame-by-frame gameplay metric tracking and telemetry. |
+| Custom Level | `python main.py --level game_data/level_01.json` | **Level Tester**: Loads a specific level configuration JSON file. |
+| Custom Distance | `python main.py --start-dist 1500` | **Position Override**: Spawns the player at a specific world distance marker. |
 
-## 🤝 Contributing & Next Steps
+---
 
-Pull requests are welcome! Good first issues include new enemy archetypes, additional attack combos, improved UI scaling, or porting the new audio hooks to other states (e.g., boss fights). Please keep feature switches configurable and respect the existing footstep cadence controller.
+## 💀 AI Difficulty Modes ("Turning Up the Heat")
 
-Run fast, strike true, and keep the Star-Fire burning! 🏃‍♂️🔥
+Pixel Runner features an adaptive AI system with 4 distinct difficulty modes controlled via the `AI_DIFFICULTY` environment variable. These adjust enemy reaction latency, squad coordination tokens, and tactical spacing retractions:
+
+```bash
+# Easy Mode (Relaxed pacing)
+AI_DIFFICULTY=EASY python main.py
+
+# Standard Mode (Default balanced combat)
+python main.py
+
+# Hard Mode (Fast reaction times & 3 simultaneous attackers)
+make hard
+# Or: AI_DIFFICULTY=HARD python main.py
+
+# Nightmare Mode (Pro-gamer 80ms reaction time & 4 simultaneous flankers)
+make nightmare
+# Or: AI_DIFFICULTY=NIGHTMARE python main.py
+```
+
+### Difficulty Presets Breakdown
+
+| Difficulty Setting | Max Simultaneous Attackers | Perception Latency | Spacing Retraction Chance | Whiff Sensitivity |
+| :--- | :---: | :---: | :---: | :---: |
+| **EASY** | 1 | 350 ms | 25% | 0.9x |
+| **MEDIUM** *(Default)* | 2 | 200 ms | 45% | 1.2x |
+| **HARD** | 3 | 120 ms | 70% | 1.6x |
+| **NIGHTMARE** | 4 | 80 ms | 85% | 2.0x |
+
+---
+
+## 🎨 Plugin Editors & Visual GUI Tools
+
+Pixel Runner includes 10 standalone visual GUI editors for live tuning of game assets, entity statistics, animation speeds, level layouts, and sound channels.
+
+### 1. 👑 Boss Editor
+- **Command**: `make boss-editor` or `python boss_editor.py`
+- **Purpose**: Visual GUI for configuring Boss attributes (health, mana recharge rate, spell costs, telegraph timing, and phase transitions).
+
+### 2. 🎮 Player Editor
+- **Command**: `make player-editor` or `python player_editor.py`
+- **Purpose**: Fine-tune player movement speed, attack frame animations, combo chains, hitboxes, and invincibility frames.
+
+### 3. 🗺️ Level Designer Editor
+- **Command**: `make level-editor` or `python level_editor.py`
+- **Purpose**: Drag-and-drop level creator for placing ground platforms, environmental hazard props, enemy spawn zones, and story NPCs.
+
+### 4. 👾 Entity & Enemy Stats Editor
+- **Command**: `make entity-editor` or `python entity_editor.py`
+- **Purpose**: Balance enemy stats, speeds, and combat heuristics for Skeletons, Blood Zombies, Green Monsters, Dark Ronins, Fire Wizards, and Bats.
+
+### 5. 🎵 Audio Mixer Editor
+- **Command**: `make audio-editor` or `python audio_mixer_editor.py`
+- **Purpose**: Real-time sound effect and background music editor for tuning volume levels, sound triggers, pitch variations, and spatial audio channels.
+
+### 6. 🌊 Wave Manager Editor
+- **Command**: `make wave-editor` or `python wave_editor.py`
+- **Purpose**: Configure wave escalation curves, enemy spawn intervals, and minion caps per wave.
+
+### 7. 🧙 Fire Wizard Spell Editor
+- **Command**: `make wizard-editor` or `python wizard_editor.py`
+- **Purpose**: Specialized editor for tuning Fire Wizard fireball spell velocities, teleportation cooldowns, and range parameters.
+
+### 8. 👥 Ground Shadow Editor
+- **Command**: `make shadow-editor` or `python shadow_editor.py`
+- **Purpose**: Adjust ground shadow scale multipliers, vertical Y-offsets, and opacity for every character and enemy sprite.
+
+### 9. ⌨️ Controls & Keybindings Editor
+- **Command**: `make controls-editor` or `python controls_editor.py`
+- **Purpose**: Remap keyboard keys and gamepad controller buttons.
+
+### 10. 🎨 Power Icons & HUD Editor
+- **Command**: `make power-icons-editor` or `python power_icons_editor.py`
+- **Purpose**: Customize HUD element positioning, power-up icon coordinates, and status effect overlays.
+
+---
+
+## 📊 Analytics & Telemetry Tools
+
+### Gameplay Analytics Report Tool
+Analyze local gameplay tracking databases to generate performance reports on player accuracy, kill counts, and combat efficiency:
+```bash
+make analyze
+# Or: python analyze_gameplay.py
+```
+
+### Serverless Telemetry API (`pixel-runner-api/`)
+The cloud backend is a **FastAPI** serverless application deployed on Vercel that ingests live telemetry sessions and evaluates aggregated difficulty recommendations.
+
+- **Vercel API URL**: `https://pixel-runner-wheat.vercel.app`
+- **Health Check Endpoint**: `https://pixel-runner-wheat.vercel.app/health`
+- **Deploying API Updates**:
+  ```bash
+  npx vercel --prod
+  ```
+
+---
+
+## ⚙️ Environment Variables Summary
+
+| Environment Variable | Allowed Values | Default | Purpose |
+| :--- | :--- | :--- | :--- |
+| `AI_DIFFICULTY` | `EASY`, `MEDIUM`, `HARD`, `NIGHTMARE` | `MEDIUM` | Controls enemy sensory perception and tactical squad aggression. |
+| `TRACKER_ENABLED` | `1`, `0` | `0` | Enables live telemetry tracking and metrics collection. |
+| `DEBUG_TELEMETRY_HTTP` | `1`, `0` | `0` | Prints verbose HTTP network connection logs for telemetry sync. |
+| `PIXEL_RUNNER_API_URL` | URL string | `https://pixel-runner-wheat.vercel.app` | Base URL for the cloud telemetry API server. |
+| `GAME_LEVEL_PATH` | File path string | `None` | Overrides the default level configuration JSON file. |
+
+---
+
+## 🛠️ Makefile Command Reference
+
+```bash
+make install           # Create .venv and install dependencies
+make engine-dev        # Link engine source code in editable mode
+make run               # Launch standard game (Full story mode)
+make dev               # Launch directly into combat scene (Fast-pass)
+make track             # Launch game with live telemetry tracking enabled
+make hard              # Launch game in HARD AI difficulty
+make nightmare         # Launch game in NIGHTMARE AI difficulty
+make test              # Run complete unit test suite (pytest)
+make analyze           # Generate gameplay analytics report
+make boss-editor       # Launch Boss Visual GUI Editor
+make player-editor     # Launch Player Animation & Move-Set Editor
+make level-editor      # Launch Level Designer Tool
+make entity-editor     # Launch Enemy Stats & Heuristic Editor
+make audio-editor      # Launch Audio & SFX Mixer Editor
+make wave-editor       # Launch Enemy Wave Spawning Manager
+make wizard-editor     # Launch Fire Wizard Spell Editor
+make shadow-editor     # Launch Ground Shadow Scale & Offset Editor
+make controls-editor   # Launch Keybindings & Gamepad Remapper
+make power-icons-editor# Launch Power Icons & HUD Placement Editor
+make clean             # Remove virtual environment and bytecode caches
+```

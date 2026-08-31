@@ -89,6 +89,9 @@ def verify_write_access(auth_secret: Optional[str]):
 # ─────────────────────────────────────────────────────────────────────────
 # Health Endpoint
 # ─────────────────────────────────────────────────────────────────────────
+# Health Endpoint
+# ─────────────────────────────────────────────────────────────────────────
+@app.get("/health")
 @app.get("/api/health")
 def health_check():
     """Verify backend connectivity to Supabase and Upstash Redis."""
@@ -119,6 +122,7 @@ def health_check():
 # ─────────────────────────────────────────────────────────────────────────
 # Config Retrieval & Management Endpoints
 # ─────────────────────────────────────────────────────────────────────────
+@app.get("/configs/{config_type}")
 @app.get("/api/configs/{config_type}")
 def get_config(config_type: str):
     """Retrieve the active configuration, checking cache first, then Supabase."""
@@ -139,12 +143,14 @@ def get_config(config_type: str):
         detail=f"Configuration of type '{config_type}' not found."
     )
 
+@app.get("/configs/{config_type}/versions")
 @app.get("/api/configs/{config_type}/versions")
 def get_config_versions(config_type: str):
     """List all versions of a configuration type."""
     versions = db.get_config_versions(config_type)
     return versions
 
+@app.get("/difficulty/{boss_key}")
 @app.get("/api/difficulty/{boss_key}")
 def get_difficulty_recommendation(boss_key: str, limit: int = 20):
     """Return an aggregated difficulty recommendation for a boss type, computed
@@ -176,6 +182,7 @@ def get_difficulty_recommendation(boss_key: str, limit: int = 20):
     cache.set_cached_difficulty(boss_key, result)
     return result
 
+@app.post("/configs/{config_type}", status_code=status.HTTP_201_CREATED)
 @app.post("/api/configs/{config_type}", status_code=status.HTTP_201_CREATED)
 def create_config(
     config_type: str,
@@ -205,6 +212,7 @@ def create_config(
 # ─────────────────────────────────────────────────────────────────────────
 # Telemetry Ingestion Endpoints
 # ─────────────────────────────────────────────────────────────────────────
+@app.post("/telemetry/session")
 @app.post("/api/telemetry/session")
 def post_session(payload: SessionPayload):
     """Save or update play session telemetry metrics."""
@@ -217,6 +225,7 @@ def post_session(payload: SessionPayload):
             detail=f"Failed to save session: {e}"
         )
 
+@app.post("/telemetry/events")
 @app.post("/api/telemetry/events")
 def post_events(payload: List[EventItem]):
     """Batch upload gameplay telemetry events."""
@@ -253,6 +262,7 @@ def post_events(payload: List[EventItem]):
             detail=f"Failed to upload events: {e}"
         )
 
+@app.post("/telemetry/frames")
 @app.post("/api/telemetry/frames")
 def post_frames(payload: List[FrameSampleItem]):
     """Batch upload frame sample telemetry snapshots."""

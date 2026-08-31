@@ -123,7 +123,7 @@ class ConfigClient:
     @classmethod
     def _fetch_from_api(cls, config_type: str) -> Optional[Dict[str, Any]]:
         """HTTP GET to API server with 1.5 second timeout in background thread."""
-        url = f"{API_BASE_URL.rstrip('/')}/api/configs/{config_type}"
+        url = f"{API_BASE_URL.rstrip('/')}/configs/{config_type}"
         try:
             req = urllib.request.Request(
                 url,

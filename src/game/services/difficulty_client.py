@@ -54,10 +54,10 @@ class DifficultyClient:
 
     @classmethod
     def _fetch(cls, boss_key: str, handle: DifficultyFetchHandle) -> None:
-        url = f"{API_BASE_URL.rstrip('/')}/api/difficulty/{boss_key}"
+        url = f"{API_BASE_URL.rstrip('/')}/difficulty/{boss_key}"
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Pixel-Runner Game Client"})
-            with urllib.request.urlopen(req, timeout=3.0) as response:
+            with urllib.request.urlopen(req, timeout=6.0) as response:
                 if response.status == 200:
                     data = json.loads(response.read().decode("utf-8"))
                     handle._set_result(data.get("config"))

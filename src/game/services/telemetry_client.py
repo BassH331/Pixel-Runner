@@ -23,7 +23,7 @@ class TelemetryClient:
         """Submit play session summary to the server in a background thread."""
         threading.Thread(
             target=cls._post_telemetry,
-            args=("/api/telemetry/session", session_data),
+            args=("/telemetry/session", session_data),
             daemon=True
         ).start()
 
@@ -34,7 +34,7 @@ class TelemetryClient:
             return
         threading.Thread(
             target=cls._post_telemetry,
-            args=("/api/telemetry/events", events),
+            args=("/telemetry/events", events),
             daemon=True
         ).start()
 
@@ -45,7 +45,7 @@ class TelemetryClient:
             return
         threading.Thread(
             target=cls._post_telemetry,
-            args=("/api/telemetry/frames", frames),
+            args=("/telemetry/frames", frames),
             daemon=True
         ).start()
 
@@ -77,12 +77,15 @@ class TelemetryClient:
                 if response.status in (200, 201):
                     return True
         except urllib.error.URLError as e:
-            print(f"[TELEMETRY CLIENT ERROR] Connection failed for {endpoint}: {e}")
+            if os.environ.get("DEBUG_TELEMETRY_HTTP") == "1":
+                print(f"[TELEMETRY CLIENT ERROR] Connection failed for {endpoint}: {e}")
         except Exception as e:
-            print(f"[TELEMETRY CLIENT ERROR] Unexpected failure for {endpoint}: {e}")
+            if os.environ.get("DEBUG_TELEMETRY_HTTP") == "1":
+                print(f"[TELEMETRY CLIENT ERROR] Unexpected failure for {endpoint}: {e}")
 
         # If we reach here, submission failed. Queue payload in SQLite cache for later.
-        print(f"[TELEMETRY CLIENT] Queued failed telemetry for {endpoint} to local SQLite cache.")
+        if os.environ.get("DEBUG_TELEMETRY_HTTP") == "1":
+            print(f"[TELEMETRY CLIENT] Queued failed telemetry for {endpoint} to local SQLite cache.")
         LocalCache.queue_telemetry(endpoint, data)
         return False
 
@@ -93,7 +96,8 @@ class TelemetryClient:
         if not pending:
             return
             
-        print(f"[TELEMETRY CLIENT] Found {len(pending)} pending telemetry items in cache. Retrying...")
+        if os.environ.get("DEBUG_TELEMETRY_HTTP") == "1":
+            print(f"[TELEMETRY CLIENT] Found {len(pending)} pending telemetry items in cache. Retrying...")
         
         for queue_id, endpoint, payload in pending:
             url = f"{API_BASE_URL.rstrip('/')}{endpoint}"
@@ -112,8 +116,10 @@ class TelemetryClient:
                 with urllib.request.urlopen(req, timeout=5.0) as response:
                     if response.status in (200, 201):
                         LocalCache.delete_queued_telemetry(queue_id)
-                        print(f"[TELEMETRY CLIENT] Successfully sent pending item ID {queue_id} to {endpoint}")
+                        if os.environ.get("DEBUG_TELEMETRY_HTTP") == "1":
+                            print(f"[TELEMETRY CLIENT] Successfully sent pending item ID {queue_id} to {endpoint}")
             except Exception as e:
                 # Stop retrying if the network is still down or server errors out
-                print(f"[TELEMETRY CLIENT] Failed to resend queued item ID {queue_id} to {endpoint}: {e}. Retries paused.")
+                if os.environ.get("DEBUG_TELEMETRY_HTTP") == "1":
+                    print(f"[TELEMETRY CLIENT] Failed to resend queued item ID {queue_id} to {endpoint}: {e}. Retries paused.")
                 break

@@ -17,7 +17,7 @@ import pygame as pg
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from src.game.audio.entity_audio_mixin import EntityAudioMixin
 from .hitbox_registry import HitboxRegistry
-from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, UtilityCombatEngine, TacticalAction
+from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, SquadCoordinator, SquadRole, UtilityCombatEngine, TacticalAction
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -242,7 +242,14 @@ class DarkRonin(EntityAudioMixin, Actor):
                     self.set_state(DarkRoninState.CHASE)
                 elif action == TacticalAction.CHASE and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE):
                     self.set_state(DarkRoninState.CHASE)
-                    self.rect.x += int(self._direction * self.move_speed)
+                    target_x = SquadCoordinator.get_instance().get_target_offset_x(
+                        id(self), player_sprite.rect, getattr(player_sprite, "facing_left", False), 65.0
+                    )
+                    dx = target_x - self.rect.centerx
+                    if abs(dx) > 5:
+                        move_dir = 1 if dx > 0 else -1
+                        self.rect.x += move_dir * int(self.move_speed)
+                        self._direction = move_dir
 
         # Release token if not in an attacking state
         if self._state not in (DarkRoninState.ATTACK, DarkRoninState.DASH_STRIKE):
