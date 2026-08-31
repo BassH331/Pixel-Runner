@@ -5,7 +5,7 @@ Environment Manager — Data-driven manager for game backgrounds, sky layers, gr
 from __future__ import annotations
 
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Sky
@@ -208,6 +208,9 @@ class EnvironmentManager:
         self.bg_music_track: str = "game_loop"
         self.ground_y: int = 686
         self.config: Dict[str, Any] = {}
+
+        # Per-frame ground Y cache: quantized X range -> computed ground Y
+        self._ground_y_cache: Dict[Tuple[int, int, bool], Optional[float]] = {}
 
         self._init_empty_layer_stacks()
 
@@ -457,6 +460,11 @@ class EnvironmentManager:
         else:
             x_min, x_max = float(x), float(x)
 
+        # Quantize X range into 32px spatial buckets for fast per-frame cache lookup
+        cache_key = (int(x_min) // 32, int(x_max) // 32, fallback_to_default)
+        if cache_key in self._ground_y_cache:
+            return self._ground_y_cache[cache_key]
+
         solid_ys = []
         for prop in self.props:
             if getattr(prop, "is_ground", True) and getattr(prop, "collision_type", "solid") in ("solid", "platform"):
@@ -465,14 +473,14 @@ class EnvironmentManager:
                 if max(px, x_min) <= min(px + pw, x_max):
                     offset_y = getattr(prop, "collision_offset_y", 0.0)
                     solid_ys.append(prop.pos_y + offset_y)
-        if solid_ys:
-            return float(min(solid_ys))
-        if fallback_to_default:
-            return float(self.ground_y)
-        return None
+
+        res: Optional[float] = float(min(solid_ys)) if solid_ys else (float(self.ground_y) if fallback_to_default else None)
+        self._ground_y_cache[cache_key] = res
+        return res
 
     def update(self, dt: float, player_speed: float = 0.0) -> None:
         """Update sky and background parallax layers across all layer stacks."""
+        self._ground_y_cache.clear()
         if self.sky:
             self.sky.update(dt)
         for stack in self.layer_stacks.values():

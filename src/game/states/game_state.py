@@ -38,6 +38,7 @@ from src.game.systems.shadow_renderer import ShadowRenderer
 from src.game.effects.particle_system import ParticleManager
 from src.game.services.save_manager import SaveManager
 from src.game.debug.simulation_runner import SimulationRunner
+from src.game.ai import SquadCoordinator
 from v3x_zulfiqar_gideon import AssetManager, State, EventBus, EntityDied, Camera
 
 if TYPE_CHECKING:
@@ -1023,7 +1024,6 @@ class GameState(PlayingState):
                     for e in self.obstacle_group.sprites()
                 ]
                 p_facing_left = getattr(player_sprite, "facing_left", False)
-                from src.game.ai import SquadCoordinator
                 SquadCoordinator.get_instance().update_squad_roles(active_enemies_list, player_sprite.rect, p_facing_left)
 
             self.obstacle_group.update(dt, self.bg_scroll_speed)

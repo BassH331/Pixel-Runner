@@ -167,6 +167,11 @@ class GameplayTracker:
         self.damage_logged_this_frame = False
         GameplayTracker._instance = self
         
+        # Buffered I/O: accumulate entries in memory, flush periodically
+        self._write_buffer: list[str] = []
+        self._BUFFER_FLUSH_SIZE: int = 60  # flush every ~1 second at 60fps
+        self._file_handle = None
+        
         if self.enabled:
             self._initialize_session()
             # Retry any pending telemetry from offline cache in the background
@@ -191,11 +196,23 @@ class GameplayTracker:
     def _rotate_file(self) -> None:
         """Create new log file, increment file index."""
         try:
+            # Close previous file handle if open
+            if self._file_handle is not None:
+                try:
+                    self._file_handle.flush()
+                    self._file_handle.close()
+                except Exception:
+                    pass
+            
             self.current_file_path = (
                 self.log_dir / f"session_{self.session_timestamp}_{self.current_file_index:03d}.jsonl"
             )
             self.current_file_size = 0
             self.current_file_index += 1
+            
+            # Open persistent file handle for append
+            self._file_handle = open(self.current_file_path, "a")
+            
             if self.console_output:
                 print(f"[TRACKER] Rotated to: {self.current_file_path.name}")
         except Exception as e:
@@ -624,15 +641,14 @@ class GameplayTracker:
     # ─────────────────────────────────────────────────────────────────────────
     
     def _write_entry(self, entry: dict[str, Any]) -> None:
-        """Write a single entry to the current log file."""
-        if not self.enabled or not self.current_file_path:
+        """Write a single entry to the current log file using the open handle."""
+        if not self.enabled or self._file_handle is None:
             return
         
         try:
             line = json.dumps(entry) + "\n"
-            
-            with open(self.current_file_path, "a") as f:
-                f.write(line)
+            self._file_handle.write(line)
+            self._file_handle.flush()
             
             self.current_file_size += len(line.encode("utf-8"))
             
@@ -652,6 +668,11 @@ class GameplayTracker:
     def flush(self) -> None:
         """Flush and finalize logging (call on session exit)."""
         if self.enabled:
+            if self._file_handle is not None:
+                try:
+                    self._file_handle.flush()
+                except Exception:
+                    pass
             self._write_manifest()
             
             # Submit final session metrics
@@ -698,3 +719,9 @@ class GameplayTracker:
     def close(self) -> None:
         """Close the tracker and write final manifest."""
         self.flush()
+        if self._file_handle is not None:
+            try:
+                self._file_handle.close()
+            except Exception:
+                pass
+            self._file_handle = None

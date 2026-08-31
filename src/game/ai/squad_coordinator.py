@@ -10,11 +10,14 @@ Orchestrates multi-enemy group tactics:
 
 from __future__ import annotations
 
+import logging
 import math
 import random
 from enum import Enum, auto
 from typing import Dict, List, Optional, Set, Tuple
 import pygame as pg
+
+logger = logging.getLogger(__name__)
 
 
 class SquadRole(Enum):
@@ -91,11 +94,14 @@ class SquadCoordinator:
                 # Additional enemies act as Support Baiters holding perimeter
                 self._enemy_roles[e_id] = SquadRole.SUPPORT_BAITER
 
-        # Log squad tactical coordination to console
+        # Log squad tactical coordination
         if len(active_enemies) >= 2:
             front_id = active_enemies[0][0]
             flanker_id = active_enemies[1][0]
-            print(f"[AI SQUAD PINCE] Flanking Surround Formed! Front Harasser: #{front_id % 10000:04d} | Rear Flanker: #{flanker_id % 10000:04d} (Pincer Positioning active)")
+            logger.debug(
+                "[AI SQUAD PINCE] Flanking Surround Formed! Front Harasser: #%04d | Rear Flanker: #%04d (Pincer Positioning active)",
+                front_id % 10000, flanker_id % 10000,
+            )
 
     def get_role(self, enemy_id: int) -> SquadRole:
         return self._enemy_roles.get(enemy_id, SquadRole.FRONT_HARASSER)
@@ -135,7 +141,10 @@ class SquadCoordinator:
         if role in (SquadRole.FRONT_HARASSER, SquadRole.REAR_FLANKER) and can_attack:
             if now - self._last_pincer_time > 2.5:
                 self._last_pincer_time = now
-                print(f"[AI SQUAD PINCE] PINCER DUAL-STRIKE! Enemy #{enemy_id % 10000:04d} ({role.name}) launching coordinated attack!")
+                logger.debug(
+                    "[AI SQUAD PINCE] PINCER DUAL-STRIKE! Enemy #%04d (%s) launching coordinated attack!",
+                    enemy_id % 10000, role.name,
+                )
                 return True
 
         return False

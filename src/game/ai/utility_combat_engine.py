@@ -11,12 +11,16 @@ Calculates dynamic utility scores for candidate combat actions:
 
 from __future__ import annotations
 
+import logging
+import os
 import random
 from enum import Enum, auto
 from typing import Optional, TYPE_CHECKING
 import pygame as pg
 
 from src.game.debug.gameplay_tracker import GameplayTracker
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -45,7 +49,6 @@ class UtilityCombatEngine:
         self.preferred_spacing: float = preferred_spacing
 
         # Heuristic tuning factors (modified by telemetry)
-        import os
         diff = os.environ.get("AI_DIFFICULTY", "").upper()
         if diff == "NIGHTMARE":
             self.aggression_weight = 1.4
@@ -109,14 +112,14 @@ class UtilityCombatEngine:
         # 1. Whiff Punishment Opportunity: Player missed attack and is recovering
         if player_is_recovering and dist_x < (self.preferred_spacing + 40) and dist_y < 120:
             if can_attack and has_attack_token:
-                print(f"[AI TACTICS] WHIFF PUNISHMENT triggered! Player missed swing (recovering) -> Enemy initiating counter-strike!")
+                logger.debug("[AI TACTICS] WHIFF PUNISHMENT triggered! Player missed swing (recovering) -> Enemy initiating counter-strike!")
                 return TacticalAction.PUNISH_WHIFF
 
         # 2. Retract / Step back: Player is actively swinging close to the enemy
         if player_is_attacking and dist_x < (self.preferred_spacing + 30) and dist_y < 100:
             # If enemy has special dash/teleport ability, use it
             if self.has_dash_evasion and random.random() < 0.6:
-                print(f"[AI TACTICS] DASH EVASION triggered! Player swinging close -> Executing mobility dash.")
+                logger.debug("[AI TACTICS] DASH EVASION triggered! Player swinging close -> Executing mobility dash.")
                 return TacticalAction.DASH_EVADE
             # Otherwise use tactical spacing retraction (no imaginary dodge anims)
             if random.random() < self.retract_chance:
@@ -166,4 +169,7 @@ class UtilityCombatEngine:
                 self.aggression_weight = 1.2
 
             if abs(self.retract_chance - old_retract) > 0.01 or player_hit_rate > 0.6:
-                print(f"[AI TELEMETRY ADAPT] Live Combat Tuning -> Player Accuracy: {player_hit_rate*100:.1f}% | Aggression: {player_aggression:.1f} atk/min -> Adjusted Retraction Chance: {self.retract_chance*100:.1f}%, Whiff Sensitivity: {self.whiff_sensitivity:.2f}")
+                logger.debug(
+                    "[AI TELEMETRY ADAPT] Live Combat Tuning -> Player Accuracy: %.1f%% | Aggression: %.1f atk/min -> Adjusted Retraction Chance: %.1f%%, Whiff Sensitivity: %.2f",
+                    player_hit_rate * 100, player_aggression, self.retract_chance * 100, self.whiff_sensitivity,
+                )
