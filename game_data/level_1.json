@@ -40,9 +40,9 @@
                 "visible": true
             },
             "2": {
-                "name": "L2: Mid-Background",
+                "name": "L2: Distant Jungle Silhouette",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/jungle_bg.png",
-                "scroll_ratio": 1.0,
+                "scroll_ratio": 0.18,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -51,9 +51,9 @@
                 "visible": true
             },
             "3": {
-                "name": "L3: Ground & Terrain",
+                "name": "L3: Midground Forest Canopy",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/trees&bushes.png",
-                "scroll_ratio": 1.0,
+                "scroll_ratio": 0.40,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -62,9 +62,9 @@
                 "visible": true
             },
             "4": {
-                "name": "L4: Props & Objects",
-                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grasses.png",
-                "scroll_ratio": 1.0,
+                "name": "L4: Spirit Tree Landmark",
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/tree_face.png",
+                "scroll_ratio": 0.58,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -73,9 +73,9 @@
                 "visible": true
             },
             "5": {
-                "name": "L5: Foreground Foliage",
-                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/lianas.png",
-                "scroll_ratio": 1.0,
+                "name": "L5: Near-Ground Reeds & Bushes",
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grasses.png",
+                "scroll_ratio": 0.75,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -84,9 +84,9 @@
                 "visible": true
             },
             "6": {
-                "name": "L6: Ground & Objects L6",
+                "name": "L6: Main Road & Running Ground",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grass&road.png",
-                "scroll_ratio": 1.0,
+                "scroll_ratio": 1.00,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -95,9 +95,9 @@
                 "visible": true
             },
             "7": {
-                "name": "L7: Ground & Objects L7",
-                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/tree_face.png",
-                "scroll_ratio": 1.0,
+                "name": "L7: Ambient Floating Embers",
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/fireflys.png",
+                "scroll_ratio": 1.12,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -106,9 +106,9 @@
                 "visible": true
             },
             "8": {
-                "name": "L8: Ground & Objects L8",
-                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/fireflys.png",
-                "scroll_ratio": 1.0,
+                "name": "L8: Foreground Hanging Lianas",
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/lianas.png",
+                "scroll_ratio": 1.28,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -125,37 +125,37 @@
             },
             {
                 "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/jungle_bg.png",
-                "scroll_ratio": 1.0,
+                "scroll_ratio": 0.18,
                 "repeat_x": true
             },
             {
                 "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/trees&bushes.png",
-                "scroll_ratio": 1.0,
-                "repeat_x": true
-            },
-            {
-                "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grasses.png",
-                "scroll_ratio": 1.0,
-                "repeat_x": true
-            },
-            {
-                "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/lianas.png",
-                "scroll_ratio": 1.0,
-                "repeat_x": true
-            },
-            {
-                "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grass&road.png",
-                "scroll_ratio": 1.0,
+                "scroll_ratio": 0.40,
                 "repeat_x": true
             },
             {
                 "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/tree_face.png",
-                "scroll_ratio": 1.0,
+                "scroll_ratio": 0.58,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grasses.png",
+                "scroll_ratio": 0.75,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grass&road.png",
+                "scroll_ratio": 1.00,
                 "repeat_x": true
             },
             {
                 "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/fireflys.png",
-                "scroll_ratio": 1.0,
+                "scroll_ratio": 1.12,
+                "repeat_x": true
+            },
+            {
+                "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/lianas.png",
+                "scroll_ratio": 1.28,
                 "repeat_x": true
             }
         ],
