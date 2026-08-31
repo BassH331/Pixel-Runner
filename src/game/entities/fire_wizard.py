@@ -18,6 +18,7 @@ import pygame as pg
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from .hitbox_registry import HitboxRegistry
 from ..services import ConfigClient
+from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, UtilityCombatEngine, TacticalAction
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -284,12 +285,24 @@ class FireWizard(EntityAudioMixin, Actor):
         height = surf.get_height() if surf else 720
         self._ground_y: Optional[int] = height - margins.ground_offset
         
-        # AI bounds
+        # AI bounds & perception components
         self._detection_range: int = 3000 if self.tier == "boss" else 1000
         self._attack_range: int = 120  # Wizard cast range is longer
         self._vertical_tolerance: int = 500 if self.tier == "boss" else 100
         self.spawn_zone: Optional[dict] = None
-        
+
+        self.perception = PerceptionSystem(
+            vision_range=float(self._detection_range),
+            hearing_range=1000.0,
+            reaction_delay_sec=0.12,
+        )
+        self.utility_engine = UtilityCombatEngine(
+            has_dash_evasion=True,
+            has_block_anim=False,
+            preferred_spacing=250.0,
+        )
+        SquadTokenManager.get_instance().register_enemy(id(self), self.tier)
+
         # Precalculate scaled hitbox dimensions for high-performance updates
         self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
         self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
@@ -460,6 +473,7 @@ class FireWizard(EntityAudioMixin, Actor):
         
         # Clean up once death animation is fully finished
         if self.state == FireWizardState.DEATH and int(self.animation_index) >= len(self.animations[FireWizardState.DEATH]) - 1:
+            SquadTokenManager.get_instance().unregister_enemy(id(self))
             self.kill()
 
     def _spawn_fireball(self) -> None:
@@ -496,7 +510,10 @@ class FireWizard(EntityAudioMixin, Actor):
         if self._player is None:
             return
             
-        player_rect = self._player.rect
+        player_rect = getattr(self._player, "rect", None)
+        if player_rect is None:
+            return
+            
         dist_offset = random.randint(self._teleport_dist_min, self._teleport_dist_max)
         
         # Teleport to the opposite side of the player
@@ -528,49 +545,45 @@ class FireWizard(EntityAudioMixin, Actor):
         if self._spidey_sense > 0.0 and random.random() < self._spidey_sense:
             print(f"[SPIDEY SENSE] Dodged player attack! (Setting: {self._spidey_sense:.2f})")
             if self._spidey_sense >= 0.8:
-                # GOD MODE: know all moves and how to counter!
-                # Teleport behind the player and counter-attack immediately
                 if self._player is not None:
-                    player_rect = self._player.rect
-                    if self._player.facing_left:
-                        target_x = player_rect.centerx + 180
-                        self.facing_left = True
-                    else:
-                        target_x = player_rect.centerx - 180
-                        self.facing_left = False
+                    player_rect = getattr(self._player, "rect", None)
+                    if player_rect:
+                        if getattr(self._player, "facing_left", False):
+                            target_x = player_rect.centerx + 180
+                            self.facing_left = True
+                        else:
+                            target_x = player_rect.centerx - 180
+                            self.facing_left = False
+                            
+                        target_x = max(50, min(1200, target_x))
+                        self.rect.centerx = target_x
+                        if self._ground_y is not None:
+                            self.rect.bottom = self._ground_y
+                        self._gravity = 0.0
                         
-                    target_x = max(50, min(1200, target_x))
-                    self.rect.centerx = target_x
-                    if self._ground_y is not None:
-                        self.rect.bottom = self._ground_y
-                    self._gravity = 0.0
-                    
-                    # Recharge enough mana to cast counter spell
-                    self._mana = max(self._mana, self._spell_mana_cost)
-                    self._teleport_flash_timer = 0.6
-                    self._chase_cooldown = 1.0
-                    
-                    # Trigger immediate counter attack
-                    self._has_spawned_attack_effect = False
-                    self.set_state(FireWizardState.ATTACK, force=True)
-                    self._attack_cooldown = random.uniform(self._attack_cooldown_min, self._attack_cooldown_max)
-                    print("[SPIDEY SENSE] COUNTER-ATTACK INITIATED!")
-                    return
+                        self._mana = max(self._mana, self._spell_mana_cost)
+                        self._teleport_flash_timer = 0.6
+                        self._chase_cooldown = 1.0
+                        
+                        self._has_spawned_attack_effect = False
+                        self.set_state(FireWizardState.ATTACK, force=True)
+                        self._attack_cooldown = random.uniform(self._attack_cooldown_min, self._attack_cooldown_max)
+                        print("[SPIDEY SENSE] COUNTER-ATTACK INITIATED!")
+                        return
             else:
-                # Standard spidey sense: teleport away to safety
                 self._trigger_teleport_recharge()
                 return
             
         self._health = max(0, self._health - amount)
         self.attack_state.end()
         
-        # If stagnant, taking damage triggers hurt animation, then teleport retreat to recharge
         if self._is_stagnant and self._health > 0:
             self.set_state(FireWizardState.HURT, force=True)
             self._teleport_after_hurt = True
             return
             
         if self._health <= 0:
+            SquadTokenManager.get_instance().unregister_enemy(id(self))
             self.set_state(FireWizardState.DEATH, force=True)
         else:
             self.set_state(FireWizardState.HURT, force=True)
@@ -581,8 +594,14 @@ class FireWizard(EntityAudioMixin, Actor):
             
         if self.state == FireWizardState.ATTACK:
             return
-            
-        # If mana is low, trigger stagnant/exhausted phase
+
+        # 1. Update perception
+        alert = self.perception.update(0.016, self.rect, self.facing_left, self._player)
+        if alert == AlertLevel.UNAWARE:
+            self.set_state(FireWizardState.IDLE)
+            return
+
+        # 2. If mana is low, trigger stagnant/exhausted phase
         if self._mana < self._spell_mana_cost and not self._is_recharging and not self._is_stagnant:
             self._is_stagnant = True
             self._stagnant_timer = self._stagnant_duration
@@ -599,12 +618,15 @@ class FireWizard(EntityAudioMixin, Actor):
             self.set_state(FireWizardState.IDLE)
             return
             
-        player_rect = self._player.rect
+        player_rect = getattr(self._player, "rect", None)
+        if player_rect is None:
+            return
+
         dist_x = self.rect.centerx - player_rect.centerx
         abs_dist_x = abs(dist_x)
         dist_y = abs(self.rect.centery - player_rect.centery)
         
-        # Check if in ranged attack zone and attack is off cooldown (needs at least spell_mana_cost mana)
+        # Check if in ranged attack zone and attack is off cooldown
         if dist_y < self._vertical_tolerance:
             if 120 <= abs_dist_x <= 260 and self._attack_cooldown <= 0.0 and self._mana >= self._spell_mana_cost:
                 self._chase_delay_timer = 0.0
@@ -612,10 +634,9 @@ class FireWizard(EntityAudioMixin, Actor):
                 self._begin_attack()
                 return
                 
-        # If player runs away, allow a brief window to run before pursuing (similar to skeletons)
         if abs_dist_x > 260:
             if self.state == FireWizardState.IDLE and not self._chase_delay_active:
-                self._chase_delay_timer = self._chase_delay_duration  # Configured grace window
+                self._chase_delay_timer = self._chase_delay_duration
                 self._chase_delay_active = True
                 
         if self._chase_delay_active:

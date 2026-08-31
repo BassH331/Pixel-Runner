@@ -18,6 +18,7 @@ from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from src.game.audio.entity_audio_mixin import EntityAudioMixin
 from .hitbox_registry import HitboxRegistry
 from ..services import ConfigClient
+from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, UtilityCombatEngine, TacticalAction
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -317,7 +318,7 @@ class Skeleton(EntityAudioMixin, Actor):
         height = surf.get_height() if surf else 720
         self._ground_y: Optional[int] = height - margins.ground_offset
         
-        # AI configuration
+        # AI configuration & perception components
         if not hasattr(self, "_detection_range"):
             self._detection_range = 3000 if self.tier == "boss" else 1000
         if not hasattr(self, "_attack_range"):
@@ -325,7 +326,19 @@ class Skeleton(EntityAudioMixin, Actor):
         if not hasattr(self, "_vertical_tolerance"):
             self._vertical_tolerance = 500 if self.tier == "boss" else 100
         self.spawn_zone: Optional[dict] = None
-        
+
+        self.perception = PerceptionSystem(
+            vision_range=float(self._detection_range),
+            hearing_range=650.0,
+            reaction_delay_sec=0.18,
+        )
+        self.utility_engine = UtilityCombatEngine(
+            has_dash_evasion=False,
+            has_block_anim=False,
+            preferred_spacing=float(self._attack_range),
+        )
+        SquadTokenManager.get_instance().register_enemy(id(self), self.tier)
+
         # Precalculate scaled hitbox dimensions for high-performance updates
         self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
         self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
@@ -429,6 +442,8 @@ class Skeleton(EntityAudioMixin, Actor):
 
     def update(self, dt: Optional[float] = None, scroll_speed: int = 0) -> None:
         if dt is None: dt = 1.0 / 60.0
+        dt_sec = dt if dt < 1.0 else dt / 1000.0
+
         self.rect.x -= scroll_speed
         
         # Apply horizontal knockback velocity
@@ -439,38 +454,31 @@ class Skeleton(EntityAudioMixin, Actor):
             self._knockback_vel_x = 0.0
             
         self._apply_gravity()
-        self._update_ai()
+        self._update_ai(dt_sec)
         
         super().update(dt) # Handles state machines and animations
         if getattr(self, "natively_facing_left", False) and self.image:
             self.image = pg.transform.flip(self.image, True, False)
         self._update_animation_audio()
         
+        # Release token if attack completed or left attack state
+        if self.state != SkeletonState.ATTACK:
+            SquadTokenManager.get_instance().release_attack_token(id(self))
+
         # Cleanup on death animation completion
         if self.state == SkeletonState.DEATH and int(self.animation_index) >= len(self.animations[SkeletonState.DEATH]) - 1:
+            SquadTokenManager.get_instance().unregister_enemy(id(self))
             self.kill()
 
+    def kill(self) -> None:
+        SquadTokenManager.get_instance().unregister_enemy(id(self))
+        super().kill()
+
     def take_damage(self, amount: float = 0.5, knockback: tuple[float, float] | None = None) -> None:
-        """
-        Reduce the skeleton's health and switch its animation state.
-
-        Important:
-        This method does NOT play sound directly.
-
-        Reason:
-        The Skeleton class should only care about skeleton logic:
-        - health
-        - attack state
-        - hurt state
-        - death state
-
-        Audio is handled in GameState because GameState owns the audio manager
-        and knows which gameplay event just happened.
-        """
-
-        # Do not allow repeated damage while the skeleton is already hurt or dead.
         if self.state in (SkeletonState.HURT, SkeletonState.DEATH):
             return
+
+        SquadTokenManager.get_instance().release_attack_token(id(self))
 
         # Lower health, but never allow health to go below 0.
         self._health = max(0, self._health - amount)
@@ -480,6 +488,7 @@ class Skeleton(EntityAudioMixin, Actor):
 
         # If health is finished, switch to death animation.
         if self._health <= 0:
+            SquadTokenManager.get_instance().unregister_enemy(id(self))
             self.set_state(SkeletonState.DEATH, force=True)
         # Otherwise, switch to hurt animation.
         else:
@@ -497,26 +506,47 @@ class Skeleton(EntityAudioMixin, Actor):
     # Private: AI Logic
     # ─────────────────────────────────────────────────────────────────────────
     
-    def _update_ai(self) -> None:
+    def _update_ai(self, dt_sec: float = 0.016) -> None:
         if self._player is None or self.state in (SkeletonState.HURT, SkeletonState.DEATH):
             return
             
         player_rect = self._player.rect
-        dist_x = abs(self.rect.centerx - player_rect.centerx)
-        dist_y = abs(self.rect.centery - player_rect.centery)
-        
+
+        # 1. Update Perception (Vision Cone & Audio Detection)
+        alert = self.perception.update(dt_sec, self.rect, self.facing_left, self._player)
+        if alert == AlertLevel.UNAWARE:
+            self.set_state(SkeletonState.IDLE)
+            return
+
         if self.state == SkeletonState.ATTACK:
             return
-            
-        if dist_x < self._attack_range and dist_y < self._vertical_tolerance:
+
+        # 2. Check Attack Token from Squad Manager
+        has_token = SquadTokenManager.get_instance().request_attack_token(id(self))
+        dist_x = abs(self.rect.centerx - player_rect.centerx)
+
+        # 3. Utility Engine Action Evaluation
+        action = self.utility_engine.evaluate_action(
+            enemy_rect=self.rect,
+            player=self._player,
+            can_attack=(dist_x <= self._attack_range),
+            has_attack_token=has_token,
+            dt_sec=dt_sec,
+        )
+
+        if action == TacticalAction.PUNISH_WHIFF or action == TacticalAction.ATTACK:
             self._begin_attack()
-        elif dist_x < self._detection_range and dist_y < self._vertical_tolerance:
+        elif action == TacticalAction.RETRACT_SPACING:
+            # Step back away from player swing (tactical spacing, no imaginary dodge anim)
+            step_dir = 1 if self.rect.centerx > player_rect.centerx else -1
+            self.rect.x += step_dir * int(self._speed * 0.8)
+            self.facing_left = (self.rect.centerx > player_rect.centerx)
             self.set_state(SkeletonState.CHASE)
+        elif action == TacticalAction.CHASE:
+            self.set_state(SkeletonState.CHASE)
+            self._chase_player(player_rect)
         else:
             self.set_state(SkeletonState.IDLE)
-            
-        if self.state == SkeletonState.CHASE:
-            self._chase_player(player_rect)
     
     def _begin_attack(self) -> None:
         if random.random() < 0.5:

@@ -17,6 +17,7 @@ import pygame as pg
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from src.game.audio.entity_audio_mixin import EntityAudioMixin
 from .hitbox_registry import HitboxRegistry
+from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, UtilityCombatEngine, TacticalAction
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -109,6 +110,20 @@ class DarkRonin(EntityAudioMixin, Actor):
         self._hit_targets: set[int] = set()
         self._is_invincible: bool = False
         self._audio_manager = audio_manager
+
+        # AI Perception & Utility Engine
+        self.perception = PerceptionSystem(
+            vision_range=1500.0,
+            hearing_range=800.0,
+            reaction_delay_sec=0.15,
+        )
+        self.utility_engine = UtilityCombatEngine(
+            has_dash_evasion=True,
+            has_block_anim=False,
+            preferred_spacing=65.0,
+        )
+        SquadTokenManager.get_instance().register_enemy(id(self), "elite")
+
         # Audio setup
         self._init_entity_audio_config(audio_manager, "skeleton")
 
@@ -174,42 +189,64 @@ class DarkRonin(EntityAudioMixin, Actor):
     def update(self, dt: float = 16.67, bg_scroll_speed: float = 0.0) -> None:
         """Update DarkRonin AI, movement, and animation frames."""
         current_time = pg.time.get_ticks()
+        dt_sec = dt / 1000.0 if dt > 0.5 else dt
 
         # Adjust position for background scrolling
         self.rect.x -= int(bg_scroll_speed)
 
         # Handle Death State
         if self._state == DarkRoninState.DEATH:
+            SquadTokenManager.get_instance().unregister_enemy(id(self))
             self._update_animation()
             return
 
-        # AI Behavior
+        # AI Behavior with Perception and Utility Engine
         player_sprite = getattr(self._player, "sprite", self._player)
         if player_sprite and hasattr(player_sprite, "rect"):
-            dist_x = player_sprite.rect.centerx - self.rect.centerx
-            abs_dist = abs(dist_x)
+            # Update perception
+            facing_left = (self._direction == -1)
+            alert = self.perception.update(dt_sec, self.rect, facing_left, player_sprite)
 
-            # Face player direction
-            if abs_dist > 10 and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE):
-                self._direction = 1 if dist_x > 0 else -1
+            if alert == AlertLevel.UNAWARE:
+                self.set_state(DarkRoninState.IDLE)
+            else:
+                dist_x = player_sprite.rect.centerx - self.rect.centerx
+                abs_dist = abs(dist_x)
 
-            # Check Dash Strike trigger (120px - 280px range, off cooldown)
-            if (
-                120 <= abs_dist <= 280
-                and current_time - self.last_dash_time >= self.dash_cooldown_ms
-                and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE)
-            ):
-                self.last_dash_time = current_time
-                self.set_state(DarkRoninState.DASH_STRIKE)
+                if abs_dist > 10 and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE):
+                    self._direction = 1 if dist_x > 0 else -1
 
-            # Normal attack (in melee range < 65px)
-            elif abs_dist <= 65 and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE):
-                self.set_state(DarkRoninState.ATTACK)
+                has_token = SquadTokenManager.get_instance().request_attack_token(id(self))
+                can_attack = (abs_dist <= 65)
 
-            # Chase player
-            elif abs_dist > 65 and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE):
-                self.set_state(DarkRoninState.CHASE)
-                self.rect.x += int(self._direction * self.move_speed)
+                action = self.utility_engine.evaluate_action(
+                    enemy_rect=self.rect,
+                    player=player_sprite,
+                    can_attack=can_attack,
+                    has_attack_token=has_token,
+                    dt_sec=dt_sec,
+                )
+
+                # Melee attack takes precedence when in range
+                if (action in (TacticalAction.PUNISH_WHIFF, TacticalAction.ATTACK) or abs_dist <= 65) and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE):
+                    self.set_state(DarkRoninState.ATTACK)
+                elif (
+                    (action == TacticalAction.DASH_EVADE or 120 <= abs_dist <= 280)
+                    and current_time - self.last_dash_time >= self.dash_cooldown_ms
+                    and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE)
+                ):
+                    self.last_dash_time = current_time
+                    self.set_state(DarkRoninState.DASH_STRIKE)
+                elif action == TacticalAction.RETRACT_SPACING and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE):
+                    self.rect.x -= int(self._direction * self.move_speed)
+                    self.set_state(DarkRoninState.CHASE)
+                elif action == TacticalAction.CHASE and self._state in (DarkRoninState.IDLE, DarkRoninState.CHASE):
+                    self.set_state(DarkRoninState.CHASE)
+                    self.rect.x += int(self._direction * self.move_speed)
+
+        # Release token if not in an attacking state
+        if self._state not in (DarkRoninState.ATTACK, DarkRoninState.DASH_STRIKE):
+            SquadTokenManager.get_instance().release_attack_token(id(self))
 
         # Handle Dash Movement
         if self._state == DarkRoninState.DASH_STRIKE:

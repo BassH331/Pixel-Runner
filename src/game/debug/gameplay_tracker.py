@@ -279,6 +279,9 @@ class GameplayTracker:
             self.boss_hits_received += 1
             if data.get("target_is_boss") and data.get("target_health_after", 1.0) <= 0.0:
                 self.boss_defeated = True
+        elif event_type_str == "player_state_changed":
+            if data.get("new") in ("attack", "ATTACK", "special_attack"):
+                self.player_attacks = getattr(self, "player_attacks", 0) + 1
         elif event_type_str == "boss_state_changed":
             if data.get("new") == "attack":
                 self.boss_attacks += 1
@@ -294,7 +297,7 @@ class GameplayTracker:
             self.boss_defeated = True
         elif event_type_str == "boss_attack_hit_player":
             self.successful_boss_attacks += 1
-            
+
         entry = {
             "type": "event",
             "event_type": event_type_str,
@@ -312,6 +315,23 @@ class GameplayTracker:
         TelemetryClient.submit_events([telemetry_item])
         
         self._write_entry(entry)
+
+    @property
+    def session_metrics(self) -> dict[str, Any]:
+        """Calculates live aggregated combat telemetry for real-time AI adaptation."""
+        duration_sec = max(1.0, (datetime.now() - self.session_start_time).total_seconds())
+        attacks = getattr(self, "player_attacks", 0)
+        hits = getattr(self, "boss_hits_received", 0)
+        accuracy = min(1.0, hits / max(1, attacks)) if attacks > 0 else 0.5
+        attacks_per_min = (attacks / duration_sec) * 60.0
+
+        return {
+            "player_accuracy": accuracy,
+            "player_attacks": attacks,
+            "player_hits": hits,
+            "player_attacks_per_min": attacks_per_min,
+            "session_duration_sec": duration_sec,
+        }
     
     # ─────────────────────────────────────────────────────────────────────────
     # Frame Sampling (Periodic - Every N Frames)

@@ -21,6 +21,7 @@ import pygame as pg
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from .hitbox_registry import HitboxRegistry
 from ..services import ConfigClient
+from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, UtilityCombatEngine, TacticalAction
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -232,6 +233,18 @@ class GreenMonster(EntityAudioMixin, Actor):
         self._chase_cooldown_duration: float = 1.0
         self._attack_hitbox_width: int = 90
         self._attack_hitbox_height: int = 70
+
+        self.perception = PerceptionSystem(
+            vision_range=float(self._detection_range),
+            hearing_range=900.0,
+            reaction_delay_sec=0.14,
+        )
+        self.utility_engine = UtilityCombatEngine(
+            has_dash_evasion=True,
+            has_block_anim=False,
+            preferred_spacing=200.0,
+        )
+        SquadTokenManager.get_instance().register_enemy(id(self), self.tier)
 
         # Mana and charging system properties (mirrors Fire Wizard rules)
         self._max_mana: float = 100.0
@@ -504,7 +517,12 @@ class GreenMonster(EntityAudioMixin, Actor):
             self.state == GatekeeperState.DEATH
             and int(self.animation_index) >= len(self.animations[GatekeeperState.DEATH]) - 1
         ):
+            SquadTokenManager.get_instance().unregister_enemy(id(self))
             self.kill()
+
+    def kill(self) -> None:
+        SquadTokenManager.get_instance().unregister_enemy(id(self))
+        super().kill()
 
     def _update_vertical_position(self) -> None:
         """Manage vertical positioning: jump-slam attack lunge, else ground alignment."""
@@ -559,7 +577,10 @@ class GreenMonster(EntityAudioMixin, Actor):
         if self._player is None:
             return
 
-        player_rect = self._player.rect
+        player_rect = getattr(self._player, "rect", None)
+        if player_rect is None:
+            return
+
         dist_offset = random.randint(self._teleport_dist_min, self._teleport_dist_max)
 
         # Teleport to the opposite side of the player
@@ -589,32 +610,31 @@ class GreenMonster(EntityAudioMixin, Actor):
 
         # Check Spidey Sense dodge probability
         if self._spidey_sense > 0.0 and random.random() < self._spidey_sense:
-            print(f"[SPIDEY SENSE] Green Monster dodged player attack! (Setting: {self._spidey_sense:.2f})")
             if self._spidey_sense >= 0.8:
                 # GOD MODE: teleport behind player and counter-attack immediately
                 if self._player is not None:
-                    player_rect = self._player.rect
-                    if self._player.facing_left:
-                        target_x = player_rect.centerx + 180
-                        self.facing_left = True
-                    else:
-                        target_x = player_rect.centerx - 180
-                        self.facing_left = False
+                    player_rect = getattr(self._player, "rect", None)
+                    if player_rect:
+                        if getattr(self._player, "facing_left", False):
+                            target_x = player_rect.centerx + 180
+                            self.facing_left = True
+                        else:
+                            target_x = player_rect.centerx - 180
+                            self.facing_left = False
 
-                    target_x = max(50, min(1200, target_x))
-                    self.rect.centerx = target_x
-                    if self._ground_y is not None:
-                        self.rect.bottom = self._ground_y
-                    self._gravity = 0.0
+                        target_x = max(50, min(1200, target_x))
+                        self.rect.centerx = target_x
+                        if self._ground_y is not None:
+                            self.rect.bottom = self._ground_y
+                        self._gravity = 0.0
 
-                    self._mana = max(self._mana, self._spell_mana_cost)
-                    self._teleport_flash_timer = 0.6
-                    self._chase_cooldown = 1.0
+                        self._mana = max(self._mana, self._spell_mana_cost)
+                        self._teleport_flash_timer = 0.6
+                        self._chase_cooldown = 1.0
 
-                    self._has_spawned_attack_effect = False
-                    self._begin_attack("spit")
-                    print("[SPIDEY SENSE] Green Monster COUNTER-ATTACK INITIATED!")
-                    return
+                        self._has_spawned_attack_effect = False
+                        self._begin_attack("spit")
+                        return
             else:
                 # Standard spidey sense: teleport away to safety
                 self._trigger_teleport_recharge()
@@ -637,6 +657,7 @@ class GreenMonster(EntityAudioMixin, Actor):
             return
 
         if self._health <= 0:
+            SquadTokenManager.get_instance().unregister_enemy(id(self))
             self.set_state(GatekeeperState.DEATH, force=True)
         else:
             self.set_state(GatekeeperState.HURT, force=True)
@@ -671,6 +692,12 @@ class GreenMonster(EntityAudioMixin, Actor):
         if self._player is None or self.state in (GatekeeperState.HURT, GatekeeperState.DEATH):
             return
         if self.state == GatekeeperState.ATTACK:
+            return
+
+        # 1. Update perception
+        alert = self.perception.update(0.016, self.rect, self.facing_left, self._player)
+        if alert == AlertLevel.UNAWARE:
+            self.set_state(GatekeeperState.IDLE)
             return
 
         # If mana is low, trigger stagnant/exhausted phase
