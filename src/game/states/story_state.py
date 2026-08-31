@@ -1,351 +1,313 @@
-import pygame as pg
-from v3x_zulfiqar_gideon import State, AssetManager, SceneHighlighter, UIButton, NotificationBanner
+"""
+Prologue Story State — Atmospheric scene with NPC-style dialogue presentation.
 
+Presents the core story premise using the established in-game dialogue aesthetic:
+dark translucent slate, luminous gold typography, atmospheric backdrop, and
+pulsing continue prompt.
+"""
+
+from __future__ import annotations
+
+import math
+from typing import Optional
+import pygame as pg
+
+from v3x_zulfiqar_gideon import State, AssetManager
 
 
 class StoryState(State):
-    """Story narration screen with parchment menu.
+    """Atmospheric prologue state displaying the core pitch in NPC-dialogue style."""
 
-    Shows the intro scene illustration with a voiceover, then presents
-    a stone+parchment menu with New Game / Continue / Settings.
-
-    Every layout/timing value is a constructor argument so you can tweak
-    the look by changing a single number.
-
-    Args:
-        manager:           State manager reference.
-        voiceover_delay:   Seconds to wait before playing the voiceover.
-        menu_delay:        Seconds to wait (after scene fade-in) before the menu appears.
-        scene_fade_speed:  Alpha units per second for the scene image fade-in.
-        menu_fade_speed:   Alpha units per second for the menu fade-in.
-        menu_x_frac:       Horizontal position of the menu as fraction of screen width
-                           (0.0 = left edge, 1.0 = right edge).
-        menu_y_frac:       Vertical position of the menu as fraction of screen height
-                           (0.0 = top, 1.0 = bottom).
-        menu_x_margin:     Pixel margin from the edge (applied after x_frac).
-        parchment_scale:   Parchment board width as fraction of screen width.
-        stone_scale:       Stone board width as fraction of screen width.
-        btn_scale:         Scale multiplier for all menu buttons.
-        btn_spacing:       Vertical gap (pixels) between each button.
-        btn_y_offset:      Vertical offset (pixels) of the first button relative to menu centre.
-        btn_size:          UIButton asset size (``"big"``, ``"medium"``, etc.).
-    """
-
-    # ── Asset paths (not configurable — they're file locations) ──────────────
-    _VOICEOVER_PATH = "assets/audio/voice_over.mp3"
-    _STONE_PATH = "assets/graphics/UI/PNG/UI board Medium  stone.png"
-    _PARCHMENT_PATH = "assets/graphics/UI/PNG/UI board Medium  parchment.png"
+    _PROLOGUE_TEXT = (
+        "You tried to save her. You failed. That kind of death doesn't belong to anyone, "
+        "so something showed up to collect it instead. Take its power, and you get a real chance "
+        "to undo it. Use that power, and you're spending yourself to do it."
+    )
 
     def __init__(
         self,
         manager,
-        *,
-        voiceover_delay: float = 3.0,
-        spotlight_delay: float = 3.0,
-        menu_delay: float = 1.5,
-        scene_fade_speed: float = 200,
-        menu_fade_speed: float = 200,
-        menu_x_frac: float = 0.5,
-        menu_y_frac: float = 0.5,
-        menu_x_margin: int = 0,
-        parchment_scale: float = 0.45,
-        stone_scale: float = 0.49,
-        btn_scale: float = 0.7,
-        btn_spacing: int = 85,
-        btn_y_offset: int = -60,
-        btn_size: str = "medium",
-        highlight_schedule: list | None = None,
-        spotlight_sections: list | None = None,
-        spotlight_sfx: dict | None = None,
+        *args,
+        text: Optional[str] = None,
+        title: str = "THE UNPAID DEBT",
+        **kwargs,
     ):
         super().__init__(manager)
         self.width = pg.display.get_surface().get_width()
         self.height = pg.display.get_surface().get_height()
 
-        # Store configurable timing
-        self._voiceover_delay = voiceover_delay
-        self._spotlight_delay = spotlight_delay
-        self._menu_delay = menu_delay
-        self._scene_fade_speed = scene_fade_speed
-        self._menu_fade_speed = menu_fade_speed
+        self.title = title
+        self.story_text = text if text is not None else self._PROLOGUE_TEXT
 
+        # ── Fonts (Clean, crisp, highly legible pixel fonts matching the title) ──
+        self.title_font = AssetManager.get_font(
+            "assets/font/Abaddon Bold.ttf",
+            44,
+        )
         self.font = AssetManager.get_font(
-            "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
-            50,
+            "assets/font/Abaddon Bold.ttf",
+            28,
+        )
+        self.prompt_font = AssetManager.get_font(
+            "assets/font/Abaddon Bold.ttf",
+            24,
         )
 
-        # ── Scene image ──────────────────────────────────────────────────────
-        self.scene_image = pg.image.load("assets/scenes/intro_scene.jpg").convert()
-        img_w, img_h = self.scene_image.get_size()
-        scale = self.width / img_w
-        self.scene_image = pg.transform.smoothscale(
-            self.scene_image, (self.width, int(img_h * scale))
-        )
-        self.scene_rect = self.scene_image.get_rect(
-            center=(self.width // 2, self.height // 2)
-        )
+        # ── Background Art & Parallax ─────────────────────────────────────────
+        bg_path = "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/jungle_bg.png"
+        trees_path = "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/trees&bushes.png"
+        sky_path = "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/sky.png"
 
-        # ── Story paragraphs (kept for reference / future scroll) ────────────
-        self.story_paragraphs = [
-            "They promised us a golden age. Instead, they gave us the Blight. "
-            "In the silence of the burning embers, I realized... prayer was no longer enough.",
-            "",
-            "",
-            "",
-            "Then, the heavens seemed to open. A voice like silk whispered a solution. "
-            "'A life for a life,' he said. 'A debt to be paid in the currency of darkness.'",
-            "",
-            "The deal was simple. One thousand Extractions of the Blight. "
-            "One thousand souls harvested. Then, and only then, would my village be restored. "
-            "My soul was the collateral.",
-            "",
-            "When I took the scythe, I didn't feel power. I felt a void. "
-            "The moment I touched the steel, the weight of the world shifted. "
-            "The hunter had become the harvest.",
-            "",
-            "The Fabricator lied. The more I culled, the more I changed. "
-            "I realized I wasn't saving my soul; I was being encased in a living tomb of my own sins.",
-            "",
-            "One down. Nine-hundred and ninety-nine to go. "
-            "But with every swing of the blade, I forget the faces of the people I'm trying to save.",
-            "",
-            "The thousandth soul will be my end. My only hope now lies in the Sanctuary of the All-Knowing. "
-            "I must find the Truth... before the Demon finds me.",
+        self._sky_img: Optional[pg.Surface] = None
+        self._bg_img: Optional[pg.Surface] = None
+        self._trees_img: Optional[pg.Surface] = None
+
+        try:
+            raw_sky = AssetManager.get_texture(sky_path)
+            self._sky_img = pg.transform.smoothscale(raw_sky, (self.width, self.height))
+        except Exception:
+            pass
+
+        try:
+            raw_bg = AssetManager.get_texture(bg_path)
+            self._bg_img = pg.transform.smoothscale(raw_bg, (self.width, self.height))
+        except Exception:
+            pass
+
+        try:
+            raw_trees = AssetManager.get_texture(trees_path)
+            self._trees_img = pg.transform.smoothscale(raw_trees, (self.width, self.height))
+        except Exception:
+            pass
+
+        # ── Ambient Floating Particles (Embers / Fireflies) ───────────────────
+        self._particles = [
+            {
+                "x": float((i * 97) % self.width),
+                "y": float((i * 61) % (self.height - 200)),
+                "speed_x": 12.0 + (i % 5) * 6.0,
+                "speed_y": -15.0 - (i % 4) * 8.0,
+                "size": 2 + (i % 3),
+                "alpha_phase": (i * 0.7),
+            }
+            for i in range(35)
         ]
 
-        # ── Voiceover state ──────────────────────────────────────────────────
-        self.narration_channel = None
-        self._vo_timer = 0.0
-        self._vo_started = False
+        # ── Dialogue Box Dimensions ──────────────────────────────────────────
+        self.box_w = min(1160, self.width - 80)
+        self.box_h = 270
+        self.box_x = (self.width - self.box_w) // 2
+        self.box_y = self.height - self.box_h - 35
 
-        # ── Spotlight & SFX state ─────────────────────────────────────────────
-        self._spot_timer = 0.0
-        self._spot_started = False
+        # ── Dialogue Box & Typewriter State ──────────────────────────────────
+        self.alpha: float = 0.0
+        self.fade_speed: float = 300.0
+        self.elapsed: float = 0.0
+        self.text_progress: float = 0.0
+        self.text_speed: float = 45.0
+        self.is_text_complete: bool = False
+        self.is_exiting: bool = False
+        self.exit_alpha: float = 0.0
 
-        # ── Fade & timing ────────────────────────────────────────────────────
-        self.alpha = 0
-        self.elapsed = 0.0
-        self._menu_alpha = 0
-        self._menu_wait_timer = 0.0
-        self._scene_faded_in = False
-        self._menu_ready = False
+        # Word wrap pre-calculation (box_w - 70 padding)
+        self._wrapped_lines: list[str] = self._word_wrap(self.story_text, max_width=self.box_w - 70)
+        self._black_overlay = pg.Surface((self.width, self.height), pg.SRCALPHA)
 
-        self._black_overlay = pg.Surface((self.width, self.height))
-        self._black_overlay.fill((0, 0, 0))
-
-        # ── Parchment + stone boards ─────────────────────────────────────────
-        raw_stone = AssetManager.get_texture(self._STONE_PATH)
-        stone_w = int(self.width * stone_scale)
-        stone_h = int(stone_w * (raw_stone.get_height() / raw_stone.get_width()))
-        self._stone = pg.transform.smoothscale(raw_stone, (stone_w, stone_h))
-
-        raw_parch = AssetManager.get_texture(self._PARCHMENT_PATH)
-        parch_w = int(self.width * parchment_scale)
-        parch_h = int(parch_w * (raw_parch.get_height() / raw_parch.get_width()))
-        self._parchment = pg.transform.smoothscale(raw_parch, (parch_w, parch_h))
-
-        # Position boards using fractional coordinates
-        board_cx = int(self.width * menu_x_frac) + menu_x_margin
-        board_cy = int(self.height * menu_y_frac)
-        self._stone_rect = self._stone.get_rect(center=(board_cx, board_cy))
-        self._parch_rect = self._parchment.get_rect(center=(board_cx, board_cy))
-
-        # ── Menu buttons (stacked vertically on the parchment) ───────────────
-        btn_x = board_cx
-        btn_start_y = board_cy + btn_y_offset
-
-        self._buttons = [
-            UIButton(
-                "New Game",
-                x=btn_x,
-                y=btn_start_y,
-                size=btn_size,
-                scale=btn_scale,
-                on_click=self._on_new_game,
-            ),
-            UIButton(
-                "Continue",
-                x=btn_x,
-                y=btn_start_y + btn_spacing,
-                size=btn_size,
-                scale=btn_scale,
-                on_click=self._on_continue,
-            ),
-            UIButton(
-                "Settings",
-                x=btn_x,
-                y=btn_start_y + btn_spacing * 2,
-                size=btn_size,
-                scale=btn_scale,
-                on_click=self._on_settings,
-            ),
-        ]
-
-        # ── Settings placeholder banner ──────────────────────────────────────
-        self._settings_banner = NotificationBanner(
-            scale=0.5, icon_scale=0.5, hold=1.5,
-        )
-
-        # ── Scene Highlighter ──────────────────────────────────────────────────
-        self._highlighter = SceneHighlighter(self.scene_rect, custom_sections=spotlight_sections)
-        # Schedule: (time_in_seconds, section_index)
-        # Sections 0-6 map to image panels; -1 ends the spotlight.
-        # Pass highlight_schedule from main.py to override any entries.
-        self._highlight_schedule = highlight_schedule if highlight_schedule is not None else [
-            (0.0,  0),   # Section 1
-            (10.0, 1),   # Section 2
-            (22.0, 2),   # Section 3
-            (33.0, 3),   # Section 4
-            (43.0, 4),   # Section 5
-            (53.0, 5),   # Section 6
-            (63.0, 6),   # Section 7
-            (73.0, -1),  # End highlight
-        ]
-
-        # ── Spotlight Sound Effects ──────────────────────────────────────────
-        from src.game.audio.spotlight_sfx import SpotlightSFXManager
-        self._sfx_manager = SpotlightSFXManager(
-            audio_manager=getattr(manager, 'audio_manager', None),
-            schedule=spotlight_sfx,
-        )
+    def _word_wrap(self, text: str, max_width: int) -> list[str]:
+        words = text.split(" ")
+        lines: list[str] = []
+        curr = ""
+        for w in words:
+            test = f"{curr} {w}".strip() if curr else w
+            if self.font.size(test)[0] <= max_width:
+                curr = test
+            else:
+                if curr:
+                    lines.append(curr)
+                curr = w
+        if curr:
+            lines.append(curr)
+        return lines
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     def on_enter(self):
-        self._vo_timer = 0.0
-        self._vo_started = False
-        # Start background music
-        if hasattr(self.manager, 'audio_manager') and self.manager.audio_manager:
-            self.manager.audio_manager.play_music("background_music", volume=0.5)
+        self.alpha = 0.0
+        self.elapsed = 0.0
+        self.text_progress = 0.0
+        self.is_text_complete = False
+        self.is_exiting = False
+        self.exit_alpha = 0.0
+        if hasattr(self.manager, "audio_manager") and self.manager.audio_manager:
+            self.manager.audio_manager.play_music("background_music", volume=0.45)
 
     def on_exit(self):
-        if hasattr(self.manager, 'audio_manager') and self.manager.audio_manager:
-            self.manager.audio_manager.stop_music()
-            self.manager.audio_manager.stop_all_sounds()
-        if self.narration_channel:
-            self.narration_channel.stop()
-        self._sfx_manager.stop_all()
-
-    # ── Button callbacks ─────────────────────────────────────────────────────
-
-    def _on_new_game(self):
-        # DECOUPLED BATON PASS
-        self.finish("NEW_GAME")
-
-    def _on_continue(self):
-        # No checkpoints yet — button is present but does nothing
         pass
-
-    def _on_settings(self):
-        from src.game.states.settings_state import SettingsState
-        self.manager.push(SettingsState(self.manager))
 
     # ── Events ───────────────────────────────────────────────────────────────
 
-    def handle_event(self, event):
-        # Only accept button input once the menu is fully visible
-        if self._scene_faded_in:
-            for btn in self._buttons:
-                btn.handle_event(event)
+    def handle_event(self, event: pg.event.Event):
+        advance_pressed = (
+            (event.type == pg.KEYDOWN and event.key in (pg.K_RETURN, pg.K_SPACE, pg.K_e, pg.K_x))
+            or (event.type == pg.JOYBUTTONDOWN and event.button in (0, 1, 6, 7))
+        )
+
+        if advance_pressed:
+            if not self.is_text_complete:
+                # First press instantly completes the text
+                self.text_progress = float(len(self.story_text))
+                self.is_text_complete = True
+            elif not self.is_exiting:
+                # Second press starts smooth transition to transformation cutscene
+                self.is_exiting = True
 
     # ── Update ───────────────────────────────────────────────────────────────
 
-    def update(self, dt):
-        dt_sec = dt / 1000.0
+    def update(self, dt: float):
+        dt_sec = dt / 1000.0 if dt > 0.5 else dt
         self.elapsed += dt_sec
 
-        # Fade in the scene image
-        if self.alpha < 255:
-            self.alpha = min(255, self.alpha + self._scene_fade_speed * dt_sec)
-        else:
-            self._scene_faded_in = True
+        # Fade in screen
+        if self.alpha < 255.0:
+            self.alpha = min(255.0, self.alpha + self.fade_speed * dt_sec)
 
-        # Wait for menu_delay after scene is visible, then fade in menu
-        if self._scene_faded_in and not self._menu_ready:
-            self._menu_wait_timer += dt_sec
-            if self._menu_wait_timer >= self._menu_delay:
-                self._menu_ready = True
+        # Advance typewriter text
+        if not self.is_text_complete:
+            self.text_progress += self.text_speed * dt_sec
+            if self.text_progress >= len(self.story_text):
+                self.text_progress = float(len(self.story_text))
+                self.is_text_complete = True
 
-        if self._menu_ready and self._menu_alpha < 255:
-            self._menu_alpha = min(
-                255, self._menu_alpha + self._menu_fade_speed * dt_sec
-            )
+        # Update ambient embers
+        for p in self._particles:
+            p["x"] += p["speed_x"] * dt_sec
+            p["y"] += p["speed_y"] * dt_sec
+            if p["x"] > self.width + 20:
+                p["x"] = -20
+            if p["y"] < -20:
+                p["y"] = float(self.height - 200)
 
-        # Delayed voiceover (independent timer)
-        self._vo_timer += dt_sec
-        if not self._vo_started:
-            if self._vo_timer >= self._voiceover_delay:
-                self._vo_started = True
-                sound = AssetManager.get_sound(self._VOICEOVER_PATH)
-                if sound:
-                    self.narration_channel = sound.play()
-
-        # Delayed spotlight (independent timer)
-        self._spot_timer += dt_sec
-        if not self._spot_started:
-            if self._spot_timer >= self._spotlight_delay:
-                self._spot_started = True
-
-        # Update highlighted section based on spotlight's own elapsed time
-        if self._spot_started:
-            spot_elapsed = self._spot_timer - self._spotlight_delay
-            active_idx = -1
-            for t, idx in self._highlight_schedule:
-                if spot_elapsed >= t:
-                    active_idx = idx
-                else:
-                    break
-            self._highlighter.set_active_section(active_idx)
-            self._sfx_manager.update(dt_sec, active_idx)
-
-        # Update menu buttons
-        for btn in self._buttons:
-            btn.update(dt)
-
-        # Settings banner
-        self._settings_banner.update(dt)
+        # Handle exit fade
+        if self.is_exiting:
+            self.exit_alpha += 450.0 * dt_sec
+            if self.exit_alpha >= 255.0:
+                self.finish("NEW_GAME")
 
     # ── Draw ─────────────────────────────────────────────────────────────────
 
-    def draw(self, surface):
-        surface.fill((0, 0, 0))
+    def draw(self, surface: pg.Surface):
+        surface.fill((12, 10, 20))
 
-        # Scene image with fade-in
-        if self.alpha >= 255:
-            surface.blit(self.scene_image, self.scene_rect)
-        else:
-            # Set alpha on original (very fast)
-            self.scene_image.set_alpha(self.alpha)
-            surface.blit(self.scene_image, self.scene_rect)
-            self.scene_image.set_alpha(255) # Reset for next frame
+        # 1. Background Layers with gentle subtle drift
+        drift = math.sin(self.elapsed * 0.3) * 6.0
+        if self._sky_img:
+            surface.blit(self._sky_img, (0, 0))
+        if self._bg_img:
+            surface.blit(self._bg_img, (int(drift * 0.5), 0))
+        if self._trees_img:
+            surface.blit(self._trees_img, (int(drift), 0))
 
-        # Spotlight highlight
-        if self._scene_faded_in:
-            self._highlighter.draw(surface)
+        # Dark atmospheric vignette / gradient over top and bottom
+        vignette = pg.Surface((self.width, self.height), pg.SRCALPHA)
+        vignette.fill((8, 6, 14, 130))
+        surface.blit(vignette, (0, 0))
 
-        # Fade scene out to black as menu fades in
-        if self._menu_ready and self._menu_alpha > 0:
-            self._black_overlay.set_alpha(self._menu_alpha)
-            surface.blit(self._black_overlay, (0, 0))
+        # 2. Ambient Glowing Particles (Embers / Fireflies)
+        ticks = pg.time.get_ticks()
+        for p in self._particles:
+            p_pulse = (math.sin(ticks * 0.004 + p["alpha_phase"]) + 1.0) * 0.5
+            p_alpha = int(120 + 110 * p_pulse)
+            glow_surf = pg.Surface((16, 16), pg.SRCALPHA)
+            pg.draw.circle(glow_surf, (255, 180, 40, int(p_alpha * 0.4)), (8, 8), 6)
+            pg.draw.circle(glow_surf, (255, 220, 100, p_alpha), (8, 8), p["size"])
+            surface.blit(glow_surf, (int(p["x"]) - 8, int(p["y"]) - 8))
 
-        # Parchment menu (fades in after delay)
-        if self._menu_ready:
-            alpha = self._menu_alpha
+        # 3. Bottom NPC-Style Dialogue Box
+        box_w = self.box_w
+        box_h = self.box_h
+        box_x = self.box_x
+        box_y = self.box_y
 
-            # Stone (behind parchment)
-            self._stone.set_alpha(alpha)
-            surface.blit(self._stone, self._stone_rect)
-            self._stone.set_alpha(255)
+        # Obsidian Dark Slate Background with Gold Border
+        box_surf = pg.Surface((box_w, box_h), pg.SRCALPHA)
+        box_surf.fill((10, 6, 18, 230))
+        # Outer gold accent frame
+        pg.draw.rect(
+            box_surf,
+            (255, 190, 50, 200),
+            (0, 0, box_w, box_h),
+            width=2,
+            border_radius=10,
+        )
+        # Inner subtle highlight ring
+        pg.draw.rect(
+            box_surf,
+            (120, 80, 20, 90),
+            (4, 4, box_w - 8, box_h - 8),
+            width=1,
+            border_radius=8,
+        )
+        surface.blit(box_surf, (box_x, box_y))
 
-            # Parchment
-            self._parchment.set_alpha(alpha)
-            surface.blit(self._parchment, self._parch_rect)
-            self._parchment.set_alpha(255)
+        # 4. Title Header Tag (e.g. THE UNPAID DEBT)
+        title_y = box_y + 18
+        title_x = box_x + 35
 
-            # Buttons (only draw when menu is mostly visible)
-            if self._menu_alpha > 180:
-                for btn in self._buttons:
-                    btn.draw(surface)
+        # Drop shadow
+        t_shd = self.title_font.render(self.title, True, (0, 0, 0))
+        surface.blit(t_shd, (title_x + 2, title_y + 2))
+        # Main Title (Luminous Amber / Gold)
+        t_surf = self.title_font.render(self.title, True, (255, 205, 70))
+        surface.blit(t_surf, (title_x, title_y))
 
-        # Settings banner (topmost)
-        self._settings_banner.draw(surface)
+        # 5. Typewriter Story Text
+        cur_chars = int(self.text_progress)
+        chars_left = cur_chars
+        text_start_y = title_y + 48
+        line_height = self.font.get_linesize() + 6
+
+        for i, line in enumerate(self._wrapped_lines):
+            if chars_left <= 0:
+                break
+            line_str = line[:chars_left]
+            chars_left -= len(line)
+
+            tx = box_x + 35
+            ty = text_start_y + i * line_height
+
+            # Dark shadow for high contrast legibility
+            shd = self.font.render(line_str, True, (0, 0, 0))
+            surface.blit(shd, (tx + 2, ty + 2))
+
+            # Main Crisp White/Gold Text
+            txt = self.font.render(line_str, True, (245, 235, 215))
+            surface.blit(txt, (tx, ty))
+
+        # 6. Pulsing Continue Prompt
+        if self.is_text_complete:
+            p_pulse = (math.sin(ticks * 0.007) + 1.0) * 0.5
+            p_alpha = int(140 + 115 * p_pulse)
+            prompt_str = "[ PRESS SPACE OR ENTER TO BEGIN ]"
+
+            p_w = self.prompt_font.size(prompt_str)[0]
+            px = box_x + box_w - p_w - 30
+            py = box_y + box_h - 36
+
+            p_shd = self.prompt_font.render(prompt_str, True, (0, 0, 0))
+            p_shd.set_alpha(int(p_alpha * 0.85))
+            surface.blit(p_shd, (px + 2, py + 2))
+
+            p_txt = self.prompt_font.render(prompt_str, True, (255, 215, 90))
+            p_txt.set_alpha(p_alpha)
+            surface.blit(p_txt, (px, py))
+
+        # 7. Cinematic Fade-In / Exit Transition
+        if self.alpha < 255.0:
+            fade_overlay = pg.Surface((self.width, self.height), pg.SRCALPHA)
+            fade_overlay.fill((0, 0, 0, int(255 - self.alpha)))
+            surface.blit(fade_overlay, (0, 0))
+
+        if self.is_exiting and self.exit_alpha > 0.0:
+            exit_overlay = pg.Surface((self.width, self.height), pg.SRCALPHA)
+            exit_overlay.fill((0, 0, 0, int(min(255.0, self.exit_alpha))))
+            surface.blit(exit_overlay, (0, 0))

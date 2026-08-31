@@ -1,132 +1,133 @@
-import pygame as pg
-from v3x_zulfiqar_gideon import State, AssetManager, Button
+import os
 import sys
+import math
+import threading
+import pygame as pg
+from v3x_zulfiqar_gideon import State, AssetManager
 
 class MainMenuState(State):
+    """Refined Main Menu matching the game's obsidian and gold mythology aesthetic."""
+
     def __init__(self, manager):
         super().__init__(manager)
-        self.width = pg.display.get_surface().get_width() 
-        self.height = pg.display.get_surface().get_height() 
+        self.width = pg.display.get_surface().get_width()
+        self.height = pg.display.get_surface().get_height()
+
         # Background Animation
         self.frames = []
         self.current_frame_index = 0
-        self.frame_timer = 0
-        self.frame_delay = 80 # 0.08s from filename
+        self.frame_timer = 0.0
+        self.frame_delay = 80.0  # ms
         self.loading_thread = None
         
         # Start loading in background
         self.loading_progress = 0.0
         self.converted_frames = False
-        import threading
         self.loading_thread = threading.Thread(target=self.load_frames, daemon=True)
         self.loading_thread.start()
         
         # Fallback/Loading placeholder
         self.bg_placeholder = pg.Surface((self.width, self.height))
-        self.bg_placeholder.fill((30, 30, 30))
+        self.bg_placeholder.fill((12, 10, 20))
 
-        # Title - bottom
-        self.title_font = AssetManager.get_font('assets/font/Abaddon Bold.ttf', 100)
-        self.title_surf = self.title_font.render("Guardian Runner", False, (111, 196, 169))
-        self.title_rect = self.title_surf.get_rect(center=(self.width // 2, 150))
+        # ── Ambient Floating Particles (Embers) ──────────────────────────────
+        self._particles = [
+            {
+                "x": float((i * 97) % self.width),
+                "y": float((i * 61) % self.height),
+                "speed_x": 10.0 + (i % 4) * 6.0,
+                "speed_y": -14.0 - (i % 3) * 7.0,
+                "size": 2 + (i % 3),
+                "alpha_phase": (i * 0.7),
+            }
+            for i in range(30)
+        ]
 
-        # Title - top
-        self.title_font_top  = AssetManager.get_font('assets/font/Abaddon Bold.ttf', 100)
-        self.title_surf_top = self.title_font_top.render("Guardian Runner", False, (0, 0, 0))
-        self.title_rect_top = self.title_surf_top.get_rect(center=(self.width // 2 - 6, 155))
-        
-        # Buttons
+        # ── Typography & Title ───────────────────────────────────────────────
+        self.title_font = AssetManager.get_font(
+            "assets/font/Abaddon Bold.ttf", 96
+        )
+        self.subtitle_font = AssetManager.get_font(
+            "assets/font/Abaddon Bold.ttf", 28
+        )
+        self.prompt_font = AssetManager.get_font(
+            "assets/font/Abaddon Bold.ttf", 28
+        )
+
+        self.title_text = "THE UNPAID DEBT"
+        self.subtitle_text = "A PACT IN THE SHADOWS"
+
+        # Buttons (if custom buttons are used)
         self.buttons = []
-        self.create_buttons()
         
-        # Start Prompt Font
-        self.prompt_font = AssetManager.get_font('assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf', 70)
-        
-        # Space Key Prompt
-        try:
-            self.space_key = AssetManager.get_texture("assets/graphics/ui/KEYS/SPACE.png")
-            self.space_key = pg.transform.scale_by(self.space_key, 4.0)
-            self.space_key_rect = self.space_key.get_rect(midbottom=(self.width // 2, self.height - 30))
-        except:
-            print("Failed to load SPACE.png")
-            self.space_key = None
-        
-        # Input Cooldown to prevent accidental restarts
-        self.input_cooldown = 0.5 # 500ms
+        # Input Cooldown & Transition
+        self.input_cooldown = 0.4
         self.time_entered: float = 0.0
+        self.is_starting: bool = False
+        self.start_alpha: float = 0.0
 
     def load_frames(self):
         from v3x_zulfiqar_gideon import SettingsManager
         quality = SettingsManager().get("graphics_quality")
         bg_dir = "assets/graphics/background images/intro_bg"
         try:
-            import os
-            frame_files = sorted([f for f in os.listdir(bg_dir) if f.endswith(".gif") or f.endswith(".png")])
-            
-            if quality == "low":
-                frame_files = frame_files[:1]
-            elif quality == "medium":
-                frame_files = frame_files[::4]
+            if os.path.exists(bg_dir):
+                frame_files = sorted([f for f in os.listdir(bg_dir) if f.endswith(".gif") or f.endswith(".png")])
+                if quality == "low":
+                    frame_files = frame_files[:1]
+                elif quality == "medium":
+                    frame_files = frame_files[::4]
+                    
+                total_frames = len(frame_files)
+                loaded_frames = []
+                for i, f in enumerate(frame_files):
+                    try:
+                        img = pg.image.load(os.path.join(bg_dir, f))
+                        img = pg.transform.scale(img, (self.width, self.height))
+                        loaded_frames.append(img)
+                    except Exception as e:
+                        print(f"Error loading frame {f}: {e}")
+                    
+                    self.loading_progress = (i + 1) / max(1, total_frames)
                 
-            total_frames = len(frame_files)
-            
-            loaded_frames = []
-            for i, f in enumerate(frame_files):
-                # Note: Pygame image loading must happen on main thread usually, 
-                # but loading into surface is often thread-safe if not drawing.
-                # However, to be safe and simple, we load here.
-                # If this crashes, we might need to load bytes and decode on main thread,
-                # but standard pygame.image.load often works in threads for simple cases.
-                try:
-                    img = pg.image.load(os.path.join(bg_dir, f))
-                    img = pg.transform.scale(img, (self.width, self.height)) # Faster than smoothscale
-                    loaded_frames.append(img)
-                except Exception as e:
-                    print(f"Error loading frame {f}: {e}")
-                
-                # Update progress
-                self.loading_progress = (i + 1) / total_frames
-            
-            self.frames = loaded_frames
-            print(f"Loaded {len(self.frames)} frames in background (Quality: {quality}).")
-            
+                self.frames = loaded_frames
+                print(f"Loaded {len(self.frames)} frames in background (Quality: {quality}).")
+            else:
+                self.loading_progress = 1.0
         except Exception as e:
             print(f"Failed to load background frames: {e}")
-        
-    def create_buttons(self):
-        # TODO: Implement your own buttons here using the guide!
-        # Example:
-        # self.start_btn = Button(x, y, image, hover_image, scale, callback)
-        # self.buttons.append(self.start_btn)
-        pass
+            self.loading_progress = 1.0
 
     def start_game(self):
-        # DECOUPLED BATON PASS
-        self.finish("PLAY")
-        
+        if not self.is_starting:
+            self.is_starting = True
+
     def exit_game(self):
-        self.manager.set_router(None) # Signal quit or similar
+        self.manager.set_router(None)
         pg.quit()
         sys.exit()
         
     def on_enter(self):
         self.time_entered = pg.time.get_ticks() / 1000.0
-        # Start background music
+        self.is_starting = False
+        self.start_alpha = 0.0
         if hasattr(self.manager, 'audio_manager') and self.manager.audio_manager:
             self.manager.audio_manager.play_music("background_music", volume=0.5)
 
-    # Redefining handle_event to pass to buttons
     def handle_event(self, event):
         for btn in self.buttons:
             btn.handle_event(event)
             
-        if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-            # Check cooldown
-            current_time = pg.time.get_ticks() / 1000.0
-            if current_time - self.time_entered > self.input_cooldown:
+        current_time = pg.time.get_ticks() / 1000.0
+        if current_time - self.time_entered > self.input_cooldown:
+            if event.type == pg.KEYDOWN and event.key in (pg.K_SPACE, pg.K_RETURN, pg.K_e, pg.K_x):
                 self.start_game()
-            
+            elif event.type == pg.JOYBUTTONDOWN and event.button in (0, 1, 6, 7):
+                self.start_game()
+
     def update(self, dt):
+        dt_sec = dt / 1000.0 if dt > 0.5 else dt
+
         # Convert frames to display format on main thread when thread finishes
         if self.loading_thread and not self.loading_thread.is_alive() and not self.converted_frames:
             self.frames = [f.convert() for f in self.frames]
@@ -136,52 +137,103 @@ class MainMenuState(State):
         if self.frames:
             self.frame_timer += dt
             if self.frame_timer >= self.frame_delay:
-                self.frame_timer = 0
+                self.frame_timer = 0.0
                 self.current_frame_index = (self.current_frame_index + 1) % len(self.frames)
 
+        # Update floating particles
+        for p in self._particles:
+            p["x"] += p["speed_x"] * dt_sec
+            p["y"] += p["speed_y"] * dt_sec
+            if p["x"] > self.width + 10:
+                p["x"] = -10
+            if p["y"] < -10:
+                p["y"] = float(self.height + 10)
+
         for btn in self.buttons:
-            btn.update(dt) # Update animations
+            btn.update(dt)
+
+        # Transition to StoryState
+        if self.is_starting:
+            self.start_alpha += 480.0 * dt_sec
+            if self.start_alpha >= 255.0:
+                self.finish("PLAY")
 
     def draw(self, surface):
         if self.frames:
             surface.blit(self.frames[self.current_frame_index], (0, 0))
         else:
             surface.blit(self.bg_placeholder, (0, 0))
-            # Optional: Draw "Loading..." text
             
-        surface.blit(self.title_surf, self.title_rect)
-        surface.blit(self.title_surf_top, self.title_rect_top)
+        # Dark atmospheric overlay
+        vignette = pg.Surface((self.width, self.height), pg.SRCALPHA)
+        vignette.fill((8, 6, 14, 140))
+        surface.blit(vignette, (0, 0))
+
+        # Floating ambient embers
+        ticks = pg.time.get_ticks()
+        for p in self._particles:
+            p_pulse = (math.sin(ticks * 0.005 + p["alpha_phase"]) + 1.0) * 0.5
+            p_alpha = int(100 + 110 * p_pulse)
+            glow = pg.Surface((14, 14), pg.SRCALPHA)
+            pg.draw.circle(glow, (255, 180, 40, int(p_alpha * 0.45)), (7, 7), 6)
+            pg.draw.circle(glow, (255, 220, 100, p_alpha), (7, 7), p["size"])
+            surface.blit(glow, (int(p["x"]) - 7, int(p["y"]) - 7))
+
+        # ── Render Title Banner with Gold Typography ─────────────────────────
+        title_cx = self.width // 2
+        title_cy = int(self.height * 0.32)
+
+        # Title Drop Shadow
+        shd_surf = self.title_font.render(self.title_text, True, (0, 0, 0))
+        surface.blit(shd_surf, shd_surf.get_rect(center=(title_cx + 4, title_cy + 4)))
         
+        # Title Glow & Main Gold Color
+        title_surf = self.title_font.render(self.title_text, True, (255, 215, 80))
+        surface.blit(title_surf, title_surf.get_rect(center=(title_cx, title_cy)))
+
+        # Subtitle Tag
+        sub_shd = self.subtitle_font.render(self.subtitle_text, True, (0, 0, 0))
+        surface.blit(sub_shd, sub_shd.get_rect(center=(title_cx + 2, title_cy + 60)))
+
+        sub_surf = self.subtitle_font.render(self.subtitle_text, True, (210, 180, 120))
+        surface.blit(sub_surf, sub_surf.get_rect(center=(title_cx, title_cy + 58)))
+
+        # ── Buttons (if any) ─────────────────────────────────────────────────
         for btn in self.buttons:
             btn.draw(surface)
             
-        # Draw 3-Layer Start Prompt
-        import math
-        alpha = (math.sin(pg.time.get_ticks() * 0.005) + 1) / 2 * 255
-        
-        text = "START"
-        # Move text up to make room for space key
-        center_pos = (self.width // 2, self.height - 100)
-        
-        # Layer 1: Shadow (Black)
-        surf1 = self.prompt_font.render(text, False, (0, 0, 0))
-        surf1.set_alpha(int(alpha))
-        rect1 = surf1.get_rect(midbottom=(center_pos[0] + 4, center_pos[1] + 4))
-        surface.blit(surf1, rect1)
-        
-        # Layer 2: Middle (Dark Gray/Red) - Let's use a dark red for style or just gray
-        surf2 = self.prompt_font.render(text, False, (111, 196, 169)) # Using theme color
-        surf2.set_alpha(int(alpha))
-        rect2 = surf2.get_rect(midbottom=(center_pos[0] + 2, center_pos[1] + 2))
-        surface.blit(surf2, rect2)
-        
-        # Layer 3: Top (White)
-        surf3 = self.prompt_font.render(text, False, (255, 255, 255))
-        surf3.set_alpha(int(alpha))
-        rect3 = surf3.get_rect(midbottom=center_pos)
-        surface.blit(surf3, rect3)
-        
-        # Draw Space Key Prompt
-        if self.space_key:
-            self.space_key.set_alpha(int(alpha))
-            surface.blit(self.space_key, self.space_key_rect)
+        # ── Pulsing Start Prompt (Obsidian Plate + Gold Text) ────────────────
+        prompt_pulse = (math.sin(ticks * 0.006) + 1.0) * 0.5
+        prompt_alpha = int(150 + 105 * prompt_pulse)
+
+        prompt_str = "[ PRESS SPACE OR ENTER TO BEGIN ]"
+        pw, ph = self.prompt_font.size(prompt_str)
+        box_w = pw + 60
+        box_h = ph + 24
+        box_x = (self.width - box_w) // 2
+        box_y = self.height - 110
+
+        # Obsidian box behind prompt
+        prompt_box = pg.Surface((box_w, box_h), pg.SRCALPHA)
+        prompt_box.fill((10, 6, 18, int(prompt_alpha * 0.75)))
+        pg.draw.rect(
+            prompt_box,
+            (255, 190, 50, int(prompt_alpha * 0.6)),
+            (0, 0, box_w, box_h),
+            width=2,
+            border_radius=8,
+        )
+        surface.blit(prompt_box, (box_x, box_y))
+
+        # Text render
+        p_shd = self.prompt_font.render(prompt_str, True, (0, 0, 0))
+        surface.blit(p_shd, p_shd.get_rect(center=(self.width // 2 + 2, box_y + box_h // 2 + 2)))
+
+        p_txt = self.prompt_font.render(prompt_str, True, (255, 220, 100))
+        surface.blit(p_txt, p_txt.get_rect(center=(self.width // 2, box_y + box_h // 2)))
+
+        # ── Smooth Exit Fade Overlay ─────────────────────────────────────────
+        if self.is_starting and self.start_alpha > 0.0:
+            fade_surf = pg.Surface((self.width, self.height), pg.SRCALPHA)
+            fade_surf.fill((0, 0, 0, int(min(255.0, self.start_alpha))))
+            surface.blit(fade_surf, (0, 0))

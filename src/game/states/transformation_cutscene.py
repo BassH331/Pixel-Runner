@@ -75,7 +75,7 @@ class TransformationCutscene(State):
     def __init__(
         self,
         manager,
-        level_title: str = "The Blight Begins",
+        level_title: str = "Act 1: The Dark Forest",
         notification: str = "gray",
         on_complete: Optional[Callable[[], None]] = None,
         next_state_factory: Optional[Callable[[], State]] = None,
@@ -95,6 +95,19 @@ class TransformationCutscene(State):
         self._frames_atk_left = self._load_scaled(self._ATK_LEFT_DIR)
         self._frames_atk_right = self._load_scaled(self._ATK_RIGHT_DIR, flip=True)
         self._frames_revert = self._load_scaled(self._REVERT_DIR)
+
+        # ── Ambient Floating Particles (Embers) ──────────────────────────────
+        self._particles = [
+            {
+                "x": float((i * 107) % self._sw),
+                "y": float((i * 67) % self._sh),
+                "speed_x": 10.0 + (i % 4) * 6.0,
+                "speed_y": -14.0 - (i % 3) * 7.0,
+                "size": 2 + (i % 3),
+                "alpha_phase": (i * 0.7),
+            }
+            for i in range(25)
+        ]
 
         # ── Level intro banner (shared component) ────────────────────────────
         self._banner = NotificationBanner(scale=0.6, icon_scale=0.6)
@@ -163,7 +176,16 @@ class TransformationCutscene(State):
         if self._flash_alpha > 0:
             self._flash_alpha = max(0.0, self._flash_alpha - dt_sec * (255 / self._FLASH_FADE))
 
-        # Advance cross-fade
+        # Update ambient particles
+        for p in self._particles:
+            p["x"] += p["speed_x"] * dt_sec
+            p["y"] += p["speed_y"] * dt_sec
+            if p["x"] > self._sw + 10:
+                p["x"] = -10
+            if p["y"] < -10:
+                p["y"] = float(self._sh + 10)
+
+        # Cross-fade timer
         if self._crossfading:
             self._crossfade_timer += dt_sec
             if self._crossfade_timer >= self._CROSSFADE_DURATION:
@@ -311,7 +333,17 @@ class TransformationCutscene(State):
     # ─── Draw ────────────────────────────────────────────────────────────────
 
     def draw(self, surface: pg.Surface) -> None:
-        surface.fill((0, 0, 0))
+        surface.fill((12, 10, 20))
+
+        # Ambient floating embers
+        ticks = pg.time.get_ticks()
+        for p in self._particles:
+            p_pulse = (math.sin(ticks * 0.005 + p["alpha_phase"]) + 1.0) * 0.5
+            p_alpha = int(100 + 110 * p_pulse)
+            glow = pg.Surface((14, 14), pg.SRCALPHA)
+            pg.draw.circle(glow, (255, 180, 40, int(p_alpha * 0.45)), (7, 7), 6)
+            pg.draw.circle(glow, (255, 220, 100, p_alpha), (7, 7), p["size"])
+            surface.blit(glow, (int(p["x"]) - 7, int(p["y"]) - 7))
 
         if self._phase == _Phase.FADE_IN:
             self._draw_fade_in(surface)
