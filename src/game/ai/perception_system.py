@@ -10,10 +10,14 @@ Provides realistic sensory processing for enemies:
 
 from __future__ import annotations
 
+import logging
 import math
+import os
 from enum import Enum, auto
 from typing import Optional, TYPE_CHECKING
 import pygame as pg
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from src.game.entities.player import Player
@@ -37,7 +41,6 @@ class PerceptionSystem:
         hearing_range: float = 600.0,
         reaction_delay_sec: float = 0.20,
     ) -> None:
-        import os
         diff = os.environ.get("AI_DIFFICULTY", "").upper()
         if diff == "NIGHTMARE":
             reaction_delay_sec = 0.08
@@ -124,7 +127,10 @@ class PerceptionSystem:
 
         if self.alert_level != old_alert:
             sense = "VISION CONE" if can_see else ("HEARING (Sound Event)" if can_hear else "SUSPICION DECAY")
-            print(f"[AI PERCEPTION] Alert State Changed: {old_alert.name} -> {self.alert_level.name} (Trigger: {sense} | Latency: {self.reaction_delay_sec*1000:.0f}ms)")
+            logger.debug(
+                "[AI PERCEPTION] Alert State Changed: %s -> %s (Trigger: %s | Latency: %.0fms)",
+                old_alert.name, self.alert_level.name, sense, self.reaction_delay_sec * 1000,
+            )
 
         return self.alert_level
 
