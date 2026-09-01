@@ -399,8 +399,86 @@ class TestLevelEditor(unittest.TestCase):
         self.assertGreater(len(lmodal.levels), 0)
 
 
+class TestTextInputAndTextArea(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pg.init()
+        pg.display.set_mode((200, 200), pg.HIDDEN)
+
+    def test_text_input_shortcuts_and_clipboard(self):
+        from level_editor import TextInput, set_clipboard_text, get_clipboard_text
+
+        ti = TextInput("Title", 0, 0, 200, 36, initial="Hello World")
+        ti.active = True
+
+        # Test Ctrl+A (Select All)
+        ev_ctrl_a = pg.event.Event(pg.KEYDOWN, {"key": pg.K_a, "mod": pg.KMOD_CTRL, "unicode": ""})
+        ti.on(ev_ctrl_a)
+        self.assertTrue(ti.has_selection())
+        self.assertEqual(ti.get_selected_text(), "Hello World")
+
+        # Test Ctrl+C (Copy)
+        ti.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_c, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertEqual(get_clipboard_text(), "Hello World")
+
+        # Test Ctrl+X (Cut)
+        ti.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_x, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertEqual(ti.val, "")
+        self.assertEqual(ti.cursor, 0)
+
+        # Test Ctrl+Z (Undo)
+        ti.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_z, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertEqual(ti.val, "Hello World")
+
+        # Test Ctrl+Y (Redo)
+        ti.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_y, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertEqual(ti.val, "")
+
+        # Test Ctrl+V (Paste)
+        set_clipboard_text("Pasted Text")
+        ti.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_v, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertEqual(ti.val, "Pasted Text")
+        self.assertEqual(ti.cursor, len("Pasted Text"))
+
+        # Test Ctrl+Backspace (Delete Word)
+        ti.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_BACKSPACE, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertEqual(ti.val, "Pasted ")
+
+    def test_text_area_multiline_shortcuts_and_navigation(self):
+        from level_editor import TextArea, set_clipboard_text
+
+        ta = TextArea("Dialogue", 0, 0, 400, 150, initial="Line One\nLine Two")
+        ta.active = True
+
+        # Test Ctrl+A and copy
+        ta.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_a, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertEqual(ta.get_selected_text(), "Line One\nLine Two")
+
+        # Test typing replaces selection
+        ta.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_a, "mod": 0, "unicode": "A"}))
+        self.assertEqual(ta.val, "A")
+
+        # Test Enter inserts newline
+        ta.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_RETURN, "mod": 0, "unicode": "\r"}))
+        self.assertEqual(ta.val, "A\n")
+
+        # Test Tab inserts 4 spaces
+        ta.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_TAB, "mod": 0, "unicode": "\t"}))
+        self.assertEqual(ta.val, "A\n    ")
+
+        # Test multiline paste
+        set_clipboard_text("Necromancer:\nBeware the dark shadows!")
+        ta.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_v, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertIn("Necromancer:\nBeware the dark shadows!", ta.val)
+
+        # Test Undo
+        ta.on(pg.event.Event(pg.KEYDOWN, {"key": pg.K_z, "mod": pg.KMOD_CTRL, "unicode": ""}))
+        self.assertEqual(ta.val, "A\n    ")
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

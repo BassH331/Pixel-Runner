@@ -78,41 +78,347 @@ class Button:
                 self.cb()
 
 
+# ── Clipboard and Text Editing Helpers ─────────────────────────────────────
+_INTERNAL_CLIPBOARD = ""
+
+def get_clipboard_text() -> str:
+    global _INTERNAL_CLIPBOARD
+    # 1. Try tkinter
+    try:
+        import tkinter as tk
+        r = tk.Tk()
+        r.withdraw()
+        val = r.clipboard_get()
+        r.destroy()
+        if val is not None:
+            return str(val)
+    except Exception:
+        pass
+    # 2. Try pygame.scrap
+    try:
+        import pygame.scrap as scrap
+        if not scrap.get_init():
+            scrap.init()
+        data = scrap.get(pg.SCRAP_TEXT)
+        if data:
+            val = data.decode("utf-8", errors="ignore").replace("\x00", "")
+            if val:
+                return val
+    except Exception:
+        pass
+    # 3. Fallback to internal clipboard
+    return _INTERNAL_CLIPBOARD
+
+def set_clipboard_text(text: str):
+    global _INTERNAL_CLIPBOARD
+    _INTERNAL_CLIPBOARD = text
+    # 1. Try tkinter
+    try:
+        import tkinter as tk
+        r = tk.Tk()
+        r.withdraw()
+        r.clipboard_clear()
+        r.clipboard_append(text)
+        r.update()
+        r.destroy()
+    except Exception:
+        pass
+    # 2. Try pygame.scrap
+    try:
+        import pygame.scrap as scrap
+        if not scrap.get_init():
+            scrap.init()
+        scrap.put(pg.SCRAP_TEXT, text.encode("utf-8"))
+    except Exception:
+        pass
+
+def find_prev_word_idx(text: str, idx: int) -> int:
+    if idx <= 0:
+        return 0
+    i = idx - 1
+    while i > 0 and text[i].isspace():
+        i -= 1
+    while i > 0 and not text[i - 1].isspace():
+        i -= 1
+    return max(0, i)
+
+def find_next_word_idx(text: str, idx: int) -> int:
+    t_len = len(text)
+    if idx >= t_len:
+        return t_len
+    i = idx
+    while i < t_len and not text[i].isspace():
+        i += 1
+    while i < t_len and text[i].isspace():
+        i += 1
+    return min(t_len, i)
+
+
 class TextInput:
     def __init__(self, label: str, x: int, y: int, w: int, h: int = 36,
                  initial: str = "", placeholder: str = ""):
-        self.label, self.rect = label, pg.Rect(x, y, w, h)
-        self.val, self.placeholder, self.active = str(initial), placeholder, False
+        self.label = label
+        self.rect = pg.Rect(x, y, w, h)
+        self.val = str(initial)
+        self.placeholder = placeholder
+        self.active = False
+        self.cursor = len(self.val)
+        self.sel_anchor = self.cursor
+        self.scroll_x = 0
+        self.dragging = False
+        self.last_click_time = 0
+        self.click_count = 0
+        self.undo_stack: list[tuple[str, int, int]] = []
+        self.redo_stack: list[tuple[str, int, int]] = []
+        self.last_blink = pg.time.get_ticks()
+
+    def has_selection(self) -> bool:
+        return self.cursor != self.sel_anchor
+
+    def get_selection_range(self) -> tuple[int, int]:
+        return min(self.cursor, self.sel_anchor), max(self.cursor, self.sel_anchor)
+
+    def get_selected_text(self) -> str:
+        s, e = self.get_selection_range()
+        return self.val[s:e]
+
+    def push_undo(self):
+        self.undo_stack.append((self.val, self.cursor, self.sel_anchor))
+        if len(self.undo_stack) > 100:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+
+    def undo(self):
+        if self.undo_stack:
+            self.redo_stack.append((self.val, self.cursor, self.sel_anchor))
+            self.val, self.cursor, self.sel_anchor = self.undo_stack.pop()
+            self._clamp_indices()
+
+    def redo(self):
+        if self.redo_stack:
+            self.undo_stack.append((self.val, self.cursor, self.sel_anchor))
+            self.val, self.cursor, self.sel_anchor = self.redo_stack.pop()
+            self._clamp_indices()
+
+    def _clamp_indices(self):
+        self.cursor = max(0, min(len(self.val), self.cursor))
+        self.sel_anchor = max(0, min(len(self.val), self.sel_anchor))
+
+    def delete_selection(self) -> bool:
+        if not self.has_selection():
+            return False
+        s, e = self.get_selection_range()
+        self.push_undo()
+        self.val = self.val[:s] + self.val[e:]
+        self.cursor = s
+        self.sel_anchor = s
+        return True
+
+    def insert_text(self, text: str):
+        # Replace newlines with spaces for single-line input
+        clean_text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+        if not clean_text:
+            return
+        self.push_undo()
+        if self.has_selection():
+            s, e = self.get_selection_range()
+            self.val = self.val[:s] + clean_text + self.val[e:]
+            self.cursor = s + len(clean_text)
+        else:
+            self.val = self.val[:self.cursor] + clean_text + self.val[self.cursor:]
+            self.cursor += len(clean_text)
+        self.sel_anchor = self.cursor
+
+    def _point_to_cursor(self, mouse_x: int, f: pg.font.Font) -> int:
+        rel_x = mouse_x - (self.rect.x + 8 - self.scroll_x)
+        if rel_x <= 0:
+            return 0
+        best_idx = len(self.val)
+        best_dist = 999999
+        for i in range(len(self.val) + 1):
+            w = f.size(self.val[:i])[0]
+            dist = abs(rel_x - w)
+            if dist < best_dist:
+                best_dist = dist
+                best_idx = i
+        return best_idx
+
+    def _ensure_cursor_visible(self, f: pg.font.Font, max_w: int):
+        cursor_px = f.size(self.val[:self.cursor])[0]
+        if cursor_px - self.scroll_x > max_w - 4:
+            self.scroll_x = cursor_px - max_w + 4
+        elif cursor_px - self.scroll_x < 0:
+            self.scroll_x = max(0, cursor_px - 8)
+        if not self.val:
+            self.scroll_x = 0
 
     def draw(self, surf: pg.Surface, f: pg.font.Font, lf: pg.font.Font):
-        surf.blit(lf.render(self.label, True, TXT2), (self.rect.x, self.rect.y - 21))
-        pg.draw.rect(surf, PANEL2 if not self.active else (40,40,60), self.rect, border_radius=6)
-        pg.draw.rect(surf, ACCENT if self.active else BORDER, self.rect, width=2, border_radius=6)
-        disp = self.val if self.val else self.placeholder
-        tcol = TXT if self.val else TXT3
-        t = f.render(disp, True, tcol)
-        clip = pg.Rect(self.rect.x+8, self.rect.y, self.rect.w-16, self.rect.h)
+        if self.label:
+            surf.blit(lf.render(self.label, True, TXT2), (self.rect.x, self.rect.y - 21))
+        pg.draw.rect(surf, (35, 38, 55) if self.active else PANEL2, self.rect, border_radius=6)
+        pg.draw.rect(surf, ACCENT if self.active else BORDER, self.rect, width=2 if self.active else 1, border_radius=6)
+
+        clip_w = self.rect.w - 16
+        clip = pg.Rect(self.rect.x + 8, self.rect.y + 4, clip_w, self.rect.h - 8)
+        self._ensure_cursor_visible(f, clip_w)
+
         surf.set_clip(clip)
-        bx = self.rect.x + 8
-        if t.get_width() > self.rect.w - 16:
-            bx = self.rect.x + 8 + self.rect.w - 16 - t.get_width()
-        surf.blit(t, (bx, self.rect.y + (self.rect.h - t.get_height()) // 2))
+        base_x = self.rect.x + 8 - self.scroll_x
+        base_y = self.rect.y + (self.rect.h - f.get_height()) // 2
+
+        if not self.val and self.placeholder and not self.active:
+            ph = f.render(self.placeholder, True, TXT3)
+            surf.blit(ph, (self.rect.x + 8, base_y))
+        else:
+            # Draw selection background
+            if self.active and self.has_selection():
+                s, e = self.get_selection_range()
+                sx = base_x + f.size(self.val[:s])[0]
+                ex = base_x + f.size(self.val[:e])[0]
+                sel_rect = pg.Rect(sx, self.rect.y + 5, max(2, ex - sx), self.rect.h - 10)
+                sel_surf = pg.Surface((sel_rect.w, sel_rect.h), pg.SRCALPHA)
+                sel_surf.fill((65, 115, 210, 150))
+                surf.blit(sel_surf, sel_rect.topleft)
+
+            # Draw text
+            t = f.render(self.val, True, TXT if self.val else TXT3)
+            surf.blit(t, (base_x, base_y))
+
+            # Draw cursor
+            if self.active:
+                now = pg.time.get_ticks()
+                if (now - self.last_blink) % 900 < 500:
+                    cx = base_x + f.size(self.val[:self.cursor])[0]
+                    pg.draw.line(surf, (255, 255, 255), (cx, self.rect.y + 6), (cx, self.rect.bottom - 6), 2)
+
         surf.set_clip(None)
-        if self.active and (pg.time.get_ticks() // 500) % 2 == 0:
-            cx = min(self.rect.x + 8 + t.get_width(), self.rect.right - 8)
-            pg.draw.line(surf, TXT, (cx, self.rect.y+6), (cx, self.rect.bottom-6), 2)
 
     def on(self, event: pg.event.Event):
-        if event.type == pg.MOUSEBUTTONDOWN:
+        # We need a font for coordinate mapping
+        f = pg.font.SysFont("DejaVu Sans", 13)
+
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            was_active = self.active
             self.active = self.rect.collidepoint(event.pos)
+            if self.active:
+                self.last_blink = pg.time.get_ticks()
+                now = pg.time.get_ticks()
+                if now - self.last_click_time < 350:
+                    self.click_count += 1
+                else:
+                    self.click_count = 1
+                self.last_click_time = now
+
+                idx = self._point_to_cursor(event.pos[0], f)
+                if self.click_count == 2:
+                    # Select word
+                    s = find_prev_word_idx(self.val, idx)
+                    e = find_next_word_idx(self.val, s)
+                    self.sel_anchor, self.cursor = s, e
+                elif self.click_count >= 3:
+                    # Select all
+                    self.sel_anchor, self.cursor = 0, len(self.val)
+                else:
+                    self.cursor = idx
+                    if not (pg.key.get_mods() & pg.KMOD_SHIFT):
+                        self.sel_anchor = idx
+                self.dragging = True
+            else:
+                self.dragging = False
+
+        elif event.type == pg.MOUSEMOTION and self.dragging and self.active:
+            self.cursor = self._point_to_cursor(event.pos[0], f)
+
+        elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
+            self.dragging = False
+
         elif event.type == pg.KEYDOWN and self.active:
-            if event.key == pg.K_BACKSPACE: self.val = self.val[:-1]
-            elif event.key == pg.K_RETURN:  self.active = False
-            elif event.unicode.isprintable(): self.val += event.unicode
+            self.last_blink = pg.time.get_ticks()
+            mod = getattr(event, "mod", 0) | pg.key.get_mods()
+            ctrl = bool(mod & (pg.KMOD_CTRL | pg.KMOD_META))
+            shift = bool(mod & pg.KMOD_SHIFT)
+            alt = bool(mod & pg.KMOD_ALT)
+
+            # Clipboard & Text Selection Shortcuts
+            if ctrl and event.key == pg.K_a:
+                self.sel_anchor = 0
+                self.cursor = len(self.val)
+            elif ctrl and event.key == pg.K_c:
+                sel = self.get_selected_text() or self.val
+                if sel:
+                    set_clipboard_text(sel)
+            elif ctrl and event.key == pg.K_v:
+                cb = get_clipboard_text()
+                if cb:
+                    self.insert_text(cb)
+            elif ctrl and event.key == pg.K_x:
+                sel = self.get_selected_text() or self.val
+                if sel:
+                    set_clipboard_text(sel)
+                    if self.has_selection():
+                        self.delete_selection()
+                    else:
+                        self.push_undo()
+                        self.val = ""
+                        self.cursor = self.sel_anchor = 0
+            elif ctrl and (event.key == pg.K_z and not shift):
+                self.undo()
+            elif ctrl and (event.key == pg.K_y or (event.key == pg.K_z and shift)):
+                self.redo()
+            elif event.key == pg.K_BACKSPACE:
+                if self.has_selection():
+                    self.delete_selection()
+                elif ctrl or alt:
+                    prev_w = find_prev_word_idx(self.val, self.cursor)
+                    self.push_undo()
+                    self.val = self.val[:prev_w] + self.val[self.cursor:]
+                    self.cursor = self.sel_anchor = prev_w
+                elif self.cursor > 0:
+                    self.push_undo()
+                    self.val = self.val[:self.cursor - 1] + self.val[self.cursor:]
+                    self.cursor -= 1
+                    self.sel_anchor = self.cursor
+            elif event.key == pg.K_DELETE:
+                if self.has_selection():
+                    self.delete_selection()
+                elif ctrl or alt:
+                    next_w = find_next_word_idx(self.val, self.cursor)
+                    self.push_undo()
+                    self.val = self.val[:self.cursor] + self.val[next_w:]
+                    self.sel_anchor = self.cursor
+                elif self.cursor < len(self.val):
+                    self.push_undo()
+                    self.val = self.val[:self.cursor] + self.val[self.cursor + 1:]
+                    self.sel_anchor = self.cursor
+            elif event.key == pg.K_LEFT:
+                target = find_prev_word_idx(self.val, self.cursor) if (ctrl or alt) else max(0, self.cursor - 1)
+                self.cursor = target
+                if not shift:
+                    self.sel_anchor = target
+            elif event.key == pg.K_RIGHT:
+                target = find_next_word_idx(self.val, self.cursor) if (ctrl or alt) else min(len(self.val), self.cursor + 1)
+                self.cursor = target
+                if not shift:
+                    self.sel_anchor = target
+            elif event.key == pg.K_HOME:
+                self.cursor = 0
+                if not shift:
+                    self.sel_anchor = 0
+            elif event.key == pg.K_END:
+                self.cursor = len(self.val)
+                if not shift:
+                    self.sel_anchor = self.cursor
+            elif event.key == pg.K_RETURN:
+                self.active = False
+            elif event.key == pg.K_ESCAPE:
+                self.active = False
+            elif event.unicode and event.unicode.isprintable() and not ctrl:
+                self.insert_text(event.unicode)
 
 
 class TextArea:
-    """Multiline text area component with auto-wrapping, vertical scrolling, and line/char counters."""
+    """Multiline text area component with auto-wrapping, vertical scrolling, line/char counters,
+    and full standard shortcuts (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, Ctrl+Z, Undo/Redo, Word jump, Text selection)."""
 
     def __init__(self, label: str, x: int, y: int, w: int, h: int = 110,
                  initial: str = "", placeholder: str = ""):
@@ -122,27 +428,168 @@ class TextArea:
         self.placeholder = placeholder
         self.active = False
         self.scroll = 0
+        self.cursor = len(self.val)
+        self.sel_anchor = self.cursor
+        self.dragging = False
+        self.last_click_time = 0
+        self.click_count = 0
+        self.undo_stack: list[tuple[str, int, int]] = []
+        self.redo_stack: list[tuple[str, int, int]] = []
+        self.last_blink = pg.time.get_ticks()
+        self._cached_lines: list[dict] = []
 
-    def _wrap_text(self, f: pg.font.Font, max_w: int) -> list[str]:
-        lines: list[str] = []
-        raw_paragraphs = self.val.split("\n") if self.val else [""]
-        for paragraph in raw_paragraphs:
-            if not paragraph:
-                lines.append("")
+    def has_selection(self) -> bool:
+        return self.cursor != self.sel_anchor
+
+    def get_selection_range(self) -> tuple[int, int]:
+        return min(self.cursor, self.sel_anchor), max(self.cursor, self.sel_anchor)
+
+    def get_selected_text(self) -> str:
+        s, e = self.get_selection_range()
+        return self.val[s:e]
+
+    def push_undo(self):
+        self.undo_stack.append((self.val, self.cursor, self.sel_anchor))
+        if len(self.undo_stack) > 100:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+
+    def undo(self):
+        if self.undo_stack:
+            self.redo_stack.append((self.val, self.cursor, self.sel_anchor))
+            self.val, self.cursor, self.sel_anchor = self.undo_stack.pop()
+            self._clamp_indices()
+
+    def redo(self):
+        if self.redo_stack:
+            self.undo_stack.append((self.val, self.cursor, self.sel_anchor))
+            self.val, self.cursor, self.sel_anchor = self.redo_stack.pop()
+            self._clamp_indices()
+
+    def _clamp_indices(self):
+        self.cursor = max(0, min(len(self.val), self.cursor))
+        self.sel_anchor = max(0, min(len(self.val), self.sel_anchor))
+
+    def delete_selection(self) -> bool:
+        if not self.has_selection():
+            return False
+        s, e = self.get_selection_range()
+        self.push_undo()
+        self.val = self.val[:s] + self.val[e:]
+        self.cursor = s
+        self.sel_anchor = s
+        return True
+
+    def insert_text(self, text: str):
+        if not text:
+            return
+        # Normalize carriage returns
+        clean_text = text.replace("\r\n", "\n").replace("\r", "\n")
+        self.push_undo()
+        if self.has_selection():
+            s, e = self.get_selection_range()
+            self.val = self.val[:s] + clean_text + self.val[e:]
+            self.cursor = s + len(clean_text)
+        else:
+            self.val = self.val[:self.cursor] + clean_text + self.val[self.cursor:]
+            self.cursor += len(clean_text)
+        self.sel_anchor = self.cursor
+
+    def _layout(self, f: pg.font.Font, max_w: int) -> list[dict]:
+        lines: list[dict] = []
+        if not self.val:
+            return [{"start": 0, "end": 0, "text": ""}]
+
+        p_start = 0
+        paragraphs = self.val.split("\n")
+        for p_str in paragraphs:
+            p_len = len(p_str)
+            if p_len == 0:
+                lines.append({"start": p_start, "end": p_start, "text": ""})
+                p_start += 1
                 continue
-            words = paragraph.split(" ")
-            curr_line = ""
-            for word in words:
-                test_line = f"{curr_line} {word}".strip() if curr_line else word
-                if f.size(test_line)[0] <= max_w:
-                    curr_line = test_line
-                else:
-                    if curr_line:
-                        lines.append(curr_line)
-                    curr_line = word
-            if curr_line:
-                lines.append(curr_line)
+
+            curr_start = 0
+            while curr_start < p_len:
+                best_fit_end = curr_start
+                curr_pos = curr_start
+
+                while curr_pos < p_len:
+                    next_space = p_str.find(" ", curr_pos)
+                    if next_space == -1:
+                        next_token_end = p_len
+                    else:
+                        next_token_end = next_space + 1
+
+                    segment = p_str[curr_start:next_token_end]
+                    if f.size(segment)[0] <= max_w:
+                        best_fit_end = next_token_end
+                        curr_pos = next_token_end
+                    else:
+                        break
+
+                if best_fit_end == curr_start:
+                    char_pos = curr_start + 1
+                    while char_pos <= p_len:
+                        if f.size(p_str[curr_start:char_pos])[0] <= max_w:
+                            char_pos += 1
+                        else:
+                            break
+                    best_fit_end = max(curr_start + 1, char_pos - 1)
+
+                line_seg = p_str[curr_start:best_fit_end]
+                lines.append({
+                    "start": p_start + curr_start,
+                    "end": p_start + best_fit_end,
+                    "text": line_seg
+                })
+                curr_start = best_fit_end
+
+            p_start += p_len + 1
+
         return lines
+
+    def _cursor_to_line_col(self, lines: list[dict], f: pg.font.Font) -> tuple[int, int]:
+        if not lines:
+            return 0, 0
+        for l_idx, line in enumerate(lines):
+            if line["start"] <= self.cursor <= line["end"]:
+                offset = self.cursor - line["start"]
+                sub = line["text"][:offset]
+                return l_idx, f.size(sub)[0]
+        # End of text
+        last_l = len(lines) - 1
+        return last_l, f.size(lines[last_l]["text"])[0]
+
+    def _point_to_cursor(self, mouse_x: int, mouse_y: int, lines: list[dict], line_h: int, f: pg.font.Font) -> int:
+        if not lines:
+            return 0
+        rel_y = mouse_y - (self.rect.y + 8 - self.scroll)
+        l_idx = max(0, min(len(lines) - 1, rel_y // line_h))
+        line = lines[l_idx]
+        txt = line["text"]
+        rel_x = mouse_x - (self.rect.x + 10)
+
+        if rel_x <= 0:
+            return line["start"]
+        best_offset = len(txt)
+        best_dist = 999999
+        for i in range(len(txt) + 1):
+            w = f.size(txt[:i])[0]
+            dist = abs(rel_x - w)
+            if dist < best_dist:
+                best_dist = dist
+                best_offset = i
+        return line["start"] + best_offset
+
+    def _ensure_cursor_visible(self, lines: list[dict], line_h: int, clip_h: int, f: pg.font.Font):
+        l_idx, _ = self._cursor_to_line_col(lines, f)
+        cursor_top = l_idx * line_h
+        cursor_btm = cursor_top + line_h
+        if cursor_btm - self.scroll > clip_h:
+            self.scroll = cursor_btm - clip_h
+        elif cursor_top - self.scroll < 0:
+            self.scroll = max(0, cursor_top)
 
     def draw(self, surf: pg.Surface, f: pg.font.Font, lf: pg.font.Font):
         # Label above
@@ -155,43 +602,67 @@ class TextArea:
         pg.draw.rect(surf, border_col, self.rect, width=2 if self.active else 1, border_radius=6)
 
         max_text_w = self.rect.w - 24
-        wrapped_lines = self._wrap_text(f, max_text_w)
+        wrapped_lines = self._layout(f, max_text_w)
+        self._cached_lines = wrapped_lines
+
+        line_h = f.get_linesize() + 3
+        clip_rect = pg.Rect(self.rect.x + 8, self.rect.y + 6, self.rect.w - 20, self.rect.h - 12)
 
         # Character & Line counter badge at top right
         info_text = f"{len(self.val)} chars  ·  {len(wrapped_lines)} lines"
         info_surf = lf.render(info_text, True, WARN if self.active else TXT3)
         surf.blit(info_surf, (self.rect.right - info_surf.get_width() - 4, self.rect.y - 21))
 
-        # Clipping container
-        clip_rect = pg.Rect(self.rect.x + 8, self.rect.y + 6, self.rect.w - 20, self.rect.h - 12)
-        surf.set_clip(clip_rect)
-
-        line_h = f.get_linesize() + 3
         total_h = len(wrapped_lines) * line_h
         max_scroll = max(0, total_h - clip_rect.h)
+        if self.active:
+            self._ensure_cursor_visible(wrapped_lines, line_h, clip_rect.h, f)
         self.scroll = max(0, min(self.scroll, max_scroll))
 
-        # Render wrapped lines
+        # Clipping container
+        surf.set_clip(clip_rect)
+
+        # Render placeholder
         tcol = TXT if self.val else TXT3
-        if not self.val and self.placeholder:
+        if not self.val and self.placeholder and not self.active:
             ph = f.render(self.placeholder, True, TXT3)
             surf.blit(ph, (self.rect.x + 10, self.rect.y + 8))
         else:
-            for i, line_str in enumerate(wrapped_lines):
+            sel_s, sel_e = self.get_selection_range() if self.has_selection() else (-1, -1)
+
+            for i, line_dict in enumerate(wrapped_lines):
                 ly = self.rect.y + 8 + i * line_h - self.scroll
                 if ly + line_h < clip_rect.y or ly > clip_rect.bottom:
                     continue
-                t_surf = f.render(line_str, True, tcol)
-                surf.blit(t_surf, (self.rect.x + 10, ly))
 
-        # Blinking cursor at the end of the text when active
-        if self.active and (pg.time.get_ticks() // 500) % 2 == 0:
-            last_line = wrapped_lines[-1] if wrapped_lines else ""
-            last_line_idx = len(wrapped_lines) - 1 if wrapped_lines else 0
-            cursor_x = self.rect.x + 10 + f.size(last_line)[0]
-            cursor_y = self.rect.y + 8 + last_line_idx * line_h - self.scroll
-            if clip_rect.y <= cursor_y <= clip_rect.bottom:
-                pg.draw.line(surf, TXT, (cursor_x + 2, cursor_y + 2), (cursor_x + 2, cursor_y + line_h - 2), 2)
+                line_str = line_dict["text"]
+                l_start, l_end = line_dict["start"], line_dict["end"]
+
+                # Selection Highlight for this visual line
+                if self.active and self.has_selection() and sel_s < l_end and sel_e > l_start:
+                    sub_s = max(sel_s, l_start) - l_start
+                    sub_e = min(sel_e, l_end) - l_start
+                    x1 = self.rect.x + 10 + f.size(line_str[:sub_s])[0]
+                    x2 = self.rect.x + 10 + f.size(line_str[:sub_e])[0]
+                    sel_w = max(4, x2 - x1)
+                    sel_rect = pg.Rect(x1, ly, sel_w, line_h)
+                    sel_surf = pg.Surface((sel_rect.w, sel_rect.h), pg.SRCALPHA)
+                    sel_surf.fill((65, 115, 210, 150))
+                    surf.blit(sel_surf, sel_rect.topleft)
+
+                if line_str:
+                    t_surf = f.render(line_str, True, tcol)
+                    surf.blit(t_surf, (self.rect.x + 10, ly))
+
+            # Blinking cursor at exact cursor position
+            if self.active:
+                now = pg.time.get_ticks()
+                if (now - self.last_blink) % 900 < 500:
+                    l_idx, px_x = self._cursor_to_line_col(wrapped_lines, f)
+                    cursor_x = self.rect.x + 10 + px_x
+                    cursor_y = self.rect.y + 8 + l_idx * line_h - self.scroll
+                    if clip_rect.y <= cursor_y + line_h and cursor_y <= clip_rect.bottom:
+                        pg.draw.line(surf, (255, 255, 255), (cursor_x, cursor_y + 2), (cursor_x, cursor_y + line_h - 2), 2)
 
         surf.set_clip(None)
 
@@ -202,19 +673,165 @@ class TextArea:
             pg.draw.rect(surf, BORDER, pg.Rect(self.rect.right - 8, bar_y, 5, bar_h), border_radius=3)
 
     def on(self, event: pg.event.Event):
+        f = pg.font.SysFont("DejaVu Sans", 13)
+        line_h = f.get_linesize() + 3
+        max_text_w = self.rect.w - 24
+        lines = self._layout(f, max_text_w)
+
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
             self.active = self.rect.collidepoint(event.pos)
+            if self.active:
+                self.last_blink = pg.time.get_ticks()
+                now = pg.time.get_ticks()
+                if now - self.last_click_time < 350:
+                    self.click_count += 1
+                else:
+                    self.click_count = 1
+                self.last_click_time = now
+
+                idx = self._point_to_cursor(event.pos[0], event.pos[1], lines, line_h, f)
+                if self.click_count == 2:
+                    s = find_prev_word_idx(self.val, idx)
+                    e = find_next_word_idx(self.val, s)
+                    self.sel_anchor, self.cursor = s, e
+                elif self.click_count >= 3:
+                    self.sel_anchor, self.cursor = 0, len(self.val)
+                else:
+                    self.cursor = idx
+                    if not (pg.key.get_mods() & pg.KMOD_SHIFT):
+                        self.sel_anchor = idx
+                self.dragging = True
+            else:
+                self.dragging = False
+
+        elif event.type == pg.MOUSEMOTION and self.dragging and self.active:
+            self.cursor = self._point_to_cursor(event.pos[0], event.pos[1], lines, line_h, f)
+
+        elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
+            self.dragging = False
+
         elif event.type == pg.MOUSEWHEEL and self.rect.collidepoint(pg.mouse.get_pos()):
-            self.scroll -= event.y * 22
+            self.scroll -= event.y * 24
+
         elif event.type == pg.KEYDOWN and self.active:
-            if event.key == pg.K_BACKSPACE:
-                self.val = self.val[:-1]
+            self.last_blink = pg.time.get_ticks()
+            mod = getattr(event, "mod", 0) | pg.key.get_mods()
+            ctrl = bool(mod & (pg.KMOD_CTRL | pg.KMOD_META))
+            shift = bool(mod & pg.KMOD_SHIFT)
+            alt = bool(mod & pg.KMOD_ALT)
+
+            if ctrl and event.key == pg.K_a:
+                self.sel_anchor = 0
+                self.cursor = len(self.val)
+            elif ctrl and event.key == pg.K_c:
+                sel = self.get_selected_text() or self.val
+                if sel:
+                    set_clipboard_text(sel)
+            elif ctrl and event.key == pg.K_v:
+                cb = get_clipboard_text()
+                if cb:
+                    self.insert_text(cb)
+            elif ctrl and event.key == pg.K_x:
+                sel = self.get_selected_text() or self.val
+                if sel:
+                    set_clipboard_text(sel)
+                    if self.has_selection():
+                        self.delete_selection()
+                    else:
+                        self.push_undo()
+                        self.val = ""
+                        self.cursor = self.sel_anchor = 0
+            elif ctrl and (event.key == pg.K_z and not shift):
+                self.undo()
+            elif ctrl and (event.key == pg.K_y or (event.key == pg.K_z and shift)):
+                self.redo()
+            elif event.key == pg.K_BACKSPACE:
+                if self.has_selection():
+                    self.delete_selection()
+                elif ctrl or alt:
+                    prev_w = find_prev_word_idx(self.val, self.cursor)
+                    self.push_undo()
+                    self.val = self.val[:prev_w] + self.val[self.cursor:]
+                    self.cursor = self.sel_anchor = prev_w
+                elif self.cursor > 0:
+                    self.push_undo()
+                    self.val = self.val[:self.cursor - 1] + self.val[self.cursor:]
+                    self.cursor -= 1
+                    self.sel_anchor = self.cursor
+            elif event.key == pg.K_DELETE:
+                if self.has_selection():
+                    self.delete_selection()
+                elif ctrl or alt:
+                    next_w = find_next_word_idx(self.val, self.cursor)
+                    self.push_undo()
+                    self.val = self.val[:self.cursor] + self.val[next_w:]
+                    self.sel_anchor = self.cursor
+                elif self.cursor < len(self.val):
+                    self.push_undo()
+                    self.val = self.val[:self.cursor] + self.val[self.cursor + 1:]
+                    self.sel_anchor = self.cursor
+            elif event.key == pg.K_LEFT:
+                target = find_prev_word_idx(self.val, self.cursor) if (ctrl or alt) else max(0, self.cursor - 1)
+                self.cursor = target
+                if not shift:
+                    self.sel_anchor = target
+            elif event.key == pg.K_RIGHT:
+                target = find_next_word_idx(self.val, self.cursor) if (ctrl or alt) else min(len(self.val), self.cursor + 1)
+                self.cursor = target
+                if not shift:
+                    self.sel_anchor = target
+            elif event.key == pg.K_UP:
+                curr_l, curr_px = self._cursor_to_line_col(lines, f)
+                if curr_l > 0:
+                    prev_line = lines[curr_l - 1]
+                    target = self._point_to_cursor(self.rect.x + 10 + curr_px,
+                                                  self.rect.y + 8 + (curr_l - 1) * line_h - self.scroll,
+                                                  lines, line_h, f)
+                    self.cursor = target
+                    if not shift:
+                        self.sel_anchor = target
+                else:
+                    self.cursor = 0
+                    if not shift:
+                        self.sel_anchor = 0
+            elif event.key == pg.K_DOWN:
+                curr_l, curr_px = self._cursor_to_line_col(lines, f)
+                if curr_l < len(lines) - 1:
+                    target = self._point_to_cursor(self.rect.x + 10 + curr_px,
+                                                  self.rect.y + 8 + (curr_l + 1) * line_h - self.scroll,
+                                                  lines, line_h, f)
+                    self.cursor = target
+                    if not shift:
+                        self.sel_anchor = target
+                else:
+                    self.cursor = len(self.val)
+                    if not shift:
+                        self.sel_anchor = self.cursor
+            elif event.key == pg.K_HOME:
+                if ctrl:
+                    self.cursor = 0
+                else:
+                    curr_l, _ = self._cursor_to_line_col(lines, f)
+                    self.cursor = lines[curr_l]["start"]
+                if not shift:
+                    self.sel_anchor = self.cursor
+            elif event.key == pg.K_END:
+                if ctrl:
+                    self.cursor = len(self.val)
+                else:
+                    curr_l, _ = self._cursor_to_line_col(lines, f)
+                    self.cursor = lines[curr_l]["end"]
+                if not shift:
+                    self.sel_anchor = self.cursor
             elif event.key == pg.K_RETURN:
-                self.val += "\n"
+                self.insert_text("\n")
             elif event.key == pg.K_TAB:
-                self.val += "    "
-            elif event.unicode and event.unicode.isprintable():
-                self.val += event.unicode
+                self.insert_text("    ")
+            elif event.key == pg.K_ESCAPE:
+                self.active = False
+            elif event.unicode and event.unicode.isprintable() and not ctrl:
+                self.insert_text(event.unicode)
+
 
 
 class Slider:
@@ -2634,10 +3251,16 @@ class App:
         ev   = self.pending[self.s3_idx] if self.s3_idx >= 0 else {}
         eid  = ev.get("id", self._next_id())
         dist = int(ui["dist"].val)
+        raw_params = ev.get("params", {})
+        p: dict = copy.deepcopy(raw_params) if isinstance(raw_params, dict) else {}
         if t == "npc":
             nt = ui.get("npc_type", "generic")
-            p: dict = {"npc_type": nt, "title": ui["title"].val,
-                       "text": ui["text"].val, "radius": int(ui["radius"].val)}
+            p.update({
+                "npc_type": nt,
+                "title": ui["title"].val,
+                "text": ui["text"].val,
+                "radius": int(ui["radius"].val)
+            })
             sprite_dir = ""
             if nt == "generic":
                 sprite_dir = self.browser.selected or ""
@@ -2660,14 +3283,14 @@ class App:
             p["scale"] = new_scale
         elif t == "boss":
             sprite_dir = self.browser.selected or ""
-            p = {
+            p.update({
                 "title": ui["title"].val,
                 "scale": float(ui["scale"].val),
                 "health": float(ui["health"].val),
                 "tier": ui.get("tier", "boss"),
                 "sprite_dir": sprite_dir,
                 "behaviour_map": dict(self.bmap.mapping)
-            }
+            })
             new_scale = float(ui["scale"].val)
             key = _registry_key("boss", "", sprite_dir)
             if key:
@@ -2690,8 +3313,11 @@ class App:
                     )
                     HitboxRegistry.update_margins(key, new_margins)
         else:
-            p = {"title": ui["title"].val, "text": ui["text"].val,
-                 "radius": int(ui["radius"].val)}
+            p.update({
+                "title": ui["title"].val,
+                "text": ui["text"].val,
+                "radius": int(ui["radius"].val)
+            })
         return {"id": eid, "distance": dist, "type": t, "params": p}
 
     def submit_s3(self, force_confirm=False):

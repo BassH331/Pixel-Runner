@@ -1,0 +1,115 @@
+{
+  "phases": {
+    "fade_in": {
+      "duration": 1.5
+    },
+    "orb_collapse": {
+      "frame_duration": 0.11,
+      "camera_zoom": 1.45,
+      "camera_zoom_speed": 1.2,
+      "shake_amplitude": 3.5,
+      "shake_frequency": 10.0,
+      "gravity_strength": 8.0,
+      "sfx": [
+        "transform",
+        "aura_effect"
+      ]
+    },
+    "orb_loop": {
+      "frame_duration": 0.09,
+      "loop_cycles": 3,
+      "camera_zoom": 1.5,
+      "camera_zoom_speed": 0.8,
+      "shake_amplitude": 4.5,
+      "shake_frequency": 14.0,
+      "gravity_strength": 14.0,
+      "sfx": [
+        "lightning"
+      ]
+    },
+    "demon_burst": {
+      "frame_duration": 0.035,
+      "flash_color_white": [
+        255,
+        255,
+        255
+      ],
+      "flash_color_red": [
+        180,
+        20,
+        20
+      ],
+      "red_flash_trigger_frame": 3,
+      "explosion_strength": 450.0,
+      "shake_amplitude": 8.0,
+      "shake_frequency": 20.0,
+      "camera_zoom_snapback_speed": 6.0,
+      "sfx": [
+        "magic_sfx",
+        "bells",
+        "wendigo_screams"
+      ]
+    },
+    "attack_left": {
+      "frame_duration": 0.055,
+      "sway_x": -55.0,
+      "sway_speed": 4.0,
+      "sway_return_pct": 0.7,
+      "sfx": [
+        "smash_phase_2"
+      ]
+    },
+    "attack_right": {
+      "frame_duration": 0.055,
+      "sway_x": 55.0,
+      "sway_speed": 4.0,
+      "sway_return_pct": 0.7,
+      "sfx": [
+        "smash_phase_3"
+      ]
+    },
+    "special_tentacles": {
+      "frame_duration": 0.075,
+      "zoom_peak_frame": 11,
+      "zoom_max": 1.5,
+      "zoom_speed": 2.5,
+      "peak_shake_amplitude": 2.5,
+      "peak_shake_frequency": 8.0,
+      "sfx": [
+        "special_attack",
+        "power_release_1"
+      ]
+    },
+    "revert": {
+      "frame_duration": 0.07,
+      "flash_count": 4,
+      "flash_cycle_duration": 0.22,
+      "flash_color": [
+        200,
+        15,
+        15
+      ],
+      "flash_peak_alpha": 180,
+      "post_pause": 0.6,
+      "sfx": []
+    }
+  },
+  "global": {
+    "sprite_scale": 3.5,
+    "particle_count": 40,
+    "crossfade_duration": 0.3,
+    "flash_fade_speed": 0.3,
+    "background_color": [
+      12,
+      10,
+      20
+    ]
+  },
+  "assets": {
+    "transform_dir": "assets/shadow_warrior/transform",
+    "atk_left_dir": "assets/shadow_warrior/e_3_atk",
+    "atk_right_dir": "assets/shadow_warrior/e_3_atk",
+    "special_atk_dir": "assets/shadow_warrior/e_sp_atk",
+    "revert_dir": "assets/shadow_warrior/back2human"
+  }
+}

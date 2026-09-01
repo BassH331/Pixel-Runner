@@ -8,7 +8,8 @@ ENGINE    := /home/chosen333/Software/V3X-Zulfiqar-Gideon
 
 .PHONY: install engine-dev run dev track hard nightmare test analyze clean \
         boss-editor player-editor level-editor entity-editor audio-editor \
-        wave-editor wizard-editor shadow-editor controls-editor power-icons-editor
+        wave-editor wizard-editor shadow-editor controls-editor power-icons-editor \
+        cutscene-editor
 
 # ── Setup & Installation ───────────────────────────────────────────────────
 install:
@@ -94,6 +95,10 @@ controls-editor:
 power-icons-editor:
 	@echo "🎨 Launching Power Icons & HUD Layout Editor..."
 	$(PYTHON) power_icons_editor.py
+
+cutscene-editor:
+	@echo "🎬 Launching Transformation Cutscene Studio GUI Plugin..."
+	$(PYTHON) cutscene_editor.py
 
 # ── Clean ───────────────────────────────────────────────────────────────────
 clean:

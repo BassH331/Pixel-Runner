@@ -53,7 +53,7 @@
             "3": {
                 "name": "L3: Midground Forest Canopy",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/trees&bushes.png",
-                "scroll_ratio": 0.40,
+                "scroll_ratio": 0.4,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -86,7 +86,7 @@
             "6": {
                 "name": "L6: Main Road & Running Ground",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grass&road.png",
-                "scroll_ratio": 1.00,
+                "scroll_ratio": 1.0,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -130,7 +130,7 @@
             },
             {
                 "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/trees&bushes.png",
-                "scroll_ratio": 0.40,
+                "scroll_ratio": 0.4,
                 "repeat_x": true
             },
             {
@@ -145,7 +145,7 @@
             },
             {
                 "path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grass&road.png",
-                "scroll_ratio": 1.00,
+                "scroll_ratio": 1.0,
                 "repeat_x": true
             },
             {
@@ -251,7 +251,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "Veritas Distoria - It Begins",
-                "text": "Necromanta Arcanorum, the Master of Secrets. You need not speak for Iknow your story and it's end.. We shall meet again towards the end of your pact with \"Umbra Lapsa\". Choose wisely...",
+                "text": "Death normally \"belongs\" to a god, an old division of the Accord. A failed rescue attempt was never assigned to anyone, because it didnt fit the division of the Accord. Voragis, a minor god of unpaid debts, quietly claimed that gap. He offers the person responsible for the failed rescue a deal",
                 "radius": 180,
                 "sprite_dir": "assets/graphics/Necromancer/Idle",
                 "scale": 3.38,
