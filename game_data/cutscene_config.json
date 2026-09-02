@@ -1,34 +1,30 @@
 {
   "phases": {
     "fade_in": {
-      "duration": 1.5
+      "duration": 1.5,
+      "sfx": []
     },
     "orb_collapse": {
-      "frame_duration": 0.11,
-      "camera_zoom": 1.45,
+      "frame_duration": 0.075,
+      "camera_zoom": 1.75,
       "camera_zoom_speed": 1.2,
-      "shake_amplitude": 3.5,
-      "shake_frequency": 10.0,
-      "gravity_strength": 8.0,
-      "sfx": [
-        "transform",
-        "aura_effect"
-      ]
+      "shake_amplitude": 8,
+      "shake_frequency": 10,
+      "gravity_strength": 11,
+      "sfx": []
     },
     "orb_loop": {
-      "frame_duration": 0.09,
-      "loop_cycles": 3,
+      "frame_duration": 0.105,
+      "loop_cycles": 4,
       "camera_zoom": 1.5,
       "camera_zoom_speed": 0.8,
       "shake_amplitude": 4.5,
-      "shake_frequency": 14.0,
-      "gravity_strength": 14.0,
-      "sfx": [
-        "lightning"
-      ]
+      "shake_frequency": 14,
+      "gravity_strength": 14,
+      "sfx": []
     },
     "demon_burst": {
-      "frame_duration": 0.035,
+      "frame_duration": 0.05,
       "flash_color_white": [
         255,
         255,
@@ -40,49 +36,45 @@
         20
       ],
       "red_flash_trigger_frame": 3,
-      "explosion_strength": 450.0,
-      "shake_amplitude": 8.0,
-      "shake_frequency": 20.0,
-      "camera_zoom_snapback_speed": 6.0,
-      "sfx": [
-        "magic_sfx",
-        "bells",
-        "wendigo_screams"
-      ]
+      "explosion_strength": 600,
+      "shake_amplitude": 8,
+      "shake_frequency": 20,
+      "camera_zoom_snapback_speed": 6,
+      "sfx": []
     },
     "attack_left": {
-      "frame_duration": 0.055,
-      "sway_x": -55.0,
-      "sway_speed": 4.0,
+      "frame_duration": 0.08,
+      "sway_x": -55,
+      "sway_speed": 4,
       "sway_return_pct": 0.7,
-      "sfx": [
-        "smash_phase_2"
-      ]
+      "sfx": []
     },
     "attack_right": {
-      "frame_duration": 0.055,
-      "sway_x": 55.0,
-      "sway_speed": 4.0,
+      "frame_duration": 0.08,
+      "sway_x": 55,
+      "sway_speed": 4,
       "sway_return_pct": 0.7,
-      "sfx": [
-        "smash_phase_3"
-      ]
+      "sfx": []
     },
     "special_tentacles": {
-      "frame_duration": 0.075,
-      "zoom_peak_frame": 11,
-      "zoom_max": 1.5,
+      "frame_duration": 0.1,
+      "zoom_peak_frame": 7,
+      "flash_trigger_frame": 7,
+      "zoom_max": 1.7,
       "zoom_speed": 2.5,
-      "peak_shake_amplitude": 2.5,
-      "peak_shake_frequency": 8.0,
-      "sfx": [
-        "special_attack",
-        "power_release_1"
-      ]
+      "peak_shake_amplitude": 13.5,
+      "peak_shake_frequency": 26,
+      "flash_color": [
+        180,
+        20,
+        20
+      ],
+      "flash_peak_alpha": 255,
+      "sfx": []
     },
     "revert": {
-      "frame_duration": 0.07,
-      "flash_count": 4,
+      "frame_duration": 0.09,
+      "flash_count": 5,
       "flash_cycle_duration": 0.22,
       "flash_color": [
         200,
@@ -96,8 +88,8 @@
   },
   "global": {
     "sprite_scale": 3.5,
-    "particle_count": 40,
-    "crossfade_duration": 0.3,
+    "particle_count": 90,
+    "crossfade_duration": 0.6,
     "flash_fade_speed": 0.3,
     "background_color": [
       12,
@@ -111,5 +103,6 @@
     "atk_right_dir": "assets/shadow_warrior/e_3_atk",
     "special_atk_dir": "assets/shadow_warrior/e_sp_atk",
     "revert_dir": "assets/shadow_warrior/back2human"
-  }
+  },
+  "audio_timeline": []
 }

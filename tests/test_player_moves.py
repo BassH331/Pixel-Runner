@@ -13,7 +13,7 @@ def _ensure_pygame_init():
         pg.init()
     if not pg.font.get_init():
         pg.font.init()
-    if not pg.display.get_init() or pg.display.get_surface() is None:
+    if not pg.display.get_init() or pg.display.get_surface() is None or pg.display.get_surface().get_width() < 1280:
         pg.display.init()
         pg.display.set_mode((1280, 720))
 

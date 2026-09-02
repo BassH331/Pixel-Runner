@@ -81,10 +81,12 @@ class StoryState(State):
             pass
 
         # ── Ambient Floating Particles (Embers / Fireflies) ───────────────────
+        w = max(1, self.width)
+        h = max(1, self.height - 200)
         self._particles = [
             {
-                "x": float((i * 97) % self.width),
-                "y": float((i * 61) % (self.height - 200)),
+                "x": float((i * 97) % w),
+                "y": float((i * 61) % h),
                 "speed_x": 12.0 + (i % 5) * 6.0,
                 "speed_y": -15.0 - (i % 4) * 8.0,
                 "size": 2 + (i % 3),

@@ -353,10 +353,13 @@ class TransformationCutscene(State):
             "special_tentacles": {
                 "frame_duration": 0.075,
                 "zoom_peak_frame": 11,
+                "flash_trigger_frame": 11,
                 "zoom_max": 1.50,
                 "zoom_speed": 2.5,
-                "peak_shake_amplitude": 2.5,
-                "peak_shake_frequency": 8.0,
+                "peak_shake_amplitude": 9.5,
+                "peak_shake_frequency": 22.0,
+                "flash_color": [180, 20, 20],
+                "flash_peak_alpha": 220,
                 "sfx": ["special_attack", "power_release_1"]
             },
             "revert": {
@@ -520,16 +523,100 @@ class TransformationCutscene(State):
             scaled.append(s)
         return scaled
 
+    def _play_single_sound(
+        self, key: str, volume: float = 1.0, pan: float = 0.0, fade_in_sec: float = 0.0
+    ) -> None:
+        """Trigger a sound by key or path with volume, stereo panning, and fade-in."""
+        try:
+            if hasattr(self.manager, "audio_manager") and self.manager.audio_manager:
+                am = self.manager.audio_manager
+                if key not in am.sound_library and os.path.exists(key):
+                    am.load_sound(key, key)
+                channel_id = am.play_sound(key, volume=volume)
+                if channel_id is not None and hasattr(am, "channels") and 0 <= channel_id < len(am.channels):
+                    ch = am.channels[channel_id]
+                    # Apply stereo panning (-1.0 = left, 0.0 = center, +1.0 = right)
+                    left_v = max(0.0, min(1.0, (1.0 - pan) * volume))
+                    right_v = max(0.0, min(1.0, (1.0 + pan) * volume))
+                    ch.set_volume(left_v, right_v)
+        except Exception:
+            pass
+
     def _play_sfx_list(self, keys: list[str]) -> None:
-        """Trigger a list of sound effects once."""
+        """Trigger a list of sound effects once. Supports registered names and direct asset paths."""
+        phase_name_map = {
+            _Phase.FADE_IN: "fade_in",
+            _Phase.ORB_COLLAPSE: "orb_collapse",
+            _Phase.ORB_LOOP: "orb_loop",
+            _Phase.DEMON_BURST: "demon_burst",
+            _Phase.ATTACK_LEFT: "attack_left",
+            _Phase.ATTACK_RIGHT: "attack_right",
+            _Phase.SPECIAL_TENTACLES: "special_tentacles",
+            _Phase.REVERT: "revert",
+        }
+        phase_name = phase_name_map.get(self._phase)
+        if phase_name:
+            p_cfg = self._config.get("phases", {}).get(phase_name, {})
+            # If sfx_timeline is configured for this phase, let timeline handle it
+            if p_cfg.get("sfx_timeline"):
+                return
+
         for key in keys:
             if key and key not in self._audio_triggered:
                 self._audio_triggered.add(key)
-                try:
-                    if hasattr(self.manager, "audio_manager") and self.manager.audio_manager:
-                        self.manager.audio_manager.play_sound(key)
-                except Exception:
-                    pass
+                self._play_single_sound(key, volume=1.0)
+
+    def _update_audio(self) -> None:
+        """Check and fire audio triggers across the timeline (both global audio_timeline and per-phase)."""
+        # 1. Global Freeform Audio Timeline (Full DAW Freedom)
+        global_timeline = self._config.get("audio_timeline")
+        if global_timeline and isinstance(global_timeline, list):
+            for idx, entry in enumerate(global_timeline):
+                if isinstance(entry, dict):
+                    if entry.get("muted", False):
+                        continue
+                    key = entry.get("key")
+                    time_pos = float(entry.get("time", 0.0))
+                    vol = float(entry.get("volume", 1.0))
+                    pan = float(entry.get("pan", 0.0))
+                    fade_in = float(entry.get("fade_in", 0.0))
+                    trig_id = f"global_timeline_{idx}_{key}"
+                    if key and self._total_elapsed_time >= time_pos and trig_id not in self._audio_triggered:
+                        self._audio_triggered.add(trig_id)
+                        self._play_single_sound(key, volume=vol, pan=pan, fade_in_sec=fade_in)
+            return
+
+        # 2. Phase-specific legacy fallback
+        phase_name_map = {
+            _Phase.FADE_IN: "fade_in",
+            _Phase.ORB_COLLAPSE: "orb_collapse",
+            _Phase.ORB_LOOP: "orb_loop",
+            _Phase.DEMON_BURST: "demon_burst",
+            _Phase.ATTACK_LEFT: "attack_left",
+            _Phase.ATTACK_RIGHT: "attack_right",
+            _Phase.SPECIAL_TENTACLES: "special_tentacles",
+            _Phase.REVERT: "revert",
+        }
+        phase_name = phase_name_map.get(self._phase)
+        if not phase_name:
+            return
+
+        p_cfg = self._config.get("phases", {}).get(phase_name, {})
+        timeline = p_cfg.get("sfx_timeline")
+        if timeline and isinstance(timeline, list):
+            for idx, entry in enumerate(timeline):
+                if isinstance(entry, dict):
+                    if entry.get("muted", False):
+                        continue
+                    key = entry.get("key")
+                    offset = float(entry.get("offset", 0.0))
+                    vol = float(entry.get("volume", 1.0))
+                    pan = float(entry.get("pan", 0.0))
+                    fade_in = float(entry.get("fade_in", 0.0))
+                    trig_id = f"{phase_name}_timeline_{idx}_{key}"
+                    if key and self._phase_timer >= offset and trig_id not in self._audio_triggered:
+                        self._audio_triggered.add(trig_id)
+                        self._play_single_sound(key, volume=vol, pan=pan, fade_in_sec=fade_in)
 
     # ─── State interface ─────────────────────────────────────────────────────
 
@@ -537,6 +624,11 @@ class TransformationCutscene(State):
         # Reload config in case it was modified in the editor while running
         self._config = self._load_config()
         self._reset_state()
+        self._total_elapsed_time = 0.0
+        # Fire fade_in SFX if any (legacy only)
+        if not self._config.get("audio_timeline"):
+            fade_cfg = self._config.get("phases", {}).get("fade_in", {})
+            self._play_sfx_list(fade_cfg.get("sfx", []))
 
     def handle_event(self, event: pg.event.Event) -> None:
         if event.type == pg.KEYDOWN and event.key in (pg.K_SPACE, pg.K_RETURN):
@@ -547,6 +639,7 @@ class TransformationCutscene(State):
     def update(self, dt: float) -> None:
         dt_sec = dt / 1000.0
         self._phase_timer += dt_sec
+        self._total_elapsed_time += dt_sec
 
         # Decay flash overlay
         if self._flash_alpha > 0:
@@ -558,6 +651,9 @@ class TransformationCutscene(State):
 
         # Update vortex particles
         self._vortex.update(dt_sec)
+
+        # Update timeline audio triggers
+        self._update_audio()
 
         # Cross-fade timer
         if self._crossfading:
@@ -729,13 +825,15 @@ class TransformationCutscene(State):
         p_cfg = self._config.get("phases", {}).get("special_tentacles", {})
         f_dur = float(p_cfg.get("frame_duration", 0.075))
         zoom_peak_frame = int(p_cfg.get("zoom_peak_frame", 11))
+        flash_trigger_frame = int(p_cfg.get("flash_trigger_frame", zoom_peak_frame))
         zoom_max = float(p_cfg.get("zoom_max", 1.50))
         zoom_speed = float(p_cfg.get("zoom_speed", 2.5))
-        peak_shake_amp = float(p_cfg.get("peak_shake_amplitude", 2.5))
-        peak_shake_freq = float(p_cfg.get("peak_shake_frequency", 8.0))
+        peak_shake_amp = float(p_cfg.get("peak_shake_amplitude", 9.5))
+        peak_shake_freq = float(p_cfg.get("peak_shake_frequency", 22.0))
 
         total = len(self._frames_special) if self._frames_special else 19
         peak_idx = min(zoom_peak_frame, total - 1)
+        flash_idx = min(flash_trigger_frame, total - 1)
 
         if self._frame_idx <= peak_idx:
             t = self._frame_idx / max(peak_idx, 1)
@@ -748,9 +846,19 @@ class TransformationCutscene(State):
             self._camera.set_zoom(target_z, speed=zoom_speed)
 
         self._camera.set_sway(0.0, speed=4.0)
+
+        # Trigger red flash on chosen flash frame
+        if self._frame_idx == flash_idx and "tentacle_red_flash" not in self._audio_triggered:
+            self._audio_triggered.add("tentacle_red_flash")
+            self._flash_color = tuple(p_cfg.get("flash_color", [180, 20, 20]))
+            self._flash_alpha = float(p_cfg.get("flash_peak_alpha", 220.0))
+
+        # Violent vibration on peak close-up frame
         if self._frame_idx == peak_idx:
             self._camera.set_shake(peak_shake_amp, frequency=peak_shake_freq)
             self._play_sfx_list(p_cfg.get("sfx", ["special_attack", "power_release_1"]))
+        elif self._frame_idx == peak_idx + 1:
+            self._camera.set_shake(peak_shake_amp * 0.6, frequency=peak_shake_freq)
         elif self._frame_idx > peak_idx + 2:
             self._camera.set_shake(0.0)
 
