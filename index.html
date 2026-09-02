@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guardian Runner: The Unpaid Debt — Interactive Story & Character Codex</title>
+  <meta name="description" content="You tried to save her. You failed. Take the shadow god's power to undo it—but every use burns away who you are. Experience the interactive folktale.">
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/animations.css">
+  <link rel="stylesheet" href="styles/codex.css">
+</head>
+<body>
+
+  <!-- Sticky Global Header -->
+  <header class="site-header" role="banner">
+    <div class="brand-wrap">
+      <div class="brand-icon" aria-hidden="true">Ω</div>
+      <span class="brand-title">The Unpaid Debt</span>
+    </div>
+
+    <nav class="nav-links" aria-label="Main Navigation">
+      <a href="#curse-engine" class="nav-link">The Curse</a>
+      <a href="#choice-chamber" class="nav-link">The Deal</a>
+      <a href="#chronicle" class="nav-link">The Story</a>
+      <a href="#codex" class="nav-link">Characters</a>
+      <a href="#endings" class="nav-link">Endings</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+    </nav>
+
+    <div class="header-controls">
+      <button id="audio-toggle" class="audio-btn" aria-label="Toggle atmospheric background audio" aria-pressed="false">
+        <div class="sound-wave" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <span class="audio-label">Sound: OFF 🔇</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Gamified Dopamine HUD Bar -->
+  <aside class="quest-hud-bar" aria-label="Player Soul Tracker">
+    <div class="hud-item">
+      <span class="hud-label">⭐ Soul Fragments:</span>
+      <span id="hud-souls-count" class="hud-val">0 / 12</span>
+      <div class="hud-progress-bg">
+        <div id="hud-souls-bar" class="hud-progress-fill" style="width: 0%;"></div>
+      </div>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">🔥 Demon Corruption:</span>
+      <span id="hud-curse-val" class="hud-val highlight">0%</span>
+    </div>
+    <div class="hud-item quest-hint">
+      <span class="hud-label">📜 Mission:</span>
+      <span class="hud-text">Inspect characters & choose your fate!</span>
+    </div>
+  </aside>
+
+  <!-- Reading Progress Bar -->
+  <div class="scroll-progress-bar" aria-hidden="true">
+    <div id="scroll-progress-fill"></div>
+  </div>
+
+  <main>
+    <!-- Parallax Hero Section -->
+    <section class="hero-section" id="hero" aria-labelledby="hero-heading">
+      <div class="parallax-container" aria-hidden="true">
+        <div class="parallax-layer layer-sky" data-parallax-speed="0.05" data-mouse-factor="8"></div>
+        <div class="parallax-layer layer-mountains" data-parallax-speed="0.12" data-mouse-factor="15"></div>
+        <div class="parallax-layer layer-trees" data-parallax-speed="0.22" data-mouse-factor="25"></div>
+        <div class="parallax-layer layer-treeface" data-parallax-speed="0.26" data-mouse-factor="30"></div>
+        <div class="parallax-layer layer-vines" data-parallax-speed="0.35" data-mouse-factor="45"></div>
+        <div class="parallax-layer layer-fireflies" data-parallax-speed="0.4" data-mouse-factor="55"></div>
+      </div>
+      <div class="hero-vignette" aria-hidden="true"></div>
+
+      <div class="hero-content">
+        <span class="hero-badge">⚡ An Interactive Dark Fantasy Folktale</span>
+        <h1 class="hero-title" id="hero-heading">
+          YOU TRIED TO SAVE HER.
+          <span class="title-accent">YOU FAILED.</span>
+        </h1>
+        <blockquote class="hero-pitch">
+          A giant tree crashed. She slipped from your fingers. That kind of death doesn’t belong to anyone — so a dark god showed up to collect it instead.<br><br>
+          <span>Take his power, and you get a real chance to bring her back.</span><br>
+          <strong>Use that power, and every piece of who you are disappears.</strong>
+        </blockquote>
+        <div class="hero-cta-group">
+          <a href="#choice-chamber" class="primary-btn pulse-glow">Make The Choice ⚡</a>
+          <a href="#curse-engine" class="secondary-btn">Test The Curse 🔥</a>
+          <a href="#chronicle" class="secondary-btn">Read Story 📖</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive "Would You Take The Deal?" Chamber -->
+    <section class="section-wrapper" id="choice-chamber" aria-labelledby="choice-heading">
+      <div class="section-header">
+        <span class="section-tag">Interactive Dilemma</span>
+        <h2 class="section-heading" id="choice-heading">Would You Take The Deal?</h2>
+        <p class="section-subtitle">Elise is falling. The strange man in black extends his hand with a glowing dark shard. What do you do?</p>
+      </div>
+
+      <div class="choice-container">
+        <div class="choice-cards-wrap">
+          <button id="btn-choice-take" class="choice-card-btn take-power">
+            <div class="choice-icon">🗡️</div>
+            <h3>Take The Demon Power</h3>
+            <p>Plunge the shadow shard into your chest! Unlock super speed, razor claws, and a real chance to undo her death.</p>
+            <span class="choice-subtext">Cost: Every use burns away your mortal memories.</span>
+          </button>
+
+          <button id="btn-choice-walk" class="choice-card-btn walk-away">
+            <div class="choice-icon">🕊️</div>
+            <h3>Walk Away Clean</h3>
+            <p>Refuse the shady contract. Stay 100% human. Never touch the dark magic.</p>
+            <span class="choice-subtext">Cost: Elise is gone forever. You live alone with the guilt.</span>
+          </button>
+        </div>
+
+        <div id="choice-outcome" class="choice-outcome-wrap" aria-live="polite">
+          <p class="outcome-placeholder">👆 Tap a choice above to test your soul and unlock your title!</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- The Interactive Curse & Transformation Engine -->
+    <section class="section-wrapper transform-section" id="curse-engine" aria-labelledby="curse-heading">
+      <div class="section-header">
+        <span class="section-tag">Power In, Self Out</span>
+        <h2 class="section-heading" id="curse-heading">The Curse Reactor</h2>
+        <p class="section-subtitle">Drag the slider to see what happens when you borrow demon power. Watch how your body changes and your human memories fade!</p>
+      </div>
+
+      <div class="transform-container">
+        <div class="stage-display" aria-label="Interactive character transformation visualizer">
+          <div id="trans-aura"></div>
+          <canvas id="human-canvas" class="stage-canvas" width="300" height="300"></canvas>
+          <canvas id="demon-canvas" class="stage-canvas" width="300" height="300"></canvas>
+          <div class="stage-overlay-labels">
+            <span class="stage-label-pill">Human Soul</span>
+            <span class="stage-label-pill">Shadow Demon</span>
+          </div>
+        </div>
+
+        <div class="transform-controls">
+          <div class="transform-meter-head">
+            <span id="state-label" class="state-badge state-normal">100% Mortal Hero</span>
+            <span id="corruption-pct" class="meter-percentage">0%</span>
+          </div>
+
+          <div class="slider-wrap">
+            <div class="slider-labels">
+              <span>0% Human</span>
+              <span>50% Shadow Beast</span>
+              <span>100% Dark God</span>
+            </div>
+            <input type="range" id="curse-range" class="curse-slider" min="0" max="100" value="0" aria-label="Corruption slider">
+          </div>
+
+          <div class="memory-box">
+            <blockquote id="memory-fragment" class="memory-quote">
+              “I remember her laugh like cool river water. We were walking home. I will bring her back!”
+            </blockquote>
+            <p id="cost-details" class="cost-explanation">
+              Your human soul is intact. The shadow demon inside you is resting.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scrollytelling Folklore Chapters -->
+    <section class="section-wrapper scrolly-section" id="chronicle" aria-labelledby="chronicle-heading">
+      <div class="section-header">
+        <span class="section-tag">The Story in 5 Chapters</span>
+        <h2 class="section-heading" id="chronicle-heading">The Grand Chronicle</h2>
+        <p class="section-subtitle">A fast-paced journey from the fatal accident to the final battle on the steps of the gods.</p>
+      </div>
+
+      <div class="scrolly-layout">
+        <aside class="chapter-nav-rail" aria-label="Chapter progress navigation">
+          <button class="chapter-nav-dot active" data-target-chapter="0" data-tooltip="Chapter 0: The Rules of Death" aria-label="Go to Chapter 0"></button>
+          <button class="chapter-nav-dot" data-target-chapter="1" data-tooltip="Chapter 1: The Accident" aria-label="Go to Chapter 1"></button>
+          <button class="chapter-nav-dot" data-target-chapter="2" data-tooltip="Chapter 2: The Skeletons" aria-label="Go to Chapter 2"></button>
+          <button class="chapter-nav-dot" data-target-chapter="3" data-tooltip="Chapter 3: The Sanctuary" aria-label="Go to Chapter 3"></button>
+          <button class="chapter-nav-dot" data-target-chapter="4" data-tooltip="Chapter 4: The Final Boss" aria-label="Go to Chapter 4"></button>
+        </aside>
+
+        <div class="chapters-stream">
+          <!-- Chapter 0 -->
+          <article class="chapter-card" data-chapter="0">
+            <div class="chapter-text-content">
+              <div class="chapter-header-row">
+                <span class="chapter-badge">Chapter 00 // The Accord</span>
+                <button class="narration-btn" aria-label="Listen to chapter voiceover">🎧 Listen to Narrator</button>
+              </div>
+              <h3 class="chapter-title">The Hole in Death's Rules</h3>
+              <p class="chapter-body">
+                The gods of death divided all dying people between themselves like departments in an office. If you die in battle, one god takes you. If you get sick, another takes you. But nobody ever wrote a rule for someone who dies while someone else is trying to save them! It was a tiny blind spot in the universe. <strong>Voragis</strong>, a minor god of unpaid loans, quietly claimed that gap and built his entire empire on it.
+              </p>
+              <div class="chapter-lore-callout">
+                “Voragis doesn't cause accidents. He just shows up when nobody else has the paperwork to claim you.”
+              </div>
+            </div>
+            <div class="chapter-visual-frame">
+              <img src="assets/graphics/story/slide1.png" alt="The gods dividing souls across the cosmic cosmos" class="chapter-img" loading="lazy">
+            </div>
+          </article>
+
+          <!-- Chapter 1 -->
+          <article class="chapter-card" data-chapter="1">
+            <div class="chapter-text-content">
+              <div class="chapter-header-row">
+                <span class="chapter-badge">Chapter 01 // The Accident</span>
+                <button class="narration-btn" aria-label="Listen to chapter voiceover">🎧 Listen to Narrator</button>
+              </div>
+              <h3 class="chapter-title">The Snap of the Oak & The Deal</h3>
+              <p class="chapter-body">
+                You were walking home with your wife, Elise. Without warning—<em>CRACK!</em>—a giant ancient oak tree crashes down! You lunge and grab her wrist. You pull with all your might, but the ground crumbles and her fingers slip away like autumn leaves. Because it was a real rescue attempt, no normal god collects her. Out of the fog steps <strong>The Ledger</strong>—a mysterious man with a heavy iron book who offers you a fragment of demon power.
+              </p>
+              <div class="chapter-lore-callout">
+                “Take this power. Climb the mountain. You get one chance to buy her back. But remember: power in, self out!”
+              </div>
+            </div>
+            <div class="chapter-visual-frame">
+              <img src="assets/graphics/story/slide2.png" alt="The accident on the road and arrival of the Ledger" class="chapter-img" loading="lazy">
+            </div>
+          </article>
+
+          <!-- Chapter 2 -->
+          <article class="chapter-card" data-chapter="2">
+            <div class="chapter-text-content">
+              <div class="chapter-header-row">
+                <span class="chapter-badge">Chapter 02 // The Dark Forest</span>
+                <button class="narration-btn" aria-label="Listen to chapter voiceover">🎧 Listen to Narrator</button>
+              </div>
+              <h3 class="chapter-title">Why Skeletons Are Just Empty Cans</h3>
+              <p class="chapter-body">
+                The forest is crawling with skeletons and blood zombies. But here is the crazy secret: they aren't random monsters! They are people who signed the deal before you and failed. Voragis already drained their souls years ago. Slicing them up costs him nothing—they are like empty soda cans after the drink is finished! Then you meet the <strong>Dark Ronin</strong>, a samurai who liked the demon power so much he decided to keep it forever!
+              </p>
+              <div class="chapter-lore-callout">
+                “Fail, and you become scenery. Win and choose wrong, and you become the boss's staff.”
+              </div>
+            </div>
+            <div class="chapter-visual-frame">
+              <img src="assets/graphics/story/slide3.png" alt="Fighting through the Dark Forest" class="chapter-img" loading="lazy">
+            </div>
+          </article>
+
+          <!-- Chapter 3 -->
+          <article class="chapter-card" data-chapter="3">
+            <div class="chapter-text-content">
+              <div class="chapter-header-row">
+                <span class="chapter-badge">Chapter 03 // The Sanctuary</span>
+                <button class="narration-btn" aria-label="Listen to chapter voiceover">🎧 Listen to Narrator</button>
+              </div>
+              <h3 class="chapter-title">The Silver Priestess & The Green Gargoyle</h3>
+              <p class="chapter-body">
+                In a quiet grove glowing with blue crystals, you meet the <strong>Moonstone Keeper</strong>. She whispers that <strong>Candora</strong>, the Goddess of Love, is watching you. If you choose peace at the end, she will protect Elise's soul. But before you can leave the forest, you must face the <strong>Gatekeeper</strong>—a massive green winged gargoyle who blocks speedrunners and only lets you pass if you actually helped people along the way!
+              </p>
+              <div class="chapter-lore-callout">
+                “You can't speedrun the woods. The giant gargoyle only respects those who carried the forest's weight.”
+              </div>
+            </div>
+            <div class="chapter-visual-frame">
+              <img src="assets/graphics/story/slide4.png" alt="The Moonstone Keeper and the Gatekeeper at the threshold" class="chapter-img" loading="lazy">
+            </div>
+          </article>
+
+          <!-- Chapter 4 -->
+          <article class="chapter-card" data-chapter="4">
+            <div class="chapter-text-content">
+              <div class="chapter-header-row">
+                <span class="chapter-badge">Chapter 04 // The Realm of Gods</span>
+                <button class="narration-btn" aria-label="Listen to chapter voiceover">🎧 Listen to Narrator</button>
+              </div>
+              <h3 class="chapter-title">The Scales of the Final Boss</h3>
+              <p class="chapter-body">
+                High above the clouds on giant floating marble stairs stands <strong>The Wizard</strong>! He holds glowing golden scales that measure how much human heart you still have left. After an epic lightning duel, you shatter his staff. Now, you stand before the ultimate choice: surrender the power to be human again, or become the new immortal god of the forest!
+              </p>
+              <div class="chapter-lore-callout">
+                “You reached the top before the demon ate your mind. Now make the choice that defines eternity.”
+              </div>
+            </div>
+            <div class="chapter-visual-frame">
+              <img src="assets/graphics/story/slide5.png" alt="The final battle with the Wizard" class="chapter-img" loading="lazy">
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Character Codex & Animated Bestiary -->
+    <section class="section-wrapper" id="codex" aria-labelledby="codex-heading">
+      <div class="section-header">
+        <span class="section-tag">Living Pixel Roster // Click to Inspect</span>
+        <h2 class="section-heading" id="codex-heading">Character Dossier</h2>
+        <p class="section-subtitle">Inspect every hero, villain, and monster. Tap any card to open their 3D animated profile and discover their secrets!</p>
+      </div>
+
+      <div class="codex-filter-bar">
+        <button class="codex-filter-btn active" data-filter="all">All Souls (12)</button>
+        <button class="codex-filter-btn" data-filter="debt">Dark Bosses & Staff</button>
+        <button class="codex-filter-btn" data-filter="mercy">Allies of Light</button>
+        <button class="codex-filter-btn" data-filter="neutral">Neutral Guardians</button>
+        <button class="codex-filter-btn" data-filter="husks">The Skeletons & Zombies</button>
+      </div>
+
+      <div class="character-grid" id="character-grid">
+        <!-- Dynamically rendered via character-data.js -->
+      </div>
+    </section>
+
+    <!-- Character Inspect Modal -->
+    <div id="character-modal" class="modal-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="modal-content">
+        <button id="modal-close-btn" class="modal-close-btn" aria-label="Close dossier">&times;</button>
+        
+        <div class="modal-visual-side">
+          <div class="modal-canvas-wrap">
+            <canvas id="modal-canvas" width="240" height="240"></canvas>
+          </div>
+          <div id="modal-actions-wrap" class="modal-actions-wrap">
+            <!-- Dynamic animation action buttons (Idle, Run, Attack) -->
+          </div>
+        </div>
+
+        <div class="modal-text-side">
+          <div>
+            <span id="modal-char-class" class="modal-class-badge">Staff (Broker)</span>
+            <h3 id="modal-char-name" class="modal-char-name">Character Name</h3>
+            <p id="modal-char-title" class="modal-char-title">Title</p>
+          </div>
+
+          <blockquote id="modal-char-quote" class="modal-quote-box">
+            “Quote excerpt”
+          </blockquote>
+
+          <div>
+            <h4 class="modal-section-title">The Secret Lore</h4>
+            <p id="modal-char-accord" class="modal-accord-text">Accord details</p>
+          </div>
+
+          <div>
+            <h4 class="modal-section-title">Biography & Backstory</h4>
+            <p id="modal-char-lore" class="modal-lore-text">Lore description</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dual Endings Simulator -->
+    <section class="section-wrapper endings-section" id="endings" aria-labelledby="endings-heading">
+      <div class="section-header">
+        <span class="section-tag">Interactive Final Choice</span>
+        <h2 class="section-heading" id="endings-heading">The Two Endings</h2>
+        <p class="section-subtitle">Neither path is flagged as good or evil. Both cost something real; both gain something forever.</p>
+      </div>
+
+      <div class="endings-showcase" data-active-ending="purified">
+        <nav class="endings-nav-tabs" aria-label="Ending choice tabs">
+          <button class="ending-choice-tab active" data-ending="purified" data-target-panel="panel-purified">
+            🕊️ Ending A: Save Her Soul (Purified)
+          </button>
+          <button class="ending-choice-tab" data-ending="god" data-target-panel="panel-god">
+            👑 Ending B: Become The Shadow God (Ascension)
+          </button>
+        </nav>
+
+        <!-- Ending A Panel -->
+        <div id="panel-purified" class="ending-panel active">
+          <div class="ending-grid">
+            <div>
+              <span class="ending-badge purified">Debt Paid In Full</span>
+              <h3 class="ending-title">Peace Under Silver Skies</h3>
+              <blockquote class="ending-quote" style="color: var(--color-lunar);">
+                “You reach inside your chest and tear out the demon shard. You collapse onto the stone, fully human again.”
+              </blockquote>
+              <p class="ending-text">
+                You give the power back. Your razor claws vanish, leaving ordinary, scarred hands. Elise cannot come back to live in the dirt—that was a false dream—but she is no longer trapped in the cold dark void! Candora cradles her soul in warm silver light. Elise smiles at you, knowing you stayed the man she loved, and crosses peacefully into paradise.
+              </p>
+              <ul class="ending-traits-list">
+                <li><span style="color: var(--color-lunar);">What You Gain:</span> Elise finds eternal peace. Your soul is saved.</li>
+                <li><span style="color: var(--color-lunar);">What It Costs:</span> All demon powers are gone forever. You live a normal, mortal life with an empty home.</li>
+              </ul>
+            </div>
+            <div class="ending-visual-box purified">
+              <h4 style="font-family: var(--font-serif); margin-bottom: 1rem; color: var(--color-lunar);">“You brought me home.”</h4>
+              <p style="font-size: 0.95rem; color: #cad8ee; line-height: 1.7;">
+                Her mountain-water laugh returns to your memory. You are weak and fragile again, but your love was not in vain.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ending B Panel -->
+        <div id="panel-god" class="ending-panel">
+          <div class="ending-grid">
+            <div>
+              <span class="ending-badge god">Permanent Promotion</span>
+              <h3 class="ending-title">The Sovereign of the Dark Forest</h3>
+              <blockquote class="ending-quote" style="color: var(--color-crimson);">
+                “You stop fighting the shadow. The dark armor hardens into your skin. You let the power take over completely.”
+              </blockquote>
+              <p class="ending-text">
+                Why return to being weak and fragile? You accept the demon's permanent terms. The shard wraps around your spine, wiping away your mortal tears and erasing her face from your memory. Your eyes ignite with purple fire. You turn around and descend back into the forest as an immortal dark sovereign. When the next tragic accident happens, you will be the one holding the heavy ledger book!
+              </p>
+              <ul class="ending-traits-list">
+                <li><span style="color: #ff6b78;">What You Gain:</span> Godlike immortality, shadow magic, and eternal strength!</li>
+                <li><span style="color: #ff6b78;">What It Costs:</span> You forget Elise completely. You become the next monster of the woods.</li>
+              </ul>
+            </div>
+            <div class="ending-visual-box god">
+              <h4 style="font-family: var(--font-serif); margin-bottom: 1rem; color: #ff6b78);">“The debt is settled.”</h4>
+              <p style="font-size: 0.95rem; color: #ecc6ca; line-height: 1.7;">
+                You mirror the Dark Ronin. When a new traveler cries over a fallen loved one, it is your shadow stepping through the trees to offer the deal.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Player-Facing FAQ -->
+    <section class="section-wrapper" id="faq" aria-labelledby="faq-heading">
+      <div class="section-header">
+        <span class="section-tag">Quick Wisdom</span>
+        <h2 class="section-heading" id="faq-heading">The Debtor's Catechism</h2>
+        <p class="section-subtitle">Short, punchy answers to the biggest mysteries of the game.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+        <div class="faq-card">
+          <h3 class="faq-question">“Why did this happen to me?”</h3>
+          <p class="faq-answer">“You tried to save her. Nobody else did.”</p>
+        </div>
+        <div class="faq-card">
+          <h3 class="faq-question">“Why does using the power hurt?”</h3>
+          <p class="faq-answer">“It isn’t your power. It’s on loan. The interest is your soul.”</p>
+        </div>
+        <div class="faq-card">
+          <h3 class="faq-question">“Who are the skeletons & zombies?”</h3>
+          <p class="faq-answer">“Spent bottles. The wine was already drank long ago.”</p>
+        </div>
+        <div class="faq-card">
+          <h3 class="faq-question">“Why does Voragis let me smash them?”</h3>
+          <p class="faq-answer">“Why would he care if you break empty glass?”</p>
+        </div>
+        <div class="faq-card">
+          <h3 class="faq-question">“Is The Ledger evil?”</h3>
+          <p class="faq-answer">“He never lied to you. That is different from being on your side.”</p>
+        </div>
+        <div class="faq-card">
+          <h3 class="faq-question">“What is the Gatekeeper guarding?”</h3>
+          <p class="faq-answer">“Proof you didn’t speedrun through the forest.”</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Global Footer -->
+  <footer class="site-footer" role="contentinfo">
+    <p class="footer-quote">“Fail, and you're scenery. Succeed and choose wrong, and you're staff.”</p>
+    <div class="footer-links">
+      <a href="#hero">Top</a>
+      <a href="#choice-chamber">The Deal</a>
+      <a href="#curse-engine">The Curse</a>
+      <a href="#chronicle">Story</a>
+      <a href="#codex">Characters</a>
+      <a href="#endings">Endings</a>
+    </div>
+    <p>© Guardian Runner: The Unpaid Debt. Master Lore & Interactive Story Codex.</p>
+  </footer>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Scripts -->
+  <script src="js/character-data.js"></script>
+  <script src="js/sprite-animator.js"></script>
+  <script src="js/parallax.js"></script>
+  <script src="js/transform-slider.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
