@@ -19,9 +19,9 @@ class StoryState(State):
     """Atmospheric prologue state displaying the core pitch in NPC-dialogue style."""
 
     _PROLOGUE_TEXT = (
-        "You tried to save her. You failed. That kind of death doesn't belong to anyone, "
-        "so something showed up to collect it instead. Take its power, and you get a real chance "
-        "to undo it. Use that power, and you're spending yourself to do it."
+        "Her hand slipped. You let her fall. Death didn't take Elysia—a debt collector did. "
+        "Borrow his black flame to tear her back. Run. Slay. But remember: each demon slash "
+        "burns away the brother she loved."
     )
 
     def __init__(

@@ -2,13 +2,13 @@
 window.CHARACTER_DATA = [
   {
     "id": "protagonist",
-    "name": "The Hero (Shadow Warrior)",
-    "title": "The Desperate Rescuer",
+    "name": "Kaelen (The Guardian Knight)",
+    "title": "The Cursed Rescuer",
     "faction": "debt",
     "classification": "The Cursed Player",
-    "lore": "You were walking home with your wife, Elise. Suddenly, a giant ancient oak tree cracked and fell! You grabbed her hand and pulled with everything you had\u2014but she slipped away. Because you tried to save her, the death gods didn't know who got her soul. That is when Voragis gave you a terrifying deal: take his shadow demon powers and fight your way to the top to bring her back. But beware: every time you unleash this power, a piece of your human heart is burned away forever!",
-    "accordRole": "He carries the shadow parasite in his chest. Power goes in, but his human memories go out.",
-    "quote": "\"It isn't free power. It's a loan. And the price is my soul.\"",
+    "lore": "Across the ancient Whispering Chasm, the stone bridge gave way. Kaelen lunged, catching his younger sister Elysia's fingertips—until his grip slipped. She fell into the mist. Because it was a failed rescue, no god claimed her soul. That was when Voragis offered the deal: borrow demonic shadow power to descend into the abyss and pull her back. But power isn't free—every time Kaelen transforms, he burns away the brother Elysia loved.",
+    "accordRole": "He carries the shadow parasite in his chest. Power goes in; his human heart goes out.",
+    "quote": "\"Her hand slipped once. I will tear through the gods themselves before I let her go again.\"",
     "defaultAnim": "mortal_idle",
     "animations": {
       "mortal_idle": {
@@ -405,9 +405,9 @@ window.CHARACTER_DATA = [
     "title": "Priestess of Silver Light",
     "faction": "mercy",
     "classification": "Ally of Candora",
-    "lore": "A graceful spirit guardian who watches over glowing blue moonstone pools in the deep woods. She works for Candora, the Goddess of Love and Mercy. She can't fight Voragis directly without causing a divine war, but she offers cool refreshing water and whispers the secret to saving your wife without losing your soul.",
+    "lore": "A graceful spirit guardian who watches over glowing blue moonstone pools in the deep woods. She works for Candora, the Goddess of Devotion. She can't fight Voragis directly without causing a divine war, but she offers cool refreshing water and whispers the secret to saving your sister without losing your human soul.",
     "accordRole": "The secret friend. She helps guide you toward Ending A (Purification).",
-    "quote": "\"True love doesn't mean becoming a demon. You can still save her peacefully.\"",
+    "quote": "\"True devotion doesn't mean becoming a demon, Kaelen. You can still save her peacefully.\"",
     "defaultAnim": "idle",
     "animations": {
       "idle": {
@@ -544,13 +544,13 @@ window.CHARACTER_DATA = [
   },
   {
     "id": "elise",
-    "name": "Elise",
-    "title": "The Lost Wife",
+    "name": "Elysia",
+    "title": "The Lost Sister",
     "faction": "mercy",
-    "classification": "The Guiding Light",
-    "lore": "Your kind, funny, and beloved wife. Her laugh was like cool river water on a hot summer day. Her sudden death under the falling timbers wasn't her fault. Her soul is waiting in the quiet veil between worlds. She doesn't want you to become a vicious demon\u2014she just wants you to remember who you were when you held her hand.",
-    "accordRole": "The whole reason you are running. In Ending A, she finds beautiful, eternal peace.",
-    "quote": "\"Please... don't lose yourself just to save me.\"",
+    "classification": "The Anchor of Humanity",
+    "lore": "Kaelen's spirited younger sister and village herbalist. Her laughter was the one thing that kept Kaelen grounded in a harsh world. When the stone bridge collapsed across the Whispering Chasm, her fingertips slipped through his armored grip. Her soul now floats in stasis between divine ledgers. She doesn't want an unstoppable demon conqueror—she wants her brother back.",
+    "accordRole": "The entire reason you run. Her memory is the only thing that keeps the curse from completely hollowing you out.",
+    "quote": "\"Kaelen... please, don't let the shadow take your name.\"",
     "defaultAnim": "portrait",
     "staticPortrait": "assets/characters/FreeSprites5_LeafletGames/Charlotte_smile.png",
     "animations": {

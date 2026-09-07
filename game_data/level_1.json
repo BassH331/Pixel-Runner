@@ -250,8 +250,8 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "Veritas Distoria - It Begins",
-                "text": "You couldn't save her, so a god of debts bought your grief. He gave you dark power to reach her\u2014and made your soul the receipt..",
+                "title": "The Ledger's Herald",
+                "text": "Her hand slipped, knight. Voragis bought Elysia's soul from the fall—and made your life the receipt. Run fast, or your debt matures.",
                 "radius": 180,
                 "sprite_dir": "assets/graphics/Necromancer/Idle",
                 "scale": 3.38,
@@ -264,8 +264,8 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "Spirit of the Scythe",
-                "text": "",
+                "title": "Watcher of Voragis",
+                "text": "Every skeleton you shatter was a debtor who gave up. Crack their bones, runner—clear out Voragis's trash!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0
@@ -277,8 +277,8 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "The Scythe Whispers",
-                "text": "Delicious souls are worth more than skeleton garbage!! That Green glob has been on my menu for millenia. March on Soldier!!",
+                "title": "The Scythe's Hunger",
+                "text": "Skeleton dust won't pay your tab! The Gatekeeper ahead holds pure soul-gold. Rip it from his chest!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0
@@ -290,8 +290,8 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "WARNING: Gatekeeper Territory",
-                "text": "The trees twist and blacken ahead. A demonic presence drives the monsters into a frenzy here. The Gatekeeper is near. Prepare yourself, Kaelen.",
+                "title": "The Moonstone Keeper",
+                "text": "The black flame cuts deep, Kaelen. Look inside: do you still remember Elysia's smile, or just the blood?",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Moonstone_Keeper Eldermoon_Grove - By SUCART/Idle-MoonstoneKeeper-SUCART/No BG",
                 "scale": 2.0

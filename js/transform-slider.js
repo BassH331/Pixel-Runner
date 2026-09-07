@@ -24,7 +24,7 @@ class TransformEngine {
       { max: 45, state: "Slightly Corrupted", quote: "“My hands are freezing... I remember holding her wrist, but what color was her favorite scarf?”", cost: "You gain shadow speed! But your fingers turn pale and you forget small memories." },
       { max: 70, state: "Half Demon Beast", quote: "“Were her eyes blue or green? Why is her voice fading? All I hear is the scratching of the Broker's pen!”", cost: "Huge demon strength! But your reflection in the water starts showing a monster with glowing eyes." },
       { max: 95, state: "Nearly Lost Forever", quote: "“I know I am running for someone... but what was her name? The power feels so good... why stop now?”", cost: "Giant razor claws and shadow wings! Almost everything you loved has been burned away." },
-      { max: 100, state: "Full Demon God (Ending B)", quote: "“I am no longer a man. I am the new Collector of the Forest! All debts belong to ME!”", cost: "You are an immortal god! But the human who loved Elise is completely gone." }
+      { max: 100, state: "Full Demon God (Ending B)", quote: "“I am no longer a man. I am the new Collector of the Forest! All debts belong to ME!”", cost: "You are an immortal god! But the brother who loved Elysia is completely gone." }
     ];
 
     this.init();

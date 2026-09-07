@@ -170,7 +170,7 @@ function initChoiceChamber() {
       <div class="outcome-card outcome-take">
         <span class="outcome-badge">Deal Accepted 🗡️</span>
         <h4>You plunged the black iron fragment into your chest!</h4>
-        <p>A shock of dark lightning shoots through your arms! Unnatural shadow speed and razor scythes surge into your veins. You now have a real shot at saving Elise! But the clock is ticking: every slash of your blade costs a piece of your mortal soul.</p>
+        <p>A shock of dark lightning shoots through your arms! Unnatural shadow speed and razor scythes surge into your veins. You now have a real shot at saving Elysia! But the clock is ticking: every slash of your blade costs a piece of your mortal soul.</p>
         <div class="outcome-reward">+500 XP // Unlocked: The Cursed Runner Stance</div>
       </div>
     `;
@@ -186,7 +186,7 @@ function initChoiceChamber() {
       <div class="outcome-card outcome-walk">
         <span class="outcome-badge walk">Deal Refused 🕊️</span>
         <h4>You stepped away from the shadow.</h4>
-        <p>The Ledger closes his book with a soft snap. Elise's soul fades into the mist, gone forever. You walk back to your empty home, completely human, completely safe—but your heart will carry the heavy weight of what could have been for the rest of your days.</p>
+        <p>The Ledger closes his book with a soft snap. Elysia's soul fades into the mist, gone forever. You walk back to your empty home, completely human, completely safe—but your heart will carry the heavy weight of what could have been for the rest of your days.</p>
         <div class="outcome-reward">+100 XP // Unlocked: The Grieving Wanderer</div>
       </div>
     `;

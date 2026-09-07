@@ -1,155 +1,133 @@
-# Story Bible — The Unpaid Debt
-*(working title — swap for the real game title when finalized)*
+# Story Bible — Guardian Runner: The Unpaid Debt
+
+> **The 3-Second Hook:**  
+> *"Her hand slipped. You let her fall. Death didn't take her soul—a debt collector did. Borrow his dark power to climb down and tear her back. But every time you transform, you burn away the man she loved."*
 
 ---
 
-## 1. The One-Breath Pitch
-*(what a player needs to start playing — nothing more)*
+## 1. The Core Game Loop & Ludonarrative Hook
 
-> "You tried to save her. You failed. That kind of death doesn't belong to anyone — so something showed up to collect it instead. Take its power, and you get a real chance to undo it. Use that power, and you're spending yourself to do it."
+In **Guardian Runner**, story and gameplay are the exact same machine:
 
-Everything below this line is **developer reference** — for level design, NPC dialogue, and item text. Players should only ever get fragments of it, never the whole page at once.
+```
+[Guilt of Failure] ──> [Take the Curse] ──> [Unstoppable Power (High Speed/Slashes)]
+                                │
+                                └──> [Cost: Humanity Drains / Memories Fade]
+                                          │
+                   ┌──────────────────────┴──────────────────────┐
+                   ▼                                             ▼
+           Ending A: PURIFIED                            Ending B: ASCENSION
+   (Pay the debt, lose the power,                (Keep the godhood, free her soul,
+    wake human by her side)                       become the next nightmare in the woods)
+```
 
----
-
-## 2. Core Mechanic (one paragraph)
-
-Death normally "belongs" to a god — an old division of labor called **the Accord**. A death caused by a *failed rescue attempt* was never assigned to anyone, because it doesn't fit the Accord's categories. Voragis, a minor god of unpaid debts, quietly claimed that gap and built his whole operation on it. He offers the person responsible for the failed rescue a deal: carry a fragment of himself (the transformation power), get a real shot at reversing the death. Every use of that power spends a piece of the *person*, not a resource bar — power in, self out. The ending is how that transaction resolves: paid back in full (human, no power) or let run its course (becomes what the fragment was always going to make him).
-
----
-
-## 3. Cosmology — Who Made the Rules, and Why
-
-### The Accord
-Long before this story starts, the gods who govern death divided the "categories" of dying between themselves — age, sickness, violence, and so on — the way departments divide casework. **The gods don't cause death.** They only hold the rights to what happens to the soul afterward. Nobody in the Accord ever assigned a category to "died during a failed rescue" — it's a bureaucratic blind spot, not a mystical rule.
-
-### Voragis — god of unpaid debts
-Originally minor and overlooked — governed unfinished business and broken promises in ordinary mortal life, not death itself. He found the one death-category nobody had claimed, declared it his, and started collecting. Gods draw power from the souls they process, so every deal he makes **feeds him regardless of outcome** — win or lose, he profits. He never lies about the terms of a deal. He's simply never on the player's side either.
-
-### Candora — goddess of mercy / undying devotion
-Deaths born from love and failed sacrifice arguably should have been hers. Voragis got there first, and the Accord isn't easily renegotiated. Every debtor who chooses purification is a soul that slips back out of Voragis's collection — a loss for him, a quiet win for her. Her help is real, but it's not selfless charity; it's the same old rivalry, worked from the other side.
+- **Speed is Survival:** You run because if you stop, the debt collects immediately.
+- **Power is Poison:** Transforming into the Shadow Demon lets you vaporize obstacles, but your humanity meter drains. High corruption twists the music, makes the screen tremble, and alters NPC reactions from hope to pure terror.
 
 ---
 
-## 4. The Debt Economics — Husks vs. Staff
+## 2. The Premise & The Accident
 
-### Are the minions the souls he collects?
-**Yes — but they're the failed ones specifically.** Skeletons, blood zombies, bats: everyone who took the deal and either refused outright or died trying to walk it. The moment someone fails or refuses, Voragis has already extracted the value he wanted — the debt is settled the instant they fail, one way or another. What's left walking around the forest afterward is a husk running on leftover residue, not the actual soul. He already cashed that check.
-
-### Why let the player slaughter them?
-Because destroying an empty husk doesn't touch anything he still owns. It's like smashing a bottle after the wine's already been drunk — looks dramatic, costs him nothing. The "rite of passage" isn't tradition or honor. It's a **stress test with no downside for him**. He's not risking product by putting it in the player's path — he's disposing of spent product while simultaneously finding out if the new debtor is tougher than the last batch.
-
-### How does he make more?
-He doesn't have to go looking — the deal-system manufactures its own supply. Every new person who takes the deal and fails becomes new stock, automatically, with zero extra effort from him. It's self-replenishing by design: the more deals he makes, the more the forest fills up, regardless of whether any individual player wins or loses.
-
-### The ones who don't fail: Husks vs. Staff
-That's the distinction that matters: **Dark Ronin and the Wizard aren't husks — they're willing graduates who succeeded and chose to keep serving.** They're promoted, not discarded. 
-- The mindless undead are the **failed batch** (scenery).
-- The named NPCs and bosses on Voragis's side are the **successful hires** (staff).
-
-> *"Fail, and you're scenery. Succeed and choose wrong, and you're staff."*
+### The Cast at the Center
+- **The Protagonist: Kaelen.** A guardian knight whose pride was his unbreakable sword and his promise to keep his sister safe.
+- **The Lost One: Elysia.** Kaelen's younger sister. An herbalist whose laughter kept him grounded in a brutal world.
+- **The Accident (The Whispering Chasm):** While escorting Elysia across an ancient stone bridge, a sudden earth tremor split the arches. Kaelen lunged, catching her fingertips. His gauntlet slipped on the wet stone. She fell into the mist.
+- **The Divine Blindspot:** The gods of the Accord divided death into tidy departments—sickness, murder, old age. But a death caused by an *honest rescue attempt that failed* was never claimed by any god. That loophole opened the vault for **Voragis**.
 
 ---
 
-## 5. The Ledger
+## 3. The Cosmology & The Debt Economy
 
-Not a wandering spirit — a **dispatched Broker**, sent the instant an unclaimed death occurs. He finds the player specifically because the player is the one who *tried and failed* — intent, not proximity, is what marks someone. He offers the deal honestly. He reappears through the game to "check the balance," never as a jump-scare villain, always as a tone of quiet, transactional menace.
+### Voragis — The Broker of Unfinished Grief
+Voragis is not a cackling demon; he is an impeccably polite cosmic loanshark. He governs unpaid debts, broken vows, and lingering regret.
+- He offers Kaelen a fragment of his own primordial shadow—an advance on power.
+- **His Profit:** Whether Kaelen wins or loses, Voragis wins. If Kaelen dies, Voragis claims his soul. If Kaelen succeeds and pays him back, Voragis takes the collected interest (thousands of harvested souls). If Kaelen succumbs, Voragis gains a terrifying new general.
 
----
+### Candora — The Quiet Defiance
+Goddess of Undying Devotion. Deaths born of love should have been hers, but Voragis beat her to the contract.
+- She works through the **Moonstone Keeper** and **The Masked Man**, leaving hidden shrines and purification draughts along the runner's path.
+- Her aid is real, but it is also a quiet rebellion against Voragis's monopoly.
 
-## 6. The Player's Origin (the accident)
-
-He's escorting **her** *(finalize the relationship — sister / wife / ward — pick one and keep it consistent across dialogue)* home. A collapse happens, with no warning and no one to blame. He tries to pull her free. He fails. Because it was a genuine rescue attempt, the death doesn't fit any god's existing filing — the gap opens, The Ledger arrives, and the deal is offered.
-
----
-
-## 7. The Curse / Transformation
-
-- **What it is:** a literal fragment of Voragis, held as collateral against the debt.
-- **Why it transforms him:** the fragment is Voragis's nature manifesting through the player's body — it should feel involuntary and uncomfortable in-game, not like a power-up.
-- **What it costs:** each use burns off a piece of the *man she'd recognize* — memories, mannerisms, his own face over time. Power gained, self spent, same transaction.
-- **Why he keeps going:** not duty — hope with a shrinking window. Every level cleared is proof the deal might work. Every forced transformation is proof it might cost him everything before he gets there.
-
----
-
-## 8. The Journey Structure
-
-| Stage | Location | Purpose |
-|---|---|---|
-| Opening | The accident | Establishes the failed rescue, the debt, the deal |
-| Act 1–2 | The Dark Forest | Meets the cast below; "settles the ledger" by helping others facing the same trap |
-| Threshold | The Gatekeeper (Green Monster) | Neutral warden — only lets through debtors who genuinely engaged with the forest, not rushed it |
-| Act 3 | The Realm of the Gods | The Wizard (Voragis's Herald) — final fight before the choice |
-| Ending | Same location | The Choice — see Section 10 |
+### Husks vs. Staff: Why You Slay the Forest Undead
+- **The Skeletons, Bats, and Blood Zombies are NOT random monsters:** They are previous desperate souls who took Voragis's deal centuries ago and failed.
+- Once they collapsed, Voragis extracted their souls. What walks the woods are empty shells—**discarded soda cans**.
+- Slaying them doesn't anger Voragis—it amuses him. You're simply taking out his trash while proving your combat worth.
+- **Dark Ronin and The Wizard:** They are the rare few who succeeded, but chose power over redemption. They are Voragis's **promoted staff**.
 
 ---
 
-## 9. Full Cast
+## 4. The 3-Act Journey & Pacing Structure
 
-**Voragis's Court (the debt side):**
-| Character | Role | Category |
-|---|---|---|
-| The Ledger | Broker who made the deal; recurring check-ins | Staff (Broker) |
-| Evil Eye | Voragis's surveillance; reports the player's choices | Staff (Surveillance) |
-| Necromancer | Small-scale broker on the forest's edge — a mortal mirror of The Ledger | Staff (Broker) |
-| Skeletons / blood zombies / bats | Past debtors who failed the walk or refused; empty residue husks | Husks (Scenery) |
-| Dark Ronin | Took the same deal, chose to fully merge — willing proof of Ending B | Staff (Promoted Graduate) |
-| Wizard | Voragis's Herald; final boss before the choice | Staff (Herald) |
+```mermaid
+graph LR
+    A["ACT I: The Wreckage<br/>(Deal Signed & Forest Awakens)"] --> B["ACT II: The Ancient Sanctuary<br/>(The Gatekeeper's Trial)"]
+    B --> C["ACT III: The Scales of Voragis<br/>(The Final Boss & Dual Choice)"]
+```
 
-**Candora's side (introduce by implication first — name her late):**
-| Character | Role |
-|---|---|
-| Moonstone Keeper | Exiled priestess; drops hints about the "other" path without fully explaining it |
-| Masked Man | Deliberately ambiguous — possibly Candora's agent, possibly a past debtor who chose purification and now checks on new ones. **Never confirm in-game.** |
+### Act I: The Wreckage & The Deep Forest
+- **Setting:** Dark, mossy woods lit by ghostly fireflies and crumbling stone ruins.
+- **Inciting Incident:** Kaelen meets **The Ledger** (Voragis's primary collector) at the cliff edge. The pact is sealed.
+- **Internal Conflict:** Kaelen feels the icy demon fragment burning in his chest. Every kill feels exhilarating; every whisper reminds him he dropped his sister.
+- **Gameplay Hook:** Learning basic dashes, parries, and the adrenaline surge of the first demon burst.
+- **Cliffhanger I:** The trees twist shut. The sky turns crimson. A towering shadow blocks the path—the Gatekeeper awakens.
 
-**Neutral:**
-| Character | Role |
-|---|---|
-| Green Monster (Gatekeeper) | Serves neither god; threshold warden judging genuine effort |
+### Act II: The Weeping Canopy & The Sanctuary
+- **Setting:** Dilapidated shrines choked by glowing flora; roots clutching forgotten statues of Candora.
+- **Midpoint Twist (The Red Herring):** Kaelen believes the **Gatekeeper** is a monstrous demon guarding Elysia's prison. In reality, the Gatekeeper is an ancient neutral arbiter testing whether Kaelen has any human soul left, or if he is already a feral husk.
+- **Secondary Characters:**
+  - **The Moonstone Keeper:** Warns Kaelen that using the demon blade burns out Elysia's face in his memory. *"Win the race, boy, and you won't even remember whose hand you came to take."*
+  - **The Masked Man:** A silent, cloaked runner who matches your speed and throws defensive relics before vanishing into the trees.
+- **Boss Encounter:** Defeating the Gatekeeper unlocks the sacred ascent to the celestial realm.
 
----
-
-## 10. The Two Endings
-
-**Ending A — Purified.** He pays the fragment back in full. Fully human again. No more power. What "getting her back" actually meant/cost is revealed here — resolve this specifically once you decide her fate (alive, at peace, or a memory reconciled with — pick one and write toward it).
-
-**Ending B — Becomes the God.** He stops fighting the transaction and lets the fragment finish taking root. Permanent power. He becomes the next thing that will show up in the forest when this happens to someone else — mirroring Dark Ronin's fate, which the player has already witnessed in-game.
-
-Neither should be flagged "good" or "bad" on-screen. Both cost something real and gain something real.
+### Act III: The Scales of Voragis
+- **Setting:** Crystalline void floating over an abyss of glowing chains.
+- **Climax:** Duel with **The Wizard (Herald of the Accord)** and the phantom reflection of **Dark Ronin**.
+- **The Final Cliffhanger / The Choice:** Elysia’s crystalline stasis cocoon hangs suspended between Voragis's golden scales and Candora's silver altar.
 
 ---
 
-## 11. Player-Facing FAQ
-*(for dialogue writers / tooltip text — answers should stay this short in-game, never longer)*
+## 5. The Two Endings
 
-**"Why me?"**
-> "You tried to save her. Nobody else did."
+Neither choice is simple. Both demand a real sacrifice.
 
-**"Why do the gods let people die at all?"**
-> "They don't cause it. They just decide what happens after."
+### Ending A: The Human Price (Purified)
+> **The Choice:** Kaelen tears the shadow fragment from his own chest and hurls it back onto the scales, forfeiting all godlike powers forever.
+>
+> **The Outcome:** The dark forest dissolves into morning sunlight. Kaelen falls to his knees, battered, mortal, and exhausted. Across the mossy bridge, Elysia breathes again and opens her eyes. She runs to him. He cannot jump across chasms anymore; he cannot shatter boulders with a thought. But his hands are his own, and when she embraces him, he remembers her name.
 
-**"Why does using my power hurt / change me?"**
-> "It isn't your power. It's on loan."
-
-**"What happens if I refuse the deal?"**
-> "She's gone completely, and so is any chance of undoing it."
-
-**"Who are the skeletons / zombies / bats, really?"**
-> "Spent bottles. The wine's already gone."
-
-**"Why does Voragis let me kill them?"**
-> "Why would he care if you break empty glass?"
-
-**"Is The Ledger evil?"**
-> "He's never lied to you. That's different from being on your side."
-
-**"What's the Green Monster actually guarding?"**
-> "Proof you didn't rush the forest."
+### Ending B: The Sovereign Harvest (Ascension)
+> **The Choice:** Kaelen embraces the void entirely, letting the demon fragment consume his mortal heart to shatter Voragis's contract by sheer force.
+>
+> **The Outcome:** Elysia is freed, safe from death forever. But as she opens her eyes and looks up, she does not see her brother. She sees a towering, horned sovereign enveloped in midnight flames. She recoils in terror. Kaelen takes his place upon the obsidian throne, watching over the woods—the new eternal broker of the lost.
 
 ---
 
-## 12. Open Decisions (settle before writing final dialogue)
-- Exact relationship to "her" (sister / wife / ward)
-- Her ultimate fate in Ending A
-- Whether Masked Man's identity is ever confirmed, even secretly in dev notes
-- Names/visual motifs for Voragis and Candora if they appear on-screen (vs. staying implied)
+## 6. In-Game Dialogue & Micro-Barks (Zero Fluff, 100% Impact)
+
+Dialogue in a runner must never stall the player's momentum. Every line is concise, rhythmic, and loaded with subtext and power plays.
+
+### World Encounter Barks
+
+**The Ledger (At the Abyss - Start of Game):**
+> *"You dropped her. I caught her. Want her back? Sign here with your pulse."*
+
+**The Moonstone Keeper (Distance 10,500):**
+> *"The black flame cuts deep, runner. But look inside: do you still remember the color of her eyes?"*
+
+**The Scythe Spirit / Evil Eye (Distance 7,000):**
+> *"Crunch the bones, soldier! Voragis loves the sound of his old debts breaking under your boots!"*
+
+**The Gatekeeper (Boss Intro - Distance 12,500):**
+> *"None pass whose hearts have turned to rot. Draw steel, debtor—prove you are still a man."*
+
+**The Wizard (Voragis's Herald - Distance 34,500):**
+> *"He thinks love pays debts! Every slash you made in these woods was registered in ink. Now pay the bill."*
+
+---
+
+## 7. Psychological Pacing & Dopamine Hooks
+
+1. **Audio Pulses:** Heartbeat rhythms kick in whenever the player runs low on health or uses the demon transform.
+2. **Visual Contrast:** High-saturation bright pixel effects against moody, brooding slate backgrounds make every hit feel impactful.
+3. **Escalating Danger:** The forest visibly rots as you run—starting in twilight green and shifting to abyssal crimson as you approach the cosmic court.
+4. **Instant Narrative Payoff:** Boss defeats trigger instant cinematic slow-motion slashes, rewarding player reflexes with immediate story advancement.
