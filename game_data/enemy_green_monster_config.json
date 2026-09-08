@@ -7,5 +7,15 @@
   "attack_range": 65,
   "vertical_tolerance": 100,
   "attack_hitbox_width": 60,
-  "attack_hitbox_height": 80
+  "attack_hitbox_height": 80,
+  "max_mana": 100.0,
+  "spell_mana_cost": 35.0,
+  "stagnant_duration": 2.25,
+  "teleport_dist_min": 380,
+  "teleport_dist_max": 450,
+  "mana_recharge_rate": 50.0,
+  "chase_delay_duration": 0.8,
+  "attack_cooldown_min": 1.0,
+  "attack_cooldown_max": 1.8,
+  "spidey_sense": 0.73
 }

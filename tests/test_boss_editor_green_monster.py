@@ -180,5 +180,75 @@ class TestBossEditorGreenMonster(unittest.TestCase):
         self.assertEqual(config["teleport_dist_min"], 500)
         self.assertEqual(config["teleport_dist_max"], 500)
 
+    def test_green_monster_spidey_sense_categories_and_scrolling(self):
+        """Test category switching and scroll clamping with Spidey Sense."""
+        self.app.select_boss("green_monster")
+
+        # ALL category: returns all 19 sliders, spidey_sense is at index 0
+        self.assertEqual(self.app.category_filter, "ALL")
+        visible = self.app.get_visible_sliders()
+        self.assertEqual(len(visible), 19)
+        self.assertEqual(visible[0].key, "spidey_sense")
+        self.assertGreater(self.app.max_slider_scroll, 0)
+
+        # SPELLS & AI category: returns 10 sliders, spidey_sense is present and first
+        self.app.set_category("SPELLS & AI")
+        self.assertEqual(self.app.category_filter, "SPELLS & AI")
+        visible_spells = self.app.get_visible_sliders()
+        self.assertEqual(len(visible_spells), 10)
+        self.assertEqual(visible_spells[0].key, "spidey_sense")
+        self.assertIn("max_mana", [s.key for s in visible_spells])
+
+        # MELEE STATS category: returns 9 sliders, spidey_sense is not in melee
+        self.app.set_category("MELEE STATS")
+        self.assertEqual(self.app.category_filter, "MELEE STATS")
+        visible_melee = self.app.get_visible_sliders()
+        self.assertEqual(len(visible_melee), 9)
+        self.assertNotIn("spidey_sense", [s.key for s in visible_melee])
+
+        # Switch back to ALL and verify scrolling behavior
+        self.app.set_category("ALL")
+        self.assertEqual(self.app.slider_scroll_y, 0.0)
+        # Apply scroll
+        self.app.slider_scroll_y = 100.0
+        self.app.update_slider_positions()
+        self.assertEqual(self.app.slider_scroll_y, 100.0)
+        # First slider rect.y should be shifted up by 100px
+        self.assertEqual(visible[0].rect.y, visible[0].base_y - 100)
+
+    def test_green_monster_spidey_sense_simulation_dodging(self):
+        """Test that Spidey Sense reacts appropriately in AI simulation."""
+        self.app.select_boss("green_monster")
+        self.app.set_mode("SIMULATION")
+        self.app.sim_boss_x = 500
+        self.app.sim_player_x = 300
+
+        # Case 1: Spidey Sense = 0.0 (Off) -> Boss takes hit and enters HURT
+        self.app.sliders["spidey_sense"].val = 0.0
+        self.app.sim_boss_state = "IDLE"
+        self.app.simulate_player_attack()
+        self.assertEqual(self.app.sim_boss_state, "HURT")
+        self.assertTrue(any("Boss HURT" in log for log in self.app.sim_events))
+
+        # Case 2: Spidey Sense = 1.0 (God Mode) -> Boss teleports behind player and counters
+        self.app.sliders["spidey_sense"].val = 1.0
+        self.app.sim_boss_state = "IDLE"
+        self.app.sim_player_x = 300
+        self.app.sim_boss_x = 500
+        self.app.sim_boss_facing_left = True
+        self.app.simulate_player_attack()
+        self.assertEqual(self.app.sim_boss_state, "ATTACK")
+        self.assertEqual(self.app.sim_boss_x, 480) # player_x (300) + 180
+        self.assertTrue(any("[SPIDEY SENSE] GOD MODE" in log for log in self.app.sim_events))
+
+        # Case 3: Standard Spidey Sense = 0.5 with guaranteed dodge roll
+        self.app.sliders["spidey_sense"].val = 0.5
+        self.app.sim_boss_state = "IDLE"
+        with patch("random.random", return_value=0.1): # 0.1 < 0.5 -> dodge succeeds
+            self.app.simulate_player_attack()
+            self.assertTrue(self.app.sim_boss_is_recharging)
+            self.assertTrue(any("[SPIDEY SENSE] Dodged" in log for log in self.app.sim_events))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -42,7 +42,40 @@ class StateConfig:
     interruptible: bool = True
 
 
+class BoneDustEffect:
+    """Transient bone dust shatter/re-assembly visual effect."""
+
+    def __init__(self, x: int, y: int, frames: list[pg.Surface], fps: float = 24.0):
+        self.frames = frames
+        self.fps = fps
+        self.frame_duration = 1.0 / fps
+        self.timer = 0.0
+        self.current_frame = 0
+        self.is_finished = False
+        self.image = frames[0] if frames else None
+        self.rect = self.image.get_rect(midbottom=(x, y)) if self.image else pg.Rect(x, y, 0, 0)
+
+    def update(self, dt_sec: float, scroll_speed: int = 0) -> None:
+        self.rect.x -= scroll_speed
+        if self.is_finished or not self.frames:
+            return
+        self.timer += dt_sec
+        while self.timer >= self.frame_duration:
+            self.timer -= self.frame_duration
+            self.current_frame += 1
+            if self.current_frame >= len(self.frames):
+                self.is_finished = True
+                break
+            else:
+                self.image = self.frames[self.current_frame]
+
+    def draw(self, surface: pg.Surface) -> None:
+        if not self.is_finished and self.image:
+            surface.blit(self.image, self.rect)
+
+
 class Skeleton(EntityAudioMixin, Actor):
+
     """
     A skeletal enemy with state-machine AI and frame-precise combat.
     """
@@ -283,9 +316,40 @@ class Skeleton(EntityAudioMixin, Actor):
                 self._vertical_tolerance = int(config.get("vertical_tolerance", self._vertical_tolerance))
                 self._attack_hitbox_width = int(config.get("attack_hitbox_width", 60))
                 self._attack_hitbox_height = int(config.get("attack_hitbox_height", 80))
+                self.spidey_sense = float(config.get("spidey_sense", 0.65 if self.tier == "boss" else (0.45 if self.tier == "elite" else 0.25)))
+                self.teleport_dist_min = int(config.get("teleport_dist_min", 180))
+                self.teleport_dist_max = int(config.get("teleport_dist_max", 280 if self.tier == "boss" else 240))
+                self.teleport_cooldown = float(config.get("teleport_cooldown", 3.0 if self.tier == "boss" else (3.5 if self.tier == "elite" else 4.5)))
+                self.teleport_reaction_delay = float(config.get("teleport_reaction_delay", 0.06 if self.tier == "boss" else 0.10))
         except Exception as e:
             print(f"[WARNING] Error loading skeleton config for {config_type}: {e}")
             
+        if not hasattr(self, "spidey_sense"):
+            self.spidey_sense = 0.65 if self.tier == "boss" else (0.45 if self.tier == "elite" else 0.25)
+            self.teleport_dist_min = 180
+            self.teleport_dist_max = 280 if self.tier == "boss" else 240
+            self.teleport_cooldown = 3.0 if self.tier == "boss" else (3.5 if self.tier == "elite" else 4.5)
+            self.teleport_reaction_delay = 0.06 if self.tier == "boss" else 0.10
+
+        self._teleport_defense_enabled: bool = True
+        self._teleport_cooldown_timer: float = 0.0
+        self._teleport_reaction_timer: float = 0.0
+        self._is_teleporting: bool = False
+        self._active_vfx: list[BoneDustEffect] = []
+
+        # Load bone dust VFX frames (10 frames of DustExplosion, scaled to skeleton scale)
+        self._bone_dust_frames: list[pg.Surface] = []
+        try:
+            dust_path = "assets/graphics/Pixel Explosion Effects Pack 01 v1_1/DustExplosion/Frames"
+            raw_dust = AssetManager.get_animation_frames(dust_path)
+            target_w = max(32, int(64 * self.scale))
+            target_h = max(32, int(64 * self.scale))
+            self._bone_dust_frames = [
+                pg.transform.scale(f, (target_w, target_h)) for f in raw_dust
+            ]
+        except Exception as e:
+            print(f"[WARNING] Failed to load bone dust frames: {e}")
+
         if custom_health is not None:
             self._max_health = custom_health
         self._health: float = self._max_health
@@ -346,6 +410,7 @@ class Skeleton(EntityAudioMixin, Actor):
         # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
         _entity_audio_key = "skeleton_boss" if self.tier == "boss" else ("skeleton_zombie" if (sprite_root and "zombie" in (sprite_root or "").lower()) else "skeleton_minion")
         self._init_entity_audio_config(audio_manager, _entity_audio_key)
+
         
     def _load_frames(
         self,
@@ -407,6 +472,8 @@ class Skeleton(EntityAudioMixin, Actor):
     @property
     def is_dead(self) -> bool: return self.state == SkeletonState.DEATH
     @property
+    def is_teleporting(self) -> bool: return self._is_teleporting
+    @property
     def current_frame_index(self) -> int: return int(self.animation_index)
 
     def is_in_hit_frame(self) -> bool:
@@ -445,6 +512,13 @@ class Skeleton(EntityAudioMixin, Actor):
         dt_sec = dt if dt < 1.0 else dt / 1000.0
 
         self.rect.x -= scroll_speed
+
+        # Decrement teleport cooldown timer
+        if self._teleport_cooldown_timer > 0.0:
+            self._teleport_cooldown_timer = max(0.0, self._teleport_cooldown_timer - dt_sec)
+
+        # Update active bone dust effects
+        self._update_vfx(dt_sec, scroll_speed)
         
         # Apply horizontal knockback velocity
         if abs(self._knockback_vel_x) > 0.1:
@@ -454,7 +528,8 @@ class Skeleton(EntityAudioMixin, Actor):
             self._knockback_vel_x = 0.0
             
         self._apply_gravity()
-        self._update_ai(dt_sec)
+        if not self._is_teleporting:
+            self._update_ai(dt_sec)
         
         super().update(dt) # Handles state machines and animations
         if getattr(self, "natively_facing_left", False) and self.image:
@@ -476,6 +551,20 @@ class Skeleton(EntityAudioMixin, Actor):
 
     def take_damage(self, amount: float = 0.5, knockback: tuple[float, float] | None = None) -> None:
         if self.state in (SkeletonState.HURT, SkeletonState.DEATH):
+            return
+
+        # Complete iframe immunity during teleportation
+        if self._is_teleporting:
+            return
+
+        # Emergency bone dust dodge if attacked off-cooldown
+        if (
+            self._teleport_defense_enabled
+            and self.spidey_sense > 0.0
+            and self._teleport_cooldown_timer <= 0.0
+            and random.random() <= self.spidey_sense
+        ):
+            self._trigger_teleport_defense()
             return
 
         SquadTokenManager.get_instance().release_attack_token(id(self))
@@ -509,8 +598,14 @@ class Skeleton(EntityAudioMixin, Actor):
     def _update_ai(self, dt_sec: float = 0.016) -> None:
         if self._player is None or self.state in (SkeletonState.HURT, SkeletonState.DEATH):
             return
+
+        # Check for incoming player attacks and execute timed Bone Dust dodge
+        self._detect_incoming_danger(dt_sec)
+        if self._is_teleporting:
+            return
             
         player_rect = self._player.rect
+
 
         # 1. Update Perception (Vision Cone & Audio Detection)
         alert = self.perception.update(dt_sec, self.rect, self.facing_left, self._player)
@@ -572,6 +667,140 @@ class Skeleton(EntityAudioMixin, Actor):
             move_dir = 1 if dx > 0 else -1
             self.rect.x += move_dir * int(self._speed)
             self.facing_left = (self.rect.centerx > player_rect.centerx)
+
+    def _detect_incoming_danger(self, dt_sec: float) -> None:
+        """Detect incoming player attacks and execute timed bone dust shatter dodge."""
+        if not self._teleport_defense_enabled or self.spidey_sense <= 0.0:
+            return
+        if self._is_teleporting or self._teleport_cooldown_timer > 0.0:
+            self._teleport_reaction_timer = 0.0
+            return
+        if self._player is None or self.state in (SkeletonState.HURT, SkeletonState.DEATH):
+            self._teleport_reaction_timer = 0.0
+            return
+
+        player_rect = getattr(self._player, "rect", None)
+        if player_rect is None:
+            return
+
+        dist_x = abs(self.rect.centerx - player_rect.centerx)
+        vert_diff = min(abs(self.rect.bottom - player_rect.bottom), abs(self.rect.centery - player_rect.centery))
+        danger_radius = max(140, self._attack_range + 65)
+        vertical_tol = getattr(self, "_vertical_tolerance", 100)
+
+        # Check proximity in danger zone
+        if dist_x > danger_radius or vert_diff > vertical_tol:
+            self._teleport_reaction_timer = 0.0
+            return
+
+        # Check if player is actively attacking
+        player_state = getattr(self._player, "state", None)
+        is_player_attacking = False
+        if player_state is not None:
+            state_val = getattr(player_state, "value", player_state)
+            if isinstance(state_val, int) and 20 <= state_val <= 23:
+                is_player_attacking = True
+            elif str(player_state).startswith("PlayerState.ATTACK"):
+                is_player_attacking = True
+
+        if not is_player_attacking:
+            is_player_attacking = getattr(self._player, "is_attacking", False)
+        if not is_player_attacking and hasattr(self._player, "is_in_hit_frame"):
+            is_player_attacking = self._player.is_in_hit_frame()
+
+        if not is_player_attacking:
+            self._teleport_reaction_timer = 0.0
+            return
+
+        # Check player facing direction towards skeleton
+        player_facing_left = getattr(self._player, "facing_left", False)
+        player_to_left = player_rect.centerx < self.rect.centerx
+        if player_to_left and player_facing_left:
+            return
+        if not player_to_left and not player_facing_left:
+            return
+
+        # Start or advance reaction delay countdown
+        if self._teleport_reaction_timer <= 0.0:
+            if random.random() <= self.spidey_sense:
+                self._teleport_reaction_timer = max(0.01, self.teleport_reaction_delay)
+        else:
+            self._teleport_reaction_timer -= dt_sec
+            if self._teleport_reaction_timer <= 0.0:
+                self._trigger_teleport_defense()
+
+    def _trigger_teleport_defense(self) -> None:
+        """Shatter into bone dust and relocate to safety or flank behind the player."""
+        if self._player is None or self.state == SkeletonState.DEATH:
+            return
+
+        player_rect = getattr(self._player, "rect", None)
+        if player_rect is None:
+            return
+
+        # 1. Spawn origin Bone Dust Shatter VFX
+        if self._bone_dust_frames:
+            origin_vfx = BoneDustEffect(self.rect.centerx, self.rect.bottom, self._bone_dust_frames)
+            self._active_vfx.append(origin_vfx)
+
+        # 2. Intangibility & disappear
+        self._is_teleporting = True
+        if self.image:
+            self.image.set_alpha(0)
+
+        # 3. Calculate destination coordinates
+        player_facing_left = getattr(self._player, "facing_left", False)
+        is_god_mode = self.spidey_sense >= 0.8
+
+        if is_god_mode or self.tier == "boss":
+            # Flank behind the player
+            if player_facing_left:
+                target_x = player_rect.centerx + 120
+                self.facing_left = True
+            else:
+                target_x = player_rect.centerx - 120
+                self.facing_left = False
+        else:
+            # Minion/Standard: Retreat backwards away from player
+            dist_offset = random.randint(self.teleport_dist_min, self.teleport_dist_max)
+            if self.rect.centerx > player_rect.centerx:
+                target_x = player_rect.centerx + dist_offset
+                self.facing_left = True
+            else:
+                target_x = player_rect.centerx - dist_offset
+                self.facing_left = False
+
+        # Keep within level boundaries
+        target_x = max(60, min(1220, target_x))
+        self.rect.centerx = target_x
+        if self._ground_y is not None:
+            self.rect.bottom = self._ground_y
+        self._gravity = 0.0
+        self._knockback_vel_x = 0.0
+
+        # 4. Spawn destination Bone Dust Reformation VFX
+        if self._bone_dust_frames:
+            dest_vfx = BoneDustEffect(self.rect.centerx, self.rect.bottom, self._bone_dust_frames)
+            self._active_vfx.append(dest_vfx)
+
+        # Restore visibility and reset teleport state
+        if self.image:
+            self.image.set_alpha(255)
+        self._is_teleporting = False
+        self._teleport_reaction_timer = 0.0
+        self._teleport_cooldown_timer = self.teleport_cooldown
+
+        # God mode or aggressive tier immediately initiates counter-attack
+        if is_god_mode or self.tier == "boss":
+            self._begin_attack()
+        else:
+            self.set_state(SkeletonState.IDLE)
+
+    def _update_vfx(self, dt_sec: float, scroll_speed: int = 0) -> None:
+        """Update active visual effects and clean up finished ones."""
+        for vfx in self._active_vfx:
+            vfx.update(dt_sec, scroll_speed)
+        self._active_vfx = [vfx for vfx in self._active_vfx if not vfx.is_finished]
     
     # ─────────────────────────────────────────────────────────────────────────
     # Private: Physics
@@ -598,12 +827,16 @@ class Skeleton(EntityAudioMixin, Actor):
 
     def draw(self, surface: pg.Surface) -> None:
         """
-        Draw the skeleton and UI elements.
+        Draw the skeleton, active bone dust VFX, and UI elements.
         
         Args:
             surface: Target surface for rendering.
         """
         super().draw(surface)
+
+        # Draw active VFX (bone dust shatter/re-assembly)
+        for vfx in self._active_vfx:
+            vfx.draw(surface)
         
         # Draw health bar when damaged and alive
         if self._health < self._max_health and self.state != SkeletonState.DEATH:

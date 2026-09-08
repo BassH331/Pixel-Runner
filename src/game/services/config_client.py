@@ -19,6 +19,7 @@ LOCAL_FILE_MAP = {
     "enemy_green_monster": "game_data/enemy_green_monster_config.json",
     "enemy_skeleton_zombie": "game_data/enemy_skeleton_zombie_config.json",
     "enemy_skeleton_minion": "game_data/enemy_skeleton_minion_config.json",
+    "enemy_bat": "game_data/enemy_bat_config.json",
     "entity_dimensions": "game_data/entity_dimensions.json"
 }
 

@@ -34,9 +34,15 @@ class Enemy(EntityAudioMixin, Actor):
         super().__init__(0, 0)
         self._bat_audio_manager = audio_manager  # store for post-init setup
         
+        # Load bat configuration via ConfigClient
+        from src.game.services.config_client import ConfigClient
+        bat_config = ConfigClient.fetch_config("enemy_bat") or {}
+        config_scale = float(bat_config.get("scale", 1.0))
+        config_speed = float(bat_config.get("speed", 250.0))
+        
         # Load margins and base scale
         margins = HitboxRegistry.get_margins("enemy")
-        base_scale = margins.scale
+        base_scale = margins.scale * config_scale
         
         # Add slight variation to scale to simulate depth (near/far bats)
         # Scale variation: 0.85 to 1.15 of base scale, rounded to 1 decimal place to keep cache small
@@ -66,8 +72,12 @@ class Enemy(EntityAudioMixin, Actor):
         # Use actor system
         self.animations = {EnemyState.FLY: Enemy._fly_frames_caches[scale]}
         
-        # Randomize flapping speed to give a natural, non-synchronized feel
-        random_flap_speed = 0.12 + random.random() * 0.12
+        # Relative speed ratio compared to default 250.0 px/s baseline
+        speed_ratio = max(0.1, config_speed / 250.0)
+
+        # Randomize flapping speed to give a natural, non-synchronized feel,
+        # scaled inversely with speed_ratio so higher speed flaps faster (lower frame duration)
+        random_flap_speed = (0.12 + random.random() * 0.12) / speed_ratio
         self.state_configs = {
             EnemyState.FLY: EnemyStateConfig(animation_speed=random_flap_speed)
         }
@@ -79,12 +89,12 @@ class Enemy(EntityAudioMixin, Actor):
         self.animation_index = random.uniform(0.0, float(num_frames))
         
         # Normalized flapping ratio (0.0 for slowest, 1.0 for fastest)
-        flap_ratio = (random_flap_speed - 0.12) / 0.12
+        flap_ratio = ((random_flap_speed * speed_ratio) - 0.12) / 0.12
         
         # Movement properties physically coupled to the wing flap speed + depth parallax:
-        # 1. Horizontal speed: faster flapping = faster horizontal flight (range: -2.0 to -4.0)
+        # 1. Horizontal speed: faster flapping = faster horizontal flight (range: -2.0 to -4.0 scaled by speed_ratio)
         # We also scale by depth_scale_factor to simulate 3D perspective parallax (farther = slower)
-        self.speed = (-2.0 - flap_ratio * 2.0) * self.depth_scale_factor
+        self.speed = (-2.0 - flap_ratio * 2.0) * speed_ratio * self.depth_scale_factor
         
         # 2. Vertical bobbing amplitude: faster flight = tighter, more stable vertical range (range: 12 to 24)
         self.y_base = 0

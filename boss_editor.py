@@ -20,10 +20,10 @@ from src.game.boss.difficulty_manager import DifficultyManager
 from src.game.editor.preview_scaler import PreviewScaler
 from src.game.entities.boss_manager import BossManager
 from src.game.entities.enemy import Enemy
-from src.game.entities.skeleton import Skeleton
+from src.game.entities.skeleton import Skeleton, BoneDustEffect
 from src.game.entities.fire_wizard import FireWizard
 from src.game.entities.green_monster import GreenMonster
-from v3x_zulfiqar_gideon import Actor
+from v3x_zulfiqar_gideon import Actor, AssetManager
 
 # Initialize Pygame and font systems
 pg.init()
@@ -61,6 +61,7 @@ class Slider:
         self.key = key
         self.label = label
         self.rect = pg.Rect(x, y, w, 8)
+        self.base_y = y
         self.handle_r = 9
         self.min_val = min_val
         self.max_val = max_val
@@ -80,18 +81,24 @@ class Slider:
         if self.key == "spidey_sense":
             if self.val <= 0.05:
                 val_display = "Off"
+                val_color = TEXT_MUTED
             elif self.val <= 0.2:
                 val_display = "Weak"
+                val_color = (255, 235, 59)
             elif self.val <= 0.5:
                 val_display = "Standard"
+                val_color = ACCENT_CYAN
             elif self.val <= 0.8:
                 val_display = "Strong"
+                val_color = (255, 152, 0)
             else:
                 val_display = "God Mode"
+                val_color = (255, 64, 129)
         else:
             val_display = self.format_str.format(val=round(self.val, 2) if self.is_float else int(self.val))
+            val_color = ACCENT_CYAN
         txt_label = ui_font.render(self.label, True, TEXT_COLOR)
-        txt_val = value_font.render(val_display, True, ACCENT_CYAN)
+        txt_val = value_font.render(val_display, True, val_color)
         
         surface.blit(txt_label, (self.rect.x, self.rect.y - 20))
         surface.blit(txt_val, (self.rect.right - txt_val.get_width(), self.rect.y - 20))
@@ -102,7 +109,8 @@ class Slider:
         # Fill track
         hx, hy = self.get_handle_pos()
         fill_rect = pg.Rect(self.rect.x, self.rect.y, hx - self.rect.x, self.rect.height)
-        pg.draw.rect(surface, ACCENT_BLUE, fill_rect, border_radius=4)
+        fill_color = (255, 64, 129) if (self.key == "spidey_sense" and self.val > 0.8) else ACCENT_BLUE
+        pg.draw.rect(surface, fill_color, fill_rect, border_radius=4)
 
         # Handle circle
         pg.draw.circle(surface, (255, 255, 255), (hx, hy), self.handle_r)
@@ -165,6 +173,53 @@ class Button:
                 self.callback()
 
 
+GREEN_MONSTER_CATEGORIES = {
+    "SPELLS & AI": [
+        "spidey_sense",
+        "max_mana",
+        "spell_mana_cost",
+        "stagnant_duration",
+        "teleport_dist_min",
+        "teleport_dist_max",
+        "mana_recharge_rate",
+        "chase_delay_duration",
+        "attack_cooldown_min",
+        "attack_cooldown_max",
+    ],
+    "MELEE STATS": [
+        "max_health",
+        "speed",
+        "damage_scale",
+        "knockback_scale",
+        "detection_range",
+        "attack_range",
+        "vertical_tolerance",
+        "attack_hitbox_width",
+        "attack_hitbox_height",
+    ],
+}
+
+SKELETON_CATEGORIES = {
+    "SPELLS & AI": [
+        "spidey_sense",
+        "teleport_dist_min",
+        "teleport_dist_max",
+        "teleport_cooldown",
+        "teleport_reaction_delay",
+        "detection_range",
+        "attack_range",
+        "vertical_tolerance",
+    ],
+    "MELEE STATS": [
+        "max_health",
+        "speed",
+        "damage_scale",
+        "knockback_scale",
+        "attack_hitbox_width",
+        "attack_hitbox_height",
+    ],
+}
+
 BOSS_SCHEMAS = {
     "wizard": {
         "class": FireWizard,
@@ -206,6 +261,11 @@ BOSS_SCHEMAS = {
         "class": Skeleton,
         "config_file": "game_data/boss_skeleton_config.json",
         "defaults": {
+            "spidey_sense": 0.65,
+            "teleport_dist_min": 180,
+            "teleport_dist_max": 280,
+            "teleport_cooldown": 3.0,
+            "teleport_reaction_delay": 0.08,
             "max_health": 150.0,
             "speed": 3.2,
             "damage_scale": 3.0,
@@ -217,6 +277,11 @@ BOSS_SCHEMAS = {
             "attack_hitbox_height": 80
         },
         "sliders": [
+            ("spidey_sense", "Spidey Sense / Counter Dodge", 0.0, 1.0, True, "{val}"),
+            ("teleport_dist_min", "Teleport Min Distance", 100, 400, False, "{val} px"),
+            ("teleport_dist_max", "Teleport Max Distance", 150, 600, False, "{val} px"),
+            ("teleport_cooldown", "Teleport Cooldown", 0.5, 8.0, True, "{val} s"),
+            ("teleport_reaction_delay", "Reaction Delay", 0.0, 0.5, True, "{val} s"),
             ("max_health", "Max Health", 50, 300, True, "{val} hp"),
             ("speed", "Movement Speed", 1.0, 8.0, True, "{val} px"),
             ("damage_scale", "Damage Scale multiplier", 0.5, 5.0, True, "{val}x"),
@@ -236,6 +301,11 @@ BOSS_SCHEMAS = {
         "class": Skeleton,
         "config_file": "game_data/enemy_skeleton_minion_config.json",
         "defaults": {
+            "spidey_sense": 0.25,
+            "teleport_dist_min": 180,
+            "teleport_dist_max": 240,
+            "teleport_cooldown": 4.5,
+            "teleport_reaction_delay": 0.10,
             "max_health": 30.0,
             "speed": 2.5,
             "damage_scale": 1.0,
@@ -247,6 +317,11 @@ BOSS_SCHEMAS = {
             "attack_hitbox_height": 80
         },
         "sliders": [
+            ("spidey_sense", "Spidey Sense / Counter Dodge", 0.0, 1.0, True, "{val}"),
+            ("teleport_dist_min", "Teleport Min Distance", 100, 400, False, "{val} px"),
+            ("teleport_dist_max", "Teleport Max Distance", 150, 600, False, "{val} px"),
+            ("teleport_cooldown", "Teleport Cooldown", 0.5, 8.0, True, "{val} s"),
+            ("teleport_reaction_delay", "Reaction Delay", 0.0, 0.5, True, "{val} s"),
             ("max_health", "Max Health", 10, 100, True, "{val} hp"),
             ("speed", "Movement Speed", 1.0, 6.0, True, "{val} px"),
             ("damage_scale", "Damage Scale multiplier", 0.2, 3.0, True, "{val}x"),
@@ -317,15 +392,7 @@ BOSS_SCHEMAS = {
             "spidey_sense": 0.0
         },
         "sliders": [
-            ("max_health", "Max Health", 10, 150, True, "{val} hp"),
-            ("speed", "Movement Speed", 1.0, 6.0, True, "{val} px"),
-            ("damage_scale", "Damage Scale multiplier", 0.2, 3.0, True, "{val}x"),
-            ("knockback_scale", "Knockback multiplier", 0.2, 3.0, True, "{val}x"),
-            ("detection_range", "AI Detection Range", 100, 2000, False, "{val} px"),
-            ("attack_range", "Melee Attack Range", 10, 250, False, "{val} px"),
-            ("vertical_tolerance", "AI Vertical Tolerance", 20, 500, False, "{val} px"),
-            ("attack_hitbox_width", "Attack Hitbox Width", 10, 200, False, "{val} px"),
-            ("attack_hitbox_height", "Attack Hitbox Height", 10, 200, False, "{val} px"),
+            ("spidey_sense", "Spidey Sense / Counter Dodge", 0.0, 1.0, True, "{val}"),
             ("max_mana", "Max Mana Pool", 50, 200, True, "{val} mp"),
             ("spell_mana_cost", "Spell Cost", 10, 100, True, "{val} mp"),
             ("stagnant_duration", "Stagnant/Exhausted Time", 0.5, 6.0, True, "{val} sec"),
@@ -335,7 +402,15 @@ BOSS_SCHEMAS = {
             ("chase_delay_duration", "Chase Delay Window", 0.0, 3.0, True, "{val} sec"),
             ("attack_cooldown_min", "Min Spell Cooldown", 0.5, 4.0, True, "{val} sec"),
             ("attack_cooldown_max", "Max Spell Cooldown", 1.0, 6.0, True, "{val} sec"),
-            ("spidey_sense", "Spidey Sense / Counter Dodge", 0.0, 1.0, True, "{val}")
+            ("max_health", "Max Health", 10, 150, True, "{val} hp"),
+            ("speed", "Movement Speed", 1.0, 6.0, True, "{val} px"),
+            ("damage_scale", "Damage Scale multiplier", 0.2, 3.0, True, "{val}x"),
+            ("knockback_scale", "Knockback multiplier", 0.2, 3.0, True, "{val}x"),
+            ("detection_range", "AI Detection Range", 100, 2000, False, "{val} px"),
+            ("attack_range", "Melee Attack Range", 10, 250, False, "{val} px"),
+            ("vertical_tolerance", "AI Vertical Tolerance", 20, 500, False, "{val} px"),
+            ("attack_hitbox_width", "Attack Hitbox Width", 10, 200, False, "{val} px"),
+            ("attack_hitbox_height", "Attack Hitbox Height", 10, 200, False, "{val} px")
         ],
         "simulation": {
             "player_x": 100,
@@ -456,13 +531,23 @@ class BossEditorApp:
             
         self.tab_buttons[0].active = True
         
+        self.category_filter = "ALL"
+        self.category_buttons = [
+            Button("ALL", 30, 192, 105, 26, lambda: self.set_category("ALL"), active=True),
+            Button("SPELLS & AI", 140, 192, 120, 26, lambda: self.set_category("SPELLS & AI")),
+            Button("MELEE STATS", 265, 192, 105, 26, lambda: self.set_category("MELEE STATS")),
+        ]
+        self.slider_scroll_y = 0.0
+        self.scrollbar_dragging = False
+        self.max_slider_scroll = 0
+
         self.sliders: Dict[str, Slider] = {}
         self.build_sliders()
 
-        # Action Buttons
+        # Action Buttons (Pinned to bottom footer)
         self.action_buttons = [
-            Button("SAVE CONFIG", 40, 650, 150, 40, self.request_save_config, active=True),
-            Button("RESET DEFAULT", 210, 650, 150, 40, self.reset_defaults),
+            Button("SAVE CONFIG", 35, 660, 155, 42, self.request_save_config, active=True),
+            Button("RESET DEFAULT", 210, 660, 155, 42, self.reset_defaults),
         ]
 
         self.confirming_save = False
@@ -549,12 +634,16 @@ class BossEditorApp:
     def select_boss(self, boss_key: str):
         self.selected_boss = boss_key
         for btn in self.tab_buttons:
-            btn.active = (btn.text.lower() == boss_key)
+            btn.active = (btn.text.lower().replace(" ", "_") == boss_key)
+        self.category_filter = "ALL"
+        for btn in self.category_buttons:
+            btn.active = (btn.text == "ALL")
+        self.slider_scroll_y = 0.0
         self.build_sliders()
         self.frame_index = 0.0
         self.init_simulation_state()
         
-        # Load preset path for wizards/green monster
+        # Load preset path for wizards/green monster/skeleton
         if self.selected_boss == "wizard":
             self.presets_path = "game_data/wizard_presets.json"
             self.load_presets()
@@ -563,7 +652,50 @@ class BossEditorApp:
             self.presets_path = "game_data/green_monster_presets.json"
             self.load_presets()
             self.update_preset_buttons()
+        elif self.selected_boss == "skeleton":
+            self.presets_path = "game_data/skeleton_presets.json"
+            self.load_presets()
+            self.update_preset_buttons()
         
+    def set_category(self, cat: str):
+        self.category_filter = cat
+        for btn in self.category_buttons:
+            btn.active = (btn.text == cat)
+        self.slider_scroll_y = 0.0
+        self.update_slider_positions()
+
+    def get_slider_viewport(self) -> pg.Rect:
+        top_y = 226 if self.selected_boss in ("green_monster", "skeleton") else 192
+        bottom_y = 650
+        return pg.Rect(0, top_y, 400, bottom_y - top_y)
+
+    def get_visible_sliders(self) -> List[Slider]:
+        if self.selected_boss == "green_monster" and self.category_filter != "ALL":
+            cat_keys = GREEN_MONSTER_CATEGORIES.get(self.category_filter, [])
+            return [self.sliders[k] for k in cat_keys if k in self.sliders]
+        elif self.selected_boss == "skeleton" and self.category_filter != "ALL":
+            cat_keys = SKELETON_CATEGORIES.get(self.category_filter, [])
+            return [self.sliders[k] for k in cat_keys if k in self.sliders]
+        return list(self.sliders.values())
+
+    def update_slider_positions(self):
+        viewport = self.get_slider_viewport()
+        visible = self.get_visible_sliders()
+        spacing = 42
+
+        total_content_h = len(visible) * spacing + 15
+        self.max_slider_scroll = max(0, total_content_h - viewport.height)
+        self.slider_scroll_y = max(0.0, min(float(self.max_slider_scroll), self.slider_scroll_y))
+
+        slider_w = 330 if self.max_slider_scroll > 0 else 340
+        start_y = viewport.top + 22
+        for i, slider in enumerate(visible):
+            base_y = start_y + i * spacing
+            slider.base_y = base_y
+            slider.rect.x = 30
+            slider.rect.y = int(base_y - self.slider_scroll_y)
+            slider.rect.width = slider_w
+
     def load_boss_config(self, boss_key: str):
         schema = self.bosses[boss_key]["schema"]
         config_path = schema["config_file"]
@@ -588,20 +720,13 @@ class BossEditorApp:
         schema = self.bosses[self.selected_boss]["schema"]
         config = self.boss_configs[self.selected_boss]
         
-        num_keys = len(self.boss_keys)
-        rows = (num_keys + 2) // 3
-        grid_bottom = 75 + rows * 38
-        
-        y_pos = grid_bottom + 10
-        spacing = 42 if num_keys > 3 else 48
-        
         for slider_key, label, min_val, max_val, is_float, format_str in schema["sliders"]:
             current_val = config.get(slider_key, schema["defaults"][slider_key])
             slider = Slider(
                 key=slider_key,
                 label=label,
                 x=30,
-                y=y_pos,
+                y=0,
                 w=340,
                 min_val=min_val,
                 max_val=max_val,
@@ -610,7 +735,8 @@ class BossEditorApp:
                 format_str=format_str
             )
             self.sliders[slider_key] = slider
-            y_pos += spacing
+
+        self.update_slider_positions()
 
     def toggle_autofit(self):
         self.auto_fit_enabled = not self.auto_fit_enabled
@@ -619,7 +745,8 @@ class BossEditorApp:
         self.preview_scale_slider.dragging = False
 
     def apply_fit_to_slider(self):
-        self.preview_scale_slider.val = self.preview_scale
+        scale_mult = self.sliders["scale"].val if "scale" in self.sliders else 1.0
+        self.preview_scale_slider.val = min(self.preview_scale_slider.max_val, max(self.preview_scale_slider.min_val, round(self.preview_scale * scale_mult, 2)))
         self.toast_message = "Applied Fit Scale to Slider"
         self.toast_timer = 1.5
 
@@ -648,8 +775,8 @@ class BossEditorApp:
             self.analytics_buttons[6].active = (self.active_preset_slot == 3)
 
     def apply_preset_slot(self, slot: int):
-        if self.selected_boss not in ("wizard", "green_monster"):
-            self.toast_message = "Presets only supported on Wizard and Green Monster bosses"
+        if self.selected_boss not in ("wizard", "green_monster", "skeleton"):
+            self.toast_message = "Presets only supported on Wizard, Green Monster, and Skeleton bosses"
             self.toast_timer = 1.5
             return
             
@@ -664,8 +791,8 @@ class BossEditorApp:
             self.toast_timer = 1.5
 
     def save_to_active_preset(self):
-        if self.selected_boss not in ("wizard", "green_monster"):
-            self.toast_message = "Presets only supported on Wizard and Green Monster bosses"
+        if self.selected_boss not in ("wizard", "green_monster", "skeleton"):
+            self.toast_message = "Presets only supported on Wizard, Green Monster, and Skeleton bosses"
             self.toast_timer = 1.5
             return
             
@@ -775,14 +902,21 @@ class BossEditorApp:
             defaults = schema["defaults"]
             
             # Parameters to adjust (handles generic skeleton bosses/minions and bats)
-            keys_to_adjust = ["max_health", "speed", "damage_scale", "knockback_scale", "detection_range", "attack_range", "vertical_tolerance", "scale"]
+            keys_to_adjust = [
+                "max_health", "speed", "damage_scale", "knockback_scale",
+                "detection_range", "attack_range", "vertical_tolerance", "scale",
+                "spidey_sense", "teleport_dist_min", "teleport_dist_max"
+            ]
             
             for key in keys_to_adjust:
                 if key in self.sliders:
                     slider = self.sliders[key]
                     base_val = defaults.get(key, slider.min_val)
-                    # Adjust by direction * 10% of the default/baseline value
-                    delta = direction * 0.1 * base_val
+                    # Adjust by direction * 10% of the default/baseline value (or 0.1 for normalized)
+                    if key == "spidey_sense":
+                        delta = direction * 0.1
+                    else:
+                        delta = direction * 0.1 * (base_val if base_val != 0 else 1.0)
                     new_val = slider.val + delta
                     slider.val = max(slider.min_val, min(slider.max_val, new_val))
                     
@@ -822,10 +956,15 @@ class BossEditorApp:
             if config["attack_cooldown_max"] < config["attack_cooldown_min"]:
                 config["attack_cooldown_max"] = config["attack_cooldown_min"]
                 self.sliders["attack_cooldown_max"].val = config["attack_cooldown_min"]
-        elif "detection_range" in config and "attack_range" in config:
-            if config["detection_range"] < config["attack_range"]:
-                config["detection_range"] = config["attack_range"]
-                self.sliders["detection_range"].val = config["attack_range"]
+        else:
+            if "teleport_dist_max" in config and "teleport_dist_min" in config:
+                if config["teleport_dist_max"] < config["teleport_dist_min"]:
+                    config["teleport_dist_max"] = config["teleport_dist_min"]
+                    self.sliders["teleport_dist_max"].val = config["teleport_dist_min"]
+            if "detection_range" in config and "attack_range" in config:
+                if config["detection_range"] < config["attack_range"]:
+                    config["detection_range"] = config["attack_range"]
+                    self.sliders["detection_range"].val = config["attack_range"]
 
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
         # Create timestamped backup of current file
@@ -1092,6 +1231,15 @@ class BossEditorApp:
     def load_all_animations(self):
         for bkey, binfo in self.bosses.items():
             self.animations[bkey] = self.scan_boss_animations(bkey, binfo["class"])
+        self.bone_dust_frames = []
+        try:
+            dust_path = "assets/graphics/Pixel Explosion Effects Pack 01 v1_1/DustExplosion/Frames"
+            raw_dust = AssetManager.get_animation_frames(dust_path)
+            self.bone_dust_frames = [
+                pg.transform.scale(f, (128, 128)) for f in raw_dust
+            ]
+        except Exception as e:
+            print(f"[WARNING] Failed to load bone dust frames in boss editor: {e}")
 
     def set_review_state(self, state: str):
         if self.mode == "REVIEW":
@@ -1146,6 +1294,7 @@ class BossEditorApp:
         
         # Melee/Skeleton specific simulation fields
         self.sim_boss_cooldown = 0.0
+        self.sim_vfx = []
 
     def add_sim_log(self, text: str):
         self.sim_events.append(text)
@@ -1172,7 +1321,8 @@ class BossEditorApp:
             
         frames = self.animations[self.selected_boss][self.sim_boss_state]
         frames_count = len(frames)
-        self.frame_index += self.play_speed * 10 * dt
+        speed_mult = speed / 250.0
+        self.frame_index += self.play_speed * 10 * speed_mult * dt
         if self.frame_index >= frames_count:
             self.frame_index = 0.0
 
@@ -1262,10 +1412,7 @@ class BossEditorApp:
         if self.sim_boss_is_stagnant or self.sim_boss_is_recharging:
             self.sim_boss_state = "IDLE"
             if self.sim_boss_is_stagnant and random.random() < 0.015:
-                self.add_sim_log("Player attacked boss while stagnant!")
-                self.sim_boss_state = "HURT"
-                self.frame_index = 0.0
-                self.sim_boss_teleport_after_hurt = True
+                self.simulate_player_attack()
             return
 
         dist_x = self.sim_boss_x - self.sim_player_x
@@ -1294,6 +1441,10 @@ class BossEditorApp:
                 self.sim_boss_x = int(self.sim_boss_x - retreat_speed * dt)
             self.sim_boss_x = max(100, min(1180, self.sim_boss_x))
 
+            # Small chance of player strike during close retreat
+            if abs_dist_x < 80 and random.random() < 0.005:
+                self.simulate_player_attack()
+
         # Chase if player is too far
         elif abs_dist_x > 260:
             if self.sim_boss_state == "IDLE" and not self.sim_boss_chase_delay_active:
@@ -1313,6 +1464,96 @@ class BossEditorApp:
                     self.sim_boss_x = int(self.sim_boss_x - chase_speed * dt)
                 else:
                     self.sim_boss_x = int(self.sim_boss_x + chase_speed * dt)
+
+    def simulate_player_attack(self):
+        if self.mode != "SIMULATION":
+            return
+        if self.sim_boss_state == "DEATH":
+            return
+
+        spidey_sense = self.sliders["spidey_sense"].val if "spidey_sense" in self.sliders else 0.0
+
+        if self.selected_boss in ("skeleton", "skeleton_minion", "skeleton_zombie"):
+            if spidey_sense > 0.0 and random.random() < spidey_sense:
+                # Origin VFX
+                if self.bone_dust_frames:
+                    self.sim_vfx.append({
+                        "world_x": self.sim_boss_x,
+                        "frame_index": 0.0,
+                        "fps": 24.0,
+                    })
+
+                if spidey_sense >= 0.8:
+                    # GOD MODE: flank behind player
+                    if self.sim_boss_x > self.sim_player_x:
+                        target_x = self.sim_player_x - 70
+                        self.sim_boss_facing_left = False
+                    else:
+                        target_x = self.sim_player_x + 70
+                        self.sim_boss_facing_left = True
+                    self.sim_boss_x = max(100, min(1180, target_x))
+                    self.sim_boss_state = "ATTACK"
+                    self.frame_index = 0.0
+                    self.sim_boss_cooldown = 0.0
+                    self.add_sim_log(f"[BONE DUST DODGE] GOD MODE: Shattered & flanked player at x={self.sim_boss_x}!")
+                else:
+                    # Standard dodge: retreat away from player
+                    teleport_min = self.sliders.get("teleport_dist_min", Slider("x", "y", 0, 0, 0, 0, 0, 180)).val
+                    teleport_max = self.sliders.get("teleport_dist_max", Slider("x", "y", 0, 0, 0, 0, 0, 280)).val
+                    dist_offset = random.randint(int(teleport_min), int(teleport_max))
+                    if self.sim_boss_x > self.sim_player_x:
+                        target_x = self.sim_player_x + dist_offset
+                        self.sim_boss_facing_left = True
+                    else:
+                        target_x = self.sim_player_x - dist_offset
+                        self.sim_boss_facing_left = False
+                    self.sim_boss_x = max(100, min(1180, target_x))
+                    self.sim_boss_state = "IDLE"
+                    self.frame_index = 0.0
+                    self.add_sim_log(f"[BONE DUST DODGE] Shattered into bone dust! Dodged to x={self.sim_boss_x} (Setting: {spidey_sense:.2f})")
+
+                # Destination VFX
+                if self.bone_dust_frames:
+                    self.sim_vfx.append({
+                        "world_x": self.sim_boss_x,
+                        "frame_index": 0.0,
+                        "fps": 24.0,
+                    })
+                return
+            else:
+                self.sim_boss_state = "HURT"
+                self.frame_index = 0.0
+                self.add_sim_log("Player attacked skeleton: Skeleton HURT!")
+                return
+
+        # Check Spidey Sense dodge probability (Wizards / Green Monster)
+        if spidey_sense > 0.0 and random.random() < spidey_sense:
+            if spidey_sense >= 0.8:
+                # GOD MODE: counter-attack behind player
+                if self.sim_boss_facing_left:
+                    target_x = self.sim_player_x + 180
+                    self.sim_boss_facing_left = True
+                else:
+                    target_x = self.sim_player_x - 180
+                    self.sim_boss_facing_left = False
+
+                self.sim_boss_x = max(100, min(1180, target_x))
+                self.sim_boss_state = "ATTACK"
+                self.frame_index = 0.0
+                self.sim_boss_has_cast = False
+                self.sim_boss_teleport_flash_timer = 0.6
+                proj = "Toxic glob" if self.selected_boss == "green_monster" else "Fireball"
+                self.add_sim_log(f"[SPIDEY SENSE] GOD MODE: Dodged & counter-teleported! Casting {proj}.")
+            else:
+                # Standard dodge: teleport away to safety & recharge
+                self.trigger_sim_teleport()
+                self.add_sim_log(f"[SPIDEY SENSE] Dodged player attack! (Setting: {spidey_sense:.2f})")
+        else:
+            # Hit received
+            self.sim_boss_state = "HURT"
+            self.frame_index = 0.0
+            self.sim_boss_teleport_after_hurt = True
+            self.add_sim_log("Player attacked boss: Boss HURT!")
 
     def trigger_sim_teleport(self):
         teleport_min = self.sliders["teleport_dist_min"].val
@@ -1384,11 +1625,16 @@ class BossEditorApp:
         else:
             self.sim_boss_state = "IDLE"
 
+        # Update bone dust simulation VFX
+        if self.bone_dust_frames:
+            for vfx in list(self.sim_vfx):
+                vfx["frame_index"] += vfx.get("fps", 24.0) * dt
+                if int(vfx["frame_index"]) >= len(self.bone_dust_frames):
+                    self.sim_vfx.remove(vfx)
+
         # Mock player damage simulation (small random chance of hitting the boss)
         if self.sim_boss_state == "CHASE" and random.random() < 0.005:
-            self.sim_boss_state = "HURT"
-            self.frame_index = 0.0
-            self.add_sim_log("Player struck boss during pursuit!")
+            self.simulate_player_attack()
 
     def draw_analytics_dashboard(self, surface: pg.Surface, rect: pg.Rect):
         margin_x = 25
@@ -1592,8 +1838,47 @@ class BossEditorApp:
                 # Handle normal inputs
                 for btn in self.tab_buttons:
                     btn.handle_event(event)
-                for slider in self.sliders.values():
-                    slider.handle_event(event)
+
+                if self.selected_boss in ("green_monster", "skeleton"):
+                    for btn in self.category_buttons:
+                        btn.handle_event(event)
+
+                # Mousewheel & scrollbar scrolling over left sidebar
+                viewport = self.get_slider_viewport()
+                if event.type == pg.MOUSEWHEEL:
+                    m_pos = pg.mouse.get_pos()
+                    if m_pos[0] < 400 and self.max_slider_scroll > 0:
+                        self.slider_scroll_y = max(0.0, min(float(self.max_slider_scroll), self.slider_scroll_y - event.y * 35))
+                        self.update_slider_positions()
+                elif event.type == pg.MOUSEBUTTONDOWN and event.pos[0] < 400:
+                    if event.button == 4 and self.max_slider_scroll > 0:
+                        self.slider_scroll_y = max(0.0, min(float(self.max_slider_scroll), self.slider_scroll_y - 35))
+                        self.update_slider_positions()
+                    elif event.button == 5 and self.max_slider_scroll > 0:
+                        self.slider_scroll_y = max(0.0, min(float(self.max_slider_scroll), self.slider_scroll_y + 35))
+                        self.update_slider_positions()
+                    elif event.button == 1 and self.max_slider_scroll > 0 and 380 <= event.pos[0] <= 396 and viewport.top <= event.pos[1] <= viewport.bottom:
+                        self.scrollbar_dragging = True
+                        rel_y = (event.pos[1] - viewport.top) / viewport.height
+                        self.slider_scroll_y = max(0.0, min(float(self.max_slider_scroll), rel_y * self.max_slider_scroll))
+                        self.update_slider_positions()
+
+                if event.type == pg.MOUSEBUTTONUP and event.button == 1:
+                    self.scrollbar_dragging = False
+
+                if event.type == pg.MOUSEMOTION and getattr(self, "scrollbar_dragging", False):
+                    rel_y = (event.pos[1] - viewport.top) / viewport.height
+                    self.slider_scroll_y = max(0.0, min(float(self.max_slider_scroll), rel_y * self.max_slider_scroll))
+                    self.update_slider_positions()
+
+                # Visible sliders event handling
+                for slider in self.get_visible_sliders():
+                    if event.type == pg.MOUSEBUTTONDOWN:
+                        if viewport.collidepoint(event.pos):
+                            slider.handle_event(event)
+                    else:
+                        slider.handle_event(event)
+
                 for btn in self.action_buttons:
                     btn.handle_event(event)
                 for btn in self.mode_buttons:
@@ -1605,6 +1890,12 @@ class BossEditorApp:
                         btn.handle_event(event)
                 elif self.mode == "SIMULATION":
                     self.restart_sim_btn.handle_event(event)
+                    preview_rect = pg.Rect(430, 80, 820, 400)
+                    if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                        self.simulate_player_attack()
+                    elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                        if preview_rect.collidepoint(event.pos):
+                            self.simulate_player_attack()
                 elif self.mode == "ANALYTICS":
                     for btn in self.analytics_buttons:
                         btn.handle_event(event)
@@ -1628,7 +1919,8 @@ class BossEditorApp:
                 if self.mode == "REVIEW":
                     frames = self.animations[self.selected_boss][self.current_state]
                     frames_count = len(frames)
-                    self.frame_index += self.play_speed * 10 * dt
+                    speed_mult = (self.sliders["speed"].val / 250.0) if (self.selected_boss == "bat" and "speed" in self.sliders) else 1.0
+                    self.frame_index += self.play_speed * 10 * speed_mult * dt
                     if self.frame_index >= frames_count:
                         self.frame_index = 0.0
                 elif self.mode == "SIMULATION":
@@ -1652,9 +1944,33 @@ class BossEditorApp:
             for btn in self.tab_buttons:
                 btn.draw(screen)
 
-            # Draw Sliders & Action Buttons
-            for slider in self.sliders.values():
-                slider.draw(screen)
+            # Draw Category Filter Tabs (if Green Monster or Skeleton)
+            if self.selected_boss in ("green_monster", "skeleton"):
+                for btn in self.category_buttons:
+                    btn.draw(screen)
+
+            # Draw Sliders within Clipped Viewport
+            viewport = self.get_slider_viewport()
+            screen.set_clip(viewport)
+            for slider in self.get_visible_sliders():
+                if slider.rect.bottom > viewport.top - 20 and slider.rect.top < viewport.bottom + 20:
+                    slider.draw(screen)
+            screen.set_clip(None)
+
+            # Draw Scrollbar if scrollable
+            if self.max_slider_scroll > 0:
+                track_rect = pg.Rect(386, viewport.top, 6, viewport.height)
+                pg.draw.rect(screen, (35, 35, 48), track_rect, border_radius=3)
+                thumb_h = max(28, int(viewport.height * (viewport.height / (viewport.height + self.max_slider_scroll))))
+                scroll_ratio = self.slider_scroll_y / self.max_slider_scroll if self.max_slider_scroll > 0 else 0.0
+                thumb_y = viewport.top + int(scroll_ratio * (viewport.height - thumb_h))
+                thumb_rect = pg.Rect(386, thumb_y, 6, thumb_h)
+                thumb_color = ACCENT_CYAN if getattr(self, "scrollbar_dragging", False) else (90, 90, 115)
+                pg.draw.rect(screen, thumb_color, thumb_rect, border_radius=3)
+
+            # Draw Action Buttons Footer (Pinned)
+            pg.draw.rect(screen, PANEL_BG, (0, 650, 400, 70))
+            pg.draw.line(screen, BORDER_COLOR, (0, 650), (400, 650), 2)
             for btn in self.action_buttons:
                 btn.draw(screen)
 
@@ -1678,23 +1994,27 @@ class BossEditorApp:
                 frames = self.animations[self.selected_boss][state_key]
                 current_frame = frames[min(int(self.frame_index), len(frames) - 1)]
 
+                scale_mult = self.sliders["scale"].val if "scale" in self.sliders else 1.0
+
                 # Auto-Fit scaling vs manual scaling
                 if self.auto_fit_enabled:
                     fit = PreviewScaler.calculate_auto_fit(current_frame, preview_rect, floor_y=420)
                     self.preview_scale = fit["scale"]
-                    scaled_w = fit["scaled_width"]
-                    scaled_h = fit["scaled_height"]
+                    base_w = fit["scaled_width"]
+                    base_h = fit["scaled_height"]
+                    scaled_w = int(base_w * scale_mult)
+                    scaled_h = int(base_h * scale_mult)
                     
                     if self.mode == "REVIEW":
-                        px_x = fit["x_pos_centered"] + scaled_w // 2
-                        px_y = fit["y_pos"]
+                        px_x = fit["x_pos_centered"] + base_w // 2
+                        px_y = fit["y_pos"] - (scaled_h - base_h) // 2
                     else:
                         px_x = int(430 + (self.sim_boss_x / 1200) * 820)
-                        px_y = fit["y_pos"]
+                        px_y = fit["y_pos"] - (scaled_h - base_h) // 2
                 else:
                     w, h = current_frame.get_size()
-                    scaled_w = int(w * self.preview_scale)
-                    scaled_h = int(h * self.preview_scale)
+                    scaled_w = int(w * self.preview_scale * scale_mult)
+                    scaled_h = int(h * self.preview_scale * scale_mult)
                     px_x = 840 if self.mode == "REVIEW" else int(430 + (self.sim_boss_x / 1200) * 820)
                     px_y = 420 - int(scaled_h * 0.72)
 
@@ -1767,6 +2087,16 @@ class BossEditorApp:
                     screen.blit(aura, (px_x - glow_radius, 420 - int(scaled_h * 0.36) - glow_radius))
 
                 if self.mode == "SIMULATION":
+                    # Draw Bone Dust VFX (origin and destination dust bursts)
+                    if self.bone_dust_frames:
+                        for vfx in self.sim_vfx:
+                            idx = int(vfx["frame_index"])
+                            if idx < len(self.bone_dust_frames):
+                                frame = self.bone_dust_frames[idx]
+                                vx = int(430 + (vfx["world_x"] / 1200) * 820)
+                                v_rect = frame.get_rect(midbottom=(vx, 420))
+                                screen.blit(frame, v_rect)
+
                     p_px_x = int(430 + (self.sim_player_x / 1200) * 820)
                     pg.draw.circle(screen, (100, 255, 100), (p_px_x, 420 - 35), 18)
                     pg.draw.rect(screen, (80, 200, 80), (p_px_x - 6, 420 - 20, 12, 20))
@@ -1799,9 +2129,18 @@ class BossEditorApp:
 
                     log_y = 95
                     for ev in self.sim_events:
-                        txt_ev = help_font.render(ev, True, ACCENT_CYAN if "TELEPORTED" in ev or "recharged" in ev or "HIT" in ev else TEXT_COLOR)
+                        if "[SPIDEY SENSE]" in ev or "[BONE DUST DODGE]" in ev:
+                            ev_color = (255, 64, 129)
+                        elif "TELEPORTED" in ev or "recharged" in ev or "HIT" in ev or "Shattered" in ev:
+                            ev_color = ACCENT_CYAN
+                        else:
+                            ev_color = TEXT_COLOR
+                        txt_ev = help_font.render(ev, True, ev_color)
                         screen.blit(txt_ev, (450, log_y))
                         log_y += 18
+
+                    txt_hint = help_font.render("SIMULATION: Left Click preview or press SPACE near boss to strike & test Spidey Sense!", True, TEXT_MUTED)
+                    screen.blit(txt_hint, (450, 455))
 
                 # Draw floor range/detection indicators for both REVIEW and SIMULATION modes
                 if self.selected_boss == "wizard":
@@ -1856,7 +2195,8 @@ class BossEditorApp:
                 self.playback_speed_slider.draw(screen)
 
                 if self.auto_fit_enabled:
-                    val_display = f"{round(self.preview_scale, 2)}x [AUTO]"
+                    effective_scale = self.preview_scale * (self.sliders["scale"].val if "scale" in self.sliders else 1.0)
+                    val_display = f"{round(effective_scale, 2)}x [AUTO]"
                     txt_label = ui_font.render("Preview Scale", True, TEXT_MUTED)
                     txt_val = value_font.render(val_display, True, TEXT_MUTED)
                     screen.blit(txt_label, (920, 610 - 20))

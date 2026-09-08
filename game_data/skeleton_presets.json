@@ -1,0 +1,35 @@
+{
+  "1": {
+    "name": "Normal (Weak Defense)",
+    "description": "Tactical skeleton minion/boss with occasional bone dust dodge",
+    "spidey_sense": 0.25,
+    "teleport_dist_min": 160,
+    "teleport_dist_max": 220,
+    "teleport_cooldown": 5.0,
+    "teleport_reaction_delay": 0.12,
+    "speed": 3.0,
+    "damage_scale": 2.0
+  },
+  "2": {
+    "name": "Hard (Strong Defense)",
+    "description": "Fast-reacting skeleton with frequent bone dust evasion",
+    "spidey_sense": 0.65,
+    "teleport_dist_min": 180,
+    "teleport_dist_max": 280,
+    "teleport_cooldown": 3.2,
+    "teleport_reaction_delay": 0.08,
+    "speed": 3.4,
+    "damage_scale": 3.0
+  },
+  "3": {
+    "name": "Nightmare (God Mode Flank)",
+    "description": "Instant reaction: dissolves to bone dust, teleports behind player, and counters",
+    "spidey_sense": 1.0,
+    "teleport_dist_min": 120,
+    "teleport_dist_max": 160,
+    "teleport_cooldown": 1.8,
+    "teleport_reaction_delay": 0.03,
+    "speed": 4.0,
+    "damage_scale": 4.0
+  }
+}
