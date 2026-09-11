@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 import pygame as pg
 
 from src.game.entities.generic_npc import _GenericNPCState
+from src.game.ui.animated_dialogue_renderer import AnimatedDialogueRenderer
 
 if TYPE_CHECKING:
     from src.game.states.game_state import GameState
@@ -22,6 +23,13 @@ class CutsceneManager:
 
     def __init__(self, game_state: GameState) -> None:
         self.game = game_state
+        self.dialogue_renderer = AnimatedDialogueRenderer(
+            typing_speed=40.0,
+            scale_duration=1.0,
+            max_scale=1.8,
+            theme="spirit",
+        )
+        self._last_npc_text: str = ""
 
     @property
     def is_interacting(self) -> bool:
@@ -158,6 +166,7 @@ class CutsceneManager:
             self.game.clean_camera_zoom.zoom_out()
 
         self.game.clean_camera_zoom.update(dt / 1000.0)
+        self.dialogue_renderer.update(dt / 1000.0)
 
     def draw_dialogue_overlay(self, surface: pg.Surface) -> None:
         """Render cutscene dialogue text & glowing continue prompt in top-center screen area."""
@@ -177,7 +186,15 @@ class CutsceneManager:
                     break
 
         if active_npc is None or not active_npc.text:
+            self._last_npc_text = ""
             return
+
+        # Synchronize dialogue text with animated renderer
+        if active_npc.text != self._last_npc_text:
+            self._last_npc_text = active_npc.text
+            theme = "spirit" if getattr(active_npc, "is_spirit_of_scythe", False) else "skyfall" if getattr(active_npc, "is_sky_fall_npc", False) else "standard"
+            self.dialogue_renderer.theme = theme
+            self.dialogue_renderer.set_text(active_npc.text)
 
         ticks = pg.time.get_ticks()
 
@@ -211,20 +228,7 @@ class CutsceneManager:
 
         # Word wrap text into lines (max 650px wide for top-center display)
         max_w = 650
-        words = active_npc.text.split(" ")
-        lines: list[str] = []
-        curr = ""
-        for word in words:
-            test_l = f"{curr} {word}".strip() if curr else word
-            if font.size(test_l)[0] <= max_w:
-                curr = test_l
-            else:
-                if curr:
-                    lines.append(curr)
-                curr = word
-        if curr:
-            lines.append(curr)
-
+        lines = self.dialogue_renderer.wrap_text(font, max_w)
         line_h = font.get_linesize() + 4
         total_text_h = len(lines) * line_h
 
@@ -246,27 +250,25 @@ class CutsceneManager:
         pg.draw.rect(bg_surf, (255, 180, 40, int(text_alpha * 0.45)), (0, 0, bg_rect.width, bg_rect.height), width=2, border_radius=8)
         surface.blit(bg_surf, bg_rect.topleft)
 
-        # Render Gold Dialogue Text
-        for i, line_str in enumerate(lines):
-            tx = center_x - font.size(line_str)[0] // 2
-            ty = start_y + i * line_h
-
-            # Dark drop shadow
-            shd_surf = font.render(line_str, True, (0, 0, 0))
-            shd_surf.set_alpha(int(text_alpha * 0.90))
-            surface.blit(shd_surf, (tx + 2, ty + 2))
-
-            # Main Ethereal Gold text
-            txt_surf = font.render(line_str, True, (255, 215, 80))
-            txt_surf.set_alpha(text_alpha)
-            surface.blit(txt_surf, (tx, ty))
+        # Render animated gold dialogue text with enlarge-then-shrink typewriter effect
+        text_rect = pg.Rect(center_x - max_w // 2, start_y, max_w, total_text_h)
+        self.dialogue_renderer.render(
+            surface=surface,
+            font=font,
+            rect=text_rect,
+            color=(255, 215, 80),
+            shadow_color=(0, 0, 0),
+            alpha=text_alpha,
+            align="center",
+            line_spacing=4,
+        )
 
         # Render Pulsing Continue Helper Prompt below dialogue box
         p_alpha = int(160 + 80 * abs(((ticks // 8) % 200 - 100) / 100))
         p_alpha = min(text_alpha, p_alpha)
         prompt_str = "[ PRESS ENTER OR SPACE TO CONTINUE ]"
         ptx = center_x - font.size(prompt_str)[0] // 2
-        pty = start_y + len(lines) * line_h + 12
+        pty = start_y + total_text_h + 12
 
         p_shd = font.render(prompt_str, True, (0, 0, 0))
         p_shd.set_alpha(int(p_alpha * 0.85))

@@ -11,6 +11,7 @@ from typing import Optional, List, Tuple, Any
 import pygame as pg
 
 from v3x_zulfiqar_gideon import ParchmentDisplay, AssetManager
+from src.game.ui.animated_dialogue_renderer import AnimatedDialogueRenderer
 
 
 class FXState(Enum):
@@ -24,7 +25,7 @@ class ObjectiveDisplay(ParchmentDisplay):
     """
     Enhanced Dialogue & Objective display overlay.
     Supports character-themed elemental intro sequences (Dark Fire, Smoke, Ice)
-    and typewriter text reveals.
+    and per-letter enlarge-to-normal typewriter text reveals.
     """
 
     def __init__(self, **kwargs) -> None:
@@ -45,6 +46,12 @@ class ObjectiveDisplay(ParchmentDisplay):
 
         self._full_raw_text: str = ""
         self._loaded_theme: Optional[str] = None
+        self._anim_renderer = AnimatedDialogueRenderer(
+            typing_speed=self._typing_speed,
+            scale_duration=1.0,
+            max_scale=1.8,
+            theme="standard",
+        )
         self._load_effects()
 
     def _load_effects(self) -> None:
@@ -73,6 +80,9 @@ class ObjectiveDisplay(ParchmentDisplay):
         super().show(text, title)
         self._full_raw_text = text
         self._current_theme = theme
+        theme_preset = "necromancer" if "necromancer" in theme else "standard"
+        self._anim_renderer.theme = theme_preset
+        self._anim_renderer.set_text(text)
 
         if theme == "necromancer_dark_fire" and self._flame_frames:
             self._fx_state = FXState.FLAME_BURST
@@ -111,8 +121,9 @@ class ObjectiveDisplay(ParchmentDisplay):
 
         elif self._fx_state == FXState.TYPEWRITER:
             # Typewriter character reveal
-            self._char_count += self._typing_speed * dt_sec
-            if self._char_count >= len(self._full_raw_text):
+            self._anim_renderer.update(dt_sec)
+            self._char_count = float(self._anim_renderer.current_char_count)
+            if self._anim_renderer.is_complete:
                 self._char_count = float(len(self._full_raw_text))
                 self._fx_state = FXState.COMPLETE
 
@@ -136,6 +147,7 @@ class ObjectiveDisplay(ParchmentDisplay):
         if self._fx_state != FXState.COMPLETE:
             # Fast-forward / skip intro FX & typewriter directly to complete
             self._fx_state = FXState.COMPLETE
+            self._anim_renderer.skip_to_end()
             self._char_count = float(len(self._full_raw_text))
             return False
         else:
@@ -195,18 +207,17 @@ class ObjectiveDisplay(ParchmentDisplay):
                 surface.blit(smoke_surf, (fx_x, fx_y))
 
         elif self._fx_state in (FXState.TYPEWRITER, FXState.COMPLETE):
-            # Render typewriter or full text
-            curr_len = int(self._char_count) if self._fx_state == FXState.TYPEWRITER else len(self._full_raw_text)
-            displayed_text = self._full_raw_text[:curr_len]
-            lines = self._wrap_text(displayed_text, self._font, self._text_max_w, self._cfg["text_color"])
-
-            y = content_y_start
-            for line_surf in lines:
-                if y + line_surf.get_height() > self._text_y + self._text_max_h:
-                    break
-                lx = self._text_x + (self._text_max_w - line_surf.get_width()) // 2
-                surface.blit(line_surf, (lx, y))
-                y += line_surf.get_height() + self._line_spacing
+            # Render typewriter or full text using AnimatedDialogueRenderer
+            text_rect = pg.Rect(self._text_x, content_y_start, self._text_max_w, self._text_max_h)
+            self._anim_renderer.render(
+                surface=surface,
+                font=self._font,
+                rect=text_rect,
+                color=self._cfg["text_color"],
+                shadow_color=(0, 0, 0),
+                align="center",
+                line_spacing=self._line_spacing,
+            )
 
             # Prompt only appears in COMPLETE state
             if self._fx_state == FXState.COMPLETE and self._prompt_surface:

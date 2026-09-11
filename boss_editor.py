@@ -998,6 +998,41 @@ class BossEditorApp:
         try:
             with open(config_path, "w") as f:
                 json.dump(config, f, indent=2)
+
+            # If editing skeleton, also save to minion skeleton config file to keep in-game minion AI in sync
+            if boss_key == "skeleton":
+                minion_path = "game_data/enemy_skeleton_minion_config.json"
+                if os.path.exists(minion_path):
+                    try:
+                        with open(minion_path, "r") as mf:
+                            minion_cfg = json.load(mf)
+                        for sync_key in ("spidey_sense", "teleport_dist_min", "teleport_dist_max", "teleport_cooldown", "teleport_reaction_delay", "speed"):
+                            if sync_key in config:
+                                minion_cfg[sync_key] = config[sync_key]
+                        with open(minion_path, "w") as mf:
+                            json.dump(minion_cfg, mf, indent=2)
+                    except Exception as me:
+                        print(f"[WARNING] Failed to sync minion config: {me}")
+
+            # Invalidate RAM session cache and update LocalCache SQLite DB
+            config_type_map = {
+                "wizard": "boss_wizard",
+                "skeleton": "boss_skeleton",
+                "skeleton_minion": "enemy_skeleton_minion",
+                "green_monster": "enemy_green_monster",
+            }
+            c_type = config_type_map.get(boss_key)
+            if c_type:
+                try:
+                    from src.game.services.config_client import ConfigClient
+                    from src.game.services.local_cache import LocalCache
+                    ConfigClient.invalidate_cache(c_type)
+                    LocalCache.set_config(c_type, config)
+                    if boss_key == "skeleton":
+                        ConfigClient.invalidate_cache("enemy_skeleton_minion")
+                except Exception as cache_err:
+                    print(f"[WARNING] Cache sync error: {cache_err}")
+
             self.toast_message = "Configuration Saved!"
             self.toast_timer = 2.0
             print(f"[INFO] Configuration saved successfully for {boss_key}.")

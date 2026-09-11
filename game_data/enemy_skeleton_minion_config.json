@@ -8,7 +8,7 @@
   "vertical_tolerance": 100,
   "attack_hitbox_width": 60,
   "attack_hitbox_height": 80,
-  "spidey_sense": 0.6,
+  "spidey_sense": 0.28,
   "teleport_dist_min": 160,
   "teleport_dist_max": 280,
   "teleport_cooldown": 2.0,

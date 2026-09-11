@@ -13,6 +13,7 @@ from typing import Optional
 import pygame as pg
 
 from v3x_zulfiqar_gideon import State, AssetManager
+from src.game.ui.animated_dialogue_renderer import AnimatedDialogueRenderer
 
 
 class StoryState(State):
@@ -80,13 +81,11 @@ class StoryState(State):
         except Exception:
             pass
 
-        # ── Ambient Floating Particles (Embers / Fireflies) ───────────────────
-        w = max(1, self.width)
-        h = max(1, self.height - 200)
+        # ── Ambient Ember Particles ──────────────────────────────────────────
         self._particles = [
             {
-                "x": float((i * 97) % w),
-                "y": float((i * 61) % h),
+                "x": float((i * 37) % self.width),
+                "y": float(self.height - 180 + (i * 13) % 150),
                 "speed_x": 12.0 + (i % 5) * 6.0,
                 "speed_y": -15.0 - (i % 4) * 8.0,
                 "size": 2 + (i % 3),
@@ -110,6 +109,14 @@ class StoryState(State):
         self.is_text_complete: bool = False
         self.is_exiting: bool = False
         self.exit_alpha: float = 0.0
+
+        self.anim_renderer = AnimatedDialogueRenderer(
+            typing_speed=self.text_speed,
+            scale_duration=1.0,
+            max_scale=1.8,
+            theme="necromancer",
+        )
+        self.anim_renderer.set_text(self.story_text)
 
         # Word wrap pre-calculation (box_w - 70 padding)
         self._wrapped_lines: list[str] = self._word_wrap(self.story_text, max_width=self.box_w - 70)
@@ -157,6 +164,7 @@ class StoryState(State):
         if advance_pressed:
             if not self.is_text_complete:
                 # First press instantly completes the text
+                self.anim_renderer.skip_to_end()
                 self.text_progress = float(len(self.story_text))
                 self.is_text_complete = True
             elif not self.is_exiting:
@@ -175,8 +183,9 @@ class StoryState(State):
 
         # Advance typewriter text
         if not self.is_text_complete:
-            self.text_progress += self.text_speed * dt_sec
-            if self.text_progress >= len(self.story_text):
+            self.anim_renderer.update(dt_sec)
+            self.text_progress = float(self.anim_renderer.current_char_count)
+            if self.anim_renderer.is_complete:
                 self.text_progress = float(len(self.story_text))
                 self.is_text_complete = True
 
@@ -263,27 +272,17 @@ class StoryState(State):
         surface.blit(t_surf, (title_x, title_y))
 
         # 5. Typewriter Story Text
-        cur_chars = int(self.text_progress)
-        chars_left = cur_chars
         text_start_y = title_y + 48
-        line_height = self.font.get_linesize() + 6
-
-        for i, line in enumerate(self._wrapped_lines):
-            if chars_left <= 0:
-                break
-            line_str = line[:chars_left]
-            chars_left -= len(line)
-
-            tx = box_x + 35
-            ty = text_start_y + i * line_height
-
-            # Dark shadow for high contrast legibility
-            shd = self.font.render(line_str, True, (0, 0, 0))
-            surface.blit(shd, (tx + 2, ty + 2))
-
-            # Main Crisp White/Gold Text
-            txt = self.font.render(line_str, True, (245, 235, 215))
-            surface.blit(txt, (tx, ty))
+        text_rect = pg.Rect(box_x + 35, text_start_y, box_w - 70, box_h - 80)
+        self.anim_renderer.render(
+            surface=surface,
+            font=self.font,
+            rect=text_rect,
+            color=(245, 235, 215),
+            shadow_color=(0, 0, 0),
+            align="left",
+            line_spacing=6,
+        )
 
         # 6. Pulsing Continue Prompt
         if self.is_text_complete:

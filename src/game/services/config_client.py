@@ -80,7 +80,7 @@ class ConfigClient:
         if local_data:
             cls._deep_merge(local_data, merged)
         if not merged and local_data:
-            merged = local_data
+            merged = copy.deepcopy(local_data)
 
         # Store in session cache — all future calls return instantly from RAM
         cls._session_cache[config_type] = copy.deepcopy(merged)
@@ -98,14 +98,87 @@ class ConfigClient:
         return merged
 
     @classmethod
+    def push_config(cls, config_type: str, config_data: Dict[str, Any], async_push: bool = True) -> bool:
+        """Push local configuration changes to RAM session cache, LocalCache, and cloud API.
+
+        If async_push is True, performs network request in a background thread.
+        """
+        cls._session_cache[config_type] = copy.deepcopy(config_data)
+        LocalCache.set_config(config_type, config_data)
+
+        if async_push:
+            import threading
+            threading.Thread(
+                target=cls._send_push_to_api,
+                args=(config_type, config_data),
+                daemon=True
+            ).start()
+            return True
+        else:
+            return cls._send_push_to_api(config_type, config_data)
+
+    @classmethod
+    def _send_push_to_api(cls, config_type: str, config_data: Dict[str, Any]) -> bool:
+        """Send HTTP POST payload to API base URL."""
+        url = f"{API_BASE_URL.rstrip('/')}/configs/{config_type}"
+        try:
+            payload = json.dumps(config_data).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Pixel-Runner Game Client",
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=2.5) as response:
+                if response.status in (200, 201, 204):
+                    print(f"[CONFIG CLIENT] Successfully pushed '{config_type}' config to cloud API.")
+                    return True
+        except Exception as e:
+            print(f"[CONFIG CLIENT WARNING] Could not push '{config_type}' to cloud API (local active): {e}")
+        return False
+
+    @classmethod
     def _async_api_sync(cls, config_type: str) -> None:
-        """Background worker thread to check cloud API for updates without stalling gameplay."""
-        config_data = cls._fetch_from_api(config_type)
-        if config_data:
-            LocalCache.set_config(config_type, config_data)
-            current = cls._session_cache.get(config_type, {})
-            cls._deep_merge(config_data, current)
-            cls._session_cache[config_type] = current
+        """Background worker thread to check cloud API for updates without stalling gameplay.
+
+        If local and cloud configs match, cloud config is used.
+        If local and cloud configs differ, local config is given precedence and pushed to cloud.
+        """
+        cloud_data = cls._fetch_from_api(config_type)
+        if not cloud_data:
+            return
+
+        local_data = None
+        try:
+            local_data = cls._load_fallback(config_type)
+        except Exception:
+            pass
+
+        if local_data is not None:
+            if local_data == cloud_data:
+                # Both are equal -> cloud config can be used directly
+                final_config = cloud_data
+            else:
+                # Not equal -> local is first option when receiving; push local to cloud to sync
+                final_config = copy.deepcopy(cloud_data)
+                cls._deep_merge(local_data, final_config)
+                # Push local config up to cloud in background thread
+                import threading
+                threading.Thread(
+                    target=cls._send_push_to_api,
+                    args=(config_type, local_data),
+                    daemon=True
+                ).start()
+        else:
+            final_config = cloud_data
+
+        LocalCache.set_config(config_type, final_config)
+        current = cls._session_cache.get(config_type, {})
+        cls._deep_merge(final_config, current)
+        cls._session_cache[config_type] = copy.deepcopy(current)
 
     @classmethod
     def invalidate_cache(cls, config_type: Optional[str] = None) -> None:
