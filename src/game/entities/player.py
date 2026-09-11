@@ -663,7 +663,9 @@ class Player(Actor):
     
     # Movement constants
     _MOVE_SPEED: Final[float] = 3.4
-    _AIR_MOVE_SPEED: Final[float] = 5.0  # Reduced speed while in the air
+    _AIR_MOVE_SPEED: Final[float] = 5.0  # Speed while in the air during runner phase
+    _BOSS_ARENA_MOVE_SPEED: Final[float] = 6.8  # Full responsive speed in boss arena
+    _BOSS_ARENA_AIR_MOVE_SPEED: Final[float] = 7.5
     _SCREEN_BOUND_LEFT: Final[int] = 0
     # Cap how far right the player can wander as a fraction of screen width so
     # they sit further from the trailing edge while the world scrolls past.
@@ -1736,11 +1738,12 @@ class Player(Actor):
             if self._direction == 0:
                 return
 
-            # Use different speeds for ground and air movement
+            # Use different speeds for ground and air movement (boosted in boss arena mode)
+            is_in_boss_arena = self.right_bound_ratio > 0.65
             if self._ground_y is not None and self.rect.bottom >= self._ground_y - 1:  # On ground
-                move_speed = self._MOVE_SPEED
+                move_speed = self._BOSS_ARENA_MOVE_SPEED if is_in_boss_arena else self._MOVE_SPEED
             else:  # In air
-                move_speed = self._AIR_MOVE_SPEED
+                move_speed = self._BOSS_ARENA_AIR_MOVE_SPEED if is_in_boss_arena else self._AIR_MOVE_SPEED
 
             self.rect.x += int(self._direction * move_speed)
 

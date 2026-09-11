@@ -576,10 +576,10 @@ class GameState(PlayingState):
         setattr(boss, "soul_value", soul_value)
 
         # ── Activate Boss Arena ──────────────────────────────────────────────
-        # Lock the player in: expand retreat boundary leftwards & widen right movement ratio
+        # Screen bounds ARE the boss arena bounds (left = 0, right = 1.0 / full screen)
         self._arena_active = True
-        self._arena_left_boundary = max(40, player_sprite.rect.left - 380)
-        player_sprite.right_bound_ratio = 0.90
+        self._arena_left_boundary = 0
+        player_sprite.right_bound_ratio = 1.0
         # ────────────────────────────────────────────────────────────────────
 
         # Draw target text banner when boss spawns
@@ -977,8 +977,10 @@ class GameState(PlayingState):
 
         # ── Boss Arena Boundary Enforcement ──────────────────────────────────
         if self._arena_active:
-            if player_sprite.rect.left < self._arena_left_boundary:
-                player_sprite.rect.left = self._arena_left_boundary
+            if player_sprite.rect.left < 0:
+                player_sprite.rect.left = 0
+            if player_sprite.rect.right > self.width:
+                player_sprite.rect.right = self.width
         # ────────────────────────────────────────────────────────────────────
 
         # Track travel distance

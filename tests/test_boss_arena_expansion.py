@@ -58,9 +58,9 @@ def test_boss_arena_expansion():
         state._handle_boss_spawn(params)
         
         assert state._arena_active is True
-        # Left boundary should allow at least 350px retreat room: 400 - 380 = 20 -> clamped to 40
-        assert state._arena_left_boundary == 40
-        assert player.right_bound_ratio == 0.90
+        # Screen bounds ARE the boss arena bounds (left = 0, right = 1.0)
+        assert state._arena_left_boundary == 0
+        assert player.right_bound_ratio == 1.0
 
 def test_boss_arena_deactivation():
     with patch("v3x_zulfiqar_gideon.asset_manager.AssetManager.get_texture") as mock_tex, \
