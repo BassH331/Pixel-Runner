@@ -482,11 +482,17 @@ BOSS_SCHEMAS = {
         "config_file": "game_data/enemy_bat_config.json",
         "defaults": {
             "speed": 250.0,
-            "scale": 1.0
+            "scale": 1.0,
+            "gravity": 220.0,
+            "flap_power": 175.0,
+            "glide_duration": 0.8
         },
         "sliders": [
             ("speed", "Movement Speed", 50, 600, True, "{val} px/s"),
-            ("scale", "Scale Factor", 0.5, 3.0, True, "{val}x")
+            ("scale", "Scale Factor", 0.5, 3.0, True, "{val}x"),
+            ("gravity", "Gravity / Weight", 50, 500, True, "{val} px/s²"),
+            ("flap_power", "Flap Lift Force", 50, 400, True, "{val} px/s"),
+            ("glide_duration", "Glide Rest Window", 0.2, 3.0, True, "{val} sec")
         ],
         "simulation": {
             "player_x": 100,
@@ -823,7 +829,9 @@ class BossEditorApp:
                 "detection_range": 0.7,
                 "attack_range": 0.9,
                 "vertical_tolerance": 0.8,
-                "scale": 0.8
+                "scale": 0.8,
+                "gravity": 0.85,
+                "flap_power": 0.85
             },
             "MEDIUM": {
                 "max_health": 1.0,
@@ -833,7 +841,9 @@ class BossEditorApp:
                 "detection_range": 1.0,
                 "attack_range": 1.0,
                 "vertical_tolerance": 1.0,
-                "scale": 1.0
+                "scale": 1.0,
+                "gravity": 1.0,
+                "flap_power": 1.0
             },
             "HARD": {
                 "max_health": 1.3,
@@ -843,7 +853,9 @@ class BossEditorApp:
                 "detection_range": 1.3,
                 "attack_range": 1.1,
                 "vertical_tolerance": 1.2,
-                "scale": 1.3
+                "scale": 1.3,
+                "gravity": 1.2,
+                "flap_power": 1.2
             },
             "NIGHTMARE": {
                 "max_health": 1.6,
@@ -853,7 +865,9 @@ class BossEditorApp:
                 "detection_range": 1.6,
                 "attack_range": 1.2,
                 "vertical_tolerance": 1.5,
-                "scale": 1.6
+                "scale": 1.6,
+                "gravity": 1.35,
+                "flap_power": 1.35
             }
         }
         
@@ -905,7 +919,8 @@ class BossEditorApp:
             keys_to_adjust = [
                 "max_health", "speed", "damage_scale", "knockback_scale",
                 "detection_range", "attack_range", "vertical_tolerance", "scale",
-                "spidey_sense", "teleport_dist_min", "teleport_dist_max"
+                "spidey_sense", "teleport_dist_min", "teleport_dist_max",
+                "gravity", "flap_power", "glide_duration"
             ]
             
             for key in keys_to_adjust:
@@ -1296,6 +1311,14 @@ class BossEditorApp:
         self.sim_boss_cooldown = 0.0
         self.sim_vfx = []
 
+        # Bat aerodynamic simulation fields
+        self.sim_bat_flight_state = "FLAP_BURST"
+        self.sim_bat_pos_y = 0.0
+        self.sim_bat_vel_y = 0.0
+        self.sim_bat_flaps_remaining = 3
+        self.sim_bat_flap_timer = 0.0
+        self.sim_bat_glide_timer = 0.0
+
     def add_sim_log(self, text: str):
         self.sim_events.append(text)
         if len(self.sim_events) > 8:
@@ -1311,20 +1334,67 @@ class BossEditorApp:
 
     def update_bat_simulation(self, dt: float):
         speed = self.sliders["speed"].val
-        self.sim_boss_facing_left = True
-        self.sim_boss_state = "CHASE"
+        gravity = self.sliders["gravity"].val if "gravity" in self.sliders else 220.0
+        flap_power = self.sliders["flap_power"].val if "flap_power" in self.sliders else 175.0
+        glide_dur = self.sliders["glide_duration"].val if "glide_duration" in self.sliders else 0.8
         
-        self.sim_boss_x = int(self.sim_boss_x - speed * dt)
+        self.sim_boss_facing_left = True
+        
+        # Flight state machine: FLAP_BURST ("up-up-up") vs GLIDE (slow cushioned descent)
+        if getattr(self, "sim_bat_flight_state", "FLAP_BURST") == "FLAP_BURST":
+            self.sim_boss_state = "CHASE"
+            self.sim_bat_flap_timer -= dt
+            if self.sim_bat_flap_timer <= 0.0:
+                self.sim_bat_vel_y = -flap_power
+                self.sim_bat_flaps_remaining -= 1
+                self.sim_bat_flap_timer = 0.16 / max(0.2, speed / 250.0)
+                if self.sim_bat_flaps_remaining <= 0 or self.sim_bat_pos_y < -35:
+                    self.sim_bat_flight_state = "GLIDE"
+                    self.sim_bat_glide_timer = glide_dur * random.uniform(0.7, 1.3)
+                    self.sim_bat_flaps_remaining = random.randint(1, 4)
+                    self.add_sim_log("Bat entered glide descent...")
+        else:
+            self.sim_bat_glide_timer -= dt
+            if self.sim_bat_glide_timer <= 0.0 or self.sim_bat_pos_y > 40:
+                self.sim_bat_flight_state = "FLAP_BURST"
+                self.sim_bat_flap_timer = 0.0
+                self.add_sim_log(f"Bat flap burst! ({self.sim_bat_flaps_remaining} wingbeats)")
+
+        # Aerodynamic physics integration
+        if self.sim_bat_vel_y < 0:
+            self.sim_bat_vel_y += gravity * 0.9 * dt
+        else:
+            drag = 0.94 ** (dt * 60.0)
+            self.sim_bat_vel_y = (self.sim_bat_vel_y + gravity * dt) * drag
+            if self.sim_bat_flight_state == "GLIDE":
+                self.sim_bat_vel_y = min(self.sim_bat_vel_y, 90.0)
+
+        # Soft altitude corridor tether
+        tether_force = - self.sim_bat_pos_y * 1.8
+        self.sim_bat_vel_y += tether_force * dt
+        self.sim_bat_pos_y += self.sim_bat_vel_y * dt
+        self.sim_bat_pos_y = max(-70.0, min(60.0, self.sim_bat_pos_y))
+
+        # Horizontal movement with burst thrust
+        h_mult = 1.15 if self.sim_bat_flight_state == "FLAP_BURST" else 0.90
+        self.sim_boss_x = int(self.sim_boss_x - speed * h_mult * dt)
         if self.sim_boss_x < 50:
             self.sim_boss_x = 1000
+            self.sim_bat_pos_y = 0.0
+            self.sim_bat_vel_y = 0.0
+            self.sim_bat_flight_state = "FLAP_BURST"
+            self.sim_bat_flaps_remaining = 3
             self.add_sim_log("Bat spawned on the right!")
             
         frames = self.animations[self.selected_boss][self.sim_boss_state]
         frames_count = len(frames)
         speed_mult = speed / 250.0
-        self.frame_index += self.play_speed * 10 * speed_mult * dt
-        if self.frame_index >= frames_count:
+        if self.sim_bat_flight_state == "GLIDE":
             self.frame_index = 0.0
+        else:
+            self.frame_index += self.play_speed * 10 * speed_mult * dt
+            if self.frame_index >= frames_count:
+                self.frame_index = 0.0
 
     def update_wizard_simulation(self, dt: float):
         max_mana = self.sliders["max_mana"].val
@@ -2020,6 +2090,8 @@ class BossEditorApp:
 
                 if self.selected_boss == "bat":
                     px_y -= 100
+                    if self.mode == "SIMULATION":
+                        px_y += int(getattr(self, "sim_bat_pos_y", 0.0))
 
                 scaled_frame = pg.transform.scale(current_frame, (scaled_w, scaled_h))
 

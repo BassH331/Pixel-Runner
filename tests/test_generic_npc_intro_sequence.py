@@ -34,6 +34,12 @@ from src.game.entities.generic_npc import GenericNPC, _GenericNPCState
 from src.game.states.game_state import GameState
 
 def test_generic_npc_intro_sequence_lifecycle():
+    pg.init()
+    if not pg.font.get_init():
+        pg.font.init()
+    if not pg.display.get_surface():
+        pg.display.set_mode((1280, 720), pg.NOFRAME)
+
     npc = GenericNPC(
         x=800,
         y=600,

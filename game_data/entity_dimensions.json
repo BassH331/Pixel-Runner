@@ -5,7 +5,7 @@
         "top": 69,
         "bottom": 66,
         "ground_offset": 169,
-        "scale": 3.0
+        "scale": 1.11
     },
     "player": {
         "left": 367,
@@ -21,7 +21,7 @@
         "top": 20,
         "bottom": 0,
         "ground_offset": 35,
-        "scale": 3.0
+        "scale": 2.09
     },
     "wizard_npc": {
         "left": 0,

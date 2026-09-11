@@ -1,4 +1,7 @@
 {
-  "speed": 430.15,
-  "scale": 1.46
+  "speed": 250.0,
+  "scale": 1.0,
+  "gravity": 220.0,
+  "flap_power": 175.0,
+  "glide_duration": 0.8
 }

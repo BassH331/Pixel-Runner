@@ -7,6 +7,7 @@ frame-accurate hit detection for responsive, fair combat gameplay.
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -42,10 +43,57 @@ class StateConfig:
     interruptible: bool = True
 
 
-class BoneDustEffect:
-    """Transient bone dust shatter/re-assembly visual effect."""
+class BoneShardParticle:
+    """Procedural bone fragment / dust particle for punchy visual feedback."""
+    __slots__ = ("x", "y", "vx", "vy", "size", "color", "life", "max_life")
 
-    def __init__(self, x: int, y: int, frames: list[pg.Surface], fps: float = 24.0):
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        vx: float,
+        vy: float,
+        size: int,
+        color: tuple[int, int, int],
+        life: float = 0.35,
+    ):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.size = size
+        self.color = color
+        self.life = life
+        self.max_life = life
+
+    def update(self, dt_sec: float, scroll_speed: int = 0) -> bool:
+        self.x -= scroll_speed
+        self.x += self.vx * dt_sec * 60.0
+        self.y += self.vy * dt_sec * 60.0
+        self.vy += 0.25 * dt_sec * 60.0
+        self.vx *= 0.95
+        self.life -= dt_sec
+        return self.life <= 0.0
+
+    def draw(self, surface: pg.Surface) -> None:
+        if self.life > 0:
+            alpha_ratio = max(0.0, min(1.0, self.life / self.max_life))
+            current_size = max(1, int(self.size * alpha_ratio))
+            pg.draw.rect(surface, self.color, (int(self.x), int(self.y), current_size, current_size))
+
+
+class BoneDustEffect:
+    """Transient bone dust shatter/re-assembly visual effect with bone shard particles."""
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        frames: list[pg.Surface],
+        fps: float = 24.0,
+        offset_y: int = 0,
+        num_particles: int = 14,
+    ):
         self.frames = frames
         self.fps = fps
         self.frame_duration = 1.0 / fps
@@ -53,11 +101,44 @@ class BoneDustEffect:
         self.current_frame = 0
         self.is_finished = False
         self.image = frames[0] if frames else None
-        self.rect = self.image.get_rect(midbottom=(x, y)) if self.image else pg.Rect(x, y, 0, 0)
+        self.rect = self.image.get_rect(midbottom=(x, y + offset_y)) if self.image else pg.Rect(x, y, 0, 0)
+        self.particles: list[BoneShardParticle] = []
+
+        # Spawn outward bursting bone shards and bone dust specks
+        if num_particles > 0:
+            colors = [
+                (245, 245, 235),
+                (225, 220, 210),
+                (195, 195, 185),
+                (165, 165, 160),
+                (255, 255, 250),
+            ]
+            for _ in range(num_particles):
+                ang = random.uniform(0.0, 6.28)
+                spd = random.uniform(2.5, 6.0)
+                vx = math.cos(ang) * spd
+                vy = math.sin(ang) * spd - 1.8
+                p_size = random.randint(2, 5)
+                p_color = random.choice(colors)
+                p_y = float(y - random.randint(15, 65))
+                self.particles.append(
+                    BoneShardParticle(
+                        float(x + random.randint(-16, 16)),
+                        p_y,
+                        vx,
+                        vy,
+                        p_size,
+                        p_color,
+                        random.uniform(0.25, 0.45),
+                    )
+                )
 
     def update(self, dt_sec: float, scroll_speed: int = 0) -> None:
         self.rect.x -= scroll_speed
+        self.particles = [p for p in self.particles if not p.update(dt_sec, scroll_speed)]
         if self.is_finished or not self.frames:
+            if not self.particles:
+                self.is_finished = True
             return
         self.timer += dt_sec
         while self.timer >= self.frame_duration:
@@ -70,8 +151,10 @@ class BoneDustEffect:
                 self.image = self.frames[self.current_frame]
 
     def draw(self, surface: pg.Surface) -> None:
-        if not self.is_finished and self.image:
+        if self.current_frame < len(self.frames) and self.image:
             surface.blit(self.image, self.rect)
+        for p in self.particles:
+            p.draw(surface)
 
 
 class Skeleton(EntityAudioMixin, Actor):
@@ -334,16 +417,26 @@ class Skeleton(EntityAudioMixin, Actor):
         self._teleport_defense_enabled: bool = True
         self._teleport_cooldown_timer: float = 0.0
         self._teleport_reaction_timer: float = 0.0
+        self._teleport_vanish_timer: float = 0.0
         self._is_teleporting: bool = False
+        self._teleport_arrival_pending: bool = False
+        self._teleport_target_x: int = 0
+        self._teleport_target_facing_left: bool = False
+        self._teleport_counter_attack: bool = False
         self._active_vfx: list[BoneDustEffect] = []
 
-        # Load bone dust VFX frames (10 frames of DustExplosion, scaled to skeleton scale)
+        # Combo attack coordination state
+        self._combo_count: int = 0
+        self._max_combo: int = 2 if self.tier == "minion" else 3
+        self._last_attack_type: int = 1
+
+        # Load bone dust VFX frames (scaled up to cover entire skeleton stature)
         self._bone_dust_frames: list[pg.Surface] = []
         try:
             dust_path = "assets/graphics/Pixel Explosion Effects Pack 01 v1_1/DustExplosion/Frames"
             raw_dust = AssetManager.get_animation_frames(dust_path)
-            target_w = max(32, int(64 * self.scale))
-            target_h = max(32, int(64 * self.scale))
+            target_w = max(140, int(130 * self.scale))
+            target_h = max(140, int(130 * self.scale))
             self._bone_dust_frames = [
                 pg.transform.scale(f, (target_w, target_h)) for f in raw_dust
             ]
@@ -474,6 +567,8 @@ class Skeleton(EntityAudioMixin, Actor):
     @property
     def is_teleporting(self) -> bool: return self._is_teleporting
     @property
+    def is_invincible(self) -> bool: return self._is_teleporting or self.state in (SkeletonState.HURT, SkeletonState.DEATH)
+    @property
     def current_frame_index(self) -> int: return int(self.animation_index)
 
     def is_in_hit_frame(self) -> bool:
@@ -512,10 +607,21 @@ class Skeleton(EntityAudioMixin, Actor):
         dt_sec = dt if dt < 1.0 else dt / 1000.0
 
         self.rect.x -= scroll_speed
+        if getattr(self, "_teleport_arrival_pending", False):
+            self._teleport_target_x -= scroll_speed
 
         # Decrement teleport cooldown timer
         if self._teleport_cooldown_timer > 0.0:
             self._teleport_cooldown_timer = max(0.0, self._teleport_cooldown_timer - dt_sec)
+
+        # Decrement teleport vanish timer (split-second delay from disappear to appear)
+        if self._teleport_vanish_timer > 0.0:
+            self._teleport_vanish_timer = max(0.0, self._teleport_vanish_timer - dt_sec)
+            if self._teleport_vanish_timer == 0.0:
+                if getattr(self, "_teleport_arrival_pending", False):
+                    self._execute_teleport_arrival()
+                else:
+                    self._is_teleporting = False
 
         # Update active bone dust effects
         self._update_vfx(dt_sec, scroll_speed)
@@ -531,10 +637,27 @@ class Skeleton(EntityAudioMixin, Actor):
         if not self._is_teleporting:
             self._update_ai(dt_sec)
         
+        was_in_attack = (self.state == SkeletonState.ATTACK)
         super().update(dt) # Handles state machines and animations
         if getattr(self, "natively_facing_left", False) and self.image:
             self.image = pg.transform.flip(self.image, True, False)
         self._update_animation_audio()
+
+        # Check for immediate follow-up attack / combo chaining when attack finishes
+        just_finished_attack = was_in_attack and (self.state != SkeletonState.ATTACK)
+        if just_finished_attack and self._player and not getattr(self._player, "is_dead", False):
+            player_rect = getattr(self._player, "rect", None)
+            if player_rect:
+                edge_x, dist_y = self._get_edge_distance_to_player(player_rect)
+                in_reach = (edge_x <= max(60, self._attack_range) and dist_y < self._vertical_tolerance)
+                player_to_left = (player_rect.centerx < self.rect.centerx)
+                facing_player = (player_to_left == self.facing_left)
+                if in_reach and facing_player and self._combo_count < self._max_combo:
+                    self._combo_count += 1
+                    next_anim = 2 if self._last_attack_type == 1 else 1
+                    self._begin_attack(force_anim=next_anim)
+                else:
+                    self._combo_count = 0
         
         # Release token if attack completed or left attack state
         if self.state != SkeletonState.ATTACK:
@@ -549,28 +672,19 @@ class Skeleton(EntityAudioMixin, Actor):
         SquadTokenManager.get_instance().unregister_enemy(id(self))
         super().kill()
 
-    def take_damage(self, amount: float = 0.5, knockback: tuple[float, float] | None = None) -> None:
+    def take_damage(self, amount: float = 0.5, knockback: tuple[float, float] | None = None) -> bool:
         if self.state in (SkeletonState.HURT, SkeletonState.DEATH):
-            return
+            return False
 
         # Complete iframe immunity during teleportation
         if self._is_teleporting:
-            return
-
-        # Emergency bone dust dodge if attacked off-cooldown
-        if (
-            self._teleport_defense_enabled
-            and self.spidey_sense > 0.0
-            and self._teleport_cooldown_timer <= 0.0
-            and random.random() <= self.spidey_sense
-        ):
-            self._trigger_teleport_defense()
-            return
+            return False
 
         SquadTokenManager.get_instance().release_attack_token(id(self))
+        self._combo_count = 0
 
         # Lower health, but never allow health to go below 0.
-        self._health = max(0, self._health - amount)
+        self._health = max(0.0, self._health - amount)
 
         # If the skeleton was attacking, cancel the attack.
         self.attack_state.end()
@@ -590,11 +704,21 @@ class Skeleton(EntityAudioMixin, Actor):
                 self._gravity = knockback[1] * 1.2
             else:
                 self._gravity = -abs(knockback[0]) * 0.4
+        return True
     
     # ─────────────────────────────────────────────────────────────────────────
     # Private: AI Logic
     # ─────────────────────────────────────────────────────────────────────────
     
+    def _get_edge_distance_to_player(self, player_rect: pg.Rect) -> tuple[float, float]:
+        """Calculate horizontal edge-to-edge distance and vertical center distance."""
+        if self.rect.centerx < player_rect.centerx:
+            edge_x = max(0, player_rect.left - self.rect.right)
+        else:
+            edge_x = max(0, self.rect.left - player_rect.right)
+        dist_y = abs(self.rect.centery - player_rect.centery)
+        return float(edge_x), float(dist_y)
+
     def _update_ai(self, dt_sec: float = 0.016) -> None:
         if self._player is None or self.state in (SkeletonState.HURT, SkeletonState.DEATH):
             return
@@ -604,8 +728,9 @@ class Skeleton(EntityAudioMixin, Actor):
         if self._is_teleporting:
             return
             
-        player_rect = self._player.rect
-
+        player_rect = getattr(self._player, "rect", None)
+        if player_rect is None:
+            return
 
         # 1. Update Perception (Vision Cone & Audio Detection)
         alert = self.perception.update(dt_sec, self.rect, self.facing_left, self._player)
@@ -616,24 +741,27 @@ class Skeleton(EntityAudioMixin, Actor):
         if self.state == SkeletonState.ATTACK:
             return
 
+        edge_x, dist_y = self._get_edge_distance_to_player(player_rect)
+        dist_x = abs(self.rect.centerx - player_rect.centerx)
+        in_melee_reach = (edge_x <= max(60, self._attack_range) and dist_y < self._vertical_tolerance)
+
         # 2. Check Attack Token & Squad Coordinator Pincer Signals
         has_token = SquadTokenManager.get_instance().request_attack_token(id(self))
-        dist_x = abs(self.rect.centerx - player_rect.centerx)
 
         is_pincer = SquadCoordinator.get_instance().should_trigger_pincer_attack(
-            id(self), dist_x, can_attack=(dist_x <= self._attack_range + 25)
+            id(self), dist_x, can_attack=(in_melee_reach or dist_x <= self._attack_range + 25)
         )
 
         # 3. Utility Engine Action Evaluation
         action = self.utility_engine.evaluate_action(
             enemy_rect=self.rect,
             player=self._player,
-            can_attack=(dist_x <= self._attack_range),
+            can_attack=in_melee_reach,
             has_attack_token=has_token,
             dt_sec=dt_sec,
         )
 
-        if is_pincer or action == TacticalAction.PUNISH_WHIFF or action == TacticalAction.ATTACK:
+        if is_pincer or action == TacticalAction.PUNISH_WHIFF or action == TacticalAction.ATTACK or (in_melee_reach and has_token):
             self._begin_attack()
         elif action == TacticalAction.RETRACT_SPACING:
             # Step back away from player swing (tactical spacing, no imaginary dodge anim)
@@ -641,22 +769,29 @@ class Skeleton(EntityAudioMixin, Actor):
             self.rect.x += step_dir * int(self._speed * 0.8)
             self.facing_left = (self.rect.centerx > player_rect.centerx)
             self.set_state(SkeletonState.CHASE)
+        elif in_melee_reach:
+            # Hold combat stance facing the player; do NOT awkwardly play chase/walk animation
+            self.set_state(SkeletonState.IDLE)
+            self.facing_left = (self.rect.centerx > player_rect.centerx)
         elif action == TacticalAction.CHASE:
             self.set_state(SkeletonState.CHASE)
             self._chase_player(player_rect)
         else:
             self.set_state(SkeletonState.IDLE)
     
-    def _begin_attack(self) -> None:
-        if random.random() < 0.5:
-            # Primary attack animation
-            self.animations[SkeletonState.ATTACK] = self._attack1_frames
-            self.current_attack_config = self.attack1_config
-        else:
+    def _begin_attack(self, force_anim: Optional[int] = None) -> None:
+        """Initiate attack animation and config, alternating for fluid combos."""
+        if force_anim == 2 or (force_anim is None and self._last_attack_type == 1):
             # Secondary attack animation
             self.animations[SkeletonState.ATTACK] = self._attack2_frames
             self.current_attack_config = self.attack2_config
-        self.set_state(SkeletonState.ATTACK)
+            self._last_attack_type = 2
+        else:
+            # Primary attack animation
+            self.animations[SkeletonState.ATTACK] = self._attack1_frames
+            self.current_attack_config = self.attack1_config
+            self._last_attack_type = 1
+        self.set_state(SkeletonState.ATTACK, force=True)
     
     def _chase_player(self, player_rect: pg.Rect) -> None:
         target_x = SquadCoordinator.get_instance().get_target_offset_x(
@@ -683,9 +818,55 @@ class Skeleton(EntityAudioMixin, Actor):
         if player_rect is None:
             return
 
+        # Check if player is actively attacking
+        if hasattr(self._player, "is_attacking") and not getattr(self._player, "is_attacking"):
+            self._teleport_reaction_timer = 0.0
+            return
+
+        player_state = getattr(self._player, "state", None)
+        state_val = getattr(player_state, "value", player_state)
+        state_name = getattr(player_state, "name", str(player_state))
+
+        is_player_attacking = False
+        if isinstance(state_val, int) and 20 <= state_val <= 23:
+            is_player_attacking = True
+        elif "ATTACK" in state_name:
+            is_player_attacking = True
+
+        if not is_player_attacking:
+            is_player_attacking = getattr(self._player, "is_attacking", False)
+        if not is_player_attacking and hasattr(self._player, "is_in_hit_frame"):
+            try:
+                is_player_attacking = self._player.is_in_hit_frame()
+            except Exception:
+                pass
+
+        if not is_player_attacking:
+            self._teleport_reaction_timer = 0.0
+            return
+
+        # Classify attack type for dynamic danger zone & timing synchronization
+        is_power = (state_val == 22 or "POWER" in state_name)
+        is_smash = (state_val == 21 or "SMASH" in state_name)
+        is_special = (state_val == 23 or "SPECIAL" in state_name)
+        is_thrust = (state_val == 20 or "THRUST" in state_name)
+        is_enhanced = getattr(self._player, "_is_enhanced", False)
+
+        # Dynamic danger radius matching weapon reach:
+        # Power Attack (W) reaches ~426px, Smash (E) reaches ~321px, Thrust (Q) reaches ~308px, Special (F) reaches ~320-450px
+        if is_power:
+            danger_radius = 480 if is_enhanced else 450
+        elif is_smash:
+            danger_radius = 390 if is_enhanced else 360
+        elif is_special:
+            danger_radius = 480 if is_enhanced else 370
+        elif is_thrust:
+            danger_radius = 370 if is_enhanced else 340
+        else:
+            danger_radius = max(340, self._attack_range + 220)
+
         dist_x = abs(self.rect.centerx - player_rect.centerx)
         vert_diff = min(abs(self.rect.bottom - player_rect.bottom), abs(self.rect.centery - player_rect.centery))
-        danger_radius = max(140, self._attack_range + 65)
         vertical_tol = getattr(self, "_vertical_tolerance", 100)
 
         # Check proximity in danger zone
@@ -693,43 +874,47 @@ class Skeleton(EntityAudioMixin, Actor):
             self._teleport_reaction_timer = 0.0
             return
 
-        # Check if player is actively attacking
-        player_state = getattr(self._player, "state", None)
-        is_player_attacking = False
-        if player_state is not None:
-            state_val = getattr(player_state, "value", player_state)
-            if isinstance(state_val, int) and 20 <= state_val <= 23:
-                is_player_attacking = True
-            elif str(player_state).startswith("PlayerState.ATTACK"):
-                is_player_attacking = True
-
-        if not is_player_attacking:
-            is_player_attacking = getattr(self._player, "is_attacking", False)
-        if not is_player_attacking and hasattr(self._player, "is_in_hit_frame"):
-            is_player_attacking = self._player.is_in_hit_frame()
-
-        if not is_player_attacking:
-            self._teleport_reaction_timer = 0.0
-            return
-
         # Check player facing direction towards skeleton
-        player_facing_left = getattr(self._player, "facing_left", False)
-        player_to_left = player_rect.centerx < self.rect.centerx
-        if player_to_left and player_facing_left:
-            return
-        if not player_to_left and not player_facing_left:
-            return
+        # Power Attack is a 360-degree spin; Enhanced attacks have reverse-hitting frames.
+        is_omni_directional = is_power or (is_enhanced and (is_smash or is_thrust))
+        if not is_omni_directional:
+            player_facing_left = getattr(self._player, "facing_left", False)
+            player_to_left = player_rect.centerx < self.rect.centerx
+            if player_to_left and player_facing_left:
+                self._teleport_reaction_timer = 0.0
+                return
+            if not player_to_left and not player_facing_left:
+                self._teleport_reaction_timer = 0.0
+                return
+
+        # Startup synchronization for long-channel attacks
+        # Special Attack has 18 frames of chanting/windup before the storm bursts at frame 19.
+        # Starting reaction at frame >= 14 ensures the skeleton dissolves into bone dust right as the slashes erupt.
+        player_anim_idx = getattr(self._player, "animation_index", None)
+        if player_anim_idx is not None:
+            cur_frame = int(player_anim_idx)
+            is_hit_active = False
+            attack_state = getattr(self._player, "attack_state", None)
+            if attack_state is not None and hasattr(attack_state, "is_hit_frame_active"):
+                try:
+                    is_hit_active = attack_state.is_hit_frame_active()
+                except Exception:
+                    pass
+
+            if not is_hit_active and is_special and cur_frame < 14:
+                return
 
         # Start or advance reaction delay countdown
         if self._teleport_reaction_timer <= 0.0:
             if random.random() <= self.spidey_sense:
                 self._teleport_reaction_timer = max(0.01, self.teleport_reaction_delay)
-        else:
-            self._teleport_reaction_timer -= dt_sec
-            if self._teleport_reaction_timer <= 0.0:
-                self._trigger_teleport_defense()
+            else:
+                return
+        self._teleport_reaction_timer -= dt_sec
+        if self._teleport_reaction_timer <= 0.0:
+            self._trigger_teleport_defense()
 
-    def _trigger_teleport_defense(self) -> None:
+    def _trigger_teleport_defense(self, immediate: bool = False) -> None:
         """Shatter into bone dust and relocate to safety or flank behind the player."""
         if self._player is None or self.state == SkeletonState.DEATH:
             return
@@ -738,60 +923,127 @@ class Skeleton(EntityAudioMixin, Actor):
         if player_rect is None:
             return
 
-        # 1. Spawn origin Bone Dust Shatter VFX
+        origin_x = self.rect.centerx
+        origin_bottom = self.rect.bottom
+
+        # 1. Spawn origin Bone Dust Shatter VFX (Disappearance phase)
         if self._bone_dust_frames:
-            origin_vfx = BoneDustEffect(self.rect.centerx, self.rect.bottom, self._bone_dust_frames)
+            origin_vfx = BoneDustEffect(
+                origin_x,
+                origin_bottom,
+                self._bone_dust_frames,
+                offset_y=int(40 * self.scale),
+            )
             self._active_vfx.append(origin_vfx)
 
-        # 2. Intangibility & disappear
+        # 2. Intangibility & disappear (split-second window before appearing)
         self._is_teleporting = True
-        if self.image:
-            self.image.set_alpha(0)
+        self._teleport_vanish_timer = 0.20
+        self._teleport_arrival_pending = True
 
         # 3. Calculate destination coordinates
+        player_state = getattr(self._player, "state", None)
+        state_val = getattr(player_state, "value", player_state)
+        state_name = getattr(player_state, "name", str(player_state))
+        is_power = (state_val == 22 or "POWER" in state_name)
+        is_special = (state_val == 23 or "SPECIAL" in state_name)
+        is_wide_arc = is_power or is_special
+
         player_facing_left = getattr(self._player, "facing_left", False)
         is_god_mode = self.spidey_sense >= 0.8
+        is_boss = (self.tier == "boss")
 
-        if is_god_mode or self.tier == "boss":
-            # Flank behind the player
-            if player_facing_left:
-                target_x = player_rect.centerx + 120
-                self.facing_left = True
+        # Flank logic:
+        # High spidey_sense (> 0.35) or boss: flanks behind player (75% for minions, 95% for boss/god-mode)
+        # Low spidey_sense (<= 0.35, e.g. 0.25 in test_minion_teleport_retreat): retreats away to safety
+        is_flanker = (is_god_mode or is_boss or (self.spidey_sense > 0.35 and random.random() < 0.75))
+
+        if is_flanker or is_god_mode or is_boss:
+            # Flank behind the player with clearance tailored to the attack's rear hitboxes:
+            # Special reaches up to 199px behind; Power reaches 159px behind; Smash/Thrust reach ~91px behind.
+            if is_special:
+                flank_offset = random.randint(250, 290)
+            elif is_power:
+                flank_offset = random.randint(220, 260)
             else:
-                target_x = player_rect.centerx - 120
-                self.facing_left = False
+                flank_offset = random.randint(150, 180)
+
+            if player_facing_left:
+                target_x = player_rect.centerx + flank_offset
+                new_facing_left = True
+            else:
+                target_x = player_rect.centerx - flank_offset
+                new_facing_left = False
         else:
             # Minion/Standard: Retreat backwards away from player
-            dist_offset = random.randint(self.teleport_dist_min, self.teleport_dist_max)
-            if self.rect.centerx > player_rect.centerx:
+            min_safe_dist = 440 if is_power else 340
+            dist_min = max(self.teleport_dist_min, min_safe_dist)
+            dist_max = max(self.teleport_dist_max, dist_min + 70)
+            dist_offset = random.randint(dist_min, dist_max)
+            if origin_x > player_rect.centerx:
                 target_x = player_rect.centerx + dist_offset
-                self.facing_left = True
+                new_facing_left = True
             else:
                 target_x = player_rect.centerx - dist_offset
-                self.facing_left = False
+                new_facing_left = False
 
-        # Keep within level boundaries
-        target_x = max(60, min(1220, target_x))
-        self.rect.centerx = target_x
+        # Guaranteed displacement: Never land on the same spot!
+        surf = pg.display.get_surface()
+        max_x = (surf.get_width() - 80) if surf else 1200
+
+        if abs(target_x - origin_x) < 140:
+            if origin_x < 260:
+                target_x = origin_x + 180
+            elif origin_x > max_x - 260:
+                target_x = origin_x - 180
+            elif target_x >= origin_x:
+                target_x = origin_x + 180
+            else:
+                target_x = origin_x - 180
+
+        # Keep within level boundaries without reducing displacement below threshold
+        if target_x < 60:
+            target_x = min(max_x, origin_x + 180)
+        elif target_x > max_x:
+            target_x = max(60, origin_x - 180)
+        target_x = max(60, min(max_x, target_x))
+
+        # Store destination parameters for the arrival phase
+        self._teleport_target_x = target_x
+        self._teleport_target_facing_left = new_facing_left
+        self._teleport_counter_attack = (is_flanker or is_god_mode or is_boss)
+
+        self._teleport_reaction_timer = 0.0
+        self._teleport_cooldown_timer = self.teleport_cooldown
+
+        if immediate:
+            self._execute_teleport_arrival()
+
+    def _execute_teleport_arrival(self) -> None:
+        """Materialize skeleton at destination and trigger appearance bone dust VFX."""
+        self._teleport_arrival_pending = False
+        self._is_teleporting = False
+
+        # Materialize at destination
+        self.rect.centerx = self._teleport_target_x
+        self.facing_left = self._teleport_target_facing_left
         if self._ground_y is not None:
             self.rect.bottom = self._ground_y
         self._gravity = 0.0
         self._knockback_vel_x = 0.0
 
-        # 4. Spawn destination Bone Dust Reformation VFX
+        # 4. Spawn destination Bone Dust Reformation VFX (Appearance phase)
         if self._bone_dust_frames:
-            dest_vfx = BoneDustEffect(self.rect.centerx, self.rect.bottom, self._bone_dust_frames)
+            dest_vfx = BoneDustEffect(
+                self.rect.centerx,
+                self.rect.bottom,
+                self._bone_dust_frames,
+                offset_y=int(40 * self.scale),
+            )
             self._active_vfx.append(dest_vfx)
 
-        # Restore visibility and reset teleport state
-        if self.image:
-            self.image.set_alpha(255)
-        self._is_teleporting = False
-        self._teleport_reaction_timer = 0.0
-        self._teleport_cooldown_timer = self.teleport_cooldown
-
-        # God mode or aggressive tier immediately initiates counter-attack
-        if is_god_mode or self.tier == "boss":
+        # God mode, boss, or flanker immediately initiates counter-attack from behind
+        if self._teleport_counter_attack:
             self._begin_attack()
         else:
             self.set_state(SkeletonState.IDLE)
@@ -832,14 +1084,15 @@ class Skeleton(EntityAudioMixin, Actor):
         Args:
             surface: Target surface for rendering.
         """
-        super().draw(surface)
+        if self._teleport_vanish_timer <= 0.0:
+            super().draw(surface)
 
         # Draw active VFX (bone dust shatter/re-assembly)
         for vfx in self._active_vfx:
             vfx.draw(surface)
         
         # Draw health bar when damaged and alive
-        if self._health < self._max_health and self.state != SkeletonState.DEATH:
+        if self._teleport_vanish_timer <= 0.0 and self._health < self._max_health and self.state != SkeletonState.DEATH:
             self._draw_health_bar(surface)
     
     def _draw_health_bar(self, surface: pg.Surface) -> None:

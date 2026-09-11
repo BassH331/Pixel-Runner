@@ -1,16 +1,16 @@
 {
   "max_health": 185.61,
-  "speed": 4.88,
+  "speed": 4.93,
   "damage_scale": 4.45,
   "knockback_scale": 1.8,
-  "detection_range": 2456,
+  "detection_range": 1496,
   "attack_range": 99,
-  "vertical_tolerance": 648,
-  "attack_hitbox_width": 60,
-  "attack_hitbox_height": 80,
+  "vertical_tolerance": 592,
+  "attack_hitbox_width": 67,
+  "attack_hitbox_height": 73,
   "spidey_sense": 0.65,
   "teleport_dist_min": 180,
   "teleport_dist_max": 280,
   "teleport_cooldown": 3.0,
-  "teleport_reaction_delay": 0.11
+  "teleport_reaction_delay": 0.04
 }

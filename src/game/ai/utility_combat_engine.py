@@ -126,11 +126,11 @@ class UtilityCombatEngine:
                 return TacticalAction.RETRACT_SPACING
 
         # 3. Attack: Enemy is in range and holds a squad attack token
-        if can_attack and has_attack_token and dist_x <= self.preferred_spacing and dist_y < 100:
+        if can_attack and has_attack_token and dist_y < 120:
             return TacticalAction.ATTACK
 
-        # 4. Chase / Maintain Spacing: Move towards player or position tactically
-        if dist_x > self.preferred_spacing:
+        # 4. Chase / Maintain Spacing: Move towards player if outside attack range
+        if not can_attack and dist_x > self.preferred_spacing:
             return TacticalAction.CHASE
 
         # If too close without an attack token, step back to hold squad perimeter

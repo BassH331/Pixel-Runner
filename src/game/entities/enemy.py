@@ -9,6 +9,10 @@ from src.game.audio.entity_audio_mixin import EntityAudioMixin
 class EnemyState(Enum):
     FLY = 0
 
+class BatFlightState(Enum):
+    FLAP_BURST = 0  # Rapid consecutive wing flaps (up-up-up)
+    GLIDE = 1       # Slow descent on air cushion with wings outstretched
+
 class EnemyStateConfig:
     def __init__(self, animation_speed: float):
         self.animation_speed = animation_speed
@@ -55,7 +59,7 @@ class Enemy(EntityAudioMixin, Actor):
         if scale not in Enemy._fly_frames_caches:
             cache = []
             try:
-                for i in range(7):
+                for i in range(8):
                     path = f"assets/graphics/bat/running/bat_running_{i}.png"
                     frame = AssetManager.get_texture(path)
                     
@@ -66,7 +70,7 @@ class Enemy(EntityAudioMixin, Actor):
                     cache.append(scaled_frame)
             except Exception as e:
                 print(f"Error loading bat animation for scale {scale}: {e}")
-                cache = [pg.Surface((int(25 * scale), int(25 * scale)), pg.SRCALPHA) for _ in range(7)]
+                cache = [pg.Surface((int(25 * scale), int(25 * scale)), pg.SRCALPHA) for _ in range(8)]
             Enemy._fly_frames_caches[scale] = cache
         
         # Use actor system
@@ -96,14 +100,34 @@ class Enemy(EntityAudioMixin, Actor):
         # We also scale by depth_scale_factor to simulate 3D perspective parallax (farther = slower)
         self.speed = (-2.0 - flap_ratio * 2.0) * speed_ratio * self.depth_scale_factor
         
-        # 2. Vertical bobbing amplitude: faster flight = tighter, more stable vertical range (range: 12 to 24)
-        self.y_base = 0
-        self.y_amplitude = 24.0 - flap_ratio * 12.0
-        
-        # 3. Vertical bobbing frequency: faster flapping = higher frequency vertical adjustment (range: 0.03 to 0.07)
-        self.y_frequency = 0.03 + flap_ratio * 0.04
-        self.time = random.randint(0, 100)
-        
+        # -------------------------------------------------------------
+        # Flight Physics & Aerodynamics Configuration
+        # -------------------------------------------------------------
+        self._cfg_gravity = float(bat_config.get("gravity", 220.0))
+        self._cfg_flap_power = float(bat_config.get("flap_power", 175.0))
+        self._cfg_glide_duration = float(bat_config.get("glide_duration", 0.8))
+
+        # Individualized personality variance (+/- 15% entropy per bat)
+        entropy = 0.85 + random.random() * 0.30
+        self.bat_gravity = self._cfg_gravity * entropy
+        self.bat_flap_power = self._cfg_flap_power * (1.15 - (entropy - 0.85))
+        self.bat_base_glide_dur = self._cfg_glide_duration * (0.8 + random.random() * 0.4)
+
+        # Sub-pixel position & vertical physics
+        self._y_base: float = 0.0
+        self.pos_y: float = 0.0
+        self.vel_y: float = 0.0
+        self._pos_y_initialized: bool = False
+
+        # Flight state machine: FLAP_BURST ("up-up-up") vs GLIDE (slow cushioned descent)
+        self.flight_state = BatFlightState.FLAP_BURST
+        self.burst_flaps_target = random.choices([1, 2, 3, 4], weights=[15, 45, 30, 10])[0]
+        self.flaps_completed = 0
+        self.flap_interval = (0.16 + random.random() * 0.06) / speed_ratio
+        self.flap_interval_timer = 0.0
+        self.glide_timer = 0.0
+        self.glide_duration = self.bat_base_glide_dur
+
         # Setup separation/steering variables
         self.y_avoid_offset = 0.0
         self.y_avoid_vel = 0.0
@@ -125,21 +149,91 @@ class Enemy(EntityAudioMixin, Actor):
         self._ground_y: int = screen_h - self._SHADOW_GROUND_OFFSET
         self._shadow_cache: dict[tuple, pg.Surface] = {}
 
+    @property
+    def y_base(self) -> float:
+        return self._y_base
+
+    @y_base.setter
+    def y_base(self, val: float):
+        self._y_base = val
+        if not getattr(self, "_pos_y_initialized", False) or self.pos_y == 0.0:
+            self.pos_y = val
+            self._pos_y_initialized = True
+
     def take_damage(self, amount: float, knockback: tuple[float, float] | None = None) -> None:
         """Apply damage to this enemy. Override in subclasses."""
         pass
+
+    def update_flight_physics(self, dt: float):
+        """Update aerodynamic forces, flap impulses, and altitude corridor integration."""
+        if not self._pos_y_initialized:
+            self.pos_y = float(self.rect.y if self.rect.y != 0 else self.y_base)
+            self._pos_y_initialized = True
+
+        dist_from_ceiling = self.pos_y - (self.y_base - 40.0)  # negative if above ceiling
+        dist_from_floor = self.pos_y - (self.y_base + 45.0)    # positive if below floor
+
+        if self.flight_state == BatFlightState.FLAP_BURST:
+            # Wingbeat cycle countdown
+            self.flap_interval_timer -= dt
+            if self.flap_interval_timer <= 0.0:
+                # Deliver discrete upward flap impulse
+                impulse = self.bat_flap_power * random.uniform(0.90, 1.15)
+                self.vel_y = -impulse
+                self.flaps_completed += 1
+                self.flap_interval_timer = self.flap_interval
+
+                # End burst if quota reached or bat has climbed above ceiling
+                if self.flaps_completed >= self.burst_flaps_target or dist_from_ceiling < 0:
+                    self.flight_state = BatFlightState.GLIDE
+                    self.glide_timer = 0.0
+                    self.glide_duration = self.bat_base_glide_dur * random.uniform(0.7, 1.3)
+                    self.flaps_completed = 0
+                    self.burst_flaps_target = random.choices([1, 2, 3, 4], weights=[15, 45, 30, 10])[0]
+
+        elif self.flight_state == BatFlightState.GLIDE:
+            self.glide_timer += dt
+            # Trigger new flap burst when glide ends or bat drops below floor
+            if self.glide_timer >= self.glide_duration or dist_from_floor > 0:
+                self.flight_state = BatFlightState.FLAP_BURST
+                self.flap_interval_timer = 0.0  # Immediate initial flap
+
+        # -------------------------------------------------------------
+        # Physics Integration: Gravity, Drag, and Corridor Tethering
+        # -------------------------------------------------------------
+        if self.vel_y < 0:
+            # Ascending from flap: gravity acts against upward momentum
+            self.vel_y += self.bat_gravity * 0.9 * dt
+        else:
+            # Descending: aerodynamic drag creates air cushion (slow, floaty descent)
+            drag = 0.94 ** (dt * 60.0)
+            self.vel_y = (self.vel_y + self.bat_gravity * dt) * drag
+            if self.flight_state == BatFlightState.GLIDE:
+                self.vel_y = min(self.vel_y, 95.0)  # Gentle glide speed cap
+
+        # Soft corridor spring tethering to keep bat around cruising altitude y_base
+        tether_force = (self.y_base - self.pos_y) * 1.8
+        self.vel_y += tether_force * dt
+
+        # Sub-pixel position integration
+        self.pos_y += self.vel_y * dt
+        self.rect.y = int(self.pos_y + self.y_avoid_offset)
 
     def update(self, dt=None, scroll_speed=0):
         """
         Update enemy state each frame.
         """
-        if dt is None: dt = 1.0/60.0
-        
+        if dt is None:
+            dt = 1.0 / 60.0
+        dt_sec = dt / 1000.0 if dt > 1.0 else dt
+
         # Apply scrolling (move left with the world)
         self.rect.x -= scroll_speed
         
-        # Move enemy based on its speed
-        self.rect.x += int(self.speed)
+        # Horizontal flight with burst propulsion:
+        # Thrust boost during wing flap bursts, gentle glide during rest
+        h_boost = 1.15 if self.flight_state == BatFlightState.FLAP_BURST else 0.90
+        self.rect.x += int(self.speed * h_boost)
         
         # Calculate separation force from other bats in the same group to steer around each other
         separation_y = 0.0
@@ -169,17 +263,21 @@ class Enemy(EntityAudioMixin, Actor):
         if abs(separation_y) < 0.05:
             self.y_avoid_offset *= 0.95
             
-        # Update sine wave movement for floating effect + separation offset
-        self.time += 1
-        sine_y = self.y_base + self.y_amplitude * math.sin(self.y_frequency * self.time)
-        self.rect.y = int(sine_y + self.y_avoid_offset)
+        # Update flight physics state machine and vertical motion
+        self.update_flight_physics(dt_sec)
         
         # Remove if off-screen to the left
         if self.rect.right < 0:
             self.kill()
             
-        super().update(dt)  # Actor handles animation and base components
-        self._update_animation_audio()
+        if self.flight_state == BatFlightState.GLIDE:
+            # During glide, hold wings-outstretched glide frame (Frame 0)
+            if self.state in self.animations and self.animations[self.state]:
+                self.image = self.animations[self.state][0]
+            self._update_animation_audio()
+        else:
+            super().update(dt)  # Actor handles animation and base components
+            self._update_animation_audio()
 
     def _generate_shadow_surface(self, source: pg.Surface, scale_factor: float = 1.0) -> pg.Surface:
         """Generate a squashed black silhouette for a bat shadow."""
