@@ -171,7 +171,7 @@ class TestLevelEditor(unittest.TestCase):
         
         # Verify directory creation and file opening
         mock_makedirs.assert_called_with("game_data", exist_ok=True)
-        mock_open.assert_called_with("game_data/level_test_level.json", "w")
+        mock_open.assert_called_with(os.path.join("game_data", "level_test_level.json"), "w")
         
         # Verify scanner called and mode reset
         self.assertEqual(mock_scan.call_count, 2)
