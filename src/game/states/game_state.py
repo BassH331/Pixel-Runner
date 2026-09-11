@@ -158,6 +158,7 @@ class GameState(PlayingState):
         self.player_ui = self.hud_overlay.player_ui
         self.objective_display = self.hud_overlay.objective_display
         self.notification_banner = self.hud_overlay.notification_banner
+        self.side_notification = self.hud_overlay.side_notification
         self.tutorial_overlay = self.hud_overlay.tutorial_overlay
         self._current_interacting_npc = None
         self.trippy_zoom = TrIPPyZoomEffect(self.width, self.height)
@@ -409,13 +410,23 @@ class GameState(PlayingState):
         """Configure time-based and flag-based objective triggers."""
 
         # Congratulations on first skeleton kill
-        self.trigger_manager.add_trigger(
-            text="Well done, warrior! The undead fall before your blade. "
-                 "Keep moving and stay vigilant for more threats ahead.",
-            title="First kill!!",
-            trigger_type="flag",
-            flag_name="first_kill",
-        )
+        try:
+            self.trigger_manager.add_trigger(
+                text="Well done, warrior! The undead fall before your blade. "
+                     "Keep moving and stay vigilant for more threats ahead.",
+                title="First kill!!",
+                trigger_type="flag",
+                flag_name="first_kill",
+                icon_path="assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
+            )
+        except TypeError:
+            self.trigger_manager.add_trigger(
+                text="Well done, warrior! The undead fall before your blade. "
+                     "Keep moving and stay vigilant for more threats ahead.",
+                title="First kill!!",
+                trigger_type="flag",
+                flag_name="first_kill",
+            )
 
     def _setup_interaction_points(self) -> None:
         """Initial interaction points (none — they spawn by distance now)."""
@@ -916,8 +927,9 @@ class GameState(PlayingState):
             self.tutorial_overlay.update(dt)
             return
 
-        # Update notification banner (runs independently of gameplay freeze)
+        # Update notification banners (runs independently of gameplay freeze)
         self.notification_banner.update(dt)
+        self.side_notification.update(dt)
 
         # Apply a cloud-aggregated difficulty recommendation once it's ready
         # (kicked off in _handle_boss_spawn). Fails silently -- if it's not
@@ -1014,7 +1026,7 @@ class GameState(PlayingState):
         # Update systems
         self.environment_manager.update(dt / 1000.0, float(self.bg_scroll_speed * 60.0))
         self.update_background(self.bg_scroll_speed)
-        self.hud_overlay.update()
+        self.hud_overlay.update(dt)
         self.player.update()
         if not self.is_interacting:
             self.combat_system.check_environmental_hazards()
@@ -1099,7 +1111,10 @@ class GameState(PlayingState):
         self.trigger_manager.update(elapsed)
         pending = self.trigger_manager.get_pending()
         if pending:
-            self.objective_display.show(pending.text, pending.title)
+            icon_path = getattr(pending, "icon_path", None)
+            self.side_notification.show(pending.text, pending.title, icon=icon_path)
+            if self.audio_manager and hasattr(self.audio_manager, "play_sound"):
+                self.audio_manager.play_sound("reveal")
         
         # Sync UI with player state
         self.player_ui.current_health = player_sprite.health

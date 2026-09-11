@@ -12,6 +12,7 @@ from v3x_zulfiqar_gideon import NotificationBanner
 from src.game.ui.player_ui import PlayerUI
 from src.game.ui.objective_display import ObjectiveDisplay
 from src.game.ui.tutorial_overlay import TutorialOverlay
+from src.game.ui.side_notification import SideNotification
 from src.game.entities.boss_manager import BossManager
 
 
@@ -25,11 +26,13 @@ class HUDOverlay:
         self.player_ui = PlayerUI()
         self.objective_display = ObjectiveDisplay()
         self.notification_banner = NotificationBanner(scale=0.85, icon_scale=0.7, hold=3.0)
+        self.side_notification = SideNotification(self.screen_width, self.screen_height)
         self.tutorial_overlay = TutorialOverlay()
 
-    def update(self) -> None:
+    def update(self, dt: float = 0.0) -> None:
         """Update active UI timers and animations."""
         self.player_ui.update()
+        self.side_notification.update(dt)
 
     def draw_world_ui(self, target_surface: pg.Surface) -> None:
         """Render player HUD elements drawn directly in world surface."""
@@ -40,7 +43,8 @@ class HUDOverlay:
         BossManager.draw_boss_health_bar(target_surface, obstacle_group, self.screen_width)
 
     def draw_screen_overlays(self, screen_surface: pg.Surface) -> None:
-        """Render screen-space overlays (objective display, notification banner, tutorial)."""
+        """Render screen-space overlays (objective display, notification banner, tutorial, side notification)."""
         self.objective_display.draw(screen_surface)
         self.notification_banner.draw(screen_surface)
         self.tutorial_overlay.draw(screen_surface)
+        self.side_notification.draw(screen_surface)

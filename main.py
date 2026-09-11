@@ -192,10 +192,10 @@ def main():
             "overlays": {
                 "stone_path": "assets/graphics/UI/PNG/UI board Medium  stone.png",
                 "parchment_path": "assets/graphics/UI/PNG/UI board Medium  parchment.png",
-                "title_font_path": "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
-                "body_font_path": "assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
+                "title_font_path": "assets/font/Abaddon Bold.ttf",
+                "body_font_path": "assets/graphics/Darinia/Darinia.ttf",
                 "text_color": (60, 40, 20),
-                "font_size": 42,
+                "font_size": 32,
                 "backdrop_alpha": 170,
             }
         }

@@ -42,14 +42,19 @@ def test_hud_overlay_initialization():
     assert hud.objective_display is not None
     assert hud.notification_banner is not None
     assert hud.tutorial_overlay is not None
+    assert hud.side_notification is not None
 
 
 def test_hud_overlay_update_and_draw():
     hud = HUDOverlay(1280, 720)
     target_surf = pg.Surface((1280, 720))
 
+    # Trigger a side notification
+    hud.side_notification.show("Test kill text", "First kill!!")
+    assert hud.side_notification.is_active is True
+
     # Update lifecycle
-    hud.update()
+    hud.update(16.0)
 
     # Draw world UI
     hud.draw_world_ui(target_surf)
@@ -58,5 +63,5 @@ def test_hud_overlay_update_and_draw():
     obstacle_group = pg.sprite.Group()
     hud.draw_boss_health_bar(target_surf, obstacle_group)
 
-    # Draw screen overlays
+    # Draw screen overlays (includes side_notification)
     hud.draw_screen_overlays(target_surf)
