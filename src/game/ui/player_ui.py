@@ -44,9 +44,8 @@ class PlayerUI:
 
         self.souls_icon_pos = (20, self.stamina_bar_pos[1] + 38)
         self.relic_icon_pos = (20, self.stamina_bar_pos[1] + 82)
-        surf = pg.display.get_surface()
-        surf_w = surf.get_width() if surf else 1280
-        self.time_pos = (surf_w - 20, 20)
+        self.power_up_icon_pos = (20, self.relic_icon_pos[1] + 48)
+        self.time_pos = (pg.display.Info().current_w - 160, 20)
 
         self.souls_icon = self.load_icon("assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png", (36, 36))
         self.relic_icon = self.load_icon("assets/graphics/ui/relic_icon.png", (36, 36))
@@ -305,8 +304,7 @@ class PlayerUI:
             time_surf = self._render_shadowed_text(self.small_font, f"Time: {self.format_time(elapsed_seconds)}", (255, 255, 255))
             self._time_cache = (elapsed_seconds, time_surf)
         time_text = self._time_cache[1]
-        time_right = surface.get_width() - 20
-        time_rect = time_text.get_rect(topright=(time_right, self.time_pos[1] + float_y))
+        time_rect = time_text.get_rect(topright=(self.time_pos[0], self.time_pos[1] + float_y))
         time_icon_rect = self.time_icon.get_rect(midright=(time_rect.left - 8, time_rect.centery))
         surface.blit(self.time_icon, time_icon_rect)
         surface.blit(time_text, time_rect)
@@ -317,7 +315,7 @@ class PlayerUI:
             dist_surf = self._render_shadowed_text(self.small_font, f"Dist: {dist_int}", (255, 255, 255))
             self._dist_cache = (dist_int, dist_surf)
         dist_text = self._dist_cache[1]
-        dist_rect = dist_text.get_rect(topright=(time_right, time_rect.bottom + 4))
+        dist_rect = dist_text.get_rect(topright=(self.time_pos[0], time_rect.bottom + 4))
         dist_icon_rect = self.dist_icon.get_rect(midright=(dist_rect.left - 8, dist_rect.centery))
         surface.blit(self.dist_icon, dist_icon_rect)
         surface.blit(dist_text, dist_rect)
