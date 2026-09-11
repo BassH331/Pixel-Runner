@@ -402,9 +402,9 @@ class TransformationCutscene(State):
         self._on_complete = on_complete
         self._next_state_factory = next_state_factory
 
-        info = pg.display.Info()
-        self._sw = info.current_w
-        self._sh = info.current_h
+        surf = pg.display.get_surface()
+        self._sw = surf.get_width() if surf else 1280
+        self._sh = surf.get_height() if surf else 720
 
         # Load config dynamically
         self._config = self._load_config()

@@ -200,10 +200,9 @@ class TutorialOverlay:
         oracle_dir: str  = "assets/graphics/RedMoonTower",
     ) -> None:
 
-        # ── Screen dimensions ───────────────────────────────────────────────
-        info = pg.display.Info()
-        sw = info.current_w
-        sh = info.current_h
+        surf = pg.display.get_surface()
+        sw = surf.get_width() if surf else 1280
+        sh = surf.get_height() if surf else 720
 
         # ── Store animation / colour settings ───────────────────────────────
         self._player_fps    = player_fps

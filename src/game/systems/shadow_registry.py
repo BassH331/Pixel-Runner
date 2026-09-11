@@ -7,9 +7,12 @@ Provides thread-safe caching, live file-change detection, and save capabilities.
 
 from __future__ import annotations
 
-import os
 import json
-import fcntl
+import os
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 from dataclasses import dataclass, asdict
 from typing import Optional, Any
 
@@ -120,7 +123,8 @@ class ShadowRegistry:
             mtime = os.path.getmtime(CONFIG_PATH)
             if mtime != cls._last_mtime:
                 with open(CONFIG_PATH, "r") as f:
-                    fcntl.flock(f, fcntl.LOCK_SH)
+                    if fcntl:
+                        fcntl.flock(f, fcntl.LOCK_SH)
                     data = json.load(f)
                 loaded: dict[str, ShadowProfile] = {}
                 for k, v in data.items():
@@ -169,7 +173,8 @@ class ShadowRegistry:
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
         try:
             with open(CONFIG_PATH, "w") as f:
-                fcntl.flock(f, fcntl.LOCK_EX)
+                if fcntl:
+                    fcntl.flock(f, fcntl.LOCK_EX)
                 json.dump(data, f, indent=4)
             cls._last_mtime = os.path.getmtime(CONFIG_PATH)
             return True

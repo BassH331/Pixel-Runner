@@ -9,7 +9,11 @@ Stage flow:
   4  Review & Commit— diff view + transactional flock write with rollback
 """
 
-import os, sys, json, fcntl, copy, math
+import os, sys, json, copy, math
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 from typing import Optional
 import pygame as pg
 
@@ -2301,7 +2305,8 @@ class App:
             )
             return
         with open(self.level_files[idx], "r") as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
+            if fcntl:
+                fcntl.flock(fh, fcntl.LOCK_EX)
             self.level_data = json.load(fh)
         HitboxRegistry.sync_with_level_config(self.level_data)
         self.level_data.setdefault("world_events", [])
@@ -2334,7 +2339,8 @@ class App:
         self.pending.sort(key=lambda e: e["distance"])
         self.level_data["world_events"] = copy.deepcopy(self.pending)
         with open(self.level_files[self.active_idx], "w") as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
+            if fcntl:
+                fcntl.flock(fh, fcntl.LOCK_EX)
             json.dump(self.level_data, fh, indent=4)
         HitboxRegistry.commit_transaction()
         self.level_backup = copy.deepcopy(self.level_data)
@@ -3693,7 +3699,9 @@ class App:
         for i, path in enumerate(self.level_files):
             try:
                 with open(path,"r") as fh:
-                    fcntl.flock(fh, fcntl.LOCK_SH); d = json.load(fh)
+                    if fcntl:
+                        fcntl.flock(fh, fcntl.LOCK_SH)
+                    d = json.load(fh)
                 valid = True
                 nm = d.get("level_name", os.path.basename(path))
                 ln = d.get("level_end_distance","?")
@@ -3740,7 +3748,9 @@ class App:
                 target_path = self.level_files[idx]
                 try:
                     with open(target_path, "r") as fh:
-                        fcntl.flock(fh, fcntl.LOCK_SH); d = json.load(fh)
+                        if fcntl:
+                            fcntl.flock(fh, fcntl.LOCK_SH)
+                        d = json.load(fh)
                     cur = d.get("next_level", "")
                     cur_name = os.path.basename(cur) if cur else "—"
                 except Exception:
@@ -3750,14 +3760,17 @@ class App:
                 def _apply(choice_idx):
                     try:
                         with open(target_path, "r") as fh:
-                            fcntl.flock(fh, fcntl.LOCK_SH); d = json.load(fh)
+                            if fcntl:
+                                fcntl.flock(fh, fcntl.LOCK_SH)
+                            d = json.load(fh)
                         if choice_idx == 0 or choice_idx == 1:
                             d.pop("next_level", None)
                         else:
                             target = others[choice_idx - 2][1]
                             d["next_level"] = os.path.relpath(target, os.path.dirname(target_path))
                         with open(target_path, "w") as fh:
-                            fcntl.flock(fh, fcntl.LOCK_EX)
+                            if fcntl:
+                                fcntl.flock(fh, fcntl.LOCK_EX)
                             json.dump(d, fh, indent=4)
                     except Exception:
                         pass

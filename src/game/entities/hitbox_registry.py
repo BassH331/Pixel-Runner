@@ -1,6 +1,9 @@
 import os
 import json
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 import copy
 from dataclasses import dataclass, asdict
 
@@ -49,7 +52,8 @@ class HitboxRegistry:
         if os.path.exists(CONFIG_PATH):
             try:
                 with open(CONFIG_PATH, "r") as f:
-                    fcntl.flock(f, fcntl.LOCK_EX)
+                    if fcntl:
+                        fcntl.flock(f, fcntl.LOCK_EX)
                     local_data = json.load(f)
             except Exception as e:
                 print(f"Error loading local {CONFIG_PATH}: {e}")
@@ -114,7 +118,8 @@ class HitboxRegistry:
             data = {name: asdict(margins) for name, margins in cls._cached_config.items()}
             with open(CONFIG_PATH, "w") as f:
                 # Acquire exclusive lock for database safety/consistency
-                fcntl.flock(f, fcntl.LOCK_EX)
+                if fcntl:
+                    fcntl.flock(f, fcntl.LOCK_EX)
                 json.dump(data, f, indent=4)
         except Exception as e:
             print(f"Error saving hitbox configuration to {CONFIG_PATH}: {e}")

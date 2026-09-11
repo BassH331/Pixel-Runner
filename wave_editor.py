@@ -8,7 +8,11 @@ Stages:
   3  Zone Builder       — configure zone + optional sprite mapping
 """
 from __future__ import annotations
-import os, sys, json, fcntl, copy
+import os, sys, json, copy
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
 from typing import Optional
 import pygame as pg
 
@@ -232,7 +236,8 @@ class WaveEditorApp:
     def load(self, idx: int):
         self.active_idx = idx
         with open(self.level_files[idx]) as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
+            if fcntl:
+                fcntl.flock(fh, fcntl.LOCK_EX)
             self.level_data = json.load(fh)
         from src.game.entities.hitbox_registry import HitboxRegistry
         HitboxRegistry.sync_with_level_config(self.level_data)
@@ -244,7 +249,8 @@ class WaveEditorApp:
         self.level_data["spawn_zones"] = sorted(
             self.pending, key=lambda z: z.get("min_dist", 0))
         with open(self.level_files[self.active_idx], "w") as fh:
-            fcntl.flock(fh, fcntl.LOCK_EX)
+            if fcntl:
+                fcntl.flock(fh, fcntl.LOCK_EX)
             json.dump(self.level_data, fh, indent=4)
         self.level_backup = copy.deepcopy(self.level_data)
         self.modal = None
@@ -469,7 +475,9 @@ class WaveEditorApp:
         for i, path in enumerate(self.level_files):
             try:
                 with open(path) as fh:
-                    fcntl.flock(fh, fcntl.LOCK_SH); d = json.load(fh)
+                    if fcntl:
+                        fcntl.flock(fh, fcntl.LOCK_SH)
+                    d = json.load(fh)
                 nm = str(d.get("level_name", os.path.basename(path)))
                 zc = len(d.get("spawn_zones", []))
             except Exception:
