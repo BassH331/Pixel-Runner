@@ -14,6 +14,7 @@ import pygame as pg
 
 from v3x_zulfiqar_gideon import State, AssetManager
 from src.game.ui.animated_dialogue_renderer import AnimatedDialogueRenderer
+from src.game.audio.voiceover_manager import VoiceoverManager
 
 
 class StoryState(State):
@@ -122,6 +123,10 @@ class StoryState(State):
         self._wrapped_lines: list[str] = self._word_wrap(self.story_text, max_width=self.box_w - 70)
         self._black_overlay = pg.Surface((self.width, self.height), pg.SRCALPHA)
 
+        # Voiceover for prologue narration
+        self._voiceover = VoiceoverManager()
+        self._voiceover.load_manifest()
+
     def _word_wrap(self, text: str, max_width: int) -> list[str]:
         words = text.split(" ")
         lines: list[str] = []
@@ -149,9 +154,11 @@ class StoryState(State):
         self.exit_alpha = 0.0
         if hasattr(self.manager, "audio_manager") and self.manager.audio_manager:
             self.manager.audio_manager.play_music("background_music", volume=0.45)
+        # Start prologue voiceover
+        self._voiceover.play_line("prologue_narration")
 
     def on_exit(self):
-        pass
+        self._voiceover.stop(fadeout_ms=500)
 
     # ── Events ───────────────────────────────────────────────────────────────
 
@@ -170,6 +177,7 @@ class StoryState(State):
             elif not self.is_exiting:
                 # Second press starts smooth transition to transformation cutscene
                 self.is_exiting = True
+                self._voiceover.stop(fadeout_ms=300)
 
     # ── Update ───────────────────────────────────────────────────────────────
 

@@ -531,6 +531,7 @@ class GameState(PlayingState):
                 walk_sprite_dir=params.get("walk_sprite_dir"),
                 spawn_sprite_dir=params.get("spawn_sprite_dir"),
                 is_intro_npc=is_intro,
+                voice_line_id=params.get("voice_line_id"),
             )
             setattr(npc, "event_id", params.get("_event_id"))
             setattr(npc, "event_distance", params.get("_event_distance"))

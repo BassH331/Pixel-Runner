@@ -108,6 +108,7 @@ class GenericNPC(Actor):
         spawn_sprite_dir: Optional[str] = None,
         is_intro_npc: bool = False,
         walk_speed: float = -150.0,
+        voice_line_id: Optional[str] = None,
     ) -> None:
         super().__init__(x, y)
 
@@ -124,6 +125,7 @@ class GenericNPC(Actor):
         self.is_spawning: bool = False
         self.is_death_complete: bool = not play_death_on_interact
         self.walk_speed: float = walk_speed
+        self.voice_line_id: Optional[str] = voice_line_id
 
         # Auto-detect folder paths if not specified
         if not death_sprite_dir:

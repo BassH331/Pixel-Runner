@@ -13,6 +13,7 @@ import pygame as pg
 
 from src.game.entities.generic_npc import _GenericNPCState
 from src.game.ui.animated_dialogue_renderer import AnimatedDialogueRenderer
+from src.game.audio.voiceover_manager import VoiceoverManager
 
 if TYPE_CHECKING:
     from src.game.states.game_state import GameState
@@ -30,6 +31,10 @@ class CutsceneManager:
             theme="spirit",
         )
         self._last_npc_text: str = ""
+
+        # Voiceover playback manager
+        self.voiceover = VoiceoverManager()
+        self.voiceover.load_manifest()
 
     @property
     def is_interacting(self) -> bool:
@@ -82,18 +87,21 @@ class CutsceneManager:
                 if getattr(npc, "_trance_phase", 0) in (2, 3):
                     npc._trance_text_timer = 0.0
                     npc._trance_phase = 4  # Fades text and starts Zoom-Out
+                    self.voiceover.stop()
                     print("[SPIRIT NPC] Player pressed key → Fading text & starting Zoom-Out")
                     return True
             if getattr(npc, "is_sky_fall_npc", False) and getattr(npc, "is_trance_active", False):
                 if getattr(npc, "_sky_fall_phase", 0) in (3, 4):
                     npc._sky_fall_timer = 0.0
                     npc._sky_fall_phase = 5  # Fades text and starts Zoom-Out
+                    self.voiceover.stop()
                     print("[SKY FALL NPC] Player pressed key → Fading text & starting Zoom-Out")
                     return True
             if getattr(npc, "is_intro_npc", False) and getattr(npc, "is_trance_active", False):
                 if getattr(npc, "_trance_phase", 0) in (2, 3):
                     npc._trance_text_timer = 0.0
                     npc._trance_phase = 4  # Fades text and starts Zoom-Out
+                    self.voiceover.stop()
                     print("[INTRO NPC] Player pressed key → Fading text & starting Zoom-Out")
                     return True
 
@@ -195,6 +203,11 @@ class CutsceneManager:
             theme = "spirit" if getattr(active_npc, "is_spirit_of_scythe", False) else "skyfall" if getattr(active_npc, "is_sky_fall_npc", False) else "standard"
             self.dialogue_renderer.theme = theme
             self.dialogue_renderer.set_text(active_npc.text)
+
+            # Trigger voiceover playback for this NPC's dialogue line
+            voice_id = getattr(active_npc, "voice_line_id", None)
+            if voice_id:
+                self.voiceover.play_line(voice_id)
 
         ticks = pg.time.get_ticks()
 

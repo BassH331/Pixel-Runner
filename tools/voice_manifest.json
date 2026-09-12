@@ -1,0 +1,70 @@
+{
+  "output_dir": "assets/audio/voiceovers",
+  "voices": {
+    "ledger_herald": {
+      "display_name": "The Ledger's Herald",
+      "description": "Deep, menacing debt collector",
+      "exaggeration": 0.7,
+      "cfg_weight": 0.5,
+      "reference_audio": null
+    },
+    "evil_eye_watcher": {
+      "display_name": "Watcher of Voragis",
+      "description": "Raspy, gleeful, chaotic",
+      "exaggeration": 0.6,
+      "cfg_weight": 0.5,
+      "reference_audio": null
+    },
+    "moonstone_keeper": {
+      "display_name": "The Moonstone Keeper",
+      "description": "Solemn, weary wisdom",
+      "exaggeration": 0.4,
+      "cfg_weight": 0.5,
+      "reference_audio": null
+    },
+    "prologue_narrator": {
+      "display_name": "Prologue Narrator",
+      "description": "Dark, cinematic narrator",
+      "exaggeration": 0.5,
+      "cfg_weight": 0.5,
+      "reference_audio": null
+    }
+  },
+  "lines": [
+    {
+      "id": "ledger_herald_intro",
+      "voice": "ledger_herald",
+      "text": "Her hand slipped, knight. Voragis bought Elysia's soul from the fall, and made your life the receipt. Run fast... or your debt matures.",
+      "output_file": "ledger_herald_intro.wav",
+      "text_hash": "cb50fb9f54abb72a"
+    },
+    {
+      "id": "evil_eye_bones",
+      "voice": "evil_eye_watcher",
+      "text": "Every skeleton you shatter was a debtor who gave up! Crack their bones, runner, clear out Voragis's trash!",
+      "output_file": "evil_eye_bones.wav",
+      "text_hash": null
+    },
+    {
+      "id": "evil_eye_gatekeeper",
+      "voice": "evil_eye_watcher",
+      "text": "Skeleton dust won't pay your tab! The Gatekeeper ahead holds pure soul-gold. Rip it from his chest!",
+      "output_file": "evil_eye_gatekeeper.wav",
+      "text_hash": null
+    },
+    {
+      "id": "moonstone_keeper_warning",
+      "voice": "moonstone_keeper",
+      "text": "The black flame cuts deep, Kaelen. Look inside: do you still remember Elysia's smile... or just the blood?",
+      "output_file": "moonstone_keeper_warning.wav",
+      "text_hash": null
+    },
+    {
+      "id": "prologue_narration",
+      "voice": "prologue_narrator",
+      "text": "Her hand slipped. You let her fall. Death didn't take Elysia, a debt collector did. Borrow his black flame to tear her back. Run. Slay. But remember: each demon slash burns away the brother she loved.",
+      "output_file": "prologue_narration.wav",
+      "text_hash": null
+    }
+  ]
+}

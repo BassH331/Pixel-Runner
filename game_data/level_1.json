@@ -255,7 +255,8 @@
                 "radius": 180,
                 "sprite_dir": "assets/graphics/Necromancer/Idle",
                 "scale": 3.38,
-                "is_intro_npc": true
+                "is_intro_npc": true,
+                "voice_line_id": "ledger_herald_intro"
             }
         },
         {
@@ -268,7 +269,8 @@
                 "text": "Every skeleton you shatter was a debtor who gave up. Crack their bones, runner—clear out Voragis's trash!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
-                "scale": 2.0
+                "scale": 2.0,
+                "voice_line_id": "evil_eye_bones"
             }
         },
         {
@@ -281,7 +283,8 @@
                 "text": "Skeleton dust won't pay your tab! The Gatekeeper ahead holds pure soul-gold. Rip it from his chest!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
-                "scale": 2.0
+                "scale": 2.0,
+                "voice_line_id": "evil_eye_gatekeeper"
             }
         },
         {
@@ -294,7 +297,8 @@
                 "text": "The black flame cuts deep, Kaelen. Look inside: do you still remember Elysia's smile, or just the blood?",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Moonstone_Keeper Eldermoon_Grove - By SUCART/Idle-MoonstoneKeeper-SUCART/No BG",
-                "scale": 2.0
+                "scale": 2.0,
+                "voice_line_id": "moonstone_keeper_warning"
             }
         },
         {
