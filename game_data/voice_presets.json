@@ -1,0 +1,68 @@
+{
+    "dark_necromancer": {
+        "name": "Dark Necromancer",
+        "pitch_semitones": -7.0,
+        "speed_ratio": 0.9,
+        "reverb_room_size": 0.65,
+        "reverb_wet": 0.35,
+        "chorus_mix": 0.2,
+        "distortion_db": 3.5,
+        "sub_octave_blend": 0.45,
+        "whisper_blend": 0.1,
+        "gain_db": 2.0
+    },
+    "ethereal_spirit": {
+        "name": "Ethereal Spirit",
+        "pitch_semitones": 4.0,
+        "speed_ratio": 0.95,
+        "reverb_room_size": 0.85,
+        "reverb_wet": 0.55,
+        "chorus_mix": 0.6,
+        "distortion_db": 0.0,
+        "sub_octave_blend": 0.0,
+        "whisper_blend": 0.4,
+        "gain_db": 1.0
+    },
+    "energetic_hero": {
+        "name": "Energetic Hero",
+        "pitch_semitones": 1.5,
+        "speed_ratio": 1.15,
+        "reverb_room_size": 0.2,
+        "reverb_wet": 0.15,
+        "chorus_mix": 0.15,
+        "distortion_db": 0.0,
+        "sub_octave_blend": 0.0,
+        "whisper_blend": 0.0,
+        "gain_db": 1.5
+    },
+    "ancient_golem": {
+        "name": "Ancient Golem",
+        "pitch_semitones": -10.0,
+        "speed_ratio": 0.75,
+        "reverb_room_size": 0.7,
+        "reverb_wet": 0.4,
+        "chorus_mix": 0.1,
+        "distortion_db": 4.0,
+        "sub_octave_blend": 0.6,
+        "whisper_blend": 0.0,
+        "gain_db": 3.0
+    },
+    "realistic_human": {
+        "name": "Realistic Human",
+        "pitch_semitones": 0.0,
+        "speed_ratio": 1.0,
+        "reverb_room_size": 0.15,
+        "reverb_wet": 0.1,
+        "chorus_mix": 0.05,
+        "distortion_db": 0.0,
+        "sub_octave_blend": 0.1,
+        "whisper_blend": 0.05,
+        "gain_db": 1.0
+    },
+    "unit_test_preset": {
+        "name": "Unit Test Preset",
+        "pitch_semitones": -3.0,
+        "speed_ratio": 1.1,
+        "reverb_room_size": 0.4
+    }
+}

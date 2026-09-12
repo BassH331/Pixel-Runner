@@ -6,5 +6,11 @@ logs/
 custom_logs/
 scratch/
 *.backup_*
+venv/
+.venv/
+tools/*-venv/
+*.so
+assets/audio/voiceovers/cache/
+test_pitch.mp3
 assets/audio/voiceovers/*.wav
 tools/chatterbox-venv/
