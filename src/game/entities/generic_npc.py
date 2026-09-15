@@ -520,9 +520,11 @@ class GenericNPC(Actor):
                 if self.rect.bottom >= target_bottom:
                     self.rect.bottom = target_bottom
                     self._sky_fall_phase = 2
+                    from src.game.effects.lightning_effect import LightningEffect
+                    LightningEffect.get_instance().trigger(duration=1.0, staff_pos=self.rect.midbottom)
                     if _GenericNPCState.LAND in self.animations:
                         self.set_state(_GenericNPCState.LAND, force=True)
-                        print("[SKY FALL NPC] Impact landing on ground → Phase 2: LAND animation")
+                        print("[SKY FALL NPC] Impact landing on ground → Phase 2: LAND animation & Staff Lightning Triggered")
                     else:
                         self._sky_fall_phase = 3  # Start Camera Zoom-In
             elif self._sky_fall_phase == 2:

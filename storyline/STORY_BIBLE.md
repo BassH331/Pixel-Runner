@@ -22,7 +22,8 @@ In **Guardian Runner**, story and gameplay are the exact same machine:
 ```
 
 - **Speed is Survival:** You run because if you stop, the debt collects immediately.
-- **Power is Poison:** Transforming into the Shadow Demon lets you vaporize obstacles, but your humanity meter drains. High corruption twists the music, makes the screen tremble, and alters NPC reactions from hope to pure terror.
+- **Power is Poison (Ludonarrative Tradeoff):** Transforming into the Shadow Demon lets you vaporize obstacles, but burns away your humanity:
+  - **Mechanical Risk/Reward:** High corruption grants **+50% dash distance & attack damage**, but narrows your field of vision with a encroaching shadow vignette and makes character control response slightly wild/unstable.
 
 ---
 
@@ -43,46 +44,57 @@ Voragis is not a cackling demon; he is an impeccably polite cosmic loanshark. He
 - He offers Kaelen a fragment of his own primordial shadow—an advance on power.
 - **His Profit:** Whether Kaelen wins or loses, Voragis wins. If Kaelen dies, Voragis claims his soul. If Kaelen succeeds and pays him back, Voragis takes the collected interest (thousands of harvested souls). If Kaelen succumbs, Voragis gains a terrifying new general.
 
-### Candora — The Quiet Defiance
-Goddess of Undying Devotion. Deaths born of love should have been hers, but Voragis beat her to the contract.
-- She works through the **Moonstone Keeper** and **The Masked Man**, leaving hidden shrines and purification draughts along the runner's path.
-- Her aid is real, but it is also a quiet rebellion against Voragis's monopoly.
+### The Dual Whisperers: The Angel and Devil Dynamic
+Kaelen's journey is a continuous tug-of-war between two active agents of opposing deities:
 
-### Husks vs. Staff: Why You Slay the Forest Undead
-- **The Skeletons, Bats, and Blood Zombies are NOT random monsters:** They are previous desperate souls who took Voragis's deal centuries ago and failed.
-- Once they collapsed, Voragis extracted their souls. What walks the woods are empty shells—**discarded soda cans**.
-- Slaying them doesn't anger Voragis—it amuses him. You're simply taking out his trash while proving your combat worth.
-- **Dark Ronin and The Wizard:** They are the rare few who succeeded, but chose power over redemption. They are Voragis's **promoted staff**.
+* 👿 **The Evil Eye (Voragis's Voice — The Devil on the Left Shoulder):**
+  * Associated with **Voragis's Inkwell**.
+  * Represents **Darkness & Temptation**. The Eye constantly whispers to Kaelen mid-run: *"Slash deeper! Unleash the demon power! Her soul is slipping!"*
+  * Goal: Push Kaelen to abuse the shadow transform so his humanity burns away completely.
+
+* 🌙 **The Moon Knight / Moonstone Keeper (Candora's Voice — The Angel on the Right Shoulder):**
+  * Associated with **Candora's Tear**.
+  * Represents **Light & Devotion**. The Moon Knight leaves quiet purity shrines and whispers warnings: *"Hold onto her name! Don't let the shadow take your eyes! Every transform burns a memory."*
+  * Goal: Keep Kaelen grounded so he can break Voragis's contract without losing his soul.
 
 ---
 
-## 4. The 3-Act Journey & Pacing Structure
+### Husks vs. Enforcers: The Villain Hierarchy
+- **The Skeletons, Bats, and Blood Zombies:** Discarded husks of previous failed debtors.
+- **Green Monster (Act I Entry):** Wild forest terror blocking the path into the deep woods.
+- **The Gatekeeper (Act I Exit / Act II Entry):** Voragis's prototype experiment—a grotesque mixture of debtor souls and shadow power.
+- **The Necromancer (Act II Midpoint):** Voragis's soul-harvesting commander. Positioned between Green Monster and The Wizard, the Necromancer re-animates failed debtors to harvest their residual energy for Voragis's ledger.
+- **The Fire Wizard (Act III Entrance):** Chief Herald of Voragis—the legal enforcer calculating Kaelen's debt bill.
+- **Dark Ronin (Act III Climax):** Voragis's promoted senior sovereign—a former runner who surrendered his humanity completely.
+
+---
+
+## 4. The 5-Boss Journey & Act Pacing Structure
 
 ```mermaid
 graph LR
-    A["ACT I: The Wreckage<br/>(Deal Signed & Forest Awakens)"] --> B["ACT II: The Ancient Sanctuary<br/>(The Gatekeeper's Trial)"]
-    B --> C["ACT III: The Scales of Voragis<br/>(The Final Boss & Dual Choice)"]
+    A["ACT I: Green Monster<br/>(Forest Entry)"] --> B["ACT I Exit: The Gatekeeper<br/>(Prototype Experiment)"]
+    B --> C["ACT II: The Necromancer<br/>(Soul Harvesting Commander)"]
+    C --> D["ACT III: The Fire Wizard<br/>(Chief Herald of Debt)"]
+    D --> E["ACT III Climax: Dark Ronin<br/>(The Sovereign Shadow)"]
 ```
 
 ### Act I: The Wreckage & The Deep Forest
 - **Setting:** Dark, mossy woods lit by ghostly fireflies and crumbling stone ruins.
-- **Inciting Incident:** Kaelen meets **The Ledger** (Voragis's primary collector) at the cliff edge. The pact is sealed.
-- **Internal Conflict:** Kaelen feels the icy demon fragment burning in his chest. Every kill feels exhilarating; every whisper reminds him he dropped his sister.
-- **Gameplay Hook:** Learning basic dashes, parries, and the adrenaline surge of the first demon burst.
-- **Cliffhanger I:** The trees twist shut. The sky turns crimson. A towering shadow blocks the path—the Gatekeeper awakens.
+- **Inciting Incident:** Kaelen meets **The Ledger** at the cliff edge. The pact is sealed.
+- **Boss Encounter 1:** **Green Monster** (Vanguard of the deep woods).
+- **Boss Encounter 2:** **The Gatekeeper** (Voragis's prototype experiment guarding the ascent).
 
 ### Act II: The Weeping Canopy & The Sanctuary
 - **Setting:** Dilapidated shrines choked by glowing flora; roots clutching forgotten statues of Candora.
-- **Midpoint Twist (The Red Herring):** Kaelen believes the **Gatekeeper** is a monstrous demon guarding Elysia's prison. In reality, the Gatekeeper is an ancient neutral arbiter testing whether Kaelen has any human soul left, or if he is already a feral husk.
-- **Secondary Characters:**
-  - **The Moonstone Keeper:** Warns Kaelen that using the demon blade burns out Elysia's face in his memory. *"Win the race, boy, and you won't even remember whose hand you came to take."*
-  - **The Masked Man:** A silent, cloaked runner who matches your speed and throws defensive relics before vanishing into the trees.
-- **Boss Encounter:** Defeating the Gatekeeper unlocks the sacred ascent to the celestial realm.
+- **The Dual Whisperer Tension:** The **Evil Eye** urges Kaelen to transform constantly, while **The Moon Knight** provides light sanctuaries.
+- **Boss Encounter 3:** **The Necromancer** (Commander of the forest undead, harvesting residual soul interest for Voragis).
 
-### Act III: The Scales of Voragis
+### Act III: The Scales of Voragis & The Climax
 - **Setting:** Crystalline void floating over an abyss of glowing chains.
-- **Climax:** Duel with **The Wizard (Herald of the Accord)** and the phantom reflection of **Dark Ronin**.
-- **The Final Cliffhanger / The Choice:** Elysia’s crystalline stasis cocoon hangs suspended between Voragis's golden scales and Candora's silver altar.
+- **Boss Encounter 4:** **The Fire Wizard** (Herald of Voragis enforcing the contract bill).
+- **Final Boss (Boss Encounter 5):** **Dark Ronin** (The ultimate shadow sovereign).
+- **The Final Choice:** Elysia’s stasis cocoon hangs between Voragis's golden scales and Candora's silver altar.
 
 ---
 
@@ -102,26 +114,39 @@ Neither choice is simple. Both demand a real sacrifice.
 
 ---
 
-## 6. In-Game Dialogue & Micro-Barks (Zero Fluff, 100% Impact)
+## 6. Fragmented Storytelling & In-Game Delivery
 
-Dialogue in a runner must never stall the player's momentum. Every line is concise, rhythmic, and loaded with subtext and power plays.
+Story is discovered through plain-spoken memory flashbacks when touching relics, while mid-run dialogue barks act as the Angel vs. Devil whisperers.
 
-### World Encounter Barks
+### Cryptic & Dynamic Micro-Barks (Angel vs. Devil)
+
+**The Evil Eye (Voragis's Devil Whisperer - During High Speed / Kills):**
+> *"Slash deeper, soldier! Use the shadow! Every second you hesitate, her soul slips lower!"*
+
+**The Moon Knight (Candora's Angel Whisperer - At Shrines / High Corruption):**
+> *"Hold onto her name, Kaelen! Every time you summon the flame, her face fades in your mind."*
 
 **The Ledger (At the Abyss - Start of Game):**
-> *"You dropped her. I caught her. Want her back? Sign here with your pulse."*
+> *"Your fingers were wet. My ink is dry. Run, debtor."*
 
-**The Moonstone Keeper (Distance 10,500):**
-> *"The black flame cuts deep, runner. But look inside: do you still remember the color of her eyes?"*
+**The Gatekeeper (Boss Intro):**
+> *"Behold the debt's final form! Look upon what you are destined to become!"*
 
-**The Scythe Spirit / Evil Eye (Distance 7,000):**
-> *"Crunch the bones, soldier! Voragis loves the sound of his old debts breaking under your boots!"*
+**The Necromancer (Act II Boss Intro):**
+> *"Every skeleton you crush goes back into Voragis's ledger! You're just harvesting for us!"*
 
-**The Gatekeeper (Boss Intro - Distance 12,500):**
-> *"None pass whose hearts have turned to rot. Draw steel, debtor—prove you are still a man."*
+---
 
-**The Wizard (Voragis's Herald - Distance 34,500):**
-> *"He thinks love pays debts! Every slash you made in these woods was registered in ink. Now pay the bill."*
+### Flashback Relics (Grounded, Plain-Spoken Memories)
+
+| Relic | Flashback Memory Line (Direct & Grounded) | In-Game Lore Purpose |
+| :--- | :--- | :--- |
+| **Shattered Gauntlet** | *"Your hand was covered in rain and stone dust. You held her fingers for half a second. Then your glove slipped."* | **The Accident**: Explains the exact moment Kaelen dropped Elysia at the bridge. |
+| **Herbalist's Satchel** | *"Elysia carried this pouch everywhere to collect mountain herbs. She promised she’d be back before sunset."* | **The Sister**: Plain human memory of Elysia before the fall. |
+| **Voragis's Inkwell** | *"The debt collector didn't ask for gold. He asked if you'd give up your soul to drag her out. The Evil Eye laughed as you signed."* | **The Devil's Ink**: Links Voragis's contract to the Evil Eye's temptation. |
+| **Hollowed Ledger Page** | *"A list of everyone who made this deal before you. Every single one failed and turned into the skeletons roaming these woods."* | **The Undead**: Explains why skeletons walk the forest. |
+| **Candora's Tear** | *"A warm stone left at a ruined altar. A quiet reminder from the Moon Knight that someone is rooting for you to stay human."* | **The Angel's Light**: Connects Candora's aid to the Moon Knight. |
+| **Amalgam Core** | *"This monster was Voragis's prototype—a horrible mix of human souls and shadow power. It's what you will turn into if you lose control."* | **The Gatekeeper**: Explains the boss as Voragis's experiment. |
 
 ---
 
@@ -131,3 +156,12 @@ Dialogue in a runner must never stall the player's momentum. Every line is conci
 2. **Visual Contrast:** High-saturation bright pixel effects against moody, brooding slate backgrounds make every hit feel impactful.
 3. **Escalating Danger:** The forest visibly rots as you run—starting in twilight green and shifting to abyssal crimson as you approach the cosmic court.
 4. **Instant Narrative Payoff:** Boss defeats trigger instant cinematic slow-motion slashes, rewarding player reflexes with immediate story advancement.
+
+---
+
+## 8. Developer Voice & Public Devlog Strategy
+
+To build authentic trust with the community, devlogs avoid marketing speak and hype language:
+- **Raw Behind-the-Scenes Build Logs:** Focus on honest iteration—showing before-and-after clips of gameplay features, broken physics glitches, and collision bugs.
+- **Craft Retrospectives:** Share candid breakdowns of what failed during playtesting, why a mechanic was scrapped or reworked, and how technical systems (like collision math or vignette shaders) were built.
+- **Plain-Spoken Narrative Notes:** Present lore development as a design tool that serves the player experience, not a marketing gimmick.

@@ -344,6 +344,17 @@ class BloodZombie(EntityAudioMixin, Actor):
         super().update(dt)  # Handles state machines and animations
         self._update_animation_audio()
 
+        # ── Necromancer Staff Strike Black & White Lightning Effect ────────────
+        if self.state == BloodZombieState.ATTACK:
+            curr_frame = int(self.animation_index)
+            if curr_frame in (5, 6, 7):
+                if not getattr(self, "_lightning_triggered_this_attack", False):
+                    setattr(self, "_lightning_triggered_this_attack", True)
+                    from src.game.effects.lightning_effect import LightningEffect
+                    LightningEffect.get_instance().trigger(duration=1.0, staff_pos=self.rect.midbottom)
+        else:
+            setattr(self, "_lightning_triggered_this_attack", False)
+
         if self.state != BloodZombieState.ATTACK:
             SquadTokenManager.get_instance().release_attack_token(id(self))
         

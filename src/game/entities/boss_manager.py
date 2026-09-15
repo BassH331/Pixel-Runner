@@ -10,6 +10,8 @@ from v3x_zulfiqar_gideon import Actor
 from src.game.entities.skeleton import Skeleton
 from src.game.entities.fire_wizard import FireWizard
 from src.game.entities.green_monster import GreenMonster
+from src.game.entities.dark_ronin import DarkRonin
+from src.game.entities.bloo_zombie import BloodZombie
 
 
 class BossManager:
@@ -18,12 +20,15 @@ class BossManager:
     Handles spawning, status checking, and rendering the boss health bar.
     """
     
-    # ── Boss Registry Mapping ────────────────────────────────────────────────
+    # ── Boss Registry Mapping (5-Boss Hierarchy) ─────────────────────────────
     # Map keywords/substrings in the sprite_dir to their respective boss classes.
-    # Add new boss classes to this dictionary to integrate them seamlessly.
     _BOSS_REGISTRY: Dict[str, Type[Actor]] = {
-        "wizard": FireWizard,
         "green_monster": GreenMonster,
+        "gatekeeper": GreenMonster,
+        "necromancer": BloodZombie,
+        "wizard": FireWizard,
+        "ronin": DarkRonin,
+        "dark_ronin": DarkRonin,
         "skeleton": Skeleton,
     }
     

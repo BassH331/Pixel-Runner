@@ -1,0 +1,84 @@
+{
+  "version": "1.0.0",
+  "relics": {
+    "shattered_gauntlet": {
+      "id": "shattered_gauntlet",
+      "title": "Shattered Gauntlet",
+      "category": "The Accident",
+      "memory_text": "Your hand was covered in rain and stone dust. You held her fingers for half a second. Then your glove slipped.",
+      "icon_path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
+      "flashback_duration": 3.5
+    },
+    "herbalists_satchel": {
+      "id": "herbalists_satchel",
+      "title": "Herbalist's Satchel",
+      "category": "The Sister",
+      "memory_text": "Elysia carried this pouch everywhere to collect mountain herbs. She promised she'd be back before sunset.",
+      "icon_path": "assets/graphics/ui/relic_icon.png",
+      "flashback_duration": 3.5
+    },
+    "voragis_inkwell": {
+      "id": "voragis_inkwell",
+      "title": "Voragis's Inkwell",
+      "category": "The Devil's Ink",
+      "memory_text": "The debt collector didn't ask for gold. He asked if you'd give up your soul to drag her out. The Evil Eye laughed as you signed.",
+      "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
+      "flashback_duration": 3.5
+    },
+    "hollowed_ledger_page": {
+      "id": "hollowed_ledger_page",
+      "title": "Hollowed Ledger Page",
+      "category": "The Undead",
+      "memory_text": "A list of everyone who made this deal before you. Every single one failed and turned into the skeletons roaming these woods.",
+      "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
+      "flashback_duration": 3.5
+    },
+    "candoras_tear": {
+      "id": "candoras_tear",
+      "title": "Candora's Tear",
+      "category": "The Angel's Light",
+      "memory_text": "A warm stone left at a ruined altar. A quiet reminder from the Moon Knight that someone is rooting for you to stay human.",
+      "icon_path": "assets/graphics/ui/powerup_invincible.png",
+      "flashback_duration": 3.5
+    },
+    "amalgam_core": {
+      "id": "amalgam_core",
+      "title": "Amalgam Core",
+      "category": "The Prototype",
+      "memory_text": "This monster was Voragis's prototype—a horrible mix of human souls and shadow power. It's what you will turn into if you lose control.",
+      "icon_path": "assets/graphics/ui/powerup_speed.png",
+      "flashback_duration": 3.5
+    }
+  },
+  "corruption": {
+    "dash_speed_multiplier": 1.5,
+    "damage_multiplier": 1.5,
+    "vignette_alpha": 180,
+    "instability_enabled": true
+  },
+  "boss_hierarchy": [
+    "green_monster",
+    "gatekeeper",
+    "necromancer",
+    "fire_wizard",
+    "dark_ronin"
+  ],
+  "whisperers": {
+    "evil_eye": {
+      "name": "The Evil Eye (Voragis's Devil)",
+      "barks": [
+        "Slash deeper, soldier! Use the shadow! Every second you hesitate, her soul slips lower!",
+        "Feel that power? Voragis loves watching you burn through your mortal blood!",
+        "Don't stop running! Your pulse is the ink signing this contract!"
+      ]
+    },
+    "moon_knight": {
+      "name": "The Moon Knight (Candora's Angel)",
+      "barks": [
+        "Hold onto her name, Kaelen! Every time you summon the flame, her face fades in your mind.",
+        "Stay human, runner. Candora's silver light still reaches into these woods.",
+        "The debt is a trap. Win the race, but keep your heart intact."
+      ]
+    }
+  }
+}

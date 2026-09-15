@@ -390,3 +390,26 @@ class PlayerUI:
 
         label_text = self.small_font.render("SOULS", True, (140, 120, 180))
         surface.blit(label_text, (bar_x, bar_y_center + bar_h + 2))
+
+    def render_corruption_vignette(self, surface: pg.Surface, corruption_level: float) -> None:
+        """Render dynamic radial dark shadow vignette when player is transformed/corrupted."""
+        if corruption_level <= 0.0:
+            return
+
+        w, h = surface.get_size()
+        vignette_surf = pg.Surface((w, h), pg.SRCALPHA)
+        alpha = int(min(220, corruption_level * 180))
+
+        # Outer shadow border overlay
+        border_size = int(60 * corruption_level)
+        pg.draw.rect(vignette_surf, (15, 0, 25, alpha), (0, 0, w, h), width=border_size)
+
+        # Vignette corner shadow circles
+        r = int(max(w, h) * 0.45 * corruption_level)
+        corner_color = (10, 0, 20, int(alpha * 0.7))
+        pg.draw.circle(vignette_surf, corner_color, (0, 0), r)
+        pg.draw.circle(vignette_surf, corner_color, (w, 0), r)
+        pg.draw.circle(vignette_surf, corner_color, (0, h), r)
+        pg.draw.circle(vignette_surf, corner_color, (w, h), r)
+
+        surface.blit(vignette_surf, (0, 0))

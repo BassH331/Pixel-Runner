@@ -1727,7 +1727,8 @@ class Player(Actor):
             self.rect.x += int(roll_dir * 8.5)
         elif self.state == PlayerState.DASH:
             dash_dir = -1 if self.facing_left else 1
-            self.rect.x += int(dash_dir * 14.0)
+            dash_speed = 21.0 if self._is_enhanced else 14.0
+            self.rect.x += int(dash_dir * dash_speed)
         elif self.is_attacking:
             # No drift during attacks. Apply a small forward nudge
             # only on active hit frames to simulate sword momentum.
@@ -1744,6 +1745,12 @@ class Player(Actor):
                 move_speed = self._BOSS_ARENA_MOVE_SPEED if is_in_boss_arena else self._MOVE_SPEED
             else:  # In air
                 move_speed = self._BOSS_ARENA_AIR_MOVE_SPEED if is_in_boss_arena else self._AIR_MOVE_SPEED
+
+            if self._is_enhanced:
+                # Add micro-instability jitter to simulate wild shadow power
+                import random
+                jitter = random.choice([-1, 1]) if random.random() < 0.25 else 0
+                move_speed += jitter
 
             self.rect.x += int(self._direction * move_speed)
 

@@ -5,7 +5,7 @@
     "spawn_rate_max": 15000,
     "environment": {
         "bg_music_track": "game_loop",
-        "ground_y": 609,
+        "ground_y": 606,
         "sky": {
             "enabled": true,
             "layers": [
@@ -40,7 +40,7 @@
                 "visible": true
             },
             "2": {
-                "name": "L2: Distant Jungle Silhouette",
+                "name": "L2: Mid-Background",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/jungle_bg.png",
                 "scroll_ratio": 0.18,
                 "repeat_x": true,
@@ -51,7 +51,7 @@
                 "visible": true
             },
             "3": {
-                "name": "L3: Midground Forest Canopy",
+                "name": "L3: Ground & Terrain",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/trees&bushes.png",
                 "scroll_ratio": 0.4,
                 "repeat_x": true,
@@ -62,7 +62,7 @@
                 "visible": true
             },
             "4": {
-                "name": "L4: Spirit Tree Landmark",
+                "name": "L4: Props & Objects",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/tree_face.png",
                 "scroll_ratio": 0.58,
                 "repeat_x": true,
@@ -73,7 +73,7 @@
                 "visible": true
             },
             "5": {
-                "name": "L5: Near-Ground Reeds & Bushes",
+                "name": "L5: Foreground Foliage",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/grasses.png",
                 "scroll_ratio": 0.75,
                 "repeat_x": true,
@@ -109,6 +109,17 @@
                 "name": "L8: Foreground Hanging Lianas",
                 "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/lianas.png",
                 "scroll_ratio": 1.28,
+                "repeat_x": true,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "stretch_fill": false,
+                "pos_y_offset": 0,
+                "visible": true
+            },
+            "9": {
+                "name": "L9: Ground & Objects L9",
+                "texture_path": "",
+                "scroll_ratio": 1.0,
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
@@ -159,7 +170,27 @@
                 "repeat_x": true
             }
         ],
-        "props": []
+        "props": [
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground2/Bright/dragon.png",
+                "slice_rect": [
+                    740,
+                    92,
+                    480,
+                    488
+                ],
+                "pos_x": 1056.0,
+                "pos_y": 192.0,
+                "scale": 0.5,
+                "layer_index": 5,
+                "parallax_ratio": 0.75,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0
+            }
+        ]
     },
     "soul_harvest": {
         "starting_souls": 8500,
@@ -251,7 +282,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "The Ledger's Herald",
-                "text": "Her hand slipped, knight. Voragis bought Elysia's soul from the fall—and made your life the receipt. Run fast, or your debt matures.",
+                "text": "Her hand slipped, knight. Voragis bought Elysia's soul from the fall\u2014and made your life the receipt. Run fast, or your debt matures.",
                 "radius": 180,
                 "sprite_dir": "assets/graphics/Necromancer/Idle",
                 "scale": 3.38,
@@ -266,7 +297,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "Watcher of Voragis",
-                "text": "Every skeleton you shatter was a debtor who gave up. Crack their bones, runner—clear out Voragis's trash!",
+                "text": "Every skeleton you shatter was a debtor who gave up. Crack their bones, runner\u2014clear out Voragis's trash!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0,

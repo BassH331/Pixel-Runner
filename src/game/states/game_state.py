@@ -716,6 +716,9 @@ class GameState(PlayingState):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_d:
                 self.debug_mode = not self.debug_mode
+            elif event.key == pg.K_l:
+                from src.game.effects.lightning_effect import LightningEffect
+                LightningEffect.get_instance().trigger(duration=1.0)
     
     # ─────────────────────────────────────────────────────────────────────────
     # Entity Spawning
@@ -931,6 +934,12 @@ class GameState(PlayingState):
         # Update notification banners (runs independently of gameplay freeze)
         self.notification_banner.update(dt)
         self.side_notification.update(dt)
+
+        from src.game.systems.item_lore_system import ItemLoreSystem
+        ItemLoreSystem.get_instance().update(dt)
+
+        from src.game.effects.lightning_effect import LightningEffect
+        LightningEffect.get_instance().update(dt)
 
         # Apply a cloud-aggregated difficulty recommendation once it's ready
         # (kicked off in _handle_boss_spawn). Fails silently -- if it's not
@@ -1435,6 +1444,19 @@ class GameState(PlayingState):
             result = self.trippy_zoom.apply(target)
             surface.blit(result, (0, 0))
             
+        # ── Transformation Corruption Screen Vignette ──
+        player_sprite = self.player.sprite
+        if player_sprite and getattr(player_sprite, "is_enhanced", False):
+            self.player_ui.render_corruption_vignette(surface, 1.0)
+
+        # ── Item Lore & Flashback Screen Overlay ──
+        from src.game.systems.item_lore_system import ItemLoreSystem
+        ItemLoreSystem.get_instance().render_flashback_overlay(surface)
+
+        # ── Necromancer Staff Strike Lightning Effect Overlay ──
+        from src.game.effects.lightning_effect import LightningEffect
+        LightningEffect.get_instance().render(surface)
+
         # ── Cutscene Dialogue Overlay ────────────────────────────────────────
         self.cutscene_manager.draw_dialogue_overlay(surface)
 
