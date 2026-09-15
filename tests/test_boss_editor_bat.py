@@ -86,11 +86,20 @@ class TestBatConfigAndIntegration(unittest.TestCase):
             # Should have completed 2 flaps and transitioned to GLIDE
             self.assertEqual(bat.flight_state, BatFlightState.GLIDE)
 
-            # During GLIDE, sprite frame is held on Frame 0 (outstretched wings)
+            # During ascending GLIDE (vel_y < 0), wings continue flapping.
+            # Advance ticks until vel_y >= 0 (descending glide phase)
+            initial_glide_vel = bat.vel_y
+            while bat.vel_y < 0:
+                bat.update(dt=0.016)
+
+            # Advance remaining frames of stroke to return to frame 0
+            while int(bat.animation_index) % len(bat.animations[EnemyState.FLY]) != 0:
+                bat.update(dt=0.016)
+
+            # Once wing return stroke completes in GLIDE state, frame holds on Frame 0 (outstretched wings)
             self.assertEqual(bat.image, bat.animations[EnemyState.FLY][0])
 
             # In GLIDE state, downward acceleration occurs (vel_y increases towards positive)
-            initial_glide_vel = bat.vel_y
             for _ in range(15):
                 bat.update(dt=0.016)
             self.assertGreater(bat.vel_y, initial_glide_vel)
@@ -99,6 +108,60 @@ class TestBatConfigAndIntegration(unittest.TestCase):
             bat.glide_timer = 2.0
             bat.update(dt=0.016)
             self.assertEqual(bat.flight_state, BatFlightState.FLAP_BURST)
+
+    def test_bat_metadata_and_ascent_flapping(self):
+        """Verify bat metadata dictionary structure and continuous wing flapping during upward ascent."""
+        test_config = {
+            "speed": 250.0,
+            "scale": 1.0,
+            "gravity": 200.0,
+            "flap_power": 180.0,
+            "glide_duration": 1.0
+        }
+        def side_effect(k):
+            return test_config if k == "enemy_bat" else None
+
+        with patch.object(ConfigClient, "fetch_config", side_effect=side_effect):
+            bat = Enemy(audio_manager=None)
+            bat.y_base = 300.0
+            
+            # 1. Verify metadata structure
+            meta = bat.metadata
+            self.assertEqual(meta["entity_type"], "enemy_bat")
+            self.assertIn("flight_state", meta)
+            self.assertIn("position", meta)
+            self.assertIn("velocity", meta)
+            self.assertIn("aerodynamics", meta)
+            self.assertIn("wing_flapping", meta)
+            self.assertIn("scale_factor", meta)
+
+            # Verify aerodynamics fields
+            aero = meta["aerodynamics"]
+            self.assertIn("gravity", aero)
+            self.assertIn("flap_power", aero)
+            self.assertIn("is_ascending", aero)
+            self.assertIn("is_descending", aero)
+
+            # Verify wing flapping fields
+            wings = meta["wing_flapping"]
+            self.assertIn("animation_frame", wings)
+            self.assertIn("wing_phase", wings)
+            self.assertIn("is_gliding", wings)
+
+            # 2. Verify continuous wing flapping during upward ascent (vel_y < 0)
+            bat.vel_y = -100.0
+            bat.flight_state = BatFlightState.GLIDE  # even in GLIDE state while ascending
+            
+            meta_ascending = bat.metadata
+            self.assertTrue(meta_ascending["aerodynamics"]["is_ascending"])
+            self.assertFalse(meta_ascending["wing_flapping"]["is_gliding"])
+            
+            start_anim_index = bat.animation_index
+            for _ in range(5):
+                bat.update(dt=0.016)
+            
+            # Animation frame index must advance during ascent
+            self.assertGreater(bat.animation_index, start_anim_index)
 
     def test_boss_editor_bat_schema_and_sliders(self):
         """Verify bat schema in BOSS_SCHEMAS contains all flight controls."""
@@ -146,3 +209,4 @@ class TestBatConfigAndIntegration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

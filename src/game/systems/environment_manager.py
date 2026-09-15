@@ -488,17 +488,28 @@ class EnvironmentManager:
             if player_layer and stack.get("visible", True):
                 player_layer.update(player_speed, dt)
 
-    def draw(self, surface: pg.Surface, cam_x: float = 0.0, cam_y: float = 0.0, max_layer: Optional[int] = None) -> None:
+    def draw(
+        self,
+        surface: pg.Surface,
+        cam_x: float = 0.0,
+        cam_y: float = 0.0,
+        min_layer: Optional[int] = None,
+        max_layer: Optional[int] = None,
+        clear_bg: bool = True,
+    ) -> None:
         """Draw sky followed by explicit layers in strict back-to-front depth order."""
-        surface.fill((20, 20, 32))
-
-        if self.sky:
-            self.sky.draw(surface)
+        if clear_bg and (min_layer is None or min_layer <= 1):
+            surface.fill((20, 20, 32))
+            if self.sky:
+                self.sky.draw(surface)
 
         prop_indices = {p.layer_index for p in self.props}
         all_indices = sorted(set(self.layer_stacks.keys()) | prop_indices)
-        if max_layer is not None:
-            active_indices = [idx for idx in all_indices if idx <= max_layer]
+        if min_layer is not None or max_layer is not None:
+            active_indices = [
+                idx for idx in all_indices
+                if (min_layer is None or idx >= min_layer) and (max_layer is None or idx <= max_layer)
+            ]
         else:
             active_indices = all_indices
 

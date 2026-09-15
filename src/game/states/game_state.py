@@ -1355,8 +1355,27 @@ class GameState(PlayingState):
         else:
             target = surface
 
-        # Background (data-driven environment manager)
-        self.environment_manager.draw(target, cam_x=self.world_distance)
+        # ── Interleaved Depth Background & Parallax Layers ─────────────────────
+        # 1. Draw Layer 1 (Sky & Far Parallax) and Layer 1 Bats (if any)
+        self.environment_manager.draw(target, cam_x=self.world_distance, max_layer=1, clear_bg=True)
+        for amb in self.ambient_group:
+            if getattr(amb, "bg_layer_depth", 4) <= 1:
+                amb.draw(target)
+
+        # 2. Draw Layer 2 (Mid-Background) and Layer 2 Bats (behind L2/L3 terrain)
+        self.environment_manager.draw(target, cam_x=self.world_distance, min_layer=2, max_layer=2, clear_bg=False)
+        for amb in sorted(self.ambient_group, key=lambda a: getattr(a, 'depth_scale_factor', 1.0)):
+            if getattr(amb, "bg_layer_depth", 4) == 2:
+                amb.draw(target)
+
+        # 3. Draw Layer 3 (Ground & Terrain) and Layer 3 Bats (behind ground/terrain)
+        self.environment_manager.draw(target, cam_x=self.world_distance, min_layer=3, max_layer=3, clear_bg=False)
+        for amb in sorted(self.ambient_group, key=lambda a: getattr(a, 'depth_scale_factor', 1.0)):
+            if getattr(amb, "bg_layer_depth", 4) == 3:
+                amb.draw(target)
+
+        # 4. Draw Layer 4+ (Foreground Props, Objects, and Foliage)
+        self.environment_manager.draw(target, cam_x=self.world_distance, min_layer=4, clear_bg=False)
         
         # UI layer
         self.hud_overlay.draw_world_ui(target)
@@ -1410,9 +1429,10 @@ class GameState(PlayingState):
         for point in self.interaction_group:
             point.draw(target)
 
-        # Ambient creatures
+        # Ambient creatures (Foreground bats: bg_layer_depth >= 4)
         for ambient in sorted(self.ambient_group, key=lambda a: getattr(a, 'depth_scale_factor', 1.0)):
-            ambient.draw(target)
+            if getattr(ambient, "bg_layer_depth", 4) >= 4:
+                ambient.draw(target)
 
         # Player
         self.player.sprite.draw(target)
