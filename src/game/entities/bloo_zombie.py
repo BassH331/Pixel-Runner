@@ -5,6 +5,8 @@ Specialized variant with enhanced health, unique sprites, and modified behavior.
 
 from __future__ import annotations
 
+import os
+import math
 import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -72,122 +74,101 @@ class BloodZombie(EntityAudioMixin, Actor):
         x: int,
         y: int,
         player: Player,
+        sprite_root: Optional[str] = None,
+        behaviour_map: Optional[dict[str, str]] = None,
         tier: str = "boss",  # Blood Zombie is always a boss variant
         custom_scale: Optional[float] = None,
         custom_health: Optional[float] = None,
         audio_manager=None,
     ) -> None:
         super().__init__(x, y)
-        
+
         self._player: Player = player
+        self._ghost_trail = []
+        self.natively_facing_left: bool = False
         self.state_configs = self.STATE_CONFIGS
         self.tier = tier
-        
+
         # Load hitbox margins specifically for blood_zombie boss
-        margins_key = "boss:bloodzombie"  # Specific key for blood zombie boss hitbox data
+        margins_key = "boss:bloodzombie"
         margins = HitboxRegistry.get_margins(margins_key)
-        
-        # Fallback to generic boss margins if specific ones missing
+
         if margins.scale == 1.0 and margins.ground_offset == 0:
             margins = HitboxRegistry.get_margins("boss")
-        
-        # Determine scale: explicit custom > registry > default margins
+
         registry_scale = None
         try:
             if HitboxRegistry.has_custom_margins(margins_key):
                 registry_scale = margins.scale
         except Exception:
             pass
-        
-        self.scale = registry_scale if registry_scale is not None else (custom_scale if custom_scale is not None else margins.scale)
-        self._scale_is_explicit = (registry_scale is not None or custom_scale is not None)
-        
-        # Load default animations first (fallback if sprite loading fails)
-        self.animations[BloodZombieState.IDLE] = self._load_frames(
-            "assets/graphics/bloodZombie/Idle/blood_idle_{:02d}.png", 10
-        )
-        self.animations[BloodZombieState.CHASE] = self._load_frames(
-            "assets/graphics/bloodZombie/Move/blood_chase_{}.png", 8
-        )
-        self._attack1_frames = self._load_frames(
-            "assets/graphics/bloodZombie/Attack1/blood_attack2_{:02d}.png", 16
-        )
-        self.animations[BloodZombieState.ATTACK] = self._attack1_frames
-        self._attack2_frames = self._load_frames(
-            "assets/graphics/bloodZombie/Attack2/blood_attack1_{:02d}.png", 16
-        )
-        self.animations[BloodZombieState.HURT] = self._load_frames(
-            "assets/graphics/bloodZombie/Hurt/blood_hurt_{}.png", 6
-        )
-        self.animations[BloodZombieState.DEATH] = self._load_frames(
-            "assets/graphics/bloodZombie/Death/blood_death_{}.png", 6
-        )
-        
-        # Apply Tier Scaling (Health, Speed, Size)
-        damage_scale = 1.0
-        knockback_scale = 1.0
-        
-        if self.tier == "boss":
-            # Apply boss scaling (already applied via sprite loading in skeleton logic, but adjust here too)
-            if not self._scale_is_explicit:
-                self.scale *= 1.8
-                # Scale all animation frames
-                for state in list(self.animations.keys()):
-                    self.animations[state] = [
-                        pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
-                        for img in self.animations[state]
-                    ]
-                self._attack1_frames = [
-                    pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
-                    for img in self._attack1_frames
-                ]
-                self._attack2_frames = [
-                    pg.transform.scale(img, (int(img.get_width() * 1.8), int(img.get_height() * 1.8)))
-                    for img in self._attack2_frames
-                ]
-            
-            self._max_health = custom_health if custom_health is not None else 180.0  # Higher than regular skeleton boss
-            self._speed = 3.0
-            damage_scale = 3.5
-            knockback_scale = 2.0
-            
-            # Blood Zombie specific AI parameters
-            self._detection_range = 3500
-            self._attack_range = 90
-            self._vertical_tolerance = 600
-        else:  # Should not happen for blood zombie but keep for completeness
-            self._max_health = custom_health if custom_health is not None else 90.0
-            self._speed = 2.8
-            damage_scale = 1.8
-            knockback_scale = 1.5
-            self._detection_range = 1200
-            self._attack_range = 70
-            self._vertical_tolerance = 200
-        
-        self._attack_hitbox_width = 70
-        self._attack_hitbox_height = 90
-        
-        # Load configuration from config service
+
+        # Fetch configuration from ConfigClient as primary single source of truth
+        config: dict = {}
         try:
-            config = ConfigClient.fetch_config("enemy_blood_zombie")
-            if config:
-                self._max_health = float(config.get("max_health", self._max_health))
-                self._speed = float(config.get("speed", self._speed))
-                damage_scale = float(config.get("damage_scale", damage_scale))
-                knockback_scale = float(config.get("knockback_scale", knockback_scale))
-                self._detection_range = int(config.get("detection_range", self._detection_range))
-                self._attack_range = int(config.get("attack_range", self._attack_range))
-                self._vertical_tolerance = int(config.get("vertical_tolerance", self._vertical_tolerance))
-                self._attack_hitbox_width = int(config.get("attack_hitbox_width", self._attack_hitbox_width))
-                self._attack_hitbox_height = int(config.get("attack_hitbox_height", self._attack_hitbox_height))
+            config = ConfigClient.fetch_config("enemy_blood_zombie") or {}
         except Exception as e:
-            print(f"[WARNING] Error loading blood zombie config: {e}")
-        
-        # Apply damage and knockback scaling
-        if custom_health is not None:
-            self._max_health = custom_health
+            print(f"[WARNING] Error fetching blood zombie config: {e}")
+
+        # Resolve entity scale (editor config > explicit custom_scale > HitboxRegistry)
+        if "scale" in config:
+            self.scale = float(config["scale"])
+        elif custom_scale is not None:
+            self.scale = float(custom_scale)
+        elif registry_scale is not None:
+            self.scale = float(registry_scale)
+        else:
+            self.scale = float(margins.scale)
+
+        # Load animation frames dynamically from assets/graphics/bloodZombie folders
+        def load_dir_frames(folder_path: str) -> list[pg.Surface]:
+            if not os.path.exists(folder_path):
+                return []
+            files = sorted([f for f in os.listdir(folder_path) if f.endswith(".png")])
+            frames = []
+            for fname in files:
+                full_p = os.path.join(folder_path, fname)
+                try:
+                    img = pg.image.load(full_p).convert_alpha()
+                    w = int(img.get_width() * self.scale)
+                    h = int(img.get_height() * self.scale)
+                    frames.append(pg.transform.scale(img, (w, h)))
+                except Exception:
+                    pass
+            return frames
+
+        base_dir = sprite_root if (sprite_root and os.path.exists(sprite_root)) else "assets/graphics/bloodZombie"
+
+        idle_frames = load_dir_frames(os.path.join(base_dir, "Idle"))
+        move_frames = load_dir_frames(os.path.join(base_dir, "Move"))
+        atk1_frames = load_dir_frames(os.path.join(base_dir, "Attack1"))
+        atk2_frames = load_dir_frames(os.path.join(base_dir, "Attack2"))
+        death_frames = load_dir_frames(os.path.join(base_dir, "Death"))
+
+        self.animations[BloodZombieState.IDLE] = idle_frames
+        self.animations[BloodZombieState.CHASE] = move_frames if move_frames else idle_frames
+        self._attack1_frames = atk1_frames if atk1_frames else idle_frames
+        self._attack2_frames = atk2_frames if atk2_frames else self._attack1_frames
+        self.animations[BloodZombieState.ATTACK] = self._attack1_frames
+        self.animations[BloodZombieState.DEATH] = death_frames if death_frames else idle_frames
+        self.animations[BloodZombieState.HURT] = idle_frames
+
+        # Extract stats from config (with tier-appropriate fallbacks)
+        default_hp = 180.0 if self.tier == "boss" else 90.0
+        self._max_health = float(config.get("max_health", custom_health if custom_health is not None else default_hp))
         self._health: float = self._max_health
+        self._speed = float(config.get("speed", 3.0 if self.tier == "boss" else 2.8))
+
+        damage_scale = float(config.get("damage_scale", 3.5 if self.tier == "boss" else 1.8))
+        knockback_scale = float(config.get("knockback_scale", 2.0 if self.tier == "boss" else 1.5))
         
+        self._detection_range = int(config.get("detection_range", 3500 if self.tier == "boss" else 1200))
+        self._attack_range = int(config.get("attack_range", 108 if self.tier == "boss" else 70))
+        self._vertical_tolerance = int(config.get("vertical_tolerance", 600 if self.tier == "boss" else 200))
+        self._attack_hitbox_width = int(config.get("attack_hitbox_width", 70))
+        self._attack_hitbox_height = int(config.get("attack_hitbox_height", 90))
+        self.frame_offsets = config.get("frame_offsets", {})
+
         self.attack1_config = AttackConfig(
             hit_frames=self.ATTACK_1_CONFIG.hit_frames,
             base_damage=self.ATTACK_1_CONFIG.base_damage * damage_scale,
@@ -201,9 +182,9 @@ class BloodZombie(EntityAudioMixin, Actor):
         
         # Initial setup
         self.set_state(BloodZombieState.IDLE)
-        if self.state in self.animations:
+        if self.state in self.animations and self.animations[self.state]:
             self.image = self.animations[self.state][0]
-        self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y))
+        self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y)) if self.image else pg.Rect(x, y, 64, 64)
         
         # Hitbox adjustment using blood zombie specific margins
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
@@ -238,6 +219,11 @@ class BloodZombie(EntityAudioMixin, Actor):
         # Precalculate scaled hitbox dimensions for performance
         self._scaled_hitbox_w: int = int(self._attack_hitbox_width * self.scale)
         self._scaled_hitbox_h: int = int(self._attack_hitbox_height * self.scale)
+
+        # Telemetry and metadata tracking fields for behavioral analysis
+        self._last_ai_action: str = "IDLE"
+        self._attack_count: int = 0
+        self.behavior_metadata: dict = {}
 
         # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
         self._init_entity_audio_config(audio_manager, "blood_zombie")
@@ -300,6 +286,133 @@ class BloodZombie(EntityAudioMixin, Actor):
     def is_dead(self) -> bool: return self.state == BloodZombieState.DEATH
     @property
     def current_frame_index(self) -> int: return int(self.animation_index)
+    @property
+    def last_ai_action(self) -> str: return self._last_ai_action
+    @property
+    def attack_count(self) -> int: return self._attack_count
+
+    def apply_config(self, config: dict) -> None:
+        """Dynamically apply configuration updates to the Blood Zombie entity at runtime."""
+        if not config or not isinstance(config, dict):
+            return
+
+        try:
+            if "max_health" in config:
+                new_max = float(config["max_health"])
+                if new_max > 0:
+                    health_ratio = self._health / self._max_health if self._max_health > 0 else 1.0
+                    self._max_health = new_max
+                    self._health = self._max_health * health_ratio
+
+            if "speed" in config:
+                self._speed = float(config["speed"])
+
+            if "detection_range" in config:
+                self._detection_range = int(config["detection_range"])
+                if hasattr(self, "perception"):
+                    self.perception.vision_range = float(self._detection_range)
+
+            if "attack_range" in config:
+                self._attack_range = int(config["attack_range"])
+                if hasattr(self, "utility_engine"):
+                    self.utility_engine.preferred_spacing = float(self._attack_range)
+
+            if "vertical_tolerance" in config:
+                self._vertical_tolerance = int(config["vertical_tolerance"])
+
+            if "attack_hitbox_width" in config:
+                self._attack_hitbox_width = int(config["attack_hitbox_width"])
+                self._scaled_hitbox_w = int(self._attack_hitbox_width * self.scale)
+
+            if "attack_hitbox_height" in config:
+                self._attack_hitbox_height = int(config["attack_hitbox_height"])
+                self._scaled_hitbox_h = int(self._attack_hitbox_height * self.scale)
+
+            if "damage_scale" in config or "knockback_scale" in config:
+                dmg_s = float(config.get("damage_scale", 1.0))
+                kb_s = float(config.get("knockback_scale", 1.0))
+                self.attack1_config = AttackConfig(
+                    hit_frames=self.ATTACK_1_CONFIG.hit_frames,
+                    base_damage=self.ATTACK_1_CONFIG.base_damage * dmg_s,
+                    knockback_force=self.ATTACK_1_CONFIG.knockback_force * kb_s,
+                )
+                self.attack2_config = AttackConfig(
+                    hit_frames=self.ATTACK_2_CONFIG.hit_frames,
+                    base_damage=self.ATTACK_2_CONFIG.base_damage * dmg_s,
+                    knockback_force=self.ATTACK_2_CONFIG.knockback_force * kb_s,
+                )
+
+            if "ground_offset" in config:
+                ground_off = int(config["ground_offset"])
+                surf = pg.display.get_surface()
+                height = surf.get_height() if surf else 720
+                self._ground_y = height - ground_off
+                if self.rect:
+                    self.rect.bottom = self._ground_y
+
+            if "frame_offsets" in config:
+                self.frame_offsets = config["frame_offsets"]
+        except Exception as e:
+            print(f"[WARNING] Error applying blood zombie config overrides: {e}")
+
+    def get_metadata(self) -> dict:
+        """Return rich metadata tracking structure for debugging and behavioral telemetry."""
+        player_rect = getattr(self._player, "rect", None) if self._player else None
+        px = player_rect.centerx if player_rect else None
+        py = player_rect.centery if player_rect else None
+
+        center_dist_x = abs(self.rect.centerx - px) if px is not None else None
+        if player_rect and self.rect:
+            if self.rect.right < player_rect.left:
+                edge_dist_x = float(player_rect.left - self.rect.right)
+            elif player_rect.right < self.rect.left:
+                edge_dist_x = float(self.rect.left - player_rect.right)
+            else:
+                edge_dist_x = 0.0
+        else:
+            edge_dist_x = None
+
+        dist_y = abs(self.rect.centery - py) if py is not None else None
+
+        return {
+            "entity_id": id(self),
+            "entity_type": "blood_zombie",
+            "tier": self.tier,
+            "state": self.state.name if hasattr(self.state, "name") else str(self.state),
+            "health": round(float(self._health), 2),
+            "max_health": float(self._max_health),
+            "health_ratio": round(float(self._health / self._max_health), 3) if self._max_health > 0 else 0.0,
+            "is_dead": self.is_dead,
+            "facing_left": self.facing_left,
+            "scale": self.scale,
+            "speed": self._speed,
+            "position": {"x": self.rect.x, "y": self.rect.y, "centerx": self.rect.centerx, "centery": self.rect.centery},
+            "ground_y": self._ground_y,
+            "gravity": self._gravity,
+            "perception": {
+                "alert_level": self.perception.alert_level.name if hasattr(self.perception.alert_level, "name") else str(self.perception.alert_level),
+                "detection_range": self._detection_range,
+                "vertical_tolerance": self._vertical_tolerance,
+            },
+            "tactics": {
+                "attack_range": self._attack_range,
+                "center_dist_x": center_dist_x,
+                "edge_dist_x": edge_dist_x,
+                "dist_y": dist_y,
+                "can_attack": (edge_dist_x <= float(self._attack_range)) if edge_dist_x is not None else False,
+                "last_action": self._last_ai_action,
+                "squad_role": SquadCoordinator.get_instance().get_role(id(self)).name,
+            },
+            "combat_stats": {
+                "attack_count": self._attack_count,
+                "attack_hitbox_width": self._scaled_hitbox_w,
+                "attack_hitbox_height": self._scaled_hitbox_h,
+            },
+        }
+
+    def get_telemetry(self) -> dict:
+        """Alias for get_metadata() returning standardized telemetry payload."""
+        return self.get_metadata()
 
     def is_in_hit_frame(self) -> bool:
         return self.attack_state.is_hit_frame_active()
@@ -339,6 +452,16 @@ class BloodZombie(EntityAudioMixin, Actor):
         self.rect.x -= scroll_speed
         
         self._apply_gravity()
+
+        # Check for real-time live editor save updates on disk
+        self._hot_reload_timer = getattr(self, "_hot_reload_timer", 0.0) + dt_sec
+        if self._hot_reload_timer >= 0.5:
+            self._hot_reload_timer = 0.0
+            updated_config = ConfigClient.check_for_updates("enemy_blood_zombie")
+            if updated_config:
+                self.apply_config(updated_config)
+                print(f"[BLOOD ZOMBIE HOT-RELOAD] Live updated! Range={self._attack_range}, Speed={self._speed}, HP={self._max_health}")
+
         self._update_ai(dt_sec)
         
         super().update(dt)  # Handles state machines and animations
@@ -399,6 +522,7 @@ class BloodZombie(EntityAudioMixin, Actor):
         alert = self.perception.update(dt_sec, self.rect, self.facing_left, self._player)
         if alert == AlertLevel.UNAWARE:
             self.set_state(BloodZombieState.IDLE)
+            self._last_ai_action = "IDLE"
             return
 
         if self.state == BloodZombieState.ATTACK:
@@ -408,36 +532,70 @@ class BloodZombie(EntityAudioMixin, Actor):
         if player_rect is None:
             return
 
-        # 2. Token & Utility Action Evaluation
+        # 2. Distance Calculations (Center and Edge-to-Edge)
+        center_dist_x = abs(self.rect.centerx - player_rect.centerx)
+        if self.rect.right < player_rect.left:
+            edge_dist_x = float(player_rect.left - self.rect.right)
+        elif player_rect.right < self.rect.left:
+            edge_dist_x = float(self.rect.left - player_rect.right)
+        else:
+            edge_dist_x = 0.0
+
+        dist_y = abs(self.rect.centery - player_rect.centery)
+
+        # Melee attack reach check:
+        # Attack allowed if edge distance <= attack_range OR center distance <= attack_range + 40
+        attack_reach = float(self._attack_range)
+        can_attack = (edge_dist_x <= attack_reach) or (center_dist_x <= attack_reach + 40.0)
+
+        # Token & Utility Action Evaluation
         has_token = SquadTokenManager.get_instance().request_attack_token(id(self))
-        dist_x = abs(self.rect.centerx - player_rect.centerx)
 
         is_pincer = SquadCoordinator.get_instance().should_trigger_pincer_attack(
-            id(self), dist_x, can_attack=(dist_x <= self._attack_range + 25)
+            id(self), center_dist_x, can_attack=can_attack
         )
 
         action = self.utility_engine.evaluate_action(
             enemy_rect=self.rect,
             player=self._player,
-            can_attack=(dist_x <= self._attack_range),
+            can_attack=can_attack,
             has_attack_token=has_token,
             dt_sec=dt_sec,
         )
 
-        if is_pincer or action in (TacticalAction.PUNISH_WHIFF, TacticalAction.ATTACK):
+        self._last_ai_action = action.name if hasattr(action, "name") else str(action)
+        self.behavior_metadata = self.get_metadata()
+
+        if is_pincer or action in (TacticalAction.PUNISH_WHIFF, TacticalAction.ATTACK) or (can_attack and has_token and dist_y < 120):
+            self.facing_left = (self.rect.centerx > player_rect.centerx)
             self._begin_attack()
         elif action == TacticalAction.RETRACT_SPACING:
-            step_dir = 1 if self.rect.centerx > player_rect.centerx else -1
-            self.rect.x += step_dir * int(self._speed * 0.8)
-            self.facing_left = (self.rect.centerx > player_rect.centerx)
-            self.set_state(BloodZombieState.CHASE)
+            if can_attack and has_token:
+                self.facing_left = (self.rect.centerx > player_rect.centerx)
+                self._begin_attack()
+            else:
+                step_dir = 1 if self.rect.centerx > player_rect.centerx else -1
+                self.rect.x += step_dir * int(self._speed * 0.8)
+                self.facing_left = (self.rect.centerx > player_rect.centerx)
+                self.set_state(BloodZombieState.CHASE)
         elif action == TacticalAction.CHASE:
-            self.set_state(BloodZombieState.CHASE)
-            self._chase_player(player_rect)
+            if can_attack:
+                self.facing_left = (self.rect.centerx > player_rect.centerx)
+                if has_token:
+                    self._begin_attack()
+                else:
+                    self.set_state(BloodZombieState.IDLE)
+            else:
+                self.set_state(BloodZombieState.CHASE)
+                self._chase_player(player_rect)
         else:
+            self.facing_left = (self.rect.centerx > player_rect.centerx)
             self.set_state(BloodZombieState.IDLE)
 
     def _begin_attack(self) -> None:
+        self._attack_count += 1
+        if self._player and hasattr(self._player, "rect"):
+            self.facing_left = (self.rect.centerx > self._player.rect.centerx)
         if random.random() < 0.5:
             # Primary attack animation
             self.animations[BloodZombieState.ATTACK] = self._attack1_frames
@@ -482,12 +640,70 @@ class BloodZombie(EntityAudioMixin, Actor):
 
     def draw(self, surface: pg.Surface) -> None:
         """
-        Draw the blood zombie and UI elements.
+        Draw the blood zombie with per-frame root motion offset alignment and UI elements.
         
         Args:
             surface: Target surface for rendering.
         """
-        super().draw(surface)
+        anim_key_map = {
+            BloodZombieState.IDLE: "Idle",
+            BloodZombieState.CHASE: "Move",
+            BloodZombieState.ATTACK: "Attack1",
+            BloodZombieState.HURT: "Death",
+            BloodZombieState.DEATH: "Death",
+        }
+        anim_key = anim_key_map[self.state] if self.state in anim_key_map else "Idle"
+        frame_idx = str(int(self.animation_index))
+        offset = self.frame_offsets.get(anim_key, {}).get(frame_idx, {})
+        dx = int(offset.get("dx", 0) * self.scale)
+        dy = int(offset.get("dy", 0) * self.scale)
+
+        if self.facing_left:
+            dx = -dx
+
+        # Apply image_offset (set by adjust_hitbox_sides) to align sprite over hitbox,
+        # matching the base Entity.draw() behavior: rect.topleft - image_offset
+        base_x = self.rect.x - int(self.image_offset.x)
+        base_y = self.rect.y - int(self.image_offset.y)
+        draw_x = base_x + dx
+        draw_y = base_y + dy
+
+        # self.image is already correctly oriented by Actor.update_animation()
+        # which handles facing_left via self._animations_flipped cache.
+        render_img = self.image
+
+        # Sanguine Chromatic Phase Shift (Eldritch Red Channel Split & Ghost Afterimages)
+        if self.state in (BloodZombieState.CHASE, BloodZombieState.ATTACK):
+            phase_shift = int(6 * self.scale)
+            cur_pos = (draw_x, draw_y)
+
+            if not hasattr(self, "_ghost_trail") or self._ghost_trail is None:
+                self._ghost_trail = []
+
+            if len(self._ghost_trail) == 0 or math.hypot(cur_pos[0] - self._ghost_trail[-1][1][0], cur_pos[1] - self._ghost_trail[-1][1][1]) > 8:
+                self._ghost_trail.append((render_img.copy(), cur_pos))
+                if len(self._ghost_trail) > 5:
+                    self._ghost_trail.pop(0)
+
+            # Draw decaying afterimage ghosts (using render_img)
+            for idx, (g_surf, (gx, gy)) in enumerate(self._ghost_trail[:-1]):
+                alpha = int(140 * (idx + 1) / float(len(self._ghost_trail)))
+                g_copy = g_surf.copy()
+                g_tint = pg.Surface(g_surf.get_size(), pg.SRCALPHA)
+                g_tint.fill((200, 20, 40, alpha))
+                g_copy.blit(g_tint, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+                surface.blit(g_copy, (gx, gy))
+
+            # Chromatic RGB Red Channel offset blit (using render_img)
+            p_dx = -phase_shift if self.facing_left else phase_shift
+            red_surf = render_img.copy()
+            red_tint = pg.Surface(render_img.get_size(), pg.SRCALPHA)
+            red_tint.fill((255, 30, 30, 180))
+            red_surf.blit(red_tint, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+            surface.blit(red_surf, (draw_x + p_dx, draw_y - 2), special_flags=pg.BLEND_ADD)
+
+        # Draw main sprite (already correctly oriented)
+        surface.blit(render_img, (draw_x, draw_y))
         
         # Draw health bar when damaged and alive
         if self._health < self._max_health and self.state != BloodZombieState.DEATH:

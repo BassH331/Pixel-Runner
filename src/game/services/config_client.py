@@ -36,6 +36,32 @@ class ConfigClient:
     _session_cache: Dict[str, Dict[str, Any]] = {}
     # Track which keys already had their network attempt this session (avoids repeated 404 calls).
     _api_attempted: set = set()
+    # Track file modification timestamps for live hot-reloading across process boundaries
+    _file_mtimes: Dict[str, float] = {}
+
+    @classmethod
+    def check_for_updates(cls, config_type: str) -> Optional[Dict[str, Any]]:
+        """Check if the local JSON configuration file on disk was modified externally by an editor tool.
+
+        Returns the fresh configuration dictionary if an external change was detected, else None.
+        """
+        file_path = LOCAL_FILE_MAP.get(config_type)
+        if not file_path or not os.path.exists(file_path):
+            return None
+
+        try:
+            mtime = os.path.getmtime(file_path)
+            last_mtime = cls._file_mtimes.get(config_type, 0.0)
+            if last_mtime > 0.0 and mtime > (last_mtime + 0.01):
+                cls._file_mtimes[config_type] = mtime
+                cls.invalidate_cache(config_type)
+                print(f"[HOT-RELOAD] Detected external save to '{file_path}'. Live updating runtime parameters!")
+                return cls.fetch_config(config_type)
+            elif last_mtime == 0.0:
+                cls._file_mtimes[config_type] = mtime
+        except Exception:
+            pass
+        return None
 
     @classmethod
     def _deep_merge(cls, source: Dict[str, Any], destination: Dict[str, Any]) -> Dict[str, Any]:
@@ -116,6 +142,28 @@ class ConfigClient:
             return True
         else:
             return cls._send_push_to_api(config_type, config_data)
+
+    @classmethod
+    def save_and_sync(cls, config_type: str, config_data: Dict[str, Any], async_push: bool = True) -> bool:
+        """Atomically persist configuration to local JSON file, update RAM session cache,
+        sync SQLite LocalCache, and push to cloud API.
+        """
+        # 1. Persist JSON file to disk
+        file_path = LOCAL_FILE_MAP.get(config_type)
+        if file_path:
+            try:
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, indent=2)
+            except Exception as e:
+                print(f"[CONFIG CLIENT ERROR] Failed to write config JSON to {file_path}: {e}")
+
+        # 2. Invalidate RAM cache so subsequent fetch_config re-evaluates
+        cls.invalidate_cache(config_type)
+
+        # 3. Push to RAM cache, SQLite, and cloud API
+        cls.push_config(config_type, config_data, async_push=async_push)
+        return True
 
     @classmethod
     def _send_push_to_api(cls, config_type: str, config_data: Dict[str, Any]) -> bool:

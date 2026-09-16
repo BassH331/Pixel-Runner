@@ -76,7 +76,7 @@
         "right": 191,
         "top": 135,
         "bottom": 31,
-        "ground_offset": 35,
+        "ground_offset": 65,
         "scale": 2.0
     },
     "generic_npc_goblin": {

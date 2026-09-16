@@ -65,3 +65,24 @@ def test_hud_overlay_update_and_draw():
 
     # Draw screen overlays (includes side_notification)
     hud.draw_screen_overlays(target_surf)
+
+
+def test_player_ui_layout_bounds():
+    from src.game.ui.player_ui import PlayerUI
+    ui = PlayerUI()
+    
+    mana_y = ui.mana_bar_pos[1]
+    stamina_y = ui.stamina_bar_pos[1]
+    souls_y = ui.souls_icon_pos[1]
+    relic_y = ui.relic_icon_pos[1]
+    
+    # Assert each element has at least 50px vertical spacing to prevent framed icon & text collisions
+    assert stamina_y >= mana_y + 50, f"Stamina y ({stamina_y}) is too close to Mana y ({mana_y})"
+    assert souls_y >= stamina_y + 50, f"Souls y ({souls_y}) is too close to Stamina y ({stamina_y})"
+    assert relic_y >= souls_y + 60, f"Relic icon y ({relic_y}) is too close to Souls y ({souls_y})"
+    
+    # Test rendering without raising errors
+    surf = pg.Surface((1280, 720))
+    ui.draw(surf)
+
+

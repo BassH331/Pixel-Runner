@@ -38,13 +38,13 @@ class PlayerUI:
         bar_h = self.health_frames[0].get_height()
 
         # Enlarged mana/stamina bars stacked directly under the health bar
-        self.mana_bar_pos = (20, self.health_bar_pos[1] + bar_h + 8)
-        self.stamina_bar_pos = (20, self.mana_bar_pos[1] + 32)
+        self.mana_bar_pos = (20, self.health_bar_pos[1] + bar_h + 12)
+        self.stamina_bar_pos = (20, self.mana_bar_pos[1] + 52)
         self._resource_bar_size = (200, 16)
 
-        self.souls_icon_pos = (20, self.stamina_bar_pos[1] + 38)
-        self.relic_icon_pos = (20, self.stamina_bar_pos[1] + 82)
-        self.power_up_icon_pos = (20, self.relic_icon_pos[1] + 48)
+        self.souls_icon_pos = (20, self.stamina_bar_pos[1] + 52)
+        self.relic_icon_pos = (20, self.souls_icon_pos[1] + 62)
+        self.power_up_icon_pos = (20, self.relic_icon_pos[1] + 52)
         self.time_pos = (pg.display.Info().current_w - 160, 20)
 
         self.souls_icon = self.load_icon("assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png", (36, 36))
@@ -388,7 +388,7 @@ class PlayerUI:
 
         pg.draw.rect(surface, bar_border, bg_rect, width=1, border_radius=4)
 
-        label_text = self.small_font.render("SOULS", True, (140, 120, 180))
+        label_text = self._render_shadowed_text(self.small_font, f"SOULS  ·  {total}/{target}", text_color)
         surface.blit(label_text, (bar_x, bar_y_center + bar_h + 2))
 
     def render_corruption_vignette(self, surface: pg.Surface, corruption_level: float) -> None:

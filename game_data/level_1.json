@@ -291,6 +291,25 @@
             }
         },
         {
+            "id": 14,
+            "distance": 2558,
+            "type": "boss",
+            "params": {
+                "title": "Mini Boss",
+                "scale": 2.0,
+                "health": 100.0,
+                "tier": "boss",
+                "sprite_dir": "assets/graphics/bloodZombie",
+                "behaviour_map": {
+                    "Attack1": "skip",
+                    "Attack2": "attack",
+                    "Death": "death",
+                    "Idle": "idle",
+                    "Move": "walk"
+                }
+            }
+        },
+        {
             "id": 11,
             "distance": 3500,
             "type": "npc",

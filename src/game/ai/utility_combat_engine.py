@@ -115,7 +115,11 @@ class UtilityCombatEngine:
                 logger.debug("[AI TACTICS] WHIFF PUNISHMENT triggered! Player missed swing (recovering) -> Enemy initiating counter-strike!")
                 return TacticalAction.PUNISH_WHIFF
 
-        # 2. Retract / Step back: Player is actively swinging close to the enemy
+        # 2. Attack: Enemy is in range and holds a squad attack token
+        if can_attack and has_attack_token and dist_y < 120:
+            return TacticalAction.ATTACK
+
+        # 3. Retract / Step back: Player is actively swinging close to the enemy (when not attacking)
         if player_is_attacking and dist_x < (self.preferred_spacing + 30) and dist_y < 100:
             # If enemy has special dash/teleport ability, use it
             if self.has_dash_evasion and random.random() < 0.6:
@@ -124,10 +128,6 @@ class UtilityCombatEngine:
             # Otherwise use tactical spacing retraction (no imaginary dodge anims)
             if random.random() < self.retract_chance:
                 return TacticalAction.RETRACT_SPACING
-
-        # 3. Attack: Enemy is in range and holds a squad attack token
-        if can_attack and has_attack_token and dist_y < 120:
-            return TacticalAction.ATTACK
 
         # 4. Chase / Maintain Spacing: Move towards player if outside attack range
         if not can_attack and dist_x > self.preferred_spacing:

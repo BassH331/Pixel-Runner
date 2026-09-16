@@ -45,3 +45,16 @@ def test_spawn_boss_tags_non_wizard_with_boss_skeleton_key():
         720,
     )
     assert getattr(boss, "boss_key", None) == "boss"
+
+
+def test_spawn_boss_resolves_blood_zombie():
+    from src.game.entities.bloo_zombie import BloodZombie
+    player = MockPlayer()
+    boss = BossManager.spawn_boss(
+        {"title": "Mini Boss", "sprite_dir": "assets/graphics/bloodZombie"},
+        player,  # type: ignore
+        1280,
+        720,
+    )
+    assert isinstance(boss, BloodZombie)
+    assert getattr(boss, "boss_key", None) == "boss:bloodzombie"
