@@ -1744,7 +1744,8 @@ class PlayerEditorApp:
         if self.toast_timer > 0:
             toast_surf = ui_font.render(self.toast_msg, True, (255, 255, 255))
             toast_box = pg.Rect(SCREEN_W // 2 - toast_surf.get_width() // 2 - 20, 10, toast_surf.get_width() + 40, 40)
-            pg.draw.rect(screen, (40, 180, 80) if "Saved" in self.toast_msg or "Rolled" in self.toast_msg else (200, 50, 50), toast_box, border_radius=20)
+            is_success = any(kw in self.toast_msg for kw in ("Saved", "Rolled", "Reset", "Committed", "default"))
+            pg.draw.rect(screen, (40, 180, 80) if is_success else (200, 50, 50), toast_box, border_radius=20)
             screen.blit(toast_surf, (toast_box.centerx - toast_surf.get_width() // 2, toast_box.centery - toast_surf.get_height() // 2))
 
     def check_speed_curve_frame_change(self):
@@ -1862,18 +1863,13 @@ class PlayerEditorApp:
                                     self.check_speed_curve_frame_change()
 
                 elif self.mode == "ATTACKS":
-                    # Check mutual exclusive role checkboxes
-                    clicked_role = None
-                    for idx, cb in enumerate(self.frame_role_checkboxes):
+                    # Handle independent role checkboxes (a frame can have multiple roles)
+                    any_toggled = False
+                    for cb in self.frame_role_checkboxes:
                         if cb.handle_event(event):
-                            if cb.val: # If checked to True
-                                clicked_role = idx
-                                break
-                    if clicked_role is not None:
-                        for idx, cb in enumerate(self.frame_role_checkboxes):
-                            if idx != clicked_role:
-                                cb.val = False
-                        # Save role changes immediately and reload slider availability
+                            any_toggled = True
+                    if any_toggled:
+                        # Save role changes immediately and reload slider enabled state
                         self.save_current_frame_parameters()
                         self.load_frame_parameters()
 
@@ -1940,7 +1936,10 @@ class PlayerEditorApp:
                 if self.attack_can_hit_multiple_cb is not None:
                     self.attack_can_hit_multiple_cb.handle_event(event)
                 for sl in self.frame_sliders:
+                    was_val = sl.val
                     sl.handle_event(event)
+                    if sl.val != was_val or sl.dragging:
+                        self.save_current_frame_parameters()
                 for btn in self.attack_buttons:
                     btn.handle_event(event)
                 for btn in self.action_buttons:
@@ -1957,6 +1956,8 @@ class PlayerEditorApp:
         # Save current config on quit
         if self.mode == "STATES":
             self.save_current_state_parameters()
+        elif self.mode == "SPEED_CURVES":
+            self.save_current_speed_curve_parameters()
         elif self.mode == "ATTACKS":
             self.save_current_attack_parameters()
             
