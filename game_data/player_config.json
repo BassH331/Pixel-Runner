@@ -1,4 +1,10 @@
 {
+  "resources": {
+    "max_mana": 200.0,
+    "transform_mana_cost": 15.0,
+    "enhanced_mana_drain_rate": 1.5,
+    "mana_regen_rate": 12.0
+  },
   "states": {
     "DEATH": {
       "animation_speed": 0.12,

@@ -675,9 +675,9 @@ class Player(Actor):
     # enhanced (the demon form is a spent resource, not a toggle) and only
     # regenerates while human, so time spent as the demon is finite.
     _MAX_MANA: Final[float] = 200.0
-    _TRANSFORM_MANA_COST: Final[float] = 40.0
-    _ENHANCED_MANA_DRAIN_RATE: Final[float] = 3.0  # per second while enhanced
-    _MANA_REGEN_RATE: Final[float] = 2.0  # per second while human
+    _TRANSFORM_MANA_COST: Final[float] = 15.0
+    _ENHANCED_MANA_DRAIN_RATE: Final[float] = 1.5  # per second while enhanced
+    _MANA_REGEN_RATE: Final[float] = 12.0  # per second while human
 
     # Stamina: gates roll/dash/special-attack so the player can't spam them.
     # Regen pauses briefly after each use before resuming.
@@ -878,8 +878,11 @@ class Player(Actor):
         self._health: int = self._max_health
 
         # Mana (demon transform) and stamina (roll/dash/special) resources
-        self._max_mana: float = self._MAX_MANA
+        self._max_mana: float = getattr(self, "_max_mana", self._MAX_MANA)
         self._mana: float = self._max_mana
+        self._transform_mana_cost: float = getattr(self, "_transform_mana_cost", self._TRANSFORM_MANA_COST)
+        self._enhanced_mana_drain_rate: float = getattr(self, "_enhanced_mana_drain_rate", self._ENHANCED_MANA_DRAIN_RATE)
+        self._mana_regen_rate: float = getattr(self, "_mana_regen_rate", self._MANA_REGEN_RATE)
         self._max_stamina: float = self._MAX_STAMINA
         self._stamina: float = self._max_stamina
         self._stamina_regen_delay_timer: float = 0.0
@@ -1517,12 +1520,12 @@ class Player(Actor):
         Returns:
             True if transformation started, False if blocked.
         """
-        if not self._is_enhanced and self._mana < self._TRANSFORM_MANA_COST:
+        if not self._is_enhanced and self._mana < self._transform_mana_cost:
             return False
         if not self._can_transition_to(PlayerState.TRANSFORM):
             return False
         if not self._is_enhanced:
-            self._mana = max(0.0, self._mana - self._TRANSFORM_MANA_COST)
+            self._mana = max(0.0, self._mana - self._transform_mana_cost)
         self._transition_to(PlayerState.TRANSFORM)
         return True
 
@@ -1907,12 +1910,12 @@ class Player(Actor):
         mana only regenerates while human, and depleting it mid-transform
         forces an automatic revert."""
         if self._is_enhanced:
-            self._mana = max(0.0, self._mana - self._ENHANCED_MANA_DRAIN_RATE * dt)
+            self._mana = max(0.0, self._mana - self._enhanced_mana_drain_rate * dt)
             if self._mana <= 0.0 and self.state != PlayerState.TRANSFORM:
                 self.set_state(PlayerState.TRANSFORM, force=True)
                 self._audio_manager.play_sound("transform")
         else:
-            self._mana = min(self._max_mana, self._mana + self._MANA_REGEN_RATE * dt)
+            self._mana = min(self._max_mana, self._mana + self._mana_regen_rate * dt)
 
         if self._stamina_regen_delay_timer > 0.0:
             self._stamina_regen_delay_timer = max(0.0, self._stamina_regen_delay_timer - dt)

@@ -74,8 +74,8 @@ class BaseEnemy(EntityAudioMixin, Actor):
         self._max_health: float = 100.0
         self._speed: float = 2.5
         self.facing_left: bool = False
-        self._margin_left: int = 0
-        self._margin_right: int = 0
+        self._margin_left: Optional[int] = None
+        self._margin_right: Optional[int] = None
         self.frame_offsets: dict = {}
 
         # Procedural hit flash & recoil
@@ -118,7 +118,13 @@ class BaseEnemy(EntityAudioMixin, Actor):
         if self.facing_left:
             dx = -dx
 
-        offset_x = getattr(self, "_margin_right", int(self.image_offset.x)) if self.facing_left else getattr(self, "_margin_left", int(self.image_offset.x))
+        if self.facing_left and self._margin_right is not None:
+            offset_x = self._margin_right
+        elif not self.facing_left and self._margin_left is not None:
+            offset_x = self._margin_left
+        else:
+            offset_x = int(self.image_offset.x)
+
         base_x = self.rect.x - offset_x
         base_y = self.rect.y - int(self.image_offset.y)
         return base_x + dx, base_y + dy
@@ -139,3 +145,18 @@ class BaseEnemy(EntityAudioMixin, Actor):
                 white_flash.fill((255, 255, 255, 0), special_flags=pg.BLEND_RGB_ADD)
                 white_flash.set_alpha(flash_alpha)
                 surface.blit(white_flash, (draw_x, draw_y))
+
+    def draw(self, surface: pg.Surface) -> None:
+        """Render enemy sprite at get_render_position() with procedural hit recoil and flash."""
+        if not self.image:
+            return
+
+        draw_x, draw_y = self.get_render_position()
+
+        # Apply hit recoil offset if active
+        if self._hit_flash_timer > 0.0:
+            progress = self._hit_flash_timer / max(0.01, self._hit_flash_duration)
+            draw_x += int(self._hit_recoil_dx * progress)
+
+        surface.blit(self.image, (draw_x, draw_y))
+        self.draw_white_hit_flash(surface, self.image, draw_x, draw_y)
