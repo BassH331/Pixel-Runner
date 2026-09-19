@@ -21,25 +21,24 @@ class VisualEffect(pg.sprite.Sprite):
         x: int,
         y: int,
         frames: List[pg.Surface],
-        fps: float = 16.0,
+        fps: float = 30.0,
         target_entity: Optional[Any] = None,
     ):
         super().__init__()
         self.frames = frames
-        self.frame_duration = 1.0 / max(1.0, fps)
+        self.frame_duration = 1.0 / fps
         self.current_frame = 0.0
         self.image = self.frames[0]
         self.rect = self.image.get_rect(center=(x, y))
         self.target_entity = target_entity
 
     def update(self, dt: float = 0.016, scroll_speed: int = 0) -> None:
-        dt_sec = dt if dt < 1.0 else dt / 1000.0
         if self.target_entity is not None and hasattr(self.target_entity, "rect"):
             self.rect.center = self.target_entity.rect.center
         else:
             self.rect.x -= scroll_speed
 
-        self.current_frame += dt_sec / self.frame_duration
+        self.current_frame += dt / self.frame_duration
         idx = int(self.current_frame)
         if idx >= len(self.frames):
             self.kill()
@@ -128,17 +127,6 @@ class VisualEffectManager:
         cls._vfx_cache[cache_key] = scaled_frames
         return scaled_frames
 
-    VFX_FPS: Dict[str, float] = {
-        "fire_sparks": 12.0,
-        "blood_mini": 14.0,
-        "blood_splatter": 18.0,
-        "toxic_splatter": 18.0,
-        "dark_shadow": 24.0,
-        "bone_sparks": 24.0,
-        "magic_shot": 18.0,
-        "magic_swirl": 24.0,
-    }
-
     @classmethod
     def spawn_hit_vfx(
         cls,
@@ -148,7 +136,6 @@ class VisualEffectManager:
         vfx_type: Optional[str] = None,
         scale: float = 1.0,
         target_entity: Optional[Any] = None,
-        fps_override: Optional[float] = None,
     ) -> Optional[VisualEffect]:
         """Spawns an impact magic/spark VFX at (x, y)."""
         if not vfx_type:
@@ -161,15 +148,13 @@ class VisualEffectManager:
         if not frames:
             return None
 
-        fps = fps_override if fps_override is not None else cls.VFX_FPS.get(vfx_type, 18.0)
-        vfx = VisualEffect(x, y, frames, fps=fps, target_entity=target_entity or entity)
+        vfx = VisualEffect(x, y, frames, target_entity=target_entity or entity)
         cls._active_effects.add(vfx)
         return vfx
 
     @classmethod
     def update(cls, dt: float = 0.016, scroll_speed: int = 0) -> None:
-        dt_sec = dt if dt < 1.0 else dt / 1000.0
-        cls._active_effects.update(dt=dt_sec, scroll_speed=scroll_speed)
+        cls._active_effects.update(dt=dt, scroll_speed=scroll_speed)
 
     @classmethod
     def draw(cls, surface: pg.Surface) -> None:
