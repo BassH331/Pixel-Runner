@@ -1313,7 +1313,22 @@ class GameState(PlayingState):
             self._fps_clock.tick()
             fps = self._fps_clock.get_fps()
             
-            # 2. Check player state change
+            # 2. Check player state change & boss state transitions
+            active_boss = BossManager.get_active_boss(self.obstacle_group)
+            if active_boss:
+                curr_b_state = getattr(getattr(active_boss, "state", None), "name", "").lower() or str(getattr(active_boss, "state", "")).lower()
+                if self._prev_boss_state != curr_b_state:
+                    if self._prev_boss_state is not None:
+                        self.tracker.log_event("boss_state_changed", {
+                            "old_state": self._prev_boss_state,
+                            "new_state": curr_b_state,
+                            "new": curr_b_state,
+                            "boss_class": active_boss.__class__.__name__
+                        })
+                    self._prev_boss_state = curr_b_state
+            else:
+                self._prev_boss_state = None
+
             # 3. Periodic frame sampling
             sample_n = self.tracker.config["sample_every_n_frames"]
             if self._frame_count % sample_n == 0:
@@ -1323,7 +1338,7 @@ class GameState(PlayingState):
                     fps=fps,
                     game_state_name=self.__class__.__name__,
                     player=player_sprite,
-                    boss=None,
+                    boss=active_boss,
                     world_distance=self.world_distance
                 )
                 

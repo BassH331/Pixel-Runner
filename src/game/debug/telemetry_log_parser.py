@@ -237,7 +237,7 @@ class TelemetryLogParser:
                                     metrics["boss_defeated"] = True
                             elif ev_type == "boss_state_changed":
                                 metrics["state_changes"] += 1
-                                new_s = data.get("new_state", "").lower()
+                                new_s = (data.get("new_state") or data.get("new") or "").lower()
                                 if new_s in ("death", "none"):
                                     metrics["boss_defeated"] = True
                                 elif new_s == "attack":
