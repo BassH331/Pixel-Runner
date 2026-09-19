@@ -772,17 +772,24 @@ class BloodZombie(EntityAudioMixin, Actor):
             flash_mask.blit(render_img, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
             surface.blit(flash_mask, (draw_x, draw_y))
         
-        # Draw translucent pulsing force field orb shield at collision center coordinates
-        self._draw_force_field_shield(surface)
+        # Draw translucent pulsing force field orb shield centered over visual body
+        self._draw_force_field_shield(surface, draw_x=draw_x, draw_y=draw_y, render_img=render_img)
 
         # Draw health bar when damaged and alive
         if self._health < self._max_health and self.state != BloodZombieState.DEATH:
             self._draw_health_bar(surface)
 
-    def _draw_force_field_shield(self, surface: pg.Surface) -> None:
+    def _draw_force_field_shield(
+        self,
+        surface: pg.Surface,
+        draw_x: Optional[int] = None,
+        draw_y: Optional[int] = None,
+        render_img: Optional[pg.Surface] = None,
+    ) -> None:
         """
         Render an ethereal semi-transparent pulsing orb force field shield
-        protecting the BloodZombie at the collision center coordinates.
+        protecting the BloodZombie, dynamically centered over the visual body
+        in both facing directions.
         """
         if not getattr(self, "_shield_enabled", True) or self.state == BloodZombieState.DEATH:
             return
@@ -791,9 +798,22 @@ class BloodZombie(EntityAudioMixin, Actor):
         pulse = math.sin(ticks * 0.005) * 4.0
         radius = int((self._shield_radius_base * self.scale) + pulse)
 
-        # Center coordinates based on collision hitbox center
-        cx = self.rect.centerx
-        cy = self.rect.centery
+        # Retrieve margins to compensate for asymmetrical frame padding when facing left vs right
+        margins_key = "boss:bloodzombie" if self.tier == "boss" else "blood_zombie"
+        margins = HitboxRegistry.get_margins(margins_key)
+
+        if draw_x is not None and render_img is not None:
+            if self.facing_left:
+                cx = draw_x + int((margins.right - margins.left) * self.scale / 2.0 + render_img.get_width() / 2.0)
+            else:
+                cx = draw_x + int((margins.left - margins.right) * self.scale / 2.0 + render_img.get_width() / 2.0)
+            cy = (draw_y if draw_y is not None else self.rect.centery) + int((margins.top - margins.bottom) * self.scale / 2.0 + (render_img.get_height() / 2.0 if render_img else 0))
+        else:
+            if self.facing_left:
+                cx = self.rect.centerx + int((margins.right - margins.left) * self.scale)
+            else:
+                cx = self.rect.centerx
+            cy = self.rect.centery
 
         # Create transparent surface for smooth alpha blending
         diameter = radius * 2 + 20
