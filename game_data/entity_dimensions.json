@@ -72,10 +72,10 @@
         "scale": 3.0
     },
     "boss:bloodzombie": {
-        "left": 87,
-        "right": 191,
-        "top": 135,
-        "bottom": 31,
+        "left": 88,
+        "right": 189,
+        "top": 132,
+        "bottom": 33,
         "ground_offset": 65,
         "scale": 2.0
     },

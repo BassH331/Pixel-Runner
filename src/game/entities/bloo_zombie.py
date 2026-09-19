@@ -225,6 +225,19 @@ class BloodZombie(EntityAudioMixin, Actor):
         self._attack_count: int = 0
         self.behavior_metadata: dict = {}
 
+        # Procedural Hit Reaction Engine (Juice & Combat Feel)
+        self._hit_flash_duration: float = float(config.get("hit_flash_duration", 0.12))
+        self._hit_recoil_dist: float = float(config.get("hit_recoil_dist", 12.0))
+        self._squash_stretch_enabled: bool = bool(config.get("squash_stretch_enabled", True))
+        self._hit_flash_timer: float = 0.0
+        self._hit_recoil_dx: float = 0.0
+
+        # Force Field Orb Shield System
+        self._shield_enabled: bool = bool(config.get("shield_enabled", True))
+        self._shield_radius_base: float = float(config.get("shield_radius", 55.0))
+        self._shield_color: tuple[int, int, int] = (230, 40, 70)
+        self._shield_pulse_time: float = 0.0
+
         # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
         self._init_entity_audio_config(audio_manager, "blood_zombie")
 
@@ -352,6 +365,24 @@ class BloodZombie(EntityAudioMixin, Actor):
 
             if "frame_offsets" in config:
                 self.frame_offsets = config["frame_offsets"]
+
+            if "hit_flash_duration" in config:
+                self._hit_flash_duration = float(config["hit_flash_duration"])
+
+            if "hit_recoil_dist" in config:
+                self._hit_recoil_dist = float(config["hit_recoil_dist"])
+
+            if "squash_stretch_enabled" in config:
+                self._squash_stretch_enabled = bool(config["squash_stretch_enabled"])
+
+            if "shield_enabled" in config:
+                self._shield_enabled = bool(config["shield_enabled"])
+
+            if "shield_radius" in config:
+                self._shield_radius_base = float(config["shield_radius"])
+
+            if "shield_color" in config and isinstance(config["shield_color"], (list, tuple)):
+                self._shield_color = tuple(config["shield_color"][:3])
         except Exception as e:
             print(f"[WARNING] Error applying blood zombie config overrides: {e}")
 
@@ -453,6 +484,10 @@ class BloodZombie(EntityAudioMixin, Actor):
         
         self._apply_gravity()
 
+        # Update hit flash timer
+        if self._hit_flash_timer > 0.0:
+            self._hit_flash_timer = max(0.0, self._hit_flash_timer - dt_sec)
+
         # Check for real-time live editor save updates on disk
         self._hot_reload_timer = getattr(self, "_hot_reload_timer", 0.0) + dt_sec
         if self._hot_reload_timer >= 0.5:
@@ -498,6 +533,16 @@ class BloodZombie(EntityAudioMixin, Actor):
         
         # Reduce health, but never allow health to go below 0
         self._health = max(0, self._health - amount)
+        
+        # Trigger procedural hit reaction flash & recoil
+        self._hit_flash_timer = self._hit_flash_duration
+        recoil_dir = 1 if self.facing_left else -1
+        self._hit_recoil_dx = recoil_dir * self._hit_recoil_dist * self.scale
+
+        # Apply knockback if provided
+        if knockback is not None and isinstance(knockback, (tuple, list)) and len(knockback) >= 2:
+            self.rect.x += int(knockback[0])
+            self.rect.y += int(knockback[1])
         
         # If the zombie was attacking, cancel the attack
         self.attack_state.end()
@@ -600,10 +645,12 @@ class BloodZombie(EntityAudioMixin, Actor):
             # Primary attack animation
             self.animations[BloodZombieState.ATTACK] = self._attack1_frames
             self.current_attack_config = self.attack1_config
+            self._current_attack_anim_key = "Attack1"
         else:
             # Secondary attack animation
             self.animations[BloodZombieState.ATTACK] = self._attack2_frames
             self.current_attack_config = self.attack2_config
+            self._current_attack_anim_key = "Attack2"
         self.set_state(BloodZombieState.ATTACK)
 
     def _chase_player(self, player_rect: pg.Rect) -> None:
@@ -645,10 +692,11 @@ class BloodZombie(EntityAudioMixin, Actor):
         Args:
             surface: Target surface for rendering.
         """
+        attack_anim_key = getattr(self, "_current_attack_anim_key", "Attack1")
         anim_key_map = {
             BloodZombieState.IDLE: "Idle",
             BloodZombieState.CHASE: "Move",
-            BloodZombieState.ATTACK: "Attack1",
+            BloodZombieState.ATTACK: attack_anim_key,
             BloodZombieState.HURT: "Death",
             BloodZombieState.DEATH: "Death",
         }
@@ -671,6 +719,18 @@ class BloodZombie(EntityAudioMixin, Actor):
         # self.image is already correctly oriented by Actor.update_animation()
         # which handles facing_left via self._animations_flipped cache.
         render_img = self.image
+
+        # Apply procedural squash and stretch deformation during hit flash
+        if self._hit_flash_timer > 0.0 and getattr(self, "_squash_stretch_enabled", True):
+            progress = self._hit_flash_timer / max(0.01, self._hit_flash_duration)
+            squash_w = int(render_img.get_width() * (1.0 + 0.15 * progress))
+            squash_h = int(render_img.get_height() * (1.0 - 0.15 * progress))
+            if squash_w > 0 and squash_h > 0:
+                render_img = pg.transform.scale(render_img, (squash_w, squash_h))
+                draw_y -= (squash_h - self.image.get_height())
+
+            # Apply recoil offset
+            draw_x += int(self._hit_recoil_dx * progress)
 
         # Sanguine Chromatic Phase Shift (Eldritch Red Channel Split & Ghost Afterimages)
         if self.state in (BloodZombieState.CHASE, BloodZombieState.ATTACK):
@@ -702,12 +762,77 @@ class BloodZombie(EntityAudioMixin, Actor):
             red_surf.blit(red_tint, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
             surface.blit(red_surf, (draw_x + p_dx, draw_y - 2), special_flags=pg.BLEND_ADD)
 
-        # Draw main sprite (already correctly oriented)
+        # Draw main sprite surface
         surface.blit(render_img, (draw_x, draw_y))
+
+        # Blit pure white silhouette flash mask over render_img during hit flash
+        if self._hit_flash_timer > 0.0:
+            flash_mask = pg.Surface(render_img.get_size(), pg.SRCALPHA)
+            flash_mask.fill((255, 255, 255, 220))
+            flash_mask.blit(render_img, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+            surface.blit(flash_mask, (draw_x, draw_y))
         
+        # Draw translucent pulsing force field orb shield at collision center coordinates
+        self._draw_force_field_shield(surface)
+
         # Draw health bar when damaged and alive
         if self._health < self._max_health and self.state != BloodZombieState.DEATH:
             self._draw_health_bar(surface)
+
+    def _draw_force_field_shield(self, surface: pg.Surface) -> None:
+        """
+        Render an ethereal semi-transparent pulsing orb force field shield
+        protecting the BloodZombie at the collision center coordinates.
+        """
+        if not getattr(self, "_shield_enabled", True) or self.state == BloodZombieState.DEATH:
+            return
+
+        ticks = pg.time.get_ticks()
+        pulse = math.sin(ticks * 0.005) * 4.0
+        radius = int((self._shield_radius_base * self.scale) + pulse)
+
+        # Center coordinates based on collision hitbox center
+        cx = self.rect.centerx
+        cy = self.rect.centery
+
+        # Create transparent surface for smooth alpha blending
+        diameter = radius * 2 + 20
+        shield_surf = pg.Surface((diameter, diameter), pg.SRCALPHA)
+        center = (diameter // 2, diameter // 2)
+
+        # Base energy tint (flares white/gold on hit, otherwise crimson/blood energy)
+        if self._hit_flash_timer > 0.0:
+            core_color = (255, 230, 180, 130)
+            rim_color = (255, 255, 255, 240)
+            glow_color = (255, 180, 50, 180)
+        else:
+            r, g, b = getattr(self, "_shield_color", (230, 40, 70))
+            core_color = (r, g, b, 45)
+            rim_color = (min(255, r + 40), min(255, g + 80), min(255, b + 80), 200)
+            glow_color = (r, min(255, g + 20), min(255, b + 20), 90)
+
+        # 1. Outer ambient glow aura
+        pg.draw.circle(shield_surf, glow_color, center, radius + 4, width=3)
+
+        # 2. Inner translucent energy dome fill
+        pg.draw.circle(shield_surf, core_color, center, radius)
+
+        # 3. Bright reinforced rim arc
+        pg.draw.circle(shield_surf, rim_color, center, radius, width=2)
+
+        # 4. Energy ripple rings (hexagonal/arc energy pattern)
+        ripple_r = int((radius * 0.6) + ((ticks % 1000) / 1000.0) * (radius * 0.35))
+        pg.draw.circle(shield_surf, (255, 255, 255, 90), center, ripple_r, width=1)
+
+        # 5. Directional front shield arc (half-shield facing the player)
+        front_arc_angle = 0.0 if not self.facing_left else math.pi
+        arc_rect = pg.Rect(center[0] - radius, center[1] - radius, radius * 2, radius * 2)
+        start_angle = front_arc_angle - math.pi / 2.2
+        end_angle = front_arc_angle + math.pi / 2.2
+        pg.draw.arc(shield_surf, (255, 255, 255, 240), arc_rect, start_angle, end_angle, width=3)
+
+        # Blit shield surface onto game screen centered at (cx, cy)
+        surface.blit(shield_surf, (cx - diameter // 2, cy - diameter // 2))
 
     def _draw_health_bar(self, surface: pg.Surface) -> None:
         """Render the health bar above the blood zombie."""
