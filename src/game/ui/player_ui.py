@@ -117,14 +117,23 @@ class PlayerUI:
 
     def _render_shadowed_text(self, font, text: str, color: tuple) -> pg.Surface:
         """Render text with a 1px dark drop-shadow for readability over any background."""
-        text_surf = font.render(text, True, color)
-        shadow_surf = font.render(text, True, self._shadow_color)
-        w, h = text_surf.get_size()
-        sx, sy = self._shadow_offset
-        combined = pg.Surface((w + abs(sx), h + abs(sy)), pg.SRCALPHA)
-        combined.blit(shadow_surf, (max(sx, 0), max(sy, 0)))
-        combined.blit(text_surf, (max(-sx, 0), max(-sy, 0)))
-        return combined
+        if not pg.font.get_init():
+            try:
+                pg.font.init()
+            except Exception:
+                pass
+        try:
+            text_surf = font.render(text, True, color)
+            shadow_surf = font.render(text, True, self._shadow_color)
+            w, h = text_surf.get_size()
+            sx, sy = self._shadow_offset
+            combined = pg.Surface((w + abs(sx), h + abs(sy)), pg.SRCALPHA)
+            combined.blit(shadow_surf, (max(sx, 0), max(sy, 0)))
+            combined.blit(text_surf, (max(-sx, 0), max(-sy, 0)))
+            return combined
+        except Exception:
+            fallback = pg.Surface((80, 20), pg.SRCALPHA)
+            return fallback
 
     def start_timer(self):
         self.start_time = pg.time.get_ticks()

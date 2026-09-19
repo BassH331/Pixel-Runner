@@ -56,13 +56,14 @@ def test_gatekeeper_enraged_phase():
         player.is_invincible = False
         
         boss = GreenMonster(x=400, y=100, player=player, custom_health=300.0)
+        boss._spidey_sense = 0.0
         assert boss._max_health == 300.0
-        assert boss.is_enraged is False
+        assert not boss.is_enraged
         
         # Take 100 damage -> health 200 (> 50%) -> not enraged yet
         boss.take_damage(100.0)
         assert boss._health == 200.0
-        assert boss.is_enraged is False
+        assert not boss.is_enraged
         
         # Reset state from HURT to IDLE to simulate next attack window
         boss.set_state(GatekeeperState.IDLE, force=True)
@@ -70,4 +71,4 @@ def test_gatekeeper_enraged_phase():
         # Take 60 damage -> health 140 (<= 50% of 300) -> ENRAGED!
         boss.take_damage(60.0)
         assert boss._health == 140.0
-        assert boss.is_enraged is True
+        assert boss.is_enraged

@@ -67,7 +67,8 @@ class TestBehaviourMapperSkipAndSplit(unittest.TestCase):
     def test_auto_split_spritesheet(self):
         root = self.temp_dir.name
         strip_file = os.path.join(root, "hero_attack_strip4.png")
-        img = pg.Surface((128, 32))
+        img = pg.Surface((128, 32), pg.SRCALPHA)
+        pg.draw.rect(img, (255, 0, 0, 255), (0, 0, 128, 32))
         pg.image.save(img, strip_file)
 
         bmap = BehaviourMapper(pg.Rect(0, 0, 400, 300))

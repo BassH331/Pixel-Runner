@@ -114,12 +114,13 @@ class ConfigClient:
         # 3. Kick off async background API sync (never blocks main thread)
         if config_type not in cls._api_attempted:
             cls._api_attempted.add(config_type)
-            import threading
-            threading.Thread(
-                target=cls._async_api_sync,
-                args=(config_type,),
-                daemon=True
-            ).start()
+            if not (os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1"):
+                import threading
+                threading.Thread(
+                    target=cls._async_api_sync,
+                    args=(config_type,),
+                    daemon=True
+                ).start()
 
         return merged
 
@@ -133,12 +134,13 @@ class ConfigClient:
         LocalCache.set_config(config_type, config_data)
 
         if async_push:
-            import threading
-            threading.Thread(
-                target=cls._send_push_to_api,
-                args=(config_type, config_data),
-                daemon=True
-            ).start()
+            if not (os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1"):
+                import threading
+                threading.Thread(
+                    target=cls._send_push_to_api,
+                    args=(config_type, config_data),
+                    daemon=True
+                ).start()
             return True
         else:
             return cls._send_push_to_api(config_type, config_data)

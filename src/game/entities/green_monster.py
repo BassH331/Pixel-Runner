@@ -9,6 +9,7 @@ toxic globs when kept at range.
 from __future__ import annotations
 
 from src.game.audio.entity_audio_mixin import EntityAudioMixin
+from .base_enemy import BaseEnemy
 
 import math
 import random
@@ -176,7 +177,7 @@ class StateConfig:
     interruptible: bool = True
 
 
-class GreenMonster(EntityAudioMixin, Actor):
+class GreenMonster(BaseEnemy):
     """
     The Gatekeeper -- a hovering elite enemy. Keeps just out of easy reach,
     diving down for a ground-slam when the player gets close and lobbing
@@ -202,7 +203,7 @@ class GreenMonster(EntityAudioMixin, Actor):
     # Frame (within the 9-frame "2atk" clip) at which the toxic glob is released.
     _SPIT_RELEASE_FRAME: Final[int] = 5
 
-    hit_vfx_type: Final[str] = "toxic_splatter"
+    hit_vfx_type: str = "toxic_splatter"
 
     def __init__(
         self,

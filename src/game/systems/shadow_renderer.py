@@ -112,8 +112,9 @@ class ShadowRenderer:
         eff_scale_mult = scale_mult if scale_mult is not None else profile.scale_mult
 
         orig_w, orig_h = image.get_size()
-        if hasattr(entity, "get_render_position") and callable(entity.get_render_position):
-            draw_x, draw_y = entity.get_render_position()
+        pos = entity.get_render_position() if (hasattr(entity, "get_render_position") and callable(entity.get_render_position)) else None
+        if isinstance(pos, (tuple, list)) and len(pos) >= 2:
+            draw_x, draw_y = int(pos[0]), int(pos[1])
         else:
             facing_left = getattr(entity, "facing_left", False)
             image_offset = getattr(entity, "image_offset", None)

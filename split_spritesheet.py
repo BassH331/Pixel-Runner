@@ -39,6 +39,14 @@ def split_spritesheet(
     trim: bool = False,
     create_json: bool = True,
 ) -> list[str]:
+    if not pg.get_init():
+        pg.init()
+    if not pg.display.get_surface():
+        try:
+            pg.display.set_mode((1, 1), pg.NOFRAME)
+        except Exception:
+            pass
+
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file not found: {input_path}")
 

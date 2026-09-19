@@ -39,13 +39,14 @@ class TelemetryClient:
     @classmethod
     def submit_session(cls, session_data: Dict[str, Any]) -> None:
         """Submit play session summary to the server via thread pool."""
-        # Sessions are always sent immediately (rare, end-of-game event)
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+            return
         _executor.submit(cls._post_telemetry, "/telemetry/session", session_data)
 
     @classmethod
     def submit_events(cls, events: List[Dict[str, Any]]) -> None:
         """Accumulate events into a batch buffer for coalesced submission."""
-        if not events:
+        if not events or os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
             return
         with cls._buffer_lock:
             cls._event_buffer.extend(events)
@@ -59,7 +60,7 @@ class TelemetryClient:
     @classmethod
     def submit_frames(cls, frames: List[Dict[str, Any]]) -> None:
         """Accumulate frame samples into a batch buffer for coalesced submission."""
-        if not frames:
+        if not frames or os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
             return
         with cls._buffer_lock:
             cls._frame_buffer.extend(frames)
@@ -90,11 +91,16 @@ class TelemetryClient:
     @classmethod
     def retry_pending_telemetry(cls) -> None:
         """Scan local SQLite cache for unsent telemetry and attempt resubmission."""
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+            return
         _executor.submit(cls._run_retry_loop)
 
     @classmethod
     def _post_telemetry(cls, endpoint: str, data: Any) -> bool:
         """Perform synchronous HTTP POST request. Returns True if successful, False otherwise."""
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+            return True
+
         url = f"{API_BASE_URL.rstrip('/')}{endpoint}"
         payload = json.dumps(data).encode("utf-8")
         

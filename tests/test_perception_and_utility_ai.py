@@ -90,5 +90,5 @@ def test_utility_combat_engine_whiff_punishment_and_spacing():
     player_mock.is_attacking = True
     engine.retract_chance = 1.0  # Force 100% retract evaluation for test
 
-    action = engine.evaluate_action(enemy_rect, player_mock, can_attack=True, has_attack_token=True, dt_sec=0.016)
+    action = engine.evaluate_action(enemy_rect, player_mock, can_attack=True, has_attack_token=False, dt_sec=0.016)
     assert action == TacticalAction.RETRACT_SPACING

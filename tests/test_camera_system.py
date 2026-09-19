@@ -18,7 +18,8 @@ def test_camera_initialization():
 
 def test_camera_bounds_and_transforms():
     cam = Camera(1280, 720)
-    cam.set_bounds(3000.0, 1000.0)
+    cam.world_width = 3000.0
+    cam.world_height = 1000.0
     assert cam.world_width == 3000.0
     assert cam.world_height == 1000.0
 

@@ -18,6 +18,7 @@ import pygame as pg
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from src.game.audio.entity_audio_mixin import EntityAudioMixin
 from .hitbox_registry import HitboxRegistry
+from .base_enemy import BaseEnemy
 from ..services import ConfigClient
 from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, SquadCoordinator, SquadRole, UtilityCombatEngine, TacticalAction
 
@@ -157,7 +158,7 @@ class BoneDustEffect:
             p.draw(surface)
 
 
-class Skeleton(EntityAudioMixin, Actor):
+class Skeleton(BaseEnemy):
 
     """
     A skeletal enemy with state-machine AI and frame-precise combat.
@@ -184,7 +185,7 @@ class Skeleton(EntityAudioMixin, Actor):
         SkeletonState.DEATH: StateConfig(0.15, loops=False, interruptible=False),
     }
 
-    hit_vfx_type: Final[str] = "bone_sparks"
+    hit_vfx_type: str = "bone_sparks"
 
     def __init__(
         self,

@@ -76,9 +76,8 @@ class TestPlayerMoves(unittest.TestCase):
         self.assertTrue(self.player._is_enhanced)
 
         # Scale factor check
-        # When enhanced, get_current_attack_damage should be scaled (SPECIAL_ATTACK_CONFIG base is 35.0)
         self.player.attack_state.begin(self.player.special_attack_config)
-        self.assertEqual(self.player.get_current_attack_damage(), 52.5)
+        self.assertAlmostEqual(self.player.get_current_attack_damage(), self.player.special_attack_config.base_damage * 1.5)
 
         # Special attack should use ENHANCED_SPECIAL_ATTACK_CONFIG now
         self.player.set_state(PlayerState.IDLE, force=True)

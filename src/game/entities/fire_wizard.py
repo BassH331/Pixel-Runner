@@ -5,6 +5,7 @@ Fire Wizard boss module with specialized AI and frame-precise spell casting.
 from __future__ import annotations
 
 from src.game.audio.entity_audio_mixin import EntityAudioMixin
+from .base_enemy import BaseEnemy
 
 import os
 import json
@@ -133,13 +134,13 @@ class StateConfig:
     interruptible: bool = True
 
 
-class FireWizard(EntityAudioMixin, Actor):
+class FireWizard(BaseEnemy):
     """
     A Fire Wizard boss with unique spell casting animations, frame-precise hitboxes,
     and balanced AI that gives the player space to maneuver.
     """
     
-    hit_vfx_type: Final[str] = "fire_sparks"
+    hit_vfx_type: str = "fire_sparks"
 
     # Class-level attack configuration (immutable)
     # The active hit frames cover the entire blazing duration (frames 2 to 7)

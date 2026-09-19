@@ -47,6 +47,9 @@ class DifficultyClient:
     @classmethod
     def fetch_recommendation_async(cls, boss_key: str) -> DifficultyFetchHandle:
         handle = DifficultyFetchHandle()
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+            cls._fetch(boss_key, handle)
+            return handle
         threading.Thread(
             target=cls._fetch, args=(boss_key, handle), daemon=True
         ).start()
