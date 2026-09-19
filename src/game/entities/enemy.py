@@ -25,6 +25,8 @@ class Enemy(EntityAudioMixin, Actor):
     Base class for all enemy entities in the game.
     Handles common enemy behaviors like movement, animation, and collision.
     """
+    hit_vfx_type: str = "blood_mini"
+
     _fly_frames_caches: dict[float, list[pg.Surface]] = {}
 
     # Shadow rendering constants (shared across all bat instances)

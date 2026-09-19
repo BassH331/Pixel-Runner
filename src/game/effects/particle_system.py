@@ -169,13 +169,112 @@ class ParticleManager:
             )
             self.active_particles.append(p)
 
+    def spawn_toxic_splash(self, x: float, y: float, count: int = 16) -> None:
+        """Spawn toxic green acid splatter particles for Gatekeeper / Green Monster."""
+        for _ in range(count):
+            p = self.pool.acquire()
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(50, 240)
+            p.reset(
+                x=x + random.uniform(-8, 8),
+                y=y + random.uniform(-8, 8),
+                vx=math.cos(angle) * speed,
+                vy=math.sin(angle) * speed - 40.0,
+                color=(random.randint(60, 110), random.randint(200, 255), random.randint(30, 80)),
+                size=random.uniform(2.5, 6.0),
+                lifetime=random.uniform(0.35, 0.7),
+                gravity=400.0,
+                shrink=True,
+                glow=True,
+            )
+            self.active_particles.append(p)
+
+    def spawn_bone_dust(self, x: float, y: float, count: int = 16) -> None:
+        """Spawn bone fragments & dust chips for skeletal enemy impacts."""
+        for _ in range(count):
+            p = self.pool.acquire()
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(60, 280)
+            shade = random.randint(210, 250)
+            p.reset(
+                x=x + random.uniform(-5, 5),
+                y=y + random.uniform(-5, 5),
+                vx=math.cos(angle) * speed,
+                vy=math.sin(angle) * speed - 30.0,
+                color=(shade, shade - 10, shade - 30),
+                size=random.uniform(2.0, 4.5),
+                lifetime=random.uniform(0.25, 0.5),
+                gravity=350.0,
+                shrink=True,
+                glow=False,
+            )
+            self.active_particles.append(p)
+
+    def spawn_shadow_particles(self, x: float, y: float, count: int = 14) -> None:
+        """Spawn dark purple / shadowy smoke wisps for Dark Ronin impacts."""
+        for _ in range(count):
+            p = self.pool.acquire()
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(40, 200)
+            p.reset(
+                x=x + random.uniform(-6, 6),
+                y=y + random.uniform(-6, 6),
+                vx=math.cos(angle) * speed,
+                vy=math.sin(angle) * speed - 20.0,
+                color=(random.randint(140, 190), random.randint(30, 70), random.randint(200, 255)),
+                size=random.uniform(3.0, 6.5),
+                lifetime=random.uniform(0.3, 0.6),
+                gravity=-50.0,
+                shrink=True,
+                glow=True,
+            )
+            self.active_particles.append(p)
+
+    def spawn_fire_embers(self, x: float, y: float, count: int = 16) -> None:
+        """Spawn fiery red/orange embers for Fire Wizard impacts."""
+        for _ in range(count):
+            p = self.pool.acquire()
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(70, 300)
+            p.reset(
+                x=x + random.uniform(-6, 6),
+                y=y + random.uniform(-6, 6),
+                vx=math.cos(angle) * speed,
+                vy=math.sin(angle) * speed - 60.0,
+                color=(255, random.randint(80, 160), random.randint(10, 40)),
+                size=random.uniform(2.5, 5.0),
+                lifetime=random.uniform(0.25, 0.55),
+                gravity=200.0,
+                shrink=True,
+                glow=True,
+            )
+            self.active_particles.append(p)
+
     def _on_damage_dealt(self, event: DamageDealt) -> None:
         """Event subscriber handler for DamageDealt."""
-        if event.target_tier in ("boss", "elite"):
-            self.spawn_sparks(event.target.rect.centerx, event.target.rect.centery, count=16)
-            self.spawn_blood_splash(event.target.rect.centerx, event.target.rect.centery, count=10)
+        cx = float(event.target.rect.centerx)
+        cy = float(event.target.rect.centery)
+        target_obj = getattr(event, "target", None)
+        target_name = type(target_obj).__name__.lower() if target_obj else ""
+        vfx_type = getattr(target_obj, "hit_vfx_type", "")
+
+        if "green" in target_name or vfx_type == "toxic_splatter":
+            self.spawn_toxic_splash(cx, cy, count=16)
+        elif "skeleton" in target_name or vfx_type == "bone_sparks":
+            self.spawn_bone_dust(cx, cy, count=16)
+            self.spawn_sparks(cx, cy, count=8)
+        elif "ronin" in target_name or vfx_type == "dark_shadow":
+            self.spawn_shadow_particles(cx, cy, count=14)
+            self.spawn_sparks(cx, cy, count=8)
+        elif "wizard" in target_name or vfx_type == "fire_sparks":
+            self.spawn_fire_embers(cx, cy, count=16)
         else:
-            self.spawn_blood_splash(event.target.rect.centerx, event.target.rect.centery, count=12)
+            # Default organic/blood splash for Blood Zombie and standard enemies
+            if event.target_tier in ("boss", "elite"):
+                self.spawn_sparks(cx, cy, count=12)
+                self.spawn_blood_splash(cx, cy, count=12)
+            else:
+                self.spawn_blood_splash(cx, cy, count=12)
 
     def _on_entity_died(self, event: EntityDied) -> None:
         """Event subscriber handler for EntityDied."""

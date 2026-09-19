@@ -139,6 +139,8 @@ class FireWizard(EntityAudioMixin, Actor):
     and balanced AI that gives the player space to maneuver.
     """
     
+    hit_vfx_type: Final[str] = "fire_sparks"
+
     # Class-level attack configuration (immutable)
     # The active hit frames cover the entire blazing duration (frames 2 to 7)
     # and allow multiple hits to match the continuous fire blaze visual.

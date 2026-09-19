@@ -47,6 +47,8 @@ class DarkRonin(EntityAudioMixin, Actor):
     High-mobility elite Dark Ronin minion with high-speed dash strikes.
     """
 
+    hit_vfx_type: Final[str] = "dark_shadow"
+
     SLASH_CONFIG: Final[AttackConfig] = AttackConfig(
         hit_frames=frozenset({12, 13, 14, 15}),
         base_damage=2.0,

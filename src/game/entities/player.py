@@ -674,10 +674,10 @@ class Player(Actor):
     # Mana: gates the demon transformation. Drains continuously while
     # enhanced (the demon form is a spent resource, not a toggle) and only
     # regenerates while human, so time spent as the demon is finite.
-    _MAX_MANA: Final[float] = 100.0
+    _MAX_MANA: Final[float] = 200.0
     _TRANSFORM_MANA_COST: Final[float] = 40.0
-    _ENHANCED_MANA_DRAIN_RATE: Final[float] = 4.0  # per second while enhanced
-    _MANA_REGEN_RATE: Final[float] = 8.0  # per second while human
+    _ENHANCED_MANA_DRAIN_RATE: Final[float] = 3.0  # per second while enhanced
+    _MANA_REGEN_RATE: Final[float] = 2.0  # per second while human
 
     # Stamina: gates roll/dash/special-attack so the player can't spam them.
     # Regen pauses briefly after each use before resuming.

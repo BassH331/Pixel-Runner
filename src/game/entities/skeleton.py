@@ -184,6 +184,8 @@ class Skeleton(EntityAudioMixin, Actor):
         SkeletonState.DEATH: StateConfig(0.15, loops=False, interruptible=False),
     }
 
+    hit_vfx_type: Final[str] = "bone_sparks"
+
     def __init__(
         self,
         x: int,

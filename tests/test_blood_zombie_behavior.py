@@ -47,7 +47,7 @@ def test_blood_zombie_attacks_when_in_range():
     SquadTokenManager.get_instance().clear()
 
     player_mock = MagicMock()
-    player_mock.rect = pg.Rect(450, 240, 40, 60)
+    player_mock.rect = pg.Rect(420, 240, 40, 60)
     player_mock.is_dead = False
     player_mock.facing_left = False
     player_mock.is_attacking = False
@@ -67,3 +67,39 @@ def test_blood_zombie_attacks_when_in_range():
     assert zombie.state == BloodZombieState.ATTACK
     assert zombie.attack_count == 1
     assert zombie.facing_left == False  # Player is to the right (x=450 vs x=400)
+
+
+def test_blood_zombie_shield_shatter_mechanic():
+    """Verify shield damage absorption, crystal shard shatter particle burst, damage spillover, and recharge."""
+    player_mock = MagicMock()
+    player_mock.rect = pg.Rect(500, 300, 40, 60)
+    player_mock.is_dead = False
+
+    zombie = BloodZombie(x=400, y=300, player=player_mock, tier="boss")
+    initial_hp = zombie._health
+    initial_shield_hp = zombie._shield_health
+
+    assert initial_shield_hp > 0.0
+
+    # 1. Partial damage absorbed into shield HP
+    zombie.take_damage(20.0)
+    assert zombie._health == initial_hp
+    assert zombie._shield_health == initial_shield_hp - 20.0
+
+    zombie.set_state(BloodZombieState.IDLE, force=True)
+
+    # 2. Damage exceeding shield HP triggers shatter explosion and health spillover
+    shatter_damage = zombie._shield_health + 15.0
+    zombie.take_damage(shatter_damage)
+    assert zombie._shield_health == 0.0
+    assert zombie._health == initial_hp - 15.0
+    assert len(zombie._shield_shatter_particles) == 32
+    assert zombie._shield_recharge_timer > 0.0
+
+    # 3. Simulate recharge completion
+    for _ in range(18):
+        zombie.set_state(BloodZombieState.IDLE, force=True)
+        zombie.update(0.5)
+
+    assert zombie._shield_health == zombie._max_shield_health
+

@@ -1,11 +1,11 @@
 {
   "max_health": 77.5,
-  "speed": 2.29,
-  "damage_scale": 1.64,
-  "knockback_scale": 0.65,
-  "detection_range": 1800,
-  "attack_range": 31,
-  "vertical_tolerance": 100,
+  "speed": 3.08,
+  "damage_scale": 1.92,
+  "knockback_scale": 1.92,
+  "detection_range": 1920.0,
+  "attack_range": 78.0,
+  "vertical_tolerance": 150.0,
   "attack_hitbox_width": 46,
   "attack_hitbox_height": 84,
   "scale": 1.98,
@@ -229,6 +229,10 @@
       }
     }
   },
+  "shield_enabled": true,
+  "max_shield_health": 35.0,
+  "shield_recharge_delay": 8.0,
+  "shield_radius": 55.0,
   "hitbox_offset_x": 10,
   "sanguine_phase_shift": 6.0
 }

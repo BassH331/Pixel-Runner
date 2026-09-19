@@ -42,12 +42,58 @@ class StateConfig:
     interruptible: bool = True
 
 
+class ShieldShardParticle:
+    """Procedural crystalline energy shard spawned when the force field shield shatters."""
+
+    def __init__(self, x: float, y: float, vx: float, vy: float, size: float, color: tuple[int, int, int], lifetime: float):
+        self.x = float(x)
+        self.y = float(y)
+        self.vx = float(vx)
+        self.vy = float(vy)
+        self.size = float(size)
+        self.color = color
+        self.lifetime = float(lifetime)
+        self.max_lifetime = float(lifetime)
+        self.rotation = random.uniform(0.0, 360.0)
+        self.rot_speed = random.uniform(-400.0, 400.0)
+
+    def update(self, dt_sec: float, scroll_speed: int = 0) -> bool:
+        self.x += (self.vx - scroll_speed) * dt_sec * 60.0
+        self.y += self.vy * dt_sec * 60.0
+        self.vy += 12.0 * dt_sec  # Gravity
+        self.rotation += self.rot_speed * dt_sec
+        self.lifetime -= dt_sec
+        return self.lifetime <= 0.0
+
+    def draw(self, surface: pg.Surface) -> None:
+        if self.lifetime <= 0.0:
+            return
+        alpha = max(0, min(255, int(255 * (self.lifetime / self.max_lifetime))))
+        w = max(2, int(self.size))
+        poly_surf = pg.Surface((w * 2 + 4, w * 2 + 4), pg.SRCALPHA)
+        pts = [
+            (w, 0),
+            (w * 2, w),
+            (w, w * 2),
+            (0, w),
+        ]
+        r, g, b = self.color
+        pg.draw.polygon(poly_surf, (r, g, b, alpha), pts)
+        pg.draw.polygon(poly_surf, (255, 255, 255, alpha), pts, width=1)
+        
+        rot_surf = pg.transform.rotate(poly_surf, self.rotation)
+        rect = rot_surf.get_rect(center=(int(self.x), int(self.y)))
+        surface.blit(rot_surf, rect)
+
+
 class BloodZombie(EntityAudioMixin, Actor):
     """
     A blood zombie enemy (Bloo Zombie) with enhanced stats and skeleton-based combat.
     Features unique sprites, higher health, and modified attack patterns.
     """
     
+    hit_vfx_type: Final[str] = "blood_splatter"
+
     # Class-level attack configurations (immutable)
     ATTACK_1_CONFIG: Final[AttackConfig] = AttackConfig(
         hit_frames=frozenset({6}),
@@ -187,6 +233,8 @@ class BloodZombie(EntityAudioMixin, Actor):
         self.rect: pg.Rect = self.image.get_rect(midbottom=(x, y)) if self.image else pg.Rect(x, y, 64, 64)
         
         # Hitbox adjustment using blood zombie specific margins
+        self._margin_left: int = margins.left
+        self._margin_right: int = margins.right
         self.adjust_hitbox_sides(left=margins.left, right=margins.right, top=margins.top, bottom=margins.bottom)
         
         # Movement and physics
@@ -232,11 +280,18 @@ class BloodZombie(EntityAudioMixin, Actor):
         self._hit_flash_timer: float = 0.0
         self._hit_recoil_dx: float = 0.0
 
-        # Force Field Orb Shield System
+        # Force Field Orb Shield System & Shatter Mechanics
         self._shield_enabled: bool = bool(config.get("shield_enabled", True))
         self._shield_radius_base: float = float(config.get("shield_radius", 55.0))
         self._shield_color: tuple[int, int, int] = (230, 40, 70)
         self._shield_pulse_time: float = 0.0
+
+        default_shield_hp = 70.0 if self.tier == "boss" else 35.0
+        self._max_shield_health: float = float(config.get("max_shield_health", custom_health if custom_health is not None else default_shield_hp))
+        self._shield_health: float = self._max_shield_health if self._shield_enabled else 0.0
+        self._shield_recharge_delay: float = float(config.get("shield_recharge_delay", 8.0))
+        self._shield_recharge_timer: float = 0.0
+        self._shield_shatter_particles: list[ShieldShardParticle] = []
 
         # Audio trigger system (non-fatal; gracefully skipped if audio_manager is None)
         self._init_entity_audio_config(audio_manager, "blood_zombie")
@@ -383,6 +438,14 @@ class BloodZombie(EntityAudioMixin, Actor):
 
             if "shield_color" in config and isinstance(config["shield_color"], (list, tuple)):
                 self._shield_color = tuple(config["shield_color"][:3])
+
+            if "max_shield_health" in config:
+                self._max_shield_health = float(config["max_shield_health"])
+                if self._shield_health > self._max_shield_health:
+                    self._shield_health = self._max_shield_health
+
+            if "shield_recharge_delay" in config:
+                self._shield_recharge_delay = float(config["shield_recharge_delay"])
         except Exception as e:
             print(f"[WARNING] Error applying blood zombie config overrides: {e}")
 
@@ -413,6 +476,14 @@ class BloodZombie(EntityAudioMixin, Actor):
             "health": round(float(self._health), 2),
             "max_health": float(self._max_health),
             "health_ratio": round(float(self._health / self._max_health), 3) if self._max_health > 0 else 0.0,
+            "shield": {
+                "enabled": self._shield_enabled,
+                "shield_health": round(float(self._shield_health), 2),
+                "max_shield_health": float(self._max_shield_health),
+                "shield_health_ratio": round(float(self._shield_health / self._max_shield_health), 3) if self._max_shield_health > 0 else 0.0,
+                "is_active": self._shield_health > 0 and self._shield_enabled,
+                "recharge_timer": round(float(self._shield_recharge_timer), 2),
+            },
             "is_dead": self.is_dead,
             "facing_left": self.facing_left,
             "scale": self.scale,
@@ -497,6 +568,18 @@ class BloodZombie(EntityAudioMixin, Actor):
                 self.apply_config(updated_config)
                 print(f"[BLOOD ZOMBIE HOT-RELOAD] Live updated! Range={self._attack_range}, Speed={self._speed}, HP={self._max_health}")
 
+        # Update shield shatter particles
+        if hasattr(self, "_shield_shatter_particles") and self._shield_shatter_particles:
+            self._shield_shatter_particles = [
+                p for p in self._shield_shatter_particles if not p.update(dt_sec, scroll_speed)
+            ]
+
+        # Update shield recharge timer
+        if getattr(self, "_shield_recharge_timer", 0.0) > 0.0:
+            self._shield_recharge_timer = max(0.0, self._shield_recharge_timer - dt_sec)
+            if self._shield_recharge_timer <= 0.0 and getattr(self, "_shield_enabled", True) and self.state != BloodZombieState.DEATH:
+                self._shield_health = self._max_shield_health
+
         self._update_ai(dt_sec)
         
         super().update(dt)  # Handles state machines and animations
@@ -525,14 +608,48 @@ class BloodZombie(EntityAudioMixin, Actor):
         SquadTokenManager.get_instance().unregister_enemy(id(self))
         super().kill()
 
+    def _trigger_shield_shatter_burst(self) -> None:
+        """Spawn a radial explosion of sharp energy crystal shards when the shield shatters."""
+        if not hasattr(self, "_shield_shatter_particles"):
+            self._shield_shatter_particles = []
+
+        render_img = self.image
+        if self.facing_left:
+            render_img = pg.transform.flip(render_img, True, False)
+        offset_x = getattr(self, "_margin_right", int(self.image_offset.x)) if self.facing_left else getattr(self, "_margin_left", int(self.image_offset.x))
+        base_x = self.rect.x - offset_x
+        base_y = self.rect.y - int(self.image_offset.y)
+        bbox = render_img.get_bounding_rect()
+        cx = base_x + bbox.centerx
+        cy = base_y + bbox.centery
+
+        num_shards = 32
+        radius = self._shield_radius_base * self.scale
+        colors = [
+            (255, 230, 180),
+            (230, 40, 70),
+            (255, 90, 110),
+            (255, 255, 255),
+        ]
+        for i in range(num_shards):
+            angle = (6.28318 / num_shards) * i + random.uniform(-0.15, 0.15)
+            speed = random.uniform(3.0, 9.0)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed - random.uniform(1.0, 3.0)
+            sx = cx + math.cos(angle) * (radius * 0.7)
+            sy = cy + math.sin(angle) * (radius * 0.7)
+            size = random.uniform(3.0, 7.0)
+            color = random.choice(colors)
+            lifetime = random.uniform(0.4, 0.85)
+            self._shield_shatter_particles.append(
+                ShieldShardParticle(sx, sy, vx, vy, size, color, lifetime)
+            )
+
     def take_damage(self, amount: float = 0.5, knockback: tuple[float, float] | None = None) -> None:
-        if self.state in (BloodZombieState.HURT, BloodZombieState.DEATH):
+        if self.state == BloodZombieState.DEATH:
             return
 
         SquadTokenManager.get_instance().release_attack_token(id(self))
-        
-        # Reduce health, but never allow health to go below 0
-        self._health = max(0, self._health - amount)
         
         # Trigger procedural hit reaction flash & recoil
         self._hit_flash_timer = self._hit_flash_duration
@@ -543,6 +660,29 @@ class BloodZombie(EntityAudioMixin, Actor):
         if knockback is not None and isinstance(knockback, (tuple, list)) and len(knockback) >= 2:
             self.rect.x += int(knockback[0])
             self.rect.y += int(knockback[1])
+
+        # If force field shield is active, absorb damage into shield HP first
+        if getattr(self, "_shield_enabled", True) and getattr(self, "_shield_health", 0.0) > 0.0:
+            self._shield_health -= amount
+            if self._shield_health <= 0:
+                # Shield shattered! Spillover remaining damage to main health
+                spillover = abs(self._shield_health)
+                self._shield_health = 0.0
+                self._health = max(0, self._health - spillover)
+                self._trigger_shield_shatter_burst()
+                self._shield_recharge_timer = self._shield_recharge_delay
+
+            # Cancel attack and enter hurt state on shield hit/break
+            self.attack_state.end()
+            if self._health <= 0:
+                SquadTokenManager.get_instance().unregister_enemy(id(self))
+                self.set_state(BloodZombieState.DEATH, force=True)
+            else:
+                self.set_state(BloodZombieState.HURT, force=True)
+            return
+
+        # Direct damage to health when shield is down
+        self._health = max(0, self._health - amount)
         
         # If the zombie was attacking, cancel the attack
         self.attack_state.end()
@@ -551,7 +691,6 @@ class BloodZombie(EntityAudioMixin, Actor):
         if self._health <= 0:
             SquadTokenManager.get_instance().unregister_enemy(id(self))
             self.set_state(BloodZombieState.DEATH, force=True)
-        # Otherwise, switch to hurt animation
         else:
             self.set_state(BloodZombieState.HURT, force=True)
 
@@ -685,13 +824,8 @@ class BloodZombie(EntityAudioMixin, Actor):
     # Rendering
     # ─────────────────────────────────────────────────────────────────────
 
-    def draw(self, surface: pg.Surface) -> None:
-        """
-        Draw the blood zombie with per-frame root motion offset alignment and UI elements.
-        
-        Args:
-            surface: Target surface for rendering.
-        """
+    def get_render_position(self) -> tuple[int, int]:
+        """Calculate exact screen coordinates (draw_x, draw_y) for sprite rendering and shadow anchoring."""
         attack_anim_key = getattr(self, "_current_attack_anim_key", "Attack1")
         anim_key_map = {
             BloodZombieState.IDLE: "Idle",
@@ -700,7 +834,7 @@ class BloodZombie(EntityAudioMixin, Actor):
             BloodZombieState.HURT: "Death",
             BloodZombieState.DEATH: "Death",
         }
-        anim_key = anim_key_map[self.state] if self.state in anim_key_map else "Idle"
+        anim_key = anim_key_map[self.state] if (self.state is not None and self.state in anim_key_map) else "Idle"
         frame_idx = str(int(self.animation_index))
         offset = self.frame_offsets.get(anim_key, {}).get(frame_idx, {})
         dx = int(offset.get("dx", 0) * self.scale)
@@ -709,12 +843,19 @@ class BloodZombie(EntityAudioMixin, Actor):
         if self.facing_left:
             dx = -dx
 
-        # Apply image_offset (set by adjust_hitbox_sides) to align sprite over hitbox,
-        # matching the base Entity.draw() behavior: rect.topleft - image_offset
-        base_x = self.rect.x - int(self.image_offset.x)
+        offset_x = getattr(self, "_margin_right", int(self.image_offset.x)) if self.facing_left else getattr(self, "_margin_left", int(self.image_offset.x))
+        base_x = self.rect.x - offset_x
         base_y = self.rect.y - int(self.image_offset.y)
-        draw_x = base_x + dx
-        draw_y = base_y + dy
+        return base_x + dx, base_y + dy
+
+    def draw(self, surface: pg.Surface) -> None:
+        """
+        Draw the blood zombie with per-frame root motion offset alignment and UI elements.
+        
+        Args:
+            surface: Target surface for rendering.
+        """
+        draw_x, draw_y = self.get_render_position()
 
         # self.image is already correctly oriented by Actor.update_animation()
         # which handles facing_left via self._animations_flipped cache.
@@ -767,16 +908,22 @@ class BloodZombie(EntityAudioMixin, Actor):
 
         # Blit pure white silhouette flash mask over render_img during hit flash
         if self._hit_flash_timer > 0.0:
-            flash_mask = pg.Surface(render_img.get_size(), pg.SRCALPHA)
-            flash_mask.fill((255, 255, 255, 220))
-            flash_mask.blit(render_img, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
-            surface.blit(flash_mask, (draw_x, draw_y))
+            progress = self._hit_flash_timer / max(0.01, self._hit_flash_duration)
+            flash_alpha = int(240 * progress)
+            if flash_alpha > 0:
+                white_flash = render_img.copy()
+                white_flash.fill((255, 255, 255, 0), special_flags=pg.BLEND_RGB_ADD)
+                white_flash.set_alpha(flash_alpha)
+                surface.blit(white_flash, (draw_x, draw_y))
         
-        # Draw translucent pulsing force field orb shield centered over visual body
+        # Draw translucent pulsing force field orb shield & shatter particles
         self._draw_force_field_shield(surface, draw_x=draw_x, draw_y=draw_y, render_img=render_img)
 
-        # Draw health bar when damaged and alive
-        if self._health < self._max_health and self.state != BloodZombieState.DEATH:
+        # Draw health & shield bars when damaged or shielded and alive
+        if (
+            (self._health < self._max_health or (getattr(self, "_shield_enabled", True) and getattr(self, "_shield_health", 0.0) > 0.0))
+            and self.state != BloodZombieState.DEATH
+        ):
             self._draw_health_bar(surface)
 
     def _draw_force_field_shield(
@@ -787,32 +934,31 @@ class BloodZombie(EntityAudioMixin, Actor):
         render_img: Optional[pg.Surface] = None,
     ) -> None:
         """
-        Render an ethereal semi-transparent pulsing orb force field shield
-        protecting the BloodZombie, dynamically centered over the visual body
-        in both facing directions.
+        Render active crystal shatter particles and ethereal semi-transparent pulsing orb shield.
         """
-        if not getattr(self, "_shield_enabled", True) or self.state == BloodZombieState.DEATH:
+        # 1. Always render active shatter particles
+        if hasattr(self, "_shield_shatter_particles") and self._shield_shatter_particles:
+            for p in self._shield_shatter_particles:
+                p.draw(surface)
+
+        # 2. Early return if shield disabled, entity dead, or shield HP depleted
+        if (
+            not getattr(self, "_shield_enabled", True)
+            or self.state == BloodZombieState.DEATH
+            or getattr(self, "_shield_health", 0.0) <= 0.0
+        ):
             return
 
         ticks = pg.time.get_ticks()
         pulse = math.sin(ticks * 0.005) * 4.0
         radius = int((self._shield_radius_base * self.scale) + pulse)
 
-        # Retrieve margins to compensate for asymmetrical frame padding when facing left vs right
-        margins_key = "boss:bloodzombie" if self.tier == "boss" else "blood_zombie"
-        margins = HitboxRegistry.get_margins(margins_key)
-
         if draw_x is not None and render_img is not None:
-            if self.facing_left:
-                cx = draw_x + int((margins.right - margins.left) * self.scale / 2.0 + render_img.get_width() / 2.0)
-            else:
-                cx = draw_x + int((margins.left - margins.right) * self.scale / 2.0 + render_img.get_width() / 2.0)
-            cy = (draw_y if draw_y is not None else self.rect.centery) + int((margins.top - margins.bottom) * self.scale / 2.0 + (render_img.get_height() / 2.0 if render_img else 0))
+            bbox = render_img.get_bounding_rect()
+            cx = draw_x + bbox.centerx
+            cy = (draw_y if draw_y is not None else self.rect.centery) + bbox.centery
         else:
-            if self.facing_left:
-                cx = self.rect.centerx + int((margins.right - margins.left) * self.scale)
-            else:
-                cx = self.rect.centerx
+            cx = self.rect.centerx
             cy = self.rect.centery
 
         # Create transparent surface for smooth alpha blending
@@ -855,7 +1001,7 @@ class BloodZombie(EntityAudioMixin, Actor):
         surface.blit(shield_surf, (cx - diameter // 2, cy - diameter // 2))
 
     def _draw_health_bar(self, surface: pg.Surface) -> None:
-        """Render the health bar above the blood zombie."""
+        """Render the health and shield bars above the blood zombie."""
         bar_width: int = 50
         bar_height: int = 6
         bar_x: int = self.rect.centerx - bar_width // 2
@@ -869,9 +1015,24 @@ class BloodZombie(EntityAudioMixin, Actor):
         )
         
         # Current health (dark red fill for blood zombie theme)
-        health_ratio = self._health / self._max_health
+        health_ratio = max(0.0, self._health / self._max_health) if self._max_health > 0 else 0.0
         pg.draw.rect(
             surface,
             (180, 0, 0),
             (bar_x, bar_y, int(bar_width * health_ratio), bar_height),
         )
+
+        # Active Shield Bar overlay (cyan/gold rim above health bar when shield HP > 0)
+        if getattr(self, "_shield_enabled", True) and getattr(self, "_shield_health", 0.0) > 0.0 and getattr(self, "_max_shield_health", 0.0) > 0.0:
+            shield_ratio = max(0.0, min(1.0, self._shield_health / self._max_shield_health))
+            shield_w = int(bar_width * shield_ratio)
+            pg.draw.rect(
+                surface,
+                (230, 40, 70),
+                (bar_x, bar_y - 4, shield_w, 3),
+            )
+            pg.draw.rect(
+                surface,
+                (255, 230, 180),
+                (bar_x, bar_y - 4, shield_w, 1),
+            )

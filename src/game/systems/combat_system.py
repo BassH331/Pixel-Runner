@@ -85,7 +85,8 @@ class CombatSystem:
 
         target_health_after = getattr(enemy, "_health", getattr(enemy, "health", 0.0))
 
-        VisualEffectManager.spawn_hit_vfx(enemy.rect.centerx, enemy.rect.centery, entity=enemy)
+        vfx_type = getattr(enemy, "hit_vfx_type", None)
+        VisualEffectManager.spawn_hit_vfx(enemy.rect.centerx, enemy.rect.centery, entity=enemy, vfx_type=vfx_type)
 
         # Impact camera trigger
         is_boss = getattr(enemy, "is_boss", False)

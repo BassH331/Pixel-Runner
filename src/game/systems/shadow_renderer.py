@@ -112,12 +112,19 @@ class ShadowRenderer:
         eff_scale_mult = scale_mult if scale_mult is not None else profile.scale_mult
 
         orig_w, orig_h = image.get_size()
-        image_offset = getattr(entity, "image_offset", None)
-        offset_x = image_offset.x if image_offset else 0
-        offset_y = image_offset.y if image_offset else 0
+        if hasattr(entity, "get_render_position") and callable(entity.get_render_position):
+            draw_x, draw_y = entity.get_render_position()
+        else:
+            facing_left = getattr(entity, "facing_left", False)
+            image_offset = getattr(entity, "image_offset", None)
+            if facing_left and hasattr(entity, "_margin_right"):
+                offset_x = entity._margin_right
+            else:
+                offset_x = image_offset.x if image_offset else 0
+            offset_y = image_offset.y if image_offset else 0
 
-        draw_x = rect.left - offset_x
-        draw_y = rect.top - offset_y
+            draw_x = rect.left - offset_x
+            draw_y = rect.top - offset_y
 
         # Determine scale factor and effective ground plane
         # Generate initial unscaled metadata or full-scale shadow to get orig_feet_y

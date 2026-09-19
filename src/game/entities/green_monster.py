@@ -202,6 +202,8 @@ class GreenMonster(EntityAudioMixin, Actor):
     # Frame (within the 9-frame "2atk" clip) at which the toxic glob is released.
     _SPIT_RELEASE_FRAME: Final[int] = 5
 
+    hit_vfx_type: Final[str] = "toxic_splatter"
+
     def __init__(
         self,
         x: int,
