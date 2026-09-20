@@ -8,14 +8,14 @@
   "vertical_tolerance": 100,
   "attack_hitbox_width": 60,
   "attack_hitbox_height": 80,
-  "max_mana": 150.0,
-  "spell_mana_cost": 20.0,
-  "stagnant_duration": 1.0,
-  "teleport_dist_min": 200,
+  "max_mana": 200.0,
+  "spell_mana_cost": 10.0,
+  "stagnant_duration": 0.5,
+  "teleport_dist_min": 100.0,
   "teleport_dist_max": 400.0,
-  "mana_recharge_rate": 90.0,
-  "chase_delay_duration": 0.2,
+  "mana_recharge_rate": 100.0,
+  "chase_delay_duration": 0.0,
   "attack_cooldown_min": 0.5,
   "attack_cooldown_max": 1.0,
-  "spidey_sense": 0.59
+  "spidey_sense": 0.71
 }

@@ -615,17 +615,12 @@ class GameState(PlayingState):
         # The forest goes dead silent
         self.audio_manager.stop_music()
 
-        # Show the Fabricator's revelation
-        self.objective_display.show(
-            "The forest falls deathly silent. A voice like silk slithers from the void:\n\n"
-            "'Ten thousand souls... and every last one bound by YOUR hand. "
-            "Did you truly believe I would release you? The contract was never "
-            "about freedom, Kaelen. Every soul you reaped with my Scythe has "
-            "legally bonded YOUR soul to my domain.'\n\n"
-            "The Arch-Fabricator laughs and vanishes, leaving you trapped "
-            "with the cursed blade. But you will not submit. "
-            "You keep the Scythe... and begin your hunt for the Holy Artifacts.",
-            "The Fabricator's Betrayal"
+        # Show the Fabricator's revelation via non-blocking side notification
+        self.side_notification.show(
+            "Ten thousand souls bound by your hand! The Arch-Fabricator's contract was a trap, "
+            "bonding your soul to his domain. Keep the Scythe... hunt the Holy Artifacts!",
+            "The Fabricator's Betrayal",
+            icon="assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
         )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -700,7 +695,7 @@ class GameState(PlayingState):
         if interact_pressed:
             for point in self.interaction_group:
                 if point.can_interact:
-                    self.objective_display.show(point.text, point.title)
+                    self.side_notification.show(point.text, point.title)
                     self._current_interacting_npc = point
                     point.mark_interacted()
                     break
@@ -708,7 +703,7 @@ class GameState(PlayingState):
                 # Check NPC group if no interaction point was triggered
                 for npc in self.npc_group:
                     if npc.can_interact:
-                        self.objective_display.show(npc.text, npc.title)
+                        self.side_notification.show(npc.text, npc.title)
                         self._current_interacting_npc = npc
                         npc.mark_interacted()
                         break
@@ -1004,7 +999,7 @@ class GameState(PlayingState):
         # Check level endpoint
         if not self._level_complete and self.world_distance >= self._level_end_distance:
             self._level_complete = True
-            self.objective_display.show(
+            self.side_notification.show(
                 "You have reached the end of this land. "
                 "The undead have been pushed back... for now. "
                 "Well fought, warrior!",
