@@ -1,10 +1,19 @@
 # ── Pixel-Runner Makefile ────────────────────────────────────────────────────
 # Standard dev commands for launching game modes, tests, and plugin editors.
 
-VENV      := .venv
-PYTHON    := $(VENV)/bin/python
-PIP       := $(VENV)/bin/pip
-ENGINE    := /home/chosen333/Software/V3X-Zulfiqar-Gideon
+ifeq ($(OS),Windows_NT)
+    VENV      := .venv
+    PYTHON    := $(VENV)/Scripts/python.exe
+    PIP       := $(VENV)/Scripts/pip.exe
+    SETUP_CMD := python setup_env.py
+else
+    VENV      := .venv
+    PYTHON    := $(VENV)/bin/python
+    PIP       := $(VENV)/bin/pip
+    SETUP_CMD := python3 setup_env.py
+endif
+
+ENGINE    := ../V3X-Zulfiqar-Gideon
 
 .PHONY: install engine-dev run dev track hard nightmare test analyze clean \
         boss-editor player-editor level-editor entity-editor audio-editor \
@@ -13,12 +22,8 @@ ENGINE    := /home/chosen333/Software/V3X-Zulfiqar-Gideon
 
 # ── Setup & Installation ───────────────────────────────────────────────────
 install:
-	@echo "🔧 Creating virtual environment..."
-	python3 -m venv $(VENV)
-	@echo "📦 Installing dependencies..."
-	$(PIP) install --upgrade pip
-	$(PIP) install -r requirements.txt
-	@echo "✅ Setup complete! Run 'make run' to launch the game."
+	@echo "🔧 Running automated cross-platform setup..."
+	$(SETUP_CMD)
 
 engine-dev:
 	@echo "🔗 Linking engine source in editable mode..."
