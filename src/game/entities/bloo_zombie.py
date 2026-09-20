@@ -517,10 +517,20 @@ class BloodZombie(EntityAudioMixin, Actor):
         return self.get_metadata()
 
     def is_in_hit_frame(self) -> bool:
+        if self.state != BloodZombieState.ATTACK:
+            return False
         return self.attack_state.is_hit_frame_active()
 
     def should_deal_damage(self) -> bool:
+        if self.state != BloodZombieState.ATTACK:
+            return False
         return self.attack_state.is_hit_frame_active()
+
+    def set_state(self, new_state: Enum, force: bool = False) -> None:
+        old_state = self.state
+        super().set_state(new_state, force=force)
+        if old_state == BloodZombieState.ATTACK and self.state != BloodZombieState.ATTACK:
+            self.attack_state.end()
 
     def register_hit(self, target_id: int = 0) -> bool:
         return self.attack_state.try_register_hit(target_id)

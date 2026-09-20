@@ -1132,6 +1132,12 @@ class Player(Actor):
     # of accessing internal state directly.
     #
     
+    def is_in_hit_frame(self) -> bool:
+        """Return True if player is in an attack state and on an active hit frame."""
+        if not self.is_attacking:
+            return False
+        return self.attack_state.is_hit_frame_active()
+
     def should_deal_damage(self) -> bool:
         """
         Check if the player can currently deal damage.
@@ -1572,6 +1578,7 @@ class Player(Actor):
 
     def set_state(self, new_state: Enum, force: bool = False) -> None:
         """Sets the player state, applying post-damage invincibility upon exiting HURT state."""
+        was_attacking = self.is_attacking
         if self.state == PlayerState.HURT and new_state != PlayerState.HURT:
             if self._invincibility_duration > 0:
                 self._invincibility_timer = self._invincibility_duration
@@ -1580,6 +1587,8 @@ class Player(Actor):
             self._is_enhanced = not self._is_enhanced
             self._animations_flipped.clear()
         super().set_state(new_state, force=force)
+        if was_attacking and not self.is_attacking and self.attack_state:
+            self.attack_state.end()
 
     def reset(self) -> None:
         """Restore player to initial spawn state for retries/game over."""

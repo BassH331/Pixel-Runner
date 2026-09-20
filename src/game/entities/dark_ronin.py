@@ -185,8 +185,10 @@ class DarkRonin(EntityAudioMixin, Actor):
 
         if self._state != new_state:
             self._state = new_state
+            self.state = new_state
             self.animation_index = 0.0
             self._hit_targets.clear()
+            super().set_state(new_state, force=force)
 
     def update(self, dt: float = 16.67, bg_scroll_speed: float = 0.0) -> None:
         """Update DarkRonin AI, movement, and animation frames."""

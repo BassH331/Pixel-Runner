@@ -399,7 +399,14 @@ class GreenMonster(BaseEnemy):
     @property
     def is_dead(self) -> bool: return self.state == GatekeeperState.DEATH
 
+    def is_in_hit_frame(self) -> bool:
+        if self.state != GatekeeperState.ATTACK:
+            return False
+        return self.attack_state.is_hit_frame_active()
+
     def should_deal_damage(self) -> bool:
+        if self.state != GatekeeperState.ATTACK:
+            return False
         return self.attack_state.is_hit_frame_active()
 
     def register_hit(self, target_id: int = 0) -> bool:
