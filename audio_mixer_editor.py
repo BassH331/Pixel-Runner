@@ -1084,6 +1084,21 @@ HTML_CONTENT = """<!DOCTYPE html>
                     </div>
                 </div>
 
+                <!-- Boss Music Progression & Transitions Matrix -->
+                <div style="background: rgba(192, 132, 252, 0.05); border: 1px solid rgba(192, 132, 252, 0.25); border-radius: 8px; padding: 1rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem;">
+                        <div>
+                            <h3 style="font-size: 0.95rem; color: #c084fc; margin: 0 0 0.2rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>👑</span> Boss Music Progression & Transitions
+                            </h3>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">Configure the background music track that follows after defeating each boss</span>
+                        </div>
+                    </div>
+                    <div id="master-boss-music-sequence-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
                 <!-- Master Sounds Directory List -->
                 <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
@@ -2034,6 +2049,52 @@ HTML_CONTENT = """<!DOCTYPE html>
                 collisionContainer.innerHTML = colHtml;
             }
 
+            // 1c. Render Boss Music Progression Matrix
+            const bossMusicContainer = document.getElementById("master-boss-music-sequence-container");
+            if (bossMusicContainer) {
+                if (!appState.config.boss_music_sequence || !Array.isArray(appState.config.boss_music_sequence)) {
+                    appState.config.boss_music_sequence = ["game_loop", "game_loop_2"];
+                }
+                const availableSounds = Object.keys(appState.config.sounds).sort();
+
+                let bmHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.5rem;">`;
+                appState.config.boss_music_sequence.forEach((soundKey, idx) => {
+                    const stageLabel = idx === 0 ? "Default Start BGM" : `After Defeating Boss ${idx}`;
+                    const badgeColor = idx === 0 ? "#818cf8" : "#c084fc";
+                    let optionsHtml = "";
+                    availableSounds.forEach(sk => {
+                        const sel = sk === soundKey ? 'selected' : '';
+                        optionsHtml += `<option value="${sk}" ${sel}>${sk}</option>`;
+                    });
+                    bmHtml += `
+                        <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(192, 132, 252, 0.25); border-radius: 6px; padding: 0.5rem 0.7rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                            <div style="display: flex; flex-direction: column; gap: 0.15rem;">
+                                <span style="font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 4px; background: rgba(192,132,252,0.18); color: ${badgeColor}; font-weight: 700;">Stage ${idx + 1}</span>
+                                <span style="font-size: 0.75rem; font-weight: 700; color: #e9d5ff;">${stageLabel}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.35rem; flex: 1; justify-content: flex-end;">
+                                <select class="form-input" style="font-size: 0.75rem; padding: 0.2rem 0.4rem; max-width: 190px;" onchange="updateBossMusicSequenceEntry(${idx}, this.value)">
+                                    ${optionsHtml}
+                                </select>
+                                <button class="play-icon-btn" style="padding: 0.15rem 0.45rem; font-size: 0.72rem;" onclick="previewSound('${soundKey}')" title="Preview Mapped Music">▶</button>
+                                <button class="btn btn-danger" style="padding: 0.15rem 0.4rem; font-size: 0.72rem;" onclick="deleteBossMusicSequenceEntry(${idx})" title="Delete Stage">&times;</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                bmHtml += `</div>`;
+
+                bmHtml += `
+                    <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(192, 132, 252, 0.2); display: flex; gap: 0.5rem; align-items: center;">
+                        <select id="add-boss-music-sound-key" class="form-input" style="font-size: 0.78rem; padding: 0.25rem 0.5rem; max-width: 240px;">
+                            ${availableSounds.map(sk => `<option value="${sk}">${sk}</option>`).join('')}
+                        </select>
+                        <button class="btn" style="padding: 0.25rem 0.65rem; font-size: 0.78rem; background: linear-gradient(135deg, #a855f7, #7c3aed); color: white; font-weight: 700; border: none; border-radius: 4px; cursor: pointer;" onclick="addBossMusicSequenceEntry()">+ Add Next Boss Stage BGM</button>
+                    </div>
+                `;
+                bossMusicContainer.innerHTML = bmHtml;
+            }
+
             // 2. Compute Category Counts & Groups
             const query = (document.getElementById("master-sound-search")?.value || "").toLowerCase().trim();
             const soundKeys = Object.keys(appState.config.sounds).sort();
@@ -2244,6 +2305,39 @@ HTML_CONTENT = """<!DOCTYPE html>
             if (!appState.config.collision_map) appState.config.collision_map = {};
             appState.config.collision_map[entityKey] = soundKey;
             if (entityKeyInput) entityKeyInput.value = "";
+            markUnsaved();
+            renderMasterAudioPanel();
+        }
+
+        function updateBossMusicSequenceEntry(idx, newSoundKey) {
+            if (!appState.config.boss_music_sequence) {
+                appState.config.boss_music_sequence = ["game_loop", "game_loop_2"];
+            }
+            appState.config.boss_music_sequence[idx] = newSoundKey;
+            markUnsaved();
+            renderMasterAudioPanel();
+        }
+
+        function deleteBossMusicSequenceEntry(idx) {
+            if (!appState.config.boss_music_sequence) return;
+            if (appState.config.boss_music_sequence.length <= 1) {
+                alert("Boss music sequence must have at least one background track.");
+                return;
+            }
+            if (confirm(`Remove boss music stage ${idx + 1}?`)) {
+                appState.config.boss_music_sequence.splice(idx, 1);
+                markUnsaved();
+                renderMasterAudioPanel();
+            }
+        }
+
+        function addBossMusicSequenceEntry() {
+            if (!appState.config.boss_music_sequence) {
+                appState.config.boss_music_sequence = ["game_loop", "game_loop_2"];
+            }
+            const soundKeyInput = document.getElementById("add-boss-music-sound-key");
+            const soundKey = soundKeyInput?.value || "game_loop";
+            appState.config.boss_music_sequence.push(soundKey);
             markUnsaved();
             renderMasterAudioPanel();
         }

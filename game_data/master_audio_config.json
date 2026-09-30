@@ -64,5 +64,11 @@
         "bat": "collision_player_bat",
         "green_monster": "collision_player_green_monster",
         "defend": "collision_player_defend"
-    }
+    },
+    "boss_music_sequence": [
+        "game_loop",
+        "game_loop",
+        "game_loop",
+        "game_loop"
+    ]
 }

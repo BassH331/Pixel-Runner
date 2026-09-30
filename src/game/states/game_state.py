@@ -131,6 +131,8 @@ class GameState(PlayingState):
         if self.audio_manager and hasattr(self.audio_manager, "register_events"):
             self.audio_manager.register_events(self.event_bus)
         self.bg_music_channel_id: Optional[int] = None
+        self._boss_defeat_count: int = 0
+        self._current_bg_music_track: Optional[str] = None
         
         # Attach audio manager to CombatCollisionLogger singleton
         from src.game.audio import CombatCollisionLogger
@@ -632,12 +634,16 @@ class GameState(PlayingState):
         self.audio_manager.stop_music()
         self.audio_manager.stop_all_sounds()
         
-        # Dynamically resolve background music track from master audio config (game_loop)
+        # Dynamically resolve background music track from master audio config (boss_music_sequence)
         # Always use play_music() so it routes through the dedicated music Channel 0,
         # respects music_volume bus scaling, and doesn't consume SFX channels.
         sounds_dict = getattr(self.audio_manager, "master_audio_config", {}).get("sounds", {})
-        bg_track_key = "game_loop" if "game_loop" in sounds_dict else "background_music"
+        seq = getattr(self.audio_manager, "master_audio_config", {}).get("boss_music_sequence", ["game_loop", "game_loop_2"])
         
+        idx = min(self._boss_defeat_count, len(seq) - 1) if seq else 0
+        bg_track_key = seq[idx] if (seq and idx < len(seq) and seq[idx] in sounds_dict) else ("game_loop" if "game_loop" in sounds_dict else "background_music")
+        
+        self._current_bg_music_track = bg_track_key
         self.audio_manager.play_music(bg_track_key, loop=True)
         self.bg_music_channel_id = 0  # music always on channel 0
         self.player_ui.start_timer()
@@ -870,6 +876,19 @@ class GameState(PlayingState):
                 self.player.sprite.right_bound_ratio = getattr(self.player.sprite, "_RUN_RIGHT_BOUND_RATIO", 0.65)
             # ─────────────────────────────────────────────────────────
 
+            # ── Dynamic Boss Music Transition ────────────────────────
+            self._boss_defeat_count += 1
+            sounds_dict = getattr(self.audio_manager, "master_audio_config", {}).get("sounds", {})
+            seq = getattr(self.audio_manager, "master_audio_config", {}).get("boss_music_sequence", ["game_loop", "game_loop_2"])
+            if seq:
+                idx = min(self._boss_defeat_count, len(seq) - 1)
+                next_track = seq[idx]
+                if next_track in sounds_dict:
+                    self._current_bg_music_track = next_track
+                    self.audio_manager.play_music(next_track, loop=True)
+                    print(f"[GameState] Boss defeated! Switched music track to '{next_track}' (Stage {idx + 1})")
+            # ─────────────────────────────────────────────────────────
+
             if getattr(enemy, "tier", "boss") == "boss":
                 if not self._soul_quota_reached:
                     pass
@@ -986,6 +1005,21 @@ class GameState(PlayingState):
                 player_sprite.rect.left = 0
             if player_sprite.rect.right > self.width:
                 player_sprite.rect.right = self.width
+        # ────────────────────────────────────────────────────────────────────
+
+        # ── Music Playback Safety Guard ──────────────────────────────────────
+        # If music channel finishes or stops during active gameplay, auto-restart current sequence track
+        if (
+            self.audio_manager
+            and hasattr(self.audio_manager, "channels")
+            and self.audio_manager.channels
+            and not self.audio_manager.channels[0].get_busy()
+            and not self._soul_quota_reached
+            and player_sprite
+            and not getattr(player_sprite, "is_dead", False)
+        ):
+            track = getattr(self, "_current_bg_music_track", None) or "game_loop"
+            self.audio_manager.play_music(track, loop=True)
         # ────────────────────────────────────────────────────────────────────
 
         # Track travel distance
