@@ -1719,35 +1719,46 @@ class Player(Actor):
         """Update the physics ground floor level from the environment manager (None = freefall)."""
         self._ground_y = ground_y
 
-    def _apply_gravity(self) -> None:
-        """Apply gravitational acceleration and ground collision."""
-        self._gravity += self._GRAVITY_ACCELERATION
-        self.rect.y += int(self._gravity)
+    def _apply_gravity(self, dt: float = 1.0 / 60.0) -> None:
+        """Apply gravitational acceleration and ground collision scaled by normalized dt."""
+        dt_clamped = min(0.1, max(0.001, dt))
+        delta = dt_clamped * 60.0
+        
+        self._gravity += self._GRAVITY_ACCELERATION * delta
+        step_y = self._gravity * delta
 
-        # Ground collision (only if ground floor exists)
-        if self._ground_y is not None and self.rect.bottom >= self._ground_y:
-            self.rect.bottom = self._ground_y
-            self._gravity = 0.0
+        sub_steps = max(1, int(abs(step_y) / 16.0) + 1)
+        sub_delta_y = step_y / sub_steps
+
+        for _ in range(sub_steps):
+            self.rect.y += int(round(sub_delta_y))
+            if self._ground_y is not None and self.rect.bottom >= self._ground_y:
+                self.rect.bottom = self._ground_y
+                self._gravity = 0.0
+                break
 
     # Sword-sway constant: small forward nudge during active hit frames
     # to simulate the sword's momentum pulling the character slightly
     _ATTACK_SWAY_SPEED: Final[float] = 0.8
 
-    def _apply_movement(self) -> None:
-        """Apply horizontal movement with screen boundary clamping."""
+    def _apply_movement(self, dt: float = 1.0 / 60.0) -> None:
+        """Apply horizontal movement with screen boundary clamping scaled by normalized dt."""
+        dt_clamped = min(0.1, max(0.001, dt))
+        delta = dt_clamped * 60.0
+
         if self.state == PlayerState.ROLL:
             roll_dir = -1 if self.facing_left else 1
-            self.rect.x += int(roll_dir * 8.5)
+            self.rect.x += int(round(roll_dir * 8.5 * delta))
         elif self.state == PlayerState.DASH:
             dash_dir = -1 if self.facing_left else 1
             dash_speed = 21.0 if self._is_enhanced else 14.0
-            self.rect.x += int(dash_dir * dash_speed)
+            self.rect.x += int(round(dash_dir * dash_speed * delta))
         elif self.is_attacking:
             # No drift during attacks. Apply a small forward nudge
             # only on active hit frames to simulate sword momentum.
             if self.attack_state.is_hit_frame_active():
                 sway_dir = -1 if self.facing_left else 1
-                self.rect.x += int(sway_dir * self._ATTACK_SWAY_SPEED)
+                self.rect.x += int(round(sway_dir * self._ATTACK_SWAY_SPEED * delta))
         else:
             if self._direction == 0:
                 return
@@ -1765,7 +1776,7 @@ class Player(Actor):
                 jitter = random.choice([-1, 1]) if random.random() < 0.25 else 0
                 move_speed += jitter
 
-            self.rect.x += int(self._direction * move_speed)
+            self.rect.x += int(round(self._direction * move_speed * delta))
 
         # Clamp to screen bounds
         screen_surf = pg.display.get_surface()
@@ -1948,8 +1959,8 @@ class Player(Actor):
         self._update_resources(dt)
 
         self.player_input()
-        self._apply_gravity()
-        self._apply_movement()
+        self._apply_gravity(dt)
+        self._apply_movement(dt)
         self._update_state_logic()
         self._update_defend_logic()
         
