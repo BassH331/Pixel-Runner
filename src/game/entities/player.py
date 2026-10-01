@@ -50,6 +50,7 @@ from typing import TYPE_CHECKING, Final, Optional, cast
 
 import os
 import json
+import math
 import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Actor, FootstepController
@@ -204,7 +205,7 @@ class Player(Actor):
             loops=False,
             next_state=PlayerState.IDLE,
             interruptible=False,
-            grants_invincibility=True,
+            grants_invincibility=False,
             locks_movement=True,
             locks_input=False,
         ),
@@ -1312,8 +1313,8 @@ class Player(Actor):
             
         # Check if defending
         if self.state == PlayerState.DEFEND:
-            # Reduce damage by 70% when defending
-            amount = int(amount * 0.3)
+            # Reduce damage by 70% when defending, but guarantee at least 1 damage for non-zero attacks
+            amount = max(1, math.ceil(amount * 0.3)) if amount > 0 else 0
         
         # Apply damage
         self._health = max(0, self._health - int(amount))

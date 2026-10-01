@@ -30,7 +30,7 @@
       "animation_speed": 0.18,
       "loops": false,
       "interruptible": false,
-      "grants_invincibility": true,
+      "grants_invincibility": false,
       "locks_movement": true,
       "locks_input": false,
       "next_state": "IDLE",
