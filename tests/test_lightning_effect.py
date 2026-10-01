@@ -11,6 +11,7 @@ from src.game.effects.lightning_effect import LightningEffect
 
 
 def test_lightning_effect_initialization():
+    LightningEffect._instance = None
     effect = LightningEffect.get_instance()
     assert effect.active is False
     assert effect.timer == 0.0

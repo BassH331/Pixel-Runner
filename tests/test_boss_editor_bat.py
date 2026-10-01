@@ -156,6 +156,7 @@ class TestBatConfigAndIntegration(unittest.TestCase):
             self.assertTrue(meta_ascending["aerodynamics"]["is_ascending"])
             self.assertFalse(meta_ascending["wing_flapping"]["is_gliding"])
             
+            bat.animation_index = 0.0
             start_anim_index = bat.animation_index
             for _ in range(5):
                 bat.update(dt=0.016)
