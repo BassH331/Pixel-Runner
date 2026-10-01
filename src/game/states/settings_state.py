@@ -61,6 +61,8 @@ class SettingsState(State):
         self.current_fps = self.settings.get("fps_cap")
         self.current_music = int(self.settings.get("music_volume") * 100)
         self.current_sfx = int(self.settings.get("sfx_volume") * 100)
+        telemetry_val = self.settings.get("telemetry_enabled")
+        self.current_telemetry = bool(telemetry_val) if telemetry_val is not None else True
         
         # Setup settings options definitions
         self.options = [
@@ -93,6 +95,13 @@ class SettingsState(State):
                 "min": 0,
                 "max": 100,
                 "step": 10
+            },
+            {
+                "id": "telemetry",
+                "label": "Telemetry Sharing",
+                "type": "choice",
+                "choices": [True, False],
+                "labels": ["Enabled", "Disabled"]
             }
         ]
         
@@ -100,8 +109,8 @@ class SettingsState(State):
         self.selected_index = 0
         
         # Coordinates layout
-        self.row_start_y = self._parch_rect.top + int(self._parch_rect.height * 0.26)
-        self.row_spacing = int(self._parch_rect.height * 0.11)
+        self.row_start_y = self._parch_rect.top + int(self._parch_rect.height * 0.22)
+        self.row_spacing = int(self._parch_rect.height * 0.09)
         self.label_x = self._parch_rect.left + int(self._parch_rect.width * 0.12)
         self.val_center_x = self._parch_rect.right - int(self._parch_rect.width * 0.22)
         
@@ -129,6 +138,7 @@ class SettingsState(State):
         if option_id == "fps": return self.current_fps
         if option_id == "music": return self.current_music
         if option_id == "sfx": return self.current_sfx
+        if option_id == "telemetry": return self.current_telemetry
         return None
         
     def _set_value(self, option_id, value):
@@ -147,6 +157,14 @@ class SettingsState(State):
             self.settings.set("sfx_volume", value / 100.0)
             self.manager.audio_manager.set_sfx_volume(value / 100.0)
             self.manager.audio_manager.play_sound("defend")
+        elif option_id == "telemetry":
+            import os
+            self.current_telemetry = value
+            self.settings.set("telemetry_enabled", value)
+            if not value:
+                os.environ["DISABLE_TELEMETRY"] = "1"
+            else:
+                os.environ.pop("DISABLE_TELEMETRY", None)
             
     def _change_val(self, direction):
         """direction: -1 for left/down, +1 for right/up"""

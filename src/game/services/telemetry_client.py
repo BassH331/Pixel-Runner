@@ -37,16 +37,28 @@ class TelemetryClient:
     _FRAME_BATCH_MAX: int = 60           # or when 60 frames accumulate
 
     @classmethod
+    def is_telemetry_enabled(cls) -> bool:
+        """Check if telemetry collection is allowed by environment or user settings."""
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+            return False
+        try:
+            from v3x_zulfiqar_gideon import SettingsManager
+            val = SettingsManager().get("telemetry_enabled")
+            return bool(val) if val is not None else True
+        except Exception:
+            return True
+
+    @classmethod
     def submit_session(cls, session_data: Dict[str, Any]) -> None:
         """Submit play session summary to the server via thread pool."""
-        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+        if not cls.is_telemetry_enabled():
             return
         _executor.submit(cls._post_telemetry, "/telemetry/session", session_data)
 
     @classmethod
     def submit_events(cls, events: List[Dict[str, Any]]) -> None:
         """Accumulate events into a batch buffer for coalesced submission."""
-        if not events or os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+        if not events or not cls.is_telemetry_enabled():
             return
         with cls._buffer_lock:
             cls._event_buffer.extend(events)
@@ -60,7 +72,7 @@ class TelemetryClient:
     @classmethod
     def submit_frames(cls, frames: List[Dict[str, Any]]) -> None:
         """Accumulate frame samples into a batch buffer for coalesced submission."""
-        if not frames or os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+        if not frames or not cls.is_telemetry_enabled():
             return
         with cls._buffer_lock:
             cls._frame_buffer.extend(frames)
@@ -91,14 +103,14 @@ class TelemetryClient:
     @classmethod
     def retry_pending_telemetry(cls) -> None:
         """Scan local SQLite cache for unsent telemetry and attempt resubmission."""
-        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+        if not cls.is_telemetry_enabled():
             return
         _executor.submit(cls._run_retry_loop)
 
     @classmethod
     def _post_telemetry(cls, endpoint: str, data: Any) -> bool:
         """Perform synchronous HTTP POST request. Returns True if successful, False otherwise."""
-        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1":
+        if not cls.is_telemetry_enabled():
             return True
 
         url = f"{API_BASE_URL.rstrip('/')}{endpoint}"
