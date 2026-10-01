@@ -53,3 +53,19 @@ def test_render_drawing():
     rect = pg.Rect(50, 50, 700, 300)
     height = renderer.render(surface, font, rect, color=(255, 215, 80))
     assert height > 0
+
+
+def test_render_missing_or_zero_width_glyphs():
+    surface = pg.Surface((800, 600))
+    font = pg.font.Font("assets/font/Abaddon Bold.ttf", 28)
+    renderer = AnimatedDialogueRenderer(typing_speed=100.0)
+    # Include em-dash U+2014 which has zero width / missing glyph in Abaddon Bold.ttf
+    renderer.set_text("Elysia—a debt collector did. Testing special glyphs—and dashes.")
+    renderer.update(1.0)
+    renderer.skip_to_end()
+
+    rect = pg.Rect(50, 50, 700, 300)
+    # Should not raise pygame.error: Text has zero width
+    height = renderer.render(surface, font, rect, color=(255, 215, 80), shadow_color=(0, 0, 0))
+    assert height > 0
+

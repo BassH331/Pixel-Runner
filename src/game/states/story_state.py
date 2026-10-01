@@ -21,7 +21,7 @@ class StoryState(State):
     """Atmospheric prologue state displaying the core pitch in NPC-dialogue style."""
 
     _PROLOGUE_TEXT = (
-        "Her hand slipped. You let her fall. Death didn't take Elysia—a debt collector did. "
+        "Her hand slipped. You let her fall. Death didn't take Elysia - a debt collector did. "
         "Borrow his black flame to tear her back. Run. Slay. But remember: each demon slash "
         "burns away the brother she loved."
     )

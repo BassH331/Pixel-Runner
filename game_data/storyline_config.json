@@ -45,7 +45,7 @@
       "id": "amalgam_core",
       "title": "Amalgam Core",
       "category": "The Prototype",
-      "memory_text": "This monster was Voragis's prototype—a horrible mix of human souls and shadow power. It's what you will turn into if you lose control.",
+      "memory_text": "This monster was Voragis's prototype - a horrible mix of human souls and shadow power. It's what you will turn into if you lose control.",
       "icon_path": "assets/graphics/ui/powerup_speed.png",
       "flashback_duration": 3.5
     }

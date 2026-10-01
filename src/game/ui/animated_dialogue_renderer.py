@@ -189,14 +189,34 @@ class AnimatedDialogueRenderer:
                 # Render letter surface
                 cache_key = (char, color, font.get_height())
                 if cache_key not in self._glyph_cache:
-                    self._glyph_cache[cache_key] = font.render(char, True, color)
+                    try:
+                        self._glyph_cache[cache_key] = font.render(char, True, color)
+                    except pg.error:
+                        fallback_char = "-" if char in ("—", "–") else char
+                        try:
+                            self._glyph_cache[cache_key] = font.render(fallback_char, True, color)
+                        except pg.error:
+                            w = max(1, font.size(" ")[0])
+                            h = max(1, font.get_height())
+                            surf = pg.Surface((w, h), pg.SRCALPHA)
+                            self._glyph_cache[cache_key] = surf
                 glyph_surf = self._glyph_cache[cache_key]
 
                 # Render drop shadow if requested
                 if shadow_color:
                     shd_key = (char, shadow_color, font.get_height())
                     if shd_key not in self._glyph_cache:
-                        self._glyph_cache[shd_key] = font.render(char, True, shadow_color)
+                        try:
+                            self._glyph_cache[shd_key] = font.render(char, True, shadow_color)
+                        except pg.error:
+                            fallback_char = "-" if char in ("—", "–") else char
+                            try:
+                                self._glyph_cache[shd_key] = font.render(fallback_char, True, shadow_color)
+                            except pg.error:
+                                w = max(1, font.size(" ")[0])
+                                h = max(1, font.get_height())
+                                surf = pg.Surface((w, h), pg.SRCALPHA)
+                                self._glyph_cache[shd_key] = surf
                     shd_surf = self._glyph_cache[shd_key]
 
                     # Scale shadow surface if letter is enlarged
