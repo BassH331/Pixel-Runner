@@ -26,49 +26,49 @@ class ConfigPayload(BaseModel):
     is_active: bool = True
 
 class SessionPayload(BaseModel):
-    session_id: str
-    boss_key: Optional[str] = None
-    started_at: Optional[str] = None
-    ended_at: Optional[str] = None
-    duration_seconds: Optional[float] = None
-    active_combat_duration_seconds: Optional[float] = None
-    total_frames: Optional[int] = None
-    average_fps: Optional[float] = None
-    player_damage_taken: Optional[float] = None
-    boss_damage_taken: Optional[float] = None
-    player_hits_received: Optional[int] = None
-    boss_hits_received: Optional[int] = None
-    boss_attacks: Optional[int] = None
-    successful_boss_attacks: Optional[int] = None
-    boss_spell_casts: Optional[int] = None
-    projectile_hits: Optional[int] = None
-    projectile_misses: Optional[int] = None
+    session_id: str = Field(..., max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    boss_key: Optional[str] = Field(None, max_length=64)
+    started_at: Optional[str] = Field(None, max_length=64)
+    ended_at: Optional[str] = Field(None, max_length=64)
+    duration_seconds: Optional[float] = Field(None, ge=0.0, le=86400.0)
+    active_combat_duration_seconds: Optional[float] = Field(None, ge=0.0, le=86400.0)
+    total_frames: Optional[int] = Field(None, ge=0, le=10000000)
+    average_fps: Optional[float] = Field(None, ge=0.0, le=1000.0)
+    player_damage_taken: Optional[float] = Field(None, ge=0.0, le=100000.0)
+    boss_damage_taken: Optional[float] = Field(None, ge=0.0, le=100000.0)
+    player_hits_received: Optional[int] = Field(None, ge=0, le=100000)
+    boss_hits_received: Optional[int] = Field(None, ge=0, le=100000)
+    boss_attacks: Optional[int] = Field(None, ge=0, le=100000)
+    successful_boss_attacks: Optional[int] = Field(None, ge=0, le=100000)
+    boss_spell_casts: Optional[int] = Field(None, ge=0, le=100000)
+    projectile_hits: Optional[int] = Field(None, ge=0, le=100000)
+    projectile_misses: Optional[int] = Field(None, ge=0, le=100000)
     boss_defeated: Optional[bool] = None
-    average_horizontal_distance: Optional[float] = None
-    average_vertical_distance: Optional[float] = None
-    average_player_boss_distance: Optional[float] = None
-    player_defend_frames: Optional[int] = None
-    player_standing_frames: Optional[int] = None
-    player_jumps: Optional[int] = None
-    player_side_swaps: Optional[int] = None
-    total_active_combat_frames: Optional[int] = None
-    files_parsed: Optional[List[str]] = None
+    average_horizontal_distance: Optional[float] = Field(None, ge=-100000.0, le=1000000.0)
+    average_vertical_distance: Optional[float] = Field(None, ge=-100000.0, le=1000000.0)
+    average_player_boss_distance: Optional[float] = Field(None, ge=0.0, le=1000000.0)
+    player_defend_frames: Optional[int] = Field(None, ge=0, le=10000000)
+    player_standing_frames: Optional[int] = Field(None, ge=0, le=10000000)
+    player_jumps: Optional[int] = Field(None, ge=0, le=100000)
+    player_side_swaps: Optional[int] = Field(None, ge=0, le=100000)
+    total_active_combat_frames: Optional[int] = Field(None, ge=0, le=10000000)
+    files_parsed: Optional[List[str]] = Field(None, max_length=50)
 
 class EventItem(BaseModel):
-    session_id: str
-    timestamp_ms: int
-    event_type: str
+    session_id: str = Field(..., max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    timestamp_ms: int = Field(..., ge=0)
+    event_type: str = Field(..., max_length=64, pattern=r"^[a-zA-Z0-9_.-]+$")
     event_data: Dict[str, Any] = Field(default_factory=dict)
 
 class FrameSampleItem(BaseModel):
-    session_id: str
-    timestamp_ms: int
-    frame_number: int
-    fps: float
-    world_distance: float
+    session_id: str = Field(..., max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    timestamp_ms: int = Field(..., ge=0)
+    frame_number: int = Field(..., ge=0)
+    fps: float = Field(..., ge=0.0, le=1000.0)
+    world_distance: float = Field(..., ge=-100000.0, le=1000000.0)
     player: Optional[Dict[str, Any]] = None
     boss: Optional[Dict[str, Any]] = None
-    active_entities: int = 0
+    active_entities: int = Field(0, ge=0, le=10000)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Helper to Validate Write Access
@@ -214,11 +214,17 @@ def create_config(
 # ─────────────────────────────────────────────────────────────────────────
 @app.post("/telemetry/session")
 @app.post("/api/telemetry/session")
-def post_session(payload: SessionPayload):
+def post_session(
+    payload: SessionPayload,
+    x_api_write_secret: Optional[str] = Header(None)
+):
     """Save or update play session telemetry metrics."""
+    verify_write_access(x_api_write_secret)
     try:
         res = db.insert_session(payload.model_dump(exclude_unset=True))
         return {"status": "success", "id": res.get("id"), "session_id": res.get("session_id")}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -227,10 +233,19 @@ def post_session(payload: SessionPayload):
 
 @app.post("/telemetry/events")
 @app.post("/api/telemetry/events")
-def post_events(payload: List[EventItem]):
+def post_events(
+    payload: List[EventItem],
+    x_api_write_secret: Optional[str] = Header(None)
+):
     """Batch upload gameplay telemetry events."""
+    verify_write_access(x_api_write_secret)
     if not payload:
         return {"status": "success", "inserted": 0}
+    if len(payload) > 50:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Payload array exceeds maximum event batch limit of 50 items."
+        )
         
     try:
         # Cache of session_id string -> database UUID
@@ -256,6 +271,8 @@ def post_events(payload: List[EventItem]):
             
         res = db.insert_events(db_events)
         return {"status": "success", "inserted": len(res)}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -264,10 +281,19 @@ def post_events(payload: List[EventItem]):
 
 @app.post("/telemetry/frames")
 @app.post("/api/telemetry/frames")
-def post_frames(payload: List[FrameSampleItem]):
+def post_frames(
+    payload: List[FrameSampleItem],
+    x_api_write_secret: Optional[str] = Header(None)
+):
     """Batch upload frame sample telemetry snapshots."""
+    verify_write_access(x_api_write_secret)
     if not payload:
         return {"status": "success", "inserted": 0}
+    if len(payload) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Payload array exceeds maximum frame sample batch limit of 100 items."
+        )
 
     try:
         # Cache of session_id string -> database UUID

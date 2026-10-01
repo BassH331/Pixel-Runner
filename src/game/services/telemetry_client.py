@@ -104,14 +104,19 @@ class TelemetryClient:
         url = f"{API_BASE_URL.rstrip('/')}{endpoint}"
         payload = json.dumps(data).encode("utf-8")
         
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Pixel-Runner Game Client"
+        }
+        write_secret = os.environ.get("API_WRITE_SECRET")
+        if write_secret:
+            headers["X-API-Write-Secret"] = write_secret
+
         try:
             req = urllib.request.Request(
                 url,
                 data=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "User-Agent": "Pixel-Runner Game Client"
-                },
+                headers=headers,
                 method="POST"
             )
             with urllib.request.urlopen(req, timeout=5.0) as response:
@@ -140,18 +145,22 @@ class TelemetryClient:
         if os.environ.get("DEBUG_TELEMETRY_HTTP") == "1":
             print(f"[TELEMETRY CLIENT] Found {len(pending)} pending telemetry items in cache. Retrying...")
         
+        write_secret = os.environ.get("API_WRITE_SECRET")
         for queue_id, endpoint, payload in pending:
             url = f"{API_BASE_URL.rstrip('/')}{endpoint}"
             post_data = json.dumps(payload).encode("utf-8")
+            headers = {
+                "Content-Type": "application/json",
+                "User-Agent": "Pixel-Runner Game Client"
+            }
+            if write_secret:
+                headers["X-API-Write-Secret"] = write_secret
             
             try:
                 req = urllib.request.Request(
                     url,
                     data=post_data,
-                    headers={
-                        "Content-Type": "application/json",
-                        "User-Agent": "Pixel-Runner Game Client"
-                    },
+                    headers=headers,
                     method="POST"
                 )
                 with urllib.request.urlopen(req, timeout=5.0) as response:
