@@ -1,0 +1,51 @@
+# Pixel Runner — Workspace State & Task Tracker
+
+This document provides persistent context tracking, component mappings, active domain states, and task history across agent sessions.
+
+---
+
+## 1. Repository Architecture Map
+
+| Domain Layer | Location / Key Modules | Primary Role |
+| :--- | :--- | :--- |
+| **Engine & Physics** | `src/game/entities/player.py`<br>`src/game/states/`<br>`v3x_zulfiqar_gideon/` | Frame-rate independent physics ($\delta = \text{dt} \times 60$), entity FSM, level loop. |
+| **Shared Game Logic** | `src/game/shared/difficulty_core.py` | Canonical difficulty scaling formulas used by both client and API. |
+| **Backend API Service** | `pixel-runner-api/api/index.py`<br>`pixel-runner-api/api/services/` | FastAPI telemetry, leaderboards, database service, security headers. |
+| **UI & Presentation** | `src/game/ui/animated_dialogue_renderer.py`<br>`src/game/ui/hud_overlay.py` | Typewriter dialogue rendering, HUD, safe glyph fallback handling. |
+| **Audio & SFX** | `src/game/audio/audio_manager.py`<br>`src/game/audio/voiceover_manager.py` | Data-driven audio triggers, voiceover playback, missing asset fallbacks. |
+| **Verification Suite** | `tests/`<br>`pixel-runner-api/tests/` | 308+ unit & integration tests. |
+
+---
+
+## 2. Recent Audit & Remediation Milestone Log
+
+| Phase / Target | Description | Status | Verification |
+| :--- | :--- | :--- | :--- |
+| **Baseline Tests** | Fixed audio config and lightning effect baseline tests. | **COMPLETED** (`1c8e55fc`) | Pytest passed |
+| **SEC-01 (API Auth)** | Enforced `X-API-Write-Secret` header authorization and payload bounds. | **COMPLETED** (`6e5b77eb`) | API test suite passed |
+| **SEC-03 (Repo Clean)**| Removed 4,982 committed venv files from Git tracking. | **COMPLETED** (`c20718c4`) | Clean git index |
+| **GAME-01 (Combat)** | Corrected defend damage math `max(1, math.ceil(amount * 0.3))`. | **COMPLETED** (`6ff4761a`) | `test_player_damage.py` passed |
+| **PERF-01 (Physics)** | Scaled physics displacement by normalized dt with sub-stepping. | **COMPLETED** (`f071801f`) | `test_physics_timestep.py` passed |
+| **TEST-01 (API Tests)**| Created full FastAPI backend test suite `test_telemetry_api.py`. | **COMPLETED** (`868c899e`) | API test suite passed |
+| **ARCH-01 (Difficulty)**| Extracted unified canonical `DifficultyCore` for client & API. | **COMPLETED** (`46ee3a6b`) | `test_difficulty_sync.py` passed |
+| **SEC-04 (Privacy)** | Added user telemetry consent toggle and settings persistence. | **COMPLETED** (`91e491c8`) | `test_telemetry_opt_out.py` passed |
+| **UI Font Fallback** | Added missing glyph & zero-width handling in dialogue renderer. | **COMPLETED** (`c90e54e5`) | `test_animated_dialogue_renderer.py` passed |
+
+---
+
+## 3. Current System Health & Invariants
+
+- **Test Suite Status**: **308/308 passed** (`PYTHONPATH=. ./venv/bin/pytest`).
+- **Physics Timestep Standard**: All movement scaled by `dt * 60.0` reference factor.
+- **Font Rendering Standard**: All custom TTF rendering wrapped in zero-width glyph fallback handler.
+- **Telemetry Auth Standard**: All write requests require `X-API-Write-Secret` header when configured.
+- **Difficulty Sync Standard**: Both client and API inherit formulas directly from `DifficultyCore`.
+
+---
+
+## 4. Active Working Memory & Checklist
+
+- [x] Baseline test fix & repository cleanup
+- [x] Core security & performance remediation
+- [x] UI font glyph fallback handling
+- [ ] Active Feature / Next Objective: *(Ready for new tasks)*
