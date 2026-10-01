@@ -5,12 +5,14 @@ from supabase import create_client, Client
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-    # Fail silently or warning in server logs to prevent crash during Vercel build/import checks
+supabase: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    except Exception as e:
+        print(f"Warning: Failed to initialize Supabase client: {e}")
+else:
     print("Warning: SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables are missing.")
-
-# Initialize the Supabase client using the service role key to bypass RLS for backend tasks
-supabase: Client = create_client(SUPABASE_URL or "", SUPABASE_SERVICE_KEY or "")
 
 def get_active_config(config_type: str) -> Optional[Dict[str, Any]]:
     """Retrieve the active configuration for a given config_type from the pixel_runner.configs table."""
