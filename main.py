@@ -121,7 +121,7 @@ def main():
         routes={
             SplashState: MainMenuState,
             MainMenuState: {"PLAY": StoryState},
-            StoryState: {"NEW_GAME": TransformationCutscene},
+            StoryState: {"NEW_GAME": GameState},
             TransformationCutscene: GameState,
         },
         

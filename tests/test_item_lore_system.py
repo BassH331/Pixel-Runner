@@ -28,7 +28,7 @@ def test_relic_discovery_triggers_flashback():
     assert system.active_flashback is not None
     assert system.active_flashback.id == "shattered_gauntlet"
     assert system.active_flashback.discovered is True
-    assert "rain and stone dust" in system.active_flashback.memory_text
+    assert "fell on the battlefield" in system.active_flashback.memory_text
     assert system.flashback_timer == 3.5
 
 

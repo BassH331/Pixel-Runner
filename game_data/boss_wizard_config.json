@@ -8,7 +8,7 @@
   "chase_delay_duration": 0.2,
   "attack_cooldown_min": 0.5,
   "attack_cooldown_max": 1.0,
-  "spidey_sense": 0.6,
+  "spidey_sense": 0.86,
   "attack_hitbox_width": 55,
   "attack_hitbox_height": 45
 }

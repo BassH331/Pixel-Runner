@@ -34,13 +34,11 @@ class PlayerUI:
             scaled = pg.transform.scale(frame, (frame.get_width() * 3, frame.get_height() * 3))
             self.health_frames.append(scaled)
 
-        self.health_bar_pos = (20, 10)
-        bar_h = self.health_frames[0].get_height()
-
-        # Enlarged mana/stamina bars stacked directly under the health bar
-        self.mana_bar_pos = (20, self.health_bar_pos[1] + bar_h + 12)
-        self.stamina_bar_pos = (20, self.mana_bar_pos[1] + 52)
-        self._resource_bar_size = (200, 16)
+        # Modern unified bar spacing
+        self.health_bar_pos = (20, 15)
+        self.mana_bar_pos = (20, self.health_bar_pos[1] + 48)
+        self.stamina_bar_pos = (20, self.mana_bar_pos[1] + 48)
+        self._resource_bar_size = (200, 14)
 
         self.souls_icon_pos = (20, self.stamina_bar_pos[1] + 52)
         self.relic_icon_pos = (20, self.souls_icon_pos[1] + 62)
@@ -201,10 +199,13 @@ class PlayerUI:
         cx, cy = (w + 8) // 2, (h + 8) // 2
         r = w // 2 + 1
 
-        glow_alpha = min(220, opacity)
-        pg.draw.circle(container, (*border_color[:3], glow_alpha // 2), (cx, cy), r + 3, width=2)
-        pg.draw.circle(container, (*border_color[:3], glow_alpha), (cx, cy), r + 1, width=2)
-        pg.draw.circle(container, (20, 20, 35, glow_alpha), (cx, cy), r, width=1)
+        # Modern sleek badge: solid dark back, crisp 1px border
+        glow_alpha = min(255, opacity)
+        pg.draw.circle(container, (20, 25, 30, glow_alpha), (cx, cy), r)
+        pg.draw.circle(container, (*border_color[:3], glow_alpha), (cx, cy), r, width=2)
+        
+        # Subtle inner rim light
+        pg.draw.circle(container, (255, 255, 255, glow_alpha // 4), (cx, cy), r - 1, width=1)
 
         icon_alpha = circle_img.copy()
         if opacity < 255:
@@ -224,36 +225,48 @@ class PlayerUI:
         return pg.Rect(pos[0] - 4, pos[1] - 4, w + 8, h + 8)
 
     def _draw_resource_bar(self, surface, pos, icon, current, maximum, fill_color, bg_color, border_color=(160, 60, 255)):
-        """Draw an enlarged framed icon + outlined resource bar."""
+        """Draw an enlarged framed icon + modern pill-shaped resource bar."""
         is_active = (current > 0.0) if maximum > 0 else True
-        opacity = 255 if is_active else 80
+        opacity = 255 if is_active else 120
 
         icon_rect = self._draw_framed_icon(surface, icon, pos, border_color=border_color, opacity=opacity)
         
         ratio = max(0.0, min(1.0, current / maximum)) if maximum > 0 else 0.0
         
-        # Position bar cleanly aligned right of the framed icon
-        bar_x = icon_rect.right + 10
-        bar_y = pos[1] + (icon.get_height() // 2) - 8
-        bar_w, bar_h = self._resource_bar_size
+        # Sleek modern bar positioning
+        bar_x = icon_rect.right + 12
+        bar_h = 14
+        bar_w = self._resource_bar_size[0]
+        bar_y = pos[1] + (icon.get_height() // 2) - (bar_h // 2)
         
-        # Background bar
         bg_rect = pg.Rect(bar_x, bar_y, bar_w, bar_h)
-        pg.draw.rect(surface, bg_color, bg_rect, border_radius=4)
+        
+        # Dark glass background
+        pg.draw.rect(surface, (15, 15, 20, 200), bg_rect, border_radius=7)
         
         # Fill bar
         if ratio > 0:
-            fill_w = max(2, int(bar_w * ratio))
+            fill_w = max(14, int(bar_w * ratio))
             fill_rect = pg.Rect(bar_x, bar_y, fill_w, bar_h)
-            pg.draw.rect(surface, fill_color, fill_rect, border_radius=4)
+            pg.draw.rect(surface, fill_color, fill_rect, border_radius=7)
             
-            # Subtle top highlight
-            highlight_rect = pg.Rect(bar_x, bar_y, fill_w, bar_h // 2)
-            highlight_color = (min(255, fill_color[0] + 50), min(255, fill_color[1] + 50), min(255, fill_color[2] + 50))
-            pg.draw.rect(surface, highlight_color, highlight_rect, border_radius=4)
+            # Bright neon core line for modern glowing effect
+            core_rect = pg.Rect(bar_x + 4, bar_y + (bar_h // 2) - 1, fill_w - 8, 2)
+            core_color = (min(255, fill_color[0] + 80), min(255, fill_color[1] + 80), min(255, fill_color[2] + 80))
+            pg.draw.rect(surface, core_color, core_rect, border_radius=1)
             
-        # Border
-        pg.draw.rect(surface, (200, 200, 220), bg_rect, width=1, border_radius=4)
+        # Crisp outer border matching the icon theme
+        pg.draw.rect(surface, border_color, bg_rect, width=1, border_radius=7)
+
+    def _make_heart_icon(self, size):
+        """Simple heart placeholder icon for the Health display."""
+        surface = pg.Surface(size, pg.SRCALPHA)
+        w, h = size
+        cx, cy = w // 2, h // 2
+        # Simple red heart
+        points = [(cx, h*0.8), (w*0.1, h*0.4), (w*0.1, h*0.2), (w*0.4, h*0.1), (cx, h*0.3), (w*0.6, h*0.1), (w*0.9, h*0.2), (w*0.9, h*0.4)]
+        pg.draw.polygon(surface, (255, 60, 80), points)
+        return surface
 
     def draw(self, surface):
         if self.start_time == 0:
@@ -263,12 +276,14 @@ class PlayerUI:
         float_y = int(math.sin(pg.time.get_ticks() * 0.003) * 2)
 
         # ── Health Bar ───────────────────────────────────────────────────────
-        health_ratio = max(0.0, min(1.0, self.current_health / self.max_health))
-        frame_idx = 7 - int(round(health_ratio * 7))
-        frame_idx = max(0, min(7, frame_idx))
-        hp_frame = self.health_frames[frame_idx]
-        hp_pos = (self.health_bar_pos[0], self.health_bar_pos[1] + float_y)
-        surface.blit(hp_frame, hp_pos)
+        if not hasattr(self, "health_icon"):
+            self.health_icon = self._make_heart_icon((32, 32))
+
+        self._draw_resource_bar(
+            surface, (self.health_bar_pos[0], self.health_bar_pos[1] + float_y),
+            self.health_icon, self.current_health, self.max_health,
+            fill_color=(255, 60, 80), bg_color=(35, 10, 15), border_color=(255, 100, 120)
+        )
 
         # ── Mana Bar ─────────────────────────────────────────────────────────
         self._draw_resource_bar(
@@ -379,26 +394,27 @@ class PlayerUI:
         bar_y_center = souls_y + 18 - bar_h // 2
 
         bg_rect = pg.Rect(bar_x, bar_y_center, bar_w, bar_h)
-        pg.draw.rect(surface, (15, 12, 25), bg_rect, border_radius=4)
+        pg.draw.rect(surface, (15, 15, 20, 200), bg_rect, border_radius=7)
 
         if ratio > 0:
-            fill_w = max(2, int(bar_w * ratio))
+            fill_w = max(14, int(bar_w * ratio))
             fill_rect = pg.Rect(bar_x, bar_y_center, fill_w, bar_h)
-            pg.draw.rect(surface, bar_fill, fill_rect, border_radius=4)
+            pg.draw.rect(surface, bar_fill, fill_rect, border_radius=7)
 
-            top_rect = pg.Rect(bar_x, bar_y_center, fill_w, bar_h // 2)
-            shimmer = (*[min(255, c + 40) for c in bar_fill[:3]],)
-            pg.draw.rect(surface, shimmer, top_rect, border_radius=4)
+            # Bright neon core line
+            core_rect = pg.Rect(bar_x + 4, bar_y_center + (bar_h // 2) - 1, fill_w - 8, 2)
+            core_color = (min(255, bar_fill[0] + 80), min(255, bar_fill[1] + 80), min(255, bar_fill[2] + 80))
+            pg.draw.rect(surface, core_color, core_rect, border_radius=1)
 
         if pulse_alpha > 0:
             glow_surf = pg.Surface((bar_w + 6, bar_h + 6), pg.SRCALPHA).convert_alpha()
             glow_surf.fill((255, 220, 80, pulse_alpha))
             surface.blit(glow_surf, (bar_x - 3, bar_y_center - 3))
 
-        pg.draw.rect(surface, bar_border, bg_rect, width=1, border_radius=4)
+        pg.draw.rect(surface, bar_border, bg_rect, width=1, border_radius=7)
 
         label_text = self._render_shadowed_text(self.small_font, f"SOULS  ·  {total}/{target}", text_color)
-        surface.blit(label_text, (bar_x, bar_y_center + bar_h + 2))
+        surface.blit(label_text, (bar_x + 5, bar_y_center + bar_h + 4))
 
     def render_corruption_vignette(self, surface: pg.Surface, corruption_level: float) -> None:
         """Render dynamic radial dark shadow vignette when player is transformed/corrupted."""

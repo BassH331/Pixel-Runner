@@ -63,6 +63,8 @@ class SettingsState(State):
         self.current_sfx = int(self.settings.get("sfx_volume") * 100)
         telemetry_val = self.settings.get("telemetry_enabled")
         self.current_telemetry = bool(telemetry_val) if telemetry_val is not None else True
+        ai_dir_val = self.settings.get("ai_director_enabled")
+        self.current_ai_director = bool(ai_dir_val) if ai_dir_val is not None else True
         
         # Setup settings options definitions
         self.options = [
@@ -99,6 +101,13 @@ class SettingsState(State):
             {
                 "id": "telemetry",
                 "label": "Telemetry Sharing",
+                "type": "choice",
+                "choices": [True, False],
+                "labels": ["Enabled", "Disabled"]
+            },
+            {
+                "id": "ai_director",
+                "label": "AI Director (Kimi)",
                 "type": "choice",
                 "choices": [True, False],
                 "labels": ["Enabled", "Disabled"]
@@ -139,6 +148,7 @@ class SettingsState(State):
         if option_id == "music": return self.current_music
         if option_id == "sfx": return self.current_sfx
         if option_id == "telemetry": return self.current_telemetry
+        if option_id == "ai_director": return self.current_ai_director
         return None
         
     def _set_value(self, option_id, value):
@@ -165,6 +175,14 @@ class SettingsState(State):
                 os.environ["DISABLE_TELEMETRY"] = "1"
             else:
                 os.environ.pop("DISABLE_TELEMETRY", None)
+        elif option_id == "ai_director":
+            import os
+            self.current_ai_director = value
+            self.settings.set("ai_director_enabled", value)
+            if not value:
+                os.environ["DISABLE_AI_DIRECTOR"] = "1"
+            else:
+                os.environ.pop("DISABLE_AI_DIRECTOR", None)
             
     def _change_val(self, direction):
         """direction: -1 for left/down, +1 for right/up"""

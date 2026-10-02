@@ -79,8 +79,11 @@ def test_blood_zombie_hit_frame_resets_on_state_change():
     assert not bz.should_deal_damage()
 
 def test_player_hit_frame_resets_on_state_change():
-    pl = Player(100, 100, None)
+    class MockAudioManager:
+        def play_sound(self, *args, **kwargs): pass
     
+    pl = Player(100, 100, MockAudioManager())
+
     pl.set_state(PlayerState.IDLE, force=True)
     assert not pl.is_in_hit_frame()
     assert not pl.should_deal_damage()

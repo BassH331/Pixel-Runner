@@ -162,6 +162,8 @@ class GameState(PlayingState):
         self.notification_banner = self.hud_overlay.notification_banner
         self.side_notification = self.hud_overlay.side_notification
         self.tutorial_overlay = self.hud_overlay.tutorial_overlay
+        from src.game.ui.cinematic_narrative_overlay import CinematicNarrativeOverlay
+        self.cinematic_narrative_overlay = CinematicNarrativeOverlay()
         self._current_interacting_npc = None
         self.trippy_zoom = TrIPPyZoomEffect(self.width, self.height)
         self.clean_camera_zoom = CleanCameraZoom(self.width, self.height)
@@ -673,6 +675,11 @@ class GameState(PlayingState):
         Args:
             event: Pygame event to process.
         """
+        # While cinematic narrative overlay is active, capture keypress choices [1] or [2]
+        if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:
+            if self.cinematic_narrative_overlay.handle_event(event):
+                return
+
         # While tutorial overlay is active, capture its input
         if self.tutorial_overlay.is_active:
             self.tutorial_overlay.handle_event(event)
@@ -939,6 +946,22 @@ class GameState(PlayingState):
         Args:
             dt: Delta time since last update in seconds.
         """
+
+        # Apply 10% slow motion combat speed while cinematic narrative overlay is active
+        if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:
+            dt = dt * 0.10
+            self.cinematic_narrative_overlay.update(dt)
+        else:
+            try:
+                from src.game.services.ai_director_client import AiDirectorClient
+                directive = AiDirectorClient.get_active_directive()
+                if directive and directive.get("narrative_event") and hasattr(self, "cinematic_narrative_overlay"):
+                    evt = directive["narrative_event"]
+                    # Clear active event from directive buffer so it only fires once per trigger
+                    directive["narrative_event"] = None
+                    self.cinematic_narrative_overlay.activate(evt, self._apply_narrative_choice_buff)
+            except Exception:
+                pass
 
         # Freeze gameplay while tutorial or objective overlay is active
         if self.tutorial_overlay.is_active:
@@ -1377,10 +1400,50 @@ class GameState(PlayingState):
     # Rendering
     # ─────────────────────────────────────────────────────────────────────────
     
+    def _on_pact_choice(self, buff_data: dict) -> None:
+        if buff_data.get("trigger_transformation"):
+            # Trigger SpaceExplosion
+            from src.game.effects.vfx_manager import VisualEffectManager
+            player_sprite = self.player.sprite
+            if player_sprite:
+                VisualEffectManager.spawn_hit_vfx(
+                    x=player_sprite.rect.centerx,
+                    y=player_sprite.rect.centery,
+                    vfx_type="space_explosion",
+                    scale=3.0
+                )
+            
+            # Switch state to TransformationCutscene
+            from src.game.states.transformation_cutscene import TransformationCutscene
+            self.manager.set(TransformationCutscene(self.manager))
+            
+        elif buff_data.get("kill_player"):
+            self._pact_rejected = True
+            self._game_over_start_time = pg.time.get_ticks()
+
     def _check_game_over(self) -> None:
         """Check if game over conditions are met and handle transition."""
         player = self.player.sprite
-        if player.is_dead and self._game_over_start_time is None:
+        
+        # Demonic Pact Injection
+        if player.is_dead and not getattr(self, "_demonic_pact_offered", False):
+            self._demonic_pact_offered = True
+            
+            pact_event = {
+                "speaker_name": "Andras, Marquis of Discord",
+                "avatar_sprite": "assets/Agis",
+                "dialogue_text": "Your strength fails you, warrior. But I can offer you power... if you accept my vessel.",
+                "option_1_label": "[1] Embrace the Darkness",
+                "option_1_buff": {"trigger_transformation": True},
+                "option_2_label": "[2] Die with Honor",
+                "option_2_buff": {"kill_player": True}
+            }
+            
+            self.cinematic_narrative_overlay.activate(pact_event, self._on_pact_choice)
+            return
+
+        # Normal game over sequence, only triggered if pact was rejected
+        if player.is_dead and getattr(self, "_pact_rejected", False) and self._game_over_start_time is None:
             self._game_over_start_time = pg.time.get_ticks()
         
         # Wait for the game over delay before transitioning
@@ -1526,6 +1589,28 @@ class GameState(PlayingState):
 
         # Screen-space HUD Overlays (Objectives, Notifications, Tutorials)
         self.hud_overlay.draw_screen_overlays(surface)
+
+        # Draw Cinematic Narrative Overlay (Slow-Motion Vignette & Dialogue Prompt UI)
+        if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:
+            self.cinematic_narrative_overlay.draw(surface)
+
+    def _apply_narrative_choice_buff(self, buff_data: dict) -> None:
+        """Apply narrative choice stat modifications selected in CinematicNarrativeOverlay."""
+        if not buff_data or not hasattr(self, "player"):
+            return
+        p = self.player.sprite if hasattr(self.player, "sprite") else self.player
+        if not p:
+            return
+        if "dmg_mult" in buff_data and hasattr(p, "_damage_multiplier"):
+            p._damage_multiplier = getattr(p, "_damage_multiplier", 1.0) * buff_data["dmg_mult"]
+        if "hp_cost_pct" in buff_data and hasattr(p, "max_health") and hasattr(p, "_health"):
+            cost = int(p.max_health * buff_data["hp_cost_pct"])
+            p._health = max(1, p._health - cost)
+        if "hp_restore" in buff_data and hasattr(p, "max_health") and hasattr(p, "_health"):
+            p._health = min(p.max_health, p._health + buff_data["hp_restore"])
+        if "mana_restore" in buff_data and hasattr(p, "_mana"):
+            max_m = getattr(p, "_max_mana", 100)
+            p._mana = min(max_m, getattr(p, "_mana", 0) + buff_data["mana_restore"])
 
 
     

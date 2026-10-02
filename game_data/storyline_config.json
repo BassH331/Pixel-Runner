@@ -4,32 +4,32 @@
     "shattered_gauntlet": {
       "id": "shattered_gauntlet",
       "title": "Shattered Gauntlet",
-      "category": "The Accident",
-      "memory_text": "Your hand was covered in rain and stone dust. You held her fingers for half a second. Then your glove slipped.",
+      "category": "The Defeat",
+      "memory_text": "You fell on the battlefield. Your armor crushed. You were supposed to die here. Then, a voice offered you a second chance.",
       "icon_path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
       "flashback_duration": 3.5
     },
     "herbalists_satchel": {
       "id": "herbalists_satchel",
-      "title": "Herbalist's Satchel",
-      "category": "The Sister",
-      "memory_text": "Elysia carried this pouch everywhere to collect mountain herbs. She promised she'd be back before sunset.",
+      "title": "Tainted Sigil",
+      "category": "The Pact",
+      "memory_text": "The mark of Andras, Marquis of Discord. A burning brand on your flesh that gives you unholy speed, but drains your humanity.",
       "icon_path": "assets/graphics/ui/relic_icon.png",
       "flashback_duration": 3.5
     },
     "voragis_inkwell": {
       "id": "voragis_inkwell",
-      "title": "Voragis's Inkwell",
-      "category": "The Devil's Ink",
-      "memory_text": "The debt collector didn't ask for gold. He asked if you'd give up your soul to drag her out. The Evil Eye laughed as you signed.",
+      "title": "Vial of Void Blood",
+      "category": "The Grooming",
+      "memory_text": "Andras doesn't want you to win. He wants you to rely on his power. Every time you transform, his grip on your soul tightens.",
       "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
       "flashback_duration": 3.5
     },
     "hollowed_ledger_page": {
       "id": "hollowed_ledger_page",
-      "title": "Hollowed Ledger Page",
+      "title": "Hollowed Vessel Ledger",
       "category": "The Undead",
-      "memory_text": "A list of everyone who made this deal before you. Every single one failed and turned into the skeletons roaming these woods.",
+      "memory_text": "A list of warriors who made this deal before you. Every single one was hollowed out, their bodies possessed by lesser demons.",
       "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
       "flashback_duration": 3.5
     },
@@ -37,7 +37,7 @@
       "id": "candoras_tear",
       "title": "Candora's Tear",
       "category": "The Angel's Light",
-      "memory_text": "A warm stone left at a ruined altar. A quiet reminder from the Moon Knight that someone is rooting for you to stay human.",
+      "memory_text": "A warm stone left at a ruined altar. A quiet reminder from the Moon Knight that someone is rooting for you to reject the demon.",
       "icon_path": "assets/graphics/ui/powerup_invincible.png",
       "flashback_duration": 3.5
     },
@@ -45,7 +45,7 @@
       "id": "amalgam_core",
       "title": "Amalgam Core",
       "category": "The Prototype",
-      "memory_text": "This monster was Voragis's prototype - a horrible mix of human souls and shadow power. It's what you will turn into if you lose control.",
+      "memory_text": "This monster was Andras's previous vessel - a horrible mix of human flesh and shadow power. It's what you will turn into.",
       "icon_path": "assets/graphics/ui/powerup_speed.png",
       "flashback_duration": 3.5
     }
@@ -65,19 +65,19 @@
   ],
   "whisperers": {
     "evil_eye": {
-      "name": "The Evil Eye (Voragis's Devil)",
+      "name": "Andras (Marquis of Discord)",
       "barks": [
-        "Slash deeper, soldier! Use the shadow! Every second you hesitate, her soul slips lower!",
-        "Feel that power? Voragis loves watching you burn through your mortal blood!",
-        "Don't stop running! Your pulse is the ink signing this contract!"
+        "Let them feel your wrath! Use my shadow! You are invincible when you embrace the dark!",
+        "Yes, tear them apart! Why fight as a mortal when you can be a god?",
+        "Don't hold back. Give in to the void. I am making you perfect..."
       ]
     },
     "moon_knight": {
       "name": "The Moon Knight (Candora's Angel)",
       "barks": [
-        "Hold onto her name, Kaelen! Every time you summon the flame, her face fades in your mind.",
+        "Hold onto your honor, warrior! Every time you summon his flame, your soul fades.",
         "Stay human, runner. Candora's silver light still reaches into these woods.",
-        "The debt is a trap. Win the race, but keep your heart intact."
+        "His gifts are a trap. Win the race, but reject his vessel."
       ]
     }
   }

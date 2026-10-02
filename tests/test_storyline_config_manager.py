@@ -24,7 +24,7 @@ def test_relics_config_content():
     assert "shattered_gauntlet" in relics
     assert "voragis_inkwell" in relics
     assert relics["shattered_gauntlet"]["title"] == "Shattered Gauntlet"
-    assert "rain and stone dust" in relics["shattered_gauntlet"]["memory_text"]
+    assert "fell on the battlefield" in relics["shattered_gauntlet"]["memory_text"]
 
 
 def test_corruption_config_values():

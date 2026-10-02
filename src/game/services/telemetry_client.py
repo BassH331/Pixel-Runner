@@ -76,6 +76,18 @@ class TelemetryClient:
             return
         with cls._buffer_lock:
             cls._frame_buffer.extend(frames)
+            try:
+                from .ai_director_client import AiDirectorClient
+                if len(cls._frame_buffer) >= 10:
+                    payload = {
+                        "session_id": frames[-1].get("session_id", "session_live"),
+                        "boss_key": "boss",
+                        "current_phase": 1,
+                        "frames": cls._frame_buffer[-60:]
+                    }
+                    AiDirectorClient.request_directive_async(payload)
+            except Exception:
+                pass
             if len(cls._frame_buffer) >= cls._FRAME_BATCH_MAX:
                 batch = cls._frame_buffer[:]
                 cls._frame_buffer.clear()

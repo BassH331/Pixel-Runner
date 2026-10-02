@@ -30,12 +30,15 @@ This document provides persistent context tracking, component mappings, active d
 | **ARCH-01 (Difficulty)**| Extracted unified canonical `DifficultyCore` for client & API. | **COMPLETED** (`46ee3a6b`) | `test_difficulty_sync.py` passed |
 | **SEC-04 (Privacy)** | Added user telemetry consent toggle and settings persistence. | **COMPLETED** (`91e491c8`) | `test_telemetry_opt_out.py` passed |
 | **UI Font Fallback** | Added missing glyph & zero-width handling in dialogue renderer. | **COMPLETED** (`c90e54e5`) | `test_animated_dialogue_renderer.py` passed |
+| **KIMI-AI-01 (LLM)** | Moonshot Kimi AI Director service with zero-cost fallback & async client. | **COMPLETED** | `test_ai_director_api.py` & `test_ai_director_client.py` passed |
+| **KIMI-NARRATIVE-02** | Slow-Mo Vignette Narrative Overlay, Dual-Choice Buffs & Guard-Break Anti-Turtling AI. | **COMPLETED** | `test_cinematic_narrative_overlay.py` passed |
+| **JOYSTICK-HOTPLUG** | Dynamic joystick auto-detection, health verification & event-driven hot-plugging. | **COMPLETED** | `test_joystick_hotplug.py` passed (316/316 total) |
 
 ---
 
 ## 3. Current System Health & Invariants
 
-- **Test Suite Status**: **308/308 passed** (`PYTHONPATH=. ./venv/bin/pytest`).
+- **Test Suite Status**: **316/316 passed** (`PYTHONPATH=. ./venv/bin/pytest` + backend API suite).
 - **Physics Timestep Standard**: All movement scaled by `dt * 60.0` reference factor.
 - **Font Rendering Standard**: All custom TTF rendering wrapped in zero-width glyph fallback handler.
 - **Telemetry Auth Standard**: All write requests require `X-API-Write-Secret` header when configured.
@@ -48,4 +51,9 @@ This document provides persistent context tracking, component mappings, active d
 - [x] Baseline test fix & repository cleanup
 - [x] Core security & performance remediation
 - [x] UI font glyph fallback handling
+- [x] Kimi LLM AI Director Specification (`kimi_ai_director_design_spec.md`) & Implementation
+- [x] Slow-Motion Vignette & Dialogue Prompt UI (`CinematicNarrativeOverlay`)
+- [x] Anti-Turtling Guard-Break AI & Player Guard Stun (`PlayerState.GUARD_STUN`)
+- [x] Lore Engine Integration (`storyline_config.json`: Kaelen, Elysia, Voragis, Candora)
+- [x] Narrative Transformation Phase 5: Demonic Pact Injection (Andras, Fallen Warrior theme)
 - [ ] Active Feature / Next Objective: *(Ready for new tasks)*

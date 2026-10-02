@@ -281,8 +281,8 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "The Ledger's Herald",
-                "text": "Her hand slipped, knight. Voragis bought Elysia's soul from the fall\u2014and made your life the receipt. Run fast, or your debt matures.",
+                "title": "Herald of the Void",
+                "text": "You march through this purgatory as a puppet, knight. I gave you power, but power demands a tribute. Keep running... my vessel must be strong.",
                 "radius": 180,
                 "sprite_dir": "assets/graphics/Necromancer/Idle",
                 "scale": 3.38,
@@ -315,8 +315,8 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "Watcher of Voragis",
-                "text": "Every skeleton you shatter was a debtor who gave up. Crack their bones, runner\u2014clear out Voragis's trash!",
+                "title": "Watcher of the Abyss",
+                "text": "Every skeleton you shatter was a mortal who refused my gift and crumbled. Break their bones, runner\u2014prove you are worthy of the darkness!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0,
@@ -330,7 +330,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "The Scythe's Hunger",
-                "text": "Skeleton dust won't pay your tab! The Gatekeeper ahead holds pure soul-gold. Rip it from his chest!",
+                "text": "Mere bone dust will not sate my hunger. The Gatekeeper ahead holds a concentrated mass of souls. Rip it from his chest!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0,
@@ -344,7 +344,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "The Moonstone Keeper",
-                "text": "The black flame cuts deep, Kaelen. Look inside: do you still remember Elysia's smile, or just the blood?",
+                "text": "The dark flame cuts deep. Look inside: do you still remember who you were before you accepted my power, or just the blood?",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Moonstone_Keeper Eldermoon_Grove - By SUCART/Idle-MoonstoneKeeper-SUCART/No BG",
                 "scale": 2.0,

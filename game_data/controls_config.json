@@ -1,5 +1,5 @@
 {
-    "active_mode": "JOYSTICK",
+    "active_mode": "KEYBOARD",
     "keyboard_bindings": {
         "MOVE_LEFT": "left",
         "MOVE_RIGHT": "right",
@@ -21,9 +21,9 @@
         "ATTACK_SMASH": "BUTTON_1",
         "ATTACK_POWER": "BUTTON_2",
         "DEFEND": "BUTTON_7",
-        "ROLL": "AXIS_4_PLUS",
-        "DASH": "BUTTON_4",
-        "SPECIAL_ATTACK": "AXIS_1_PLUS + AXIS_4_MINUS",
-        "TRANSFORM": "AXIS_1_MINUS + AXIS_4_MINUS"
+        "ROLL": "BUTTON_4",
+        "DASH": "BUTTON_5",
+        "SPECIAL_ATTACK": "BUTTON_6",
+        "TRANSFORM": "BUTTON_8"
     }
 }

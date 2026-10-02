@@ -21,9 +21,10 @@ class StoryState(State):
     """Atmospheric prologue state displaying the core pitch in NPC-dialogue style."""
 
     _PROLOGUE_TEXT = (
-        "Her hand slipped. You let her fall. Death didn't take Elysia - a debt collector did. "
-        "Borrow his black flame to tear her back. Run. Slay. But remember: each demon slash "
-        "burns away the brother she loved."
+        "You fell on the battlefield. You were supposed to die here. Then, Andras, "
+        "Marquis of Discord, offered a second chance. He grants you unholy power, "
+        "but drains your humanity. He wants you to rely on his gifts so he can use you "
+        "as a vessel. Run. Slay. But remember: each demon slash hollows your soul."
     )
 
     def __init__(
@@ -31,7 +32,7 @@ class StoryState(State):
         manager,
         *args,
         text: Optional[str] = None,
-        title: str = "THE UNPAID DEBT",
+        title: str = "THE DEMONIC PACT",
         **kwargs,
     ):
         super().__init__(manager)

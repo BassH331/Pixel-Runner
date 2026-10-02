@@ -46,7 +46,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Final, Optional, cast
+from typing import TYPE_CHECKING, Any, Final, Optional, cast
 
 import os
 import json
@@ -87,6 +87,7 @@ class PlayerState(Enum):
     
     # Terminal states (highest priority)
     DEATH = 0
+    GUARD_STUN = 5
     DEFEND = 8
     
     # Reactive states
@@ -1289,23 +1290,9 @@ class Player(Actor):
     # Public Actions (Call these to trigger state changes)
     # ─────────────────────────────────────────────────────────────────────────
     
-    def take_damage(self, amount: float) -> bool:
+    def take_damage(self, amount: float, is_guard_break: bool = False) -> bool:
         """
-        Apply damage to the player.
-        
-        Triggers HURT state if damage is applied, or DEATH state if
-        health is depleted. Respects invincibility frames.
-        
-        Args:
-            amount: Damage points to apply.
-            
-        Returns:
-            True if damage was applied, False if blocked by invincibility.
-            
-        Example:
-            >>> if skeleton.should_deal_damage():
-            ...     if player.take_damage(skeleton.get_current_attack_damage()):
-            ...         skeleton.register_hit()
+        Apply damage to the player with defense mitigation or guard stun.
         """
         # Check invincibility
         if self.is_invincible:
@@ -1313,23 +1300,31 @@ class Player(Actor):
             
         # Check if defending
         if self.state == PlayerState.DEFEND:
-            # Reduce damage by 70% when defending, but guarantee at least 1 damage for non-zero attacks
-            amount = max(1, math.ceil(amount * 0.3)) if amount > 0 else 0
+            if is_guard_break:
+                amount = amount * 1.5
+                self._health = max(0, self._health - int(amount))
+                self.trigger_guard_stun(1.5)
+                return True
+            else:
+                # Reduce damage by 70% when defending, but guarantee at least 1 damage for non-zero attacks
+                amount = max(1, math.ceil(amount * 0.3)) if amount > 0 else 0
         
         # Apply damage
         self._health = max(0, self._health - int(amount))
         
         # Determine resulting state
-        # Audio feedback (defend_hit, player_hurt, player_death) is handled by
-        # the per-frame entity audio config — no hardcoded play_sound calls.
         if self._health <= 0:
             self._transition_to(PlayerState.DEATH)
-        elif self.state != PlayerState.DEFEND:  # Only go to HURT state if not defending
+        elif self.state != PlayerState.DEFEND and self.state != PlayerState.GUARD_STUN:
             self._transition_to(PlayerState.HURT)
-            # Grant extended i-frames after hurt animation
             self._invincibility_duration = 0.3
             
         return True
+
+    def trigger_guard_stun(self, duration: float = 1.5) -> None:
+        """Break player's shield defense and apply Guard Stun lock out."""
+        self._guard_stun_timer = duration
+        self._transition_to(PlayerState.GUARD_STUN)
     
     def _trigger_power_fx(self, pkey: str) -> None:
         """Trigger action pop-in effect on PowerIconsManager when a move is executed."""
@@ -1636,17 +1631,9 @@ class Player(Actor):
         # Action input
         self._process_action_input(keys, joystick)
     
-    def _get_joystick(self) -> Optional[pg.joystick.JoystickType]:
-        """Get the first connected joystick, if any."""
-        if pg.joystick.get_count() > 0:
-            if self._joystick is None:
-                try:
-                    self._joystick = pg.joystick.Joystick(0)
-                    if not self._joystick.get_init():
-                        self._joystick.init()
-                except pg.error:
-                    self._joystick = None
-        return None
+    def _get_joystick(self) -> Optional[Any]:
+        """Get the active joystick via ControlsManager."""
+        return ControlsManager().get_active_joystick()
 
     def _process_movement_input(
         self,

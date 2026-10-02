@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from .services import database as db
 from .services import cache
 from .services import difficulty
+from .services import kimi_service
 
 app = FastAPI(
     title="Pixel-Runner Cloud API",
@@ -70,17 +71,24 @@ class FrameSampleItem(BaseModel):
     boss: Optional[Dict[str, Any]] = None
     active_entities: int = Field(0, ge=0, le=10000)
 
+class AiDirectorPayload(BaseModel):
+    session_id: str = Field(..., max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    boss_key: Optional[str] = Field(None, max_length=64)
+    current_phase: int = Field(1, ge=1, le=10)
+    frames: List[FrameSampleItem] = Field(..., max_length=60)
+
 # ─────────────────────────────────────────────────────────────────────────
 # Helper to Validate Write Access
 # ─────────────────────────────────────────────────────────────────────────
 def verify_write_access(auth_secret: Optional[str]):
-    if not API_WRITE_SECRET:
+    secret = os.environ.get("API_WRITE_SECRET") or API_WRITE_SECRET
+    if not secret:
         # Default behavior: if no write secret is set, block writes for safety
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Server API_WRITE_SECRET environment variable is not configured."
         )
-    if auth_secret != API_WRITE_SECRET:
+    if auth_secret != secret:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid write authorization secret."
@@ -367,3 +375,16 @@ def post_frames(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to upload frame samples: {e}"
         )
+
+
+@app.post("/telemetry/ai-director")
+@app.post("/api/telemetry/ai-director")
+def post_ai_director(
+    payload: AiDirectorPayload,
+    x_api_write_secret: Optional[str] = Header(None, alias="X-API-Write-Secret")
+):
+    """Analyze live frame telemetry stream and return real-time Kimi AI director directives."""
+    verify_write_access(x_api_write_secret)
+    directive = kimi_service.evaluate_telemetry_directive(payload.model_dump())
+    return {"status": "success", "directive": directive}
+

@@ -214,9 +214,9 @@ class ControlsManager:
                     direction = parts[2]
                     if axis_idx < joystick.get_numaxes():
                         val = joystick.get_axis(axis_idx)
-                        if direction == "MINUS" and val < -0.5:
+                        if direction == "MINUS" and val < -0.7:
                             return True
-                        elif direction == "PLUS" and val > 0.5:
+                        elif direction == "PLUS" and val > 0.7:
                             return True
                 except Exception:
                     return False
@@ -252,6 +252,57 @@ class ControlsManager:
                 return False
         return True
 
+    def handle_event(self, event: Any) -> None:
+        """Handle joystick hot-plugging events."""
+        try:
+            if event.type == pg.JOYDEVICEADDED:
+                if not pg.joystick.get_init():
+                    pg.joystick.init()
+                idx = getattr(event, "device_index", 0)
+                js = pg.joystick.Joystick(idx)
+                if not js.get_init():
+                    js.init()
+                self._active_joystick = js
+                print(f"[ControlsManager] Joystick connected: {js.get_name()}")
+            elif event.type == pg.JOYDEVICEREMOVED:
+                print("[ControlsManager] Joystick disconnected.")
+                self._active_joystick = None
+        except Exception as e:
+            print(f"[ControlsManager] Error handling joystick event: {e}")
+
+    def get_active_joystick(self) -> Optional[Any]:
+        """Dynamically detect, validate, and initialize any newly connected joystick."""
+        try:
+            if not pg.joystick.get_init():
+                pg.joystick.init()
+
+            count = pg.joystick.get_count()
+            if count == 0:
+                self._active_joystick = None
+                return None
+
+            js = getattr(self, "_active_joystick", None)
+            if js is not None:
+                # Test if the active joystick handle is still valid and responsive
+                try:
+                    _ = js.get_name()
+                    _ = js.get_numbuttons()
+                except Exception:
+                    js = None
+                    self._active_joystick = None
+
+            if js is None and count > 0:
+                new_js = pg.joystick.Joystick(0)
+                if not new_js.get_init():
+                    new_js.init()
+                self._active_joystick = new_js
+                print(f"[ControlsManager] Auto-detected joystick: {new_js.get_name()}")
+
+            return self._active_joystick
+        except Exception as e:
+            self._active_joystick = None
+            return None
+
     def is_action_pressed(
         self,
         action: str,
@@ -263,6 +314,9 @@ class ControlsManager:
         Supports combinations (e.g. 'left shift + f', 'BUTTON_4 + BUTTON_5').
         Checks active mode first, falling back to alternate mode if unpressed.
         """
+        if joystick is None:
+            joystick = self.get_active_joystick()
+
         if self.mode == "KEYBOARD":
             if self._check_keyboard_action(action, keys):
                 return True

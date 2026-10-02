@@ -64,6 +64,7 @@ class VisualEffectManager:
         "dark_shadow": "assets/graphics/swirl magic shots/1",
         "fire_sparks": "assets/graphics/Fw effects",
         "bone_sparks": "assets/graphics/swirl magic shots/1",
+        "space_explosion": "assets/graphics/Pixel Explosion Effects Pack 01 v1_1 (2)/SpaceExplosion",
     }
 
     VFX_TINTS: Dict[str, Tuple[int, int, int]] = {

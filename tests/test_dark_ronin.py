@@ -14,7 +14,7 @@ def test_dark_ronin_initialization():
     assert ronin.health == 35.0
     assert ronin._state == DarkRoninState.IDLE
     assert not ronin.is_invincible
-    assert ronin.rect.bottom == 609
+    assert ronin.rect.bottom == ronin.y_ground
 
 
 def test_dark_ronin_chase_and_attack_state():

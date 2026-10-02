@@ -1002,7 +1002,8 @@ class Skeleton(BaseEnemy):
 
         # Guaranteed displacement: Never land on the same spot!
         surf = pg.display.get_surface()
-        max_x = (surf.get_width() - 80) if surf else 1200
+        display_w = surf.get_width() if surf else 1280
+        max_x = (display_w - 80) if display_w >= 300 else 1200
 
         if abs(target_x - origin_x) < 140:
             if origin_x < 260:

@@ -211,7 +211,9 @@ class CombatSystem:
 
         damage = skeleton.get_current_attack_damage()
         player_health_before = player.health
-        damage_applied = player.take_damage(damage)
+        from src.game.entities.player import PlayerState
+        is_gb = getattr(skeleton, "is_guard_break", False) or player.state == PlayerState.DEFEND
+        damage_applied = player.take_damage(damage, is_guard_break=is_gb)
         player_health_after = player.health
 
         if damage_applied or player_health_after < player_health_before or damage > 0:

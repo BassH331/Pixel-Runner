@@ -244,7 +244,7 @@ class TestDifficultyPlugin(unittest.TestCase):
                 self.facing_left = True
                 self.health = 100.0
                 self.is_invincible = False
-            def take_damage(self, damage):
+            def take_damage(self, damage, *args, **kwargs):
                 self.health -= damage
                 return True
                 

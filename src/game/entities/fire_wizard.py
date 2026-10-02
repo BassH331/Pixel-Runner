@@ -18,6 +18,7 @@ import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager, Actor, AttackConfig
 from .hitbox_registry import HitboxRegistry
+from .player import PlayerState
 from ..services import ConfigClient
 from src.game.ai import PerceptionSystem, AlertLevel, SquadTokenManager, UtilityCombatEngine, TacticalAction
 
@@ -86,7 +87,14 @@ class Fireball(pg.sprite.Sprite):
         if self.rect.colliderect(self._player.rect):
             if not self._player.is_invincible:
                 player_health_before = self._player.health
-                damage_applied = self._player.take_damage(self.damage)
+                is_gb = getattr(self, "is_guard_break", False) or getattr(self._player, "state", None) == PlayerState.DEFEND
+                if is_gb:
+                    try:
+                        damage_applied = self._player.take_damage(self.damage, is_guard_break=True)
+                    except TypeError:
+                        damage_applied = self._player.take_damage(self.damage)
+                else:
+                    damage_applied = self._player.take_damage(self.damage)
                 if damage_applied:
                     from src.game.debug.gameplay_tracker import GameplayTracker
                     tracker = GameplayTracker.get_instance()
