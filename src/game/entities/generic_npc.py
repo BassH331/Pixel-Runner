@@ -143,6 +143,11 @@ class GenericNPC(Actor):
             spawn_sprite_dir = _find_action_folder(sprite_dir, ["spawn"])
         self.spawn_sprite_dir = spawn_sprite_dir
 
+        # ── Andras & Magic Book Identification ────────────────────
+        self.is_andras_npc: bool = "agis" in str(sprite_dir).lower()
+        self.is_magic_book: bool = "magic book" in str(sprite_dir).lower() or "magic_book" in str(sprite_dir).lower()
+        self.trigger_cinematic_now: bool = False
+        
         # ── Spirit of the Scythe & Gatekeeper Identification ────────────────────
         self.is_spirit_of_scythe: bool = (
             "spirit of the scythe" in str(self.title).lower() or
@@ -224,7 +229,17 @@ class GenericNPC(Actor):
                     self.state_configs[_GenericNPCState.JUMP_LOOP] = type("SC", (), {"animation_speed": frame_duration, "loops": True, "interruptible": False})()
 
         # ── 1. Load IDLE animation frames ──────────────────────────────────
-        raw_idle_frames = AssetManager.get_animation_frames(sprite_dir)
+        if self.is_magic_book:
+            book_path = os.path.join(sprite_dir, "magic book _16.png")
+            if os.path.exists(book_path):
+                raw_idle_frames = [pg.image.load(book_path).convert_alpha()]
+            else:
+                raw_idle_frames = AssetManager.get_animation_frames(sprite_dir)
+                if raw_idle_frames:
+                    raw_idle_frames = [raw_idle_frames[0]]
+        else:
+            raw_idle_frames = AssetManager.get_animation_frames(sprite_dir)
+
         if not raw_idle_frames:
             placeholder = pg.Surface((32, 32), pg.SRCALPHA)
             placeholder.fill((255, 0, 255, 180))
@@ -410,6 +425,28 @@ class GenericNPC(Actor):
         dx = abs(self.rect.centerx - player_rect.centerx)
         dy = abs(self.rect.centery - player_rect.centery)
         distance = (dx * dx + dy * dy) ** 0.5
+
+        if self.is_andras_npc and not self._interacted:
+            if distance <= self.proximity_radius:
+                self._interacted = True
+                self.trigger_cinematic_now = True
+                self.is_dying_or_dead = True  # Wait for explosion
+                print(f"[ANDRAS NPC] Proximity reached! Triggering Cinematic Overlay")
+                
+                self.is_intro_npc = False
+                self.is_spirit_of_scythe = False
+                self.is_sky_fall_npc = False
+
+        if self.is_magic_book and not self._interacted:
+            if self.rect.colliderect(player_rect):  # Must collide!
+                self._interacted = True
+                self.trigger_cinematic_now = True
+                self.is_dying_or_dead = True
+                print(f"[MAGIC BOOK] Proximity reached! Triggering Cinematic Overlay")
+                self.is_intro_npc = False
+                self.is_spirit_of_scythe = False
+                self.is_sky_fall_npc = False
+                self.visible = False # Book vanishes
 
         if self.is_spirit_of_scythe and not self.is_trance_active and not self.is_death_complete and not self._interacted:
             if distance <= self.proximity_radius:
@@ -678,6 +715,24 @@ class GenericNPC(Actor):
                         t_copy = trail_img.copy()
                         t_copy.set_alpha(max(0, 200 - trail_i * 60))
                         surface.blit(t_copy, (int(tx - trail_img.get_width() // 2), int(ty - trail_img.get_height() // 2)))
+
+        # ── Andras Floating Pulse ────────────────────────
+        if self.is_andras_npc and getattr(self, "visible", True) and not self.is_death_complete:
+            # Float up and down
+            pulse = (math.sin(ticks * 0.003) + 1.0) * 0.5
+            self.rect.centery = self.rect.centery + int(math.sin(ticks * 0.003) * 2)
+
+            w, h = self.image.get_width(), self.image.get_height()
+            glow_surf = pg.Surface((w + 64, h + 64), pg.SRCALPHA)
+
+            # Dark Void Purple Glow
+            outer_r = int(min(w, h) * 0.60 + 10 * pulse)
+            pg.draw.circle(glow_surf, (80, 20, 120, int(180 * pulse)), (w // 2 + 32, h // 2 + 32), outer_r)
+            pg.draw.circle(glow_surf, (40, 10, 60, int(220 * pulse)), (w // 2 + 32, h // 2 + 32), outer_r - 10)
+
+            gx = self.rect.centerx - (w + 64) // 2
+            gy = self.rect.centery - (h + 64) // 2
+            surface.blit(glow_surf, (gx, gy))
 
         super().draw(surface)
 

@@ -281,13 +281,14 @@
             "type": "npc",
             "params": {
                 "npc_type": "generic",
-                "title": "Herald of the Void",
-                "text": "You march through this purgatory as a puppet, knight. I gave you power, but power demands a tribute. Keep running... my vessel must be strong.",
-                "radius": 180,
-                "sprite_dir": "assets/graphics/Necromancer/Idle",
-                "scale": 3.38,
-                "is_intro_npc": true,
-                "voice_line_id": "ledger_herald_intro"
+                "title": "The Sealed Book",
+                "text": "",
+                "radius": 80,
+                "sprite_dir": "assets/graphics/magic_book_single",
+                "scale": 3.0,
+                "is_magic_book": true,
+                "is_intro_npc": false,
+                "voice_line_id": ""
             }
         },
         {

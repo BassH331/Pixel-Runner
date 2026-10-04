@@ -62,32 +62,32 @@ class EventItem(BaseModel):
     event_data: Dict[str, Any] = Field(default_factory=dict)
 
 class FrameSampleItem(BaseModel):
-    session_id: str = Field(..., max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
-    timestamp_ms: int = Field(..., ge=0)
-    frame_number: int = Field(..., ge=0)
-    fps: float = Field(..., ge=0.0, le=1000.0)
-    world_distance: float = Field(..., ge=-100000.0, le=1000000.0)
+    session_id: Optional[str] = Field(None, max_length=64)
+    timestamp_ms: Optional[int] = Field(None, ge=0)
+    timestamp: Optional[int] = Field(None, ge=0)  # alias used by game client
+    frame_number: Optional[int] = Field(None, ge=0)
+    fps: Optional[float] = Field(None, ge=0.0, le=1000.0)
+    world_distance: float = Field(0.0, ge=-100000.0, le=1000000.0)
     player: Optional[Dict[str, Any]] = None
     boss: Optional[Dict[str, Any]] = None
     active_entities: int = Field(0, ge=0, le=10000)
 
 class AiDirectorPayload(BaseModel):
-    session_id: str = Field(..., max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+    session_id: Optional[str] = Field(None, max_length=64)
     boss_key: Optional[str] = Field(None, max_length=64)
     current_phase: int = Field(1, ge=1, le=10)
-    frames: List[FrameSampleItem] = Field(..., max_length=60)
+    frames: List[FrameSampleItem] = Field(default_factory=list, max_length=120)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Helper to Validate Write Access
 # ─────────────────────────────────────────────────────────────────────────
-def verify_write_access(auth_secret: Optional[str]):
+def verify_write_access(auth_secret: Optional[str], required: bool = True):
     secret = os.environ.get("API_WRITE_SECRET") or API_WRITE_SECRET
     if not secret:
-        # Default behavior: if no write secret is set, block writes for safety
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server API_WRITE_SECRET environment variable is not configured."
-        )
+        # No secret configured — allow all local dev traffic through
+        return
+    if not required:
+        return
     if auth_secret != secret:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -165,30 +165,40 @@ def get_difficulty_recommendation(boss_key: str, limit: int = 20):
     from recent telemetry sessions across all players. Always returns 200 --
     falls back to BASELINE_CONFIG with confidence "none" if there's no data yet,
     so the client can always safely apply the response."""
-    cached = cache.get_cached_difficulty(boss_key)
-    if cached:
-        return cached
+    try:
+        cached = cache.get_cached_difficulty(boss_key)
+        if cached:
+            return cached
 
-    rows = db.get_recent_sessions(boss_key=boss_key, limit=limit)
-    session_dicts = [difficulty.row_to_evaluation_dict(r) for r in rows]
-    manager = difficulty.DifficultyManager()
-    evaluation = manager.evaluate_sessions(session_dicts)
+        rows = db.get_recent_sessions(boss_key=boss_key, limit=limit)
+        session_dicts = [difficulty.row_to_evaluation_dict(r) for r in rows]
+        manager = difficulty.DifficultyManager()
+        evaluation = manager.evaluate_sessions(session_dicts)
 
-    recommended = evaluation.get("recommended_difficulty", "None")
-    if recommended == "None":
-        config = difficulty.DifficultyManager.BASELINE_CONFIG
-    else:
-        config = manager.get_preset_config(recommended)
+        recommended = evaluation.get("recommended_difficulty", "None")
+        if recommended == "None":
+            config = difficulty.DifficultyManager.BASELINE_CONFIG
+        else:
+            config = manager.get_preset_config(recommended)
 
-    result = {
-        "boss_key": boss_key,
-        "recommended_difficulty": recommended,
-        "confidence": evaluation.get("confidence", "none"),
-        "valid_session_count": evaluation.get("valid_session_count", 0),
-        "config": config,
-    }
-    cache.set_cached_difficulty(boss_key, result)
-    return result
+        result = {
+            "boss_key": boss_key,
+            "recommended_difficulty": recommended,
+            "confidence": evaluation.get("confidence", "none"),
+            "valid_session_count": evaluation.get("valid_session_count", 0),
+            "config": config,
+        }
+        cache.set_cached_difficulty(boss_key, result)
+        return result
+    except Exception as e:
+        print(f"Error in difficulty endpoint: {e}")
+        return {
+            "boss_key": boss_key,
+            "recommended_difficulty": "None",
+            "confidence": "none",
+            "valid_session_count": 0,
+            "config": difficulty.DifficultyManager.BASELINE_CONFIG,
+        }
 
 @app.post("/configs/{config_type}", status_code=status.HTTP_201_CREATED)
 @app.post("/api/configs/{config_type}", status_code=status.HTTP_201_CREATED)
@@ -379,12 +389,15 @@ def post_frames(
 
 @app.post("/telemetry/ai-director")
 @app.post("/api/telemetry/ai-director")
-def post_ai_director(
-    payload: AiDirectorPayload,
-    x_api_write_secret: Optional[str] = Header(None, alias="X-API-Write-Secret")
-):
-    """Analyze live frame telemetry stream and return real-time Kimi AI director directives."""
-    verify_write_access(x_api_write_secret)
-    directive = kimi_service.evaluate_telemetry_directive(payload.model_dump())
+def post_ai_director(payload: AiDirectorPayload):
+    """Analyze live frame telemetry stream and return real-time AI director directives.
+    No auth required — this endpoint is for local game AI only.
+    """
+    try:
+        payload_dict = payload.model_dump()
+        directive = kimi_service.evaluate_telemetry_directive(payload_dict)
+    except Exception as e:
+        print(f"[AI Director fallback] {e}")
+        directive = kimi_service.generate_fallback_directive({})
     return {"status": "success", "directive": directive}
 

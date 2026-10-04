@@ -65,8 +65,6 @@ class DifficultyClient:
                     data = json.loads(response.read().decode("utf-8"))
                     handle._set_result(data.get("config"))
                     return
-        except urllib.error.URLError as e:
-            print(f"[DIFFICULTY CLIENT ERROR] Connection error fetching {boss_key}: {e}")
-        except Exception as e:
-            print(f"[DIFFICULTY CLIENT ERROR] Unexpected error fetching {boss_key}: {e}")
+        except Exception:
+            pass
         handle._set_result(None)

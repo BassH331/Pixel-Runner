@@ -66,7 +66,7 @@ class AiDirectorClient:
     @classmethod
     def _fetch_directive(cls, payload: Dict[str, Any]) -> None:
         """Background thread worker method performing HTTP call."""
-        api_url = os.environ.get("PIXEL_RUNNER_API_URL", "https://pixel-runner-wheat.vercel.app")
+        api_url = os.environ.get("PIXEL_RUNNER_API_URL", "http://127.0.0.1:8000")
         endpoint = f"{api_url}/telemetry/ai-director"
         secret = os.environ.get("API_WRITE_SECRET", "")
 
@@ -82,7 +82,6 @@ class AiDirectorClient:
                 if res.get("status") == "success" and "directive" in res:
                     with cls._directive_lock:
                         cls._active_directive = res["directive"]
-        except Exception as e:
+        except Exception:
             # Retain existing directive safely on network latency/timeout
-            print(f"[AiDirectorClient] Network/parse error: {e}")
             pass

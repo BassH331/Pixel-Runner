@@ -133,7 +133,7 @@
         "top": 0,
         "bottom": 0,
         "ground_offset": 34,
-        "scale": 1.09
+        "scale": 3.38
     },
     "generic_npc_redmoontower": {
         "left": 0,
@@ -198,5 +198,29 @@
         "bottom": 0,
         "ground_offset": 111,
         "scale": 2.5
+    },
+    "generic_npc_magic book _16.png": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_magic book by captainskeleto": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 3.0
+    },
+    "generic_npc_magic_book_single": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 3.0
     }
 }

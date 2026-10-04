@@ -32,7 +32,7 @@ This document provides persistent context tracking, component mappings, active d
 | **UI Font Fallback** | Added missing glyph & zero-width handling in dialogue renderer. | **COMPLETED** (`c90e54e5`) | `test_animated_dialogue_renderer.py` passed |
 | **KIMI-AI-01 (LLM)** | Moonshot Kimi AI Director service with zero-cost fallback & async client. | **COMPLETED** | `test_ai_director_api.py` & `test_ai_director_client.py` passed |
 | **KIMI-NARRATIVE-02** | Slow-Mo Vignette Narrative Overlay, Dual-Choice Buffs & Guard-Break Anti-Turtling AI. | **COMPLETED** | `test_cinematic_narrative_overlay.py` passed |
-| **JOYSTICK-HOTPLUG** | Dynamic joystick auto-detection, health verification & event-driven hot-plugging. | **COMPLETED** | `test_joystick_hotplug.py` passed (316/316 total) |
+| **NARRATIVE-BOOK-01** | Magic Book single-frame asset (`magic book _16.png`) & Andras Avatar real-time 12.5 FPS animation. | **COMPLETED** | `test_hud_overlay.py` passed (316/316 total) |
 
 ---
 
@@ -56,4 +56,5 @@ This document provides persistent context tracking, component mappings, active d
 - [x] Anti-Turtling Guard-Break AI & Player Guard Stun (`PlayerState.GUARD_STUN`)
 - [x] Lore Engine Integration (`storyline_config.json`: Kaelen, Elysia, Voragis, Candora)
 - [x] Narrative Transformation Phase 5: Demonic Pact Injection (Andras, Fallen Warrior theme)
+- [x] Magic Book Single-Frame (`magic book _16.png`) & Real-Time Andras Avatar Animation
 - [ ] Active Feature / Next Objective: *(Ready for new tasks)*

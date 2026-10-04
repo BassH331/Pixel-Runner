@@ -539,6 +539,13 @@ class GameState(PlayingState):
             )
             setattr(npc, "event_id", params.get("_event_id"))
             setattr(npc, "event_distance", params.get("_event_distance"))
+            # Allow JSON to override is_magic_book flag explicitly
+            if params.get("is_magic_book"):
+                npc.is_magic_book = True
+                npc.is_intro_npc = False  # book is NOT a walking intro NPC
+                npc.is_walking = False
+                npc.visible = True
+                print(f"[MAGIC BOOK NPC] Spawned at x={spawn_x}")
             self.npc_group.add(npc)
             if is_intro:
                 print(f"[INTRO NPC] Spawned! x={spawn_x} y={ground_y} "
@@ -949,8 +956,8 @@ class GameState(PlayingState):
 
         # Apply 10% slow motion combat speed while cinematic narrative overlay is active
         if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:
-            dt = dt * 0.10
             self.cinematic_narrative_overlay.update(dt)
+            dt = dt * 0.10
         else:
             try:
                 from src.game.services.ai_director_client import AiDirectorClient
@@ -994,15 +1001,19 @@ class GameState(PlayingState):
 
         current_time = pg.time.get_ticks()
         
+        is_cinematic_active = hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active
+
         # Enemy spawning
-        if not self.is_interacting:
+        if not self.is_interacting and not is_cinematic_active:
             self.spawn_enemies(current_time)
         
         # ── Intro & Spirit NPC Sequence Movement Lock ──────────────────────────
         player_sprite = self.player.sprite
-        if self.is_interacting:
+        if self.is_interacting or is_cinematic_active:
             player_sprite.can_move = False
             self.bg_scroll_speed = 0
+            if is_cinematic_active:
+                player_sprite.invulnerable = True
         else:
             # If we had an intro NPC and it finished, unlock skeleton spawning
             if not self._intro_npc_done:
@@ -1167,8 +1178,49 @@ class GameState(PlayingState):
             point.check_proximity(player_sprite.rect)
 
         # Check proximity for NPCs
+        min_magic_book_dist = 9999.0
         for npc in self.npc_group:
             npc.check_proximity(player_sprite.rect)
+            # Only darken towards book if it is still alive and hasn't been triggered yet
+            if getattr(npc, "is_magic_book", False) and not getattr(npc, "_interacted", True) and getattr(npc, "visible", True):
+                dx = abs(npc.rect.centerx - player_sprite.rect.centerx)
+                dy = abs(npc.rect.centery - player_sprite.rect.centery)
+                min_magic_book_dist = min(min_magic_book_dist, (dx * dx + dy * dy) ** 0.5)
+                
+        # Only use distance darkening if we are NOT in the full void (void overrides)
+        if not getattr(self, "in_magic_void", False):
+            self.magic_book_dist = min_magic_book_dist
+
+        for npc in self.npc_group:
+            if getattr(npc, "trigger_cinematic_now", False):
+                npc.trigger_cinematic_now = False
+                if hasattr(self, "cinematic_narrative_overlay"):
+                    if getattr(npc, "is_magic_book", False):
+                        # The Magic Book Intro! No pact yet.
+                        self.in_magic_void = True  # Keep screen pitch black
+                        pact_event = {
+                            "speaker_name": "Andras, Marquis of Discord",
+                            "avatar_sprite": "assets/Agis",
+                            "dialogue_text": "I know your past. I saw what happened... your family, the fire, the screaming. You couldn't save them. The world took everything from you. I will return because there is danger ahead. Your power will not be enough to save yourself.",
+                            "option_1_label": "[1] Awaken",
+                            "option_1_buff": {"close_overlay_only": True, "clear_magic_void": True}
+                        }
+                    else:
+                        # Regular Andras encounter (or old intro fallback)
+                        pact_event = {
+                            "speaker_name": npc.title,
+                            "avatar_sprite": "assets/Agis",
+                            "dialogue_text": npc.text,
+                            "option_1_label": "[1] Submit to the Void",
+                            "option_1_buff": {"trigger_transformation": True},
+                            "option_2_label": "[2] Resist the Darkness",
+                            "option_2_buff": {"kill_player": True}
+                        }
+                    self.cinematic_narrative_overlay.activate(pact_event, self._on_pact_choice)
+                    
+                    if not getattr(npc, "is_magic_book", False):
+                        # Store a reference so we can explode him later (only if he is actually Andras)
+                        self._andras_npc_ref = npc
 
         # Check time/flag triggers
         elapsed = (current_time - self._game_start_ticks) / 1000.0
@@ -1402,23 +1454,45 @@ class GameState(PlayingState):
     
     def _on_pact_choice(self, buff_data: dict) -> None:
         if buff_data.get("trigger_transformation"):
-            # Trigger SpaceExplosion
+            # Trigger SpaceExplosion over Andras when accepted
             from src.game.effects.vfx_manager import VisualEffectManager
+            if hasattr(self, "_andras_npc_ref") and self._andras_npc_ref:
+                npc = self._andras_npc_ref
+                VisualEffectManager.spawn_hit_vfx(
+                    x=npc.rect.centerx,
+                    y=npc.rect.centery,
+                    vfx_type="space_explosion",
+                    scale=3.0
+                )
+                npc.kill() # Disappear
+                self._andras_npc_ref = None
+            
+            # Revive the player and grant them the demonic power in-place!
             player_sprite = self.player.sprite
             if player_sprite:
+                player_sprite.is_dead = False
+                player_sprite.max_health = 200
+                player_sprite._health = 200
+                player_sprite.is_enhanced = True
+                player_sprite.set_state("idle", force=True)
+                player_sprite.invulnerable_timer = 2000.0  # 2 seconds of invulnerability
+                
+                # Dark transformation burst on the player
                 VisualEffectManager.spawn_hit_vfx(
                     x=player_sprite.rect.centerx,
                     y=player_sprite.rect.centery,
                     vfx_type="space_explosion",
-                    scale=3.0
+                    scale=4.0
                 )
-            
-            # Switch state to TransformationCutscene
-            from src.game.states.transformation_cutscene import TransformationCutscene
-            self.manager.set(TransformationCutscene(self.manager))
+                
+            self._game_over_start_time = None
+            self._demonic_pact_offered = True
             
         elif buff_data.get("kill_player"):
             self._pact_rejected = True
+            
+        if buff_data.get("clear_magic_void"):
+            self.in_magic_void = False
             self._game_over_start_time = pg.time.get_ticks()
 
     def _check_game_over(self) -> None:
@@ -1571,6 +1645,17 @@ class GameState(PlayingState):
             result = self.trippy_zoom.apply(target)
             surface.blit(result, (0, 0))
             
+        # ── Magic Book Darkness ──
+        if getattr(self, "in_magic_void", False):
+            dark_surf = pg.Surface(surface.get_size(), pg.SRCALPHA)
+            dark_surf.fill((0, 0, 0, 255))
+            surface.blit(dark_surf, (0, 0))
+        elif getattr(self, "magic_book_dist", 9999.0) < 800.0:
+            alpha = max(0, min(255, int(255.0 * (1.0 - (self.magic_book_dist - 100) / 700.0))))
+            if alpha > 0:
+                dark_surf = pg.Surface(surface.get_size(), pg.SRCALPHA)
+                dark_surf.fill((0, 0, 0, alpha))
+                surface.blit(dark_surf, (0, 0))
         # ── Transformation Corruption Screen Vignette ──
         player_sprite = self.player.sprite
         if player_sprite and getattr(player_sprite, "is_enhanced", False):

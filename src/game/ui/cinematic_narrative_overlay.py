@@ -1,5 +1,6 @@
+import os
 import pygame as pg
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional, Callable, List
 from v3x_zulfiqar_gideon import AssetManager, UITheme
 
 
@@ -22,6 +23,12 @@ class CinematicNarrativeOverlay:
         self._char_index: int = 0
         self._char_timer: float = 0.0
         self._CHAR_SPEED_SEC: float = 0.025
+
+        # Avatar animation
+        self._avatar_frames: List[pg.Surface] = []
+        self._avatar_frame_idx: int = 0
+        self._avatar_frame_timer: float = 0.0
+        self._AVATAR_FRAME_SPEED: float = 0.08  # seconds per frame
 
         # Surface & dimension caching
         self._width: int = 1280
@@ -48,18 +55,34 @@ class CinematicNarrativeOverlay:
         self._displayed_text = ""
         self._char_index = 0
         self._char_timer = 0.0
+        self._avatar_frame_idx = 0
+        self._avatar_frame_timer = 0.0
         
-        self._avatar_surface = None
+        self._avatar_frames = []
         avatar_path = narrative_event.get("avatar_sprite")
         if avatar_path:
-            # We assume it's a directory of frames or a single image. Try loading a single image first.
             try:
-                # If it's a directory like 'assets/Agis', we might need to load the first frame.
-                frames = AssetManager.get_animation_frames(avatar_path)
-                if frames:
-                    self._avatar_surface = pg.transform.smoothscale(frames[0], (int(frames[0].get_width() * 3.5), int(frames[0].get_height() * 3.5)))
-            except Exception:
-                pass
+                # Special handling for Agis: load all Agis_XX.png files in sorted order
+                agis_dir = avatar_path  # e.g. 'assets/Agis'
+                individual_pngs = sorted(
+                    [f for f in os.listdir(agis_dir) if f.lower().endswith(".png") and not os.path.isdir(os.path.join(agis_dir, f))]
+                )
+                if individual_pngs:
+                    scale = 3.5
+                    for fname in individual_pngs:
+                        img = pg.image.load(os.path.join(agis_dir, fname)).convert_alpha()
+                        w = int(img.get_width() * scale)
+                        h = int(img.get_height() * scale)
+                        self._avatar_frames.append(pg.transform.smoothscale(img, (w, h)))
+                else:
+                    # Fallback: use AssetManager
+                    frames = AssetManager.get_animation_frames(avatar_path)
+                    if frames:
+                        scale = 3.5
+                        for f in frames:
+                            self._avatar_frames.append(pg.transform.smoothscale(f, (int(f.get_width() * scale), int(f.get_height() * scale))))
+            except Exception as e:
+                print(f"[CinematicOverlay] Avatar load error: {e}")
 
         self.is_active = True
 
@@ -68,7 +91,8 @@ class CinematicNarrativeOverlay:
         self.is_active = False
         self._current_event = None
         self._on_choice_selected = None
-        self._avatar_surface = None
+        self._avatar_frames = []
+        self._avatar_frame_idx = 0
 
     def handle_event(self, event: pg.event.Event) -> bool:
         """Handle keypresses [1] or [2] to select story choice."""
@@ -76,10 +100,10 @@ class CinematicNarrativeOverlay:
             return False
 
         if event.type == pg.KEYDOWN:
-            if event.key in (pg.K_1, pg.K_KP1):
+            if event.key in (pg.K_1, pg.K_KP1, pg.K_RETURN, pg.K_SPACE):
                 self._select_option(1)
                 return True
-            elif event.key in (pg.K_2, pg.K_KP2):
+            elif event.key in (pg.K_2, pg.K_KP2) and "option_2_label" in self._current_event:
                 self._select_option(2)
                 return True
         return False
@@ -98,30 +122,40 @@ class CinematicNarrativeOverlay:
         self.deactivate()
 
     def update(self, dt: float) -> None:
-        """Update typewriter text animation."""
-        if not self.is_active or self._char_index >= len(self._full_text):
+        """Update typewriter text animation and avatar frame animation."""
+        if not self.is_active:
             return
 
-        self._char_timer += dt
-        while self._char_timer >= self._CHAR_SPEED_SEC and self._char_index < len(self._full_text):
-            self._char_timer -= self._CHAR_SPEED_SEC
-            self._char_index += 1
-            self._displayed_text = self._full_text[:self._char_index]
+        # Typewriter effect
+        if self._char_index < len(self._full_text):
+            self._char_timer += dt
+            while self._char_timer >= self._CHAR_SPEED_SEC and self._char_index < len(self._full_text):
+                self._char_timer -= self._CHAR_SPEED_SEC
+                self._char_index += 1
+                self._displayed_text = self._full_text[:self._char_index]
+
+        # Avatar frame cycling
+        if len(self._avatar_frames) > 1:
+            self._avatar_frame_timer += dt
+            if self._avatar_frame_timer >= self._AVATAR_FRAME_SPEED:
+                self._avatar_frame_timer -= self._AVATAR_FRAME_SPEED
+                self._avatar_frame_idx = (self._avatar_frame_idx + 1) % len(self._avatar_frames)
 
     def draw(self, surface: pg.Surface) -> None:
         """Render dark vignette and floating bottom dialogue box."""
         if not self.is_active or not self._current_event:
             return
 
-        # 1. Draw radial vignette
+        # 1. Draw radial vignette (full black void)
         if self._vignette_surface:
             surface.blit(self._vignette_surface, (0, 0))
 
-        # 1.5 Draw Avatar Sprite centered in the void
-        if getattr(self, "_avatar_surface", None):
-            av_x = (self._width - self._avatar_surface.get_width()) // 2
-            av_y = (self._height - self._avatar_surface.get_height()) // 3
-            surface.blit(self._avatar_surface, (av_x, av_y))
+        # 1.5 Draw animated Avatar Sprite centered in the void
+        if self._avatar_frames:
+            frame = self._avatar_frames[self._avatar_frame_idx % len(self._avatar_frames)]
+            av_x = (self._width - frame.get_width()) // 2
+            av_y = (self._height - frame.get_height()) // 3
+            surface.blit(frame, (av_x, av_y))
 
         # 2. Modern UI Dialogue Panel Base
         card_w = int(self._width * 0.85)
@@ -163,7 +197,6 @@ class CinematicNarrativeOverlay:
 
         # 5. Draw Modern Interactive Choice Buttons
         opt1 = str(self._current_event.get("option_1_label", "[1] Choice 1"))
-        opt2 = str(self._current_event.get("option_2_label", "[2] Choice 2"))
 
         font_choice = AssetManager.get_font(None, 18)
         
@@ -175,10 +208,12 @@ class CinematicNarrativeOverlay:
         opt1_surf = font_choice.render(opt1, True, (160, 240, 160))
         surface.blit(opt1_surf, (card_x + 45, card_y + 127))
 
-        # Button 2 (Reject / Negative) - Pill Shape
-        btn2_w = font_choice.size(opt2)[0] + 40
-        btn2_rect = pg.Rect(card_x + btn1_w + 40, card_y + 120, btn2_w, 32)
-        pg.draw.rect(surface, (50, 25, 30, 230), btn2_rect, border_radius=16)
-        pg.draw.rect(surface, (220, 80, 80), btn2_rect, width=1, border_radius=16)
-        opt2_surf = font_choice.render(opt2, True, (240, 150, 150))
-        surface.blit(opt2_surf, (card_x + btn1_w + 60, card_y + 127))
+        # Button 2 (Reject / Negative) - Pill Shape (Only if option_2_label exists)
+        if "option_2_label" in self._current_event:
+            opt2 = str(self._current_event["option_2_label"])
+            btn2_w = font_choice.size(opt2)[0] + 40
+            btn2_rect = pg.Rect(card_x + btn1_w + 40, card_y + 120, btn2_w, 32)
+            pg.draw.rect(surface, (50, 25, 30, 230), btn2_rect, border_radius=16)
+            pg.draw.rect(surface, (220, 80, 80), btn2_rect, width=1, border_radius=16)
+            opt2_surf = font_choice.render(opt2, True, (240, 150, 150))
+            surface.blit(opt2_surf, (card_x + btn1_w + 60, card_y + 127))

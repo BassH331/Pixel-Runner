@@ -36,8 +36,8 @@ class PlayerUI:
 
         # Modern unified bar spacing
         self.health_bar_pos = (20, 15)
-        self.mana_bar_pos = (20, self.health_bar_pos[1] + 48)
-        self.stamina_bar_pos = (20, self.mana_bar_pos[1] + 48)
+        self.mana_bar_pos = (20, self.health_bar_pos[1] + 50)
+        self.stamina_bar_pos = (20, self.mana_bar_pos[1] + 50)
         self._resource_bar_size = (200, 14)
 
         self.souls_icon_pos = (20, self.stamina_bar_pos[1] + 52)
