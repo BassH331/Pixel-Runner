@@ -5,7 +5,7 @@
     "spawn_rate_max": 15000,
     "environment": {
         "bg_music_track": "game_loop",
-        "ground_y": 606,
+        "ground_y": 551,
         "sky": {
             "enabled": true,
             "layers": [
@@ -208,7 +208,7 @@
         {
             "min_dist": 1080,
             "max_dist": 11500,
-            "max_skeletons": 6,
+            "max_skeletons": 3,
             "delay": 4500,
             "required_kills": 0,
             "tier": "minion",

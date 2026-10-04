@@ -33,13 +33,18 @@ This document provides persistent context tracking, component mappings, active d
 | **KIMI-AI-01 (LLM)** | Moonshot Kimi AI Director service with zero-cost fallback & async client. | **COMPLETED** | `test_ai_director_api.py` & `test_ai_director_client.py` passed |
 | **KIMI-NARRATIVE-02** | Slow-Mo Vignette Narrative Overlay, Dual-Choice Buffs & Guard-Break Anti-Turtling AI. | **COMPLETED** | `test_cinematic_narrative_overlay.py` passed |
 | **NARRATIVE-BOOK-01** | Magic Book single-frame asset (`magic book _16.png`) & Andras Avatar real-time 12.5 FPS animation. | **COMPLETED** | `test_hud_overlay.py` passed (316/316 total) |
+| **WIN-CROSS-PLATFORM** | Windows cross-platform setup (`setup_env.py`, `run.bat`), Python 3.14 + `pygame-ce` compatibility, Win32 ctypes clipboard, UTF-8 encoding guards, path separator normalization, and file-handle release. | **COMPLETED** | 326/326 tests passed (316 client/engine + 10 API) |
+| **DISPLAY-PARITY-01** | Cross-platform ground level alignment ($Y=606$), `PixelRunnerEngine` hardware scaling (`pg.SCALED | pg.RESIZABLE`), desktop auto-maximization above Windows taskbar, F11/Alt+Enter fullscreen toggling, and `--fullscreen` CLI argument. | **COMPLETED** | `test_engine_presentation.py` passed (333/333 total tests) |
+| **DEMON-PACING-02** | Demon avatar animation pacing slowed to 0.28s (~3.5 FPS), removal of unnecessary "[1] Awaken" prompt in favor of natural "[SPACE] Continue", multi-line word-wrapped dialogue card, and 18 visual forensic screenshots. | **COMPLETED** | `test_cinematic_narrative_overlay.py` passed |
 
 ---
 
 ## 3. Current System Health & Invariants
 
-- **Test Suite Status**: **316/316 passed** (`PYTHONPATH=. ./venv/bin/pytest` + backend API suite).
-- **Physics Timestep Standard**: All movement scaled by `dt * 60.0` reference factor.
+- **Test Suite Status**: **333/333 passed** (323 engine/gameplay tests + 10 backend API tests; 100% pass rate).
+- **Cross-Platform Standard**: All file I/O explicitly enforces `encoding="utf-8"`; asset paths normalized with `os.sep` -> `/`; clipboard uses native Win32 `ctypes` on Windows without Tkinter crashes.
+- **Physics & Resolution Standard**: Logical resolution locked to sovereign 1280x720 via `pg.SCALED`; ground level mathematically locked to $Y=606$; movement scaled by `dt * 60.0`.
+- **Window Presentation Standard**: Window auto-maximizes on PC to fill the screen cleanly above the Windows taskbar; full-screen toggle hotkeys (`F11`, `Alt+Enter`) available at all times.
 - **Font Rendering Standard**: All custom TTF rendering wrapped in zero-width glyph fallback handler.
 - **Telemetry Auth Standard**: All write requests require `X-API-Write-Secret` header when configured.
 - **Difficulty Sync Standard**: Both client and API inherit formulas directly from `DifficultyCore`.
@@ -57,4 +62,9 @@ This document provides persistent context tracking, component mappings, active d
 - [x] Lore Engine Integration (`storyline_config.json`: Kaelen, Elysia, Voragis, Candora)
 - [x] Narrative Transformation Phase 5: Demonic Pact Injection (Andras, Fallen Warrior theme)
 - [x] Magic Book Single-Frame (`magic book _16.png`) & Real-Time Andras Avatar Animation
-- [ ] Active Feature / Next Objective: *(Ready for new tasks)*
+- [x] Windows Cross-Platform Setup & Test Parity (326/326 tests passing)
+- [x] Cross-Platform Resolution & Dirt Road Ground Level Parity ($Y=606$)
+- [x] Window Presentation & Desktop Auto-Maximization (Clean dock above taskbar + Fullscreen toggle)
+- [x] Demon Animation Pacing Slowdown (0.28s / ~3.5 FPS) & Dialogue Prompt Simplification (`[SPACE] Continue`)
+- [x] Visual Verification via 18 Forensic In-Engine Screenshots
+- [ ] Active Feature / Next Objective: *(Ready for new development tasks)*

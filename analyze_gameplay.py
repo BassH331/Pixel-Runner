@@ -20,7 +20,7 @@ def analyze_session(log_path: Path) -> Optional[Dict[str, Any]]:
     events: List[Dict[str, Any]] = []
     
     try:
-        with open(log_path, "r") as f:
+        with open(log_path, "r", encoding="utf-8") as f:
             for line in f:
                 if not line.strip():
                     continue
@@ -274,7 +274,7 @@ def generate_report(results: Dict[str, Any], output_path: Path):
 *Use the **Player Animation Configurator** (`player_editor.py`) to apply these recommendations by adjusting animation speeds, loop settings, or input/movement locks for the respective states.*
 """
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(content)
     print(f"[INFO] Report generated successfully at: {output_path}")
 

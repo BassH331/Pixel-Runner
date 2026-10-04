@@ -70,7 +70,7 @@ def _find_action_folder(sprite_dir: str, keywords: list[str]) -> Optional[str]:
                 if res is None and os.path.isdir(cand):
                     res = cand
                 if res:
-                    return os.path.relpath(res, os.getcwd()) if is_rel else res
+                    return os.path.relpath(res, os.getcwd()).replace(os.sep, "/") if is_rel else res
         curr = parent
     return None
 

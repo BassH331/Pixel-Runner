@@ -69,7 +69,7 @@ class TestGameplayTrackerSessionManagement(unittest.TestCase):
     def tearDown(self):
         """Clean up temporary directory."""
         if os.path.exists(self.test_dir):
-            shutil.rmtree(self.test_dir)
+            shutil.rmtree(self.test_dir, ignore_errors=True)
     
     def test_session_initialization(self):
         """Test that session initializes log directory and first file."""
@@ -82,6 +82,7 @@ class TestGameplayTrackerSessionManagement(unittest.TestCase):
         self.assertTrue(os.path.exists(self.test_dir))
         self.assertIsNotNone(tracker.current_file_path)
         self.assertTrue(tracker.current_file_path.parent.exists())
+        tracker.close()
     
     def test_manifest_creation(self):
         """Test that session manifest is created correctly."""
@@ -102,6 +103,7 @@ class TestGameplayTrackerSessionManagement(unittest.TestCase):
         self.assertIn("session_start", manifest)
         self.assertIn("latest_file", manifest)
         self.assertIn("config", manifest)
+        tracker.close()
 
 
 @unittest.skipUnless(PYGAME_AVAILABLE, "pygame not available")

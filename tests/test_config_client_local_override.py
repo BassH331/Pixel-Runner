@@ -38,7 +38,9 @@ def test_config_client_local_override(monkeypatch):
     monkeypatch.setattr(ConfigClient, "_fetch_from_api", mock_fetch_from_api)
     monkeypatch.setattr(ConfigClient, "_load_fallback", mock_load_fallback)
 
-    # Call fetch_config
+    # Call fetch_config and trigger cloud synchronization
+    ConfigClient.fetch_config("player")
+    ConfigClient._async_api_sync("player")
     config = ConfigClient.fetch_config("player")
 
     # Assert deep merge logic:

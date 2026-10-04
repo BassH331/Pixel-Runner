@@ -725,3 +725,9 @@ class GameplayTracker:
             except Exception:
                 pass
             self._file_handle = None
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass

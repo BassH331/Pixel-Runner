@@ -33,8 +33,9 @@ Do NOT include markdown formatting or extra text."""
 
 
 def evaluate_telemetry_directive(telemetry_payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Evaluate telemetry via Gemini LLM API or fallback to zero-cost deterministic engine if offline."""
-    if not GEMINI_API_KEY:
+    """Evaluate telemetry via Gemini/Moonshot LLM API or fallback to zero-cost deterministic engine if offline."""
+    api_key = os.environ.get("MOONSHOT_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    if not api_key:
         return generate_fallback_directive(telemetry_payload)
 
     try:
@@ -51,8 +52,10 @@ def evaluate_telemetry_directive(telemetry_payload: Dict[str, Any]) -> Dict[str,
             }
         }
 
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}" if not os.environ.get("MOONSHOT_API_KEY") else "https://api.moonshot.cn/v1/chat/completions"
+
         req = urllib.request.Request(
-            GEMINI_API_URL,
+            api_url,
             data=json.dumps(req_data).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST"
@@ -60,7 +63,12 @@ def evaluate_telemetry_directive(telemetry_payload: Dict[str, Any]) -> Dict[str,
 
         with urllib.request.urlopen(req, timeout=8.0) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            content = data["candidates"][0]["content"]["parts"][0]["text"]
+            if "candidates" in data:
+                content = data["candidates"][0]["content"]["parts"][0]["text"]
+            elif "choices" in data:
+                content = data["choices"][0]["message"]["content"]
+            else:
+                raise ValueError(f"Unrecognized response format: {list(data.keys())}")
             parsed = json.loads(content)
             return sanitize_directive(parsed)
     except Exception as e:

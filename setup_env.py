@@ -51,9 +51,9 @@ def main():
     if not venv_dir.exists():
         print("Creating .venv virtual environment...")
         run_cmd([sys.executable, "-m", "venv", str(venv_dir)])
-        print("✅ Virtual environment created.")
+        print("[OK] Virtual environment created.")
     else:
-        print("✅ Virtual environment already exists.")
+        print("[OK] Virtual environment already exists.")
 
     # 3. Upgrade Pip & Build Tools
     print_step("Upgrading pip & setuptools in .venv...")
@@ -75,11 +75,14 @@ def main():
             break
 
     if engine_path:
-        print(f"✅ Found V3X Engine at: {engine_path}")
-        print_step("Installing V3X Engine in editable mode (-e)...")
-        run_cmd([str(venv_pip), "install", "-e", str(engine_path)])
+        print(f"[OK] Found V3X Engine at: {engine_path}")
+        print_step("Installing V3X Engine in editable mode (-e, --no-deps)...")
+        # Use --no-deps so pip doesn't try to build pygame from source.
+        # pygame-ce (installed below from requirements.txt) is the drop-in
+        # API-compatible replacement with prebuilt Python 3.12+ wheels.
+        run_cmd([str(venv_pip), "install", "--no-deps", "-e", str(engine_path)])
     else:
-        print("⚠️ Warning: Could not locate V3X-Zulfiqar-Gideon engine directory locally.")
+        print("[WARN] Could not locate V3X-Zulfiqar-Gideon engine directory locally.")
         print("Will attempt to install pre-built package from PyPI or requirements.txt...")
 
     # 5. Install Project Dependencies
@@ -88,7 +91,7 @@ def main():
         print_step("Installing dependencies from requirements.txt...")
         run_cmd([str(venv_pip), "install", "-r", str(requirements_file)])
     else:
-        print("⚠️ requirements.txt not found. Installing base dependencies directly...")
+        print("[WARN] requirements.txt not found. Installing base dependencies directly...")
         run_cmd([str(venv_pip), "install", "pygame>=2.5.0", "numpy>=1.24.0", "edge-tts", "requests"])
 
     # 6. Verify Installation
@@ -104,14 +107,14 @@ def main():
 
     try:
         run_cmd([str(venv_python), "-c", verification_script])
-        print("✅ Environment verification passed successfully!")
+        print("[OK] Environment verification passed successfully!")
     except subprocess.CalledProcessError:
-        print("⚠️ Verification check failed. Please check installation logs above.")
+        print("[FAIL] Verification check failed. Please check installation logs above.")
         sys.exit(1)
 
     # 7. Success Banner
     print("\n===============================================================")
-    print("  🎉 Setup Completed Successfully!")
+    print("  Setup Completed Successfully!")
     print("===============================================================")
     print("To launch Pixel-Runner:")
     if sys.platform == "win32":

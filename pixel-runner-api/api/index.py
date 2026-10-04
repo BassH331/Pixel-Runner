@@ -76,7 +76,7 @@ class AiDirectorPayload(BaseModel):
     session_id: Optional[str] = Field(None, max_length=64)
     boss_key: Optional[str] = Field(None, max_length=64)
     current_phase: int = Field(1, ge=1, le=10)
-    frames: List[FrameSampleItem] = Field(default_factory=list, max_length=120)
+    frames: List[FrameSampleItem] = Field(default_factory=list, max_length=60)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Helper to Validate Write Access
@@ -389,10 +389,12 @@ def post_frames(
 
 @app.post("/telemetry/ai-director")
 @app.post("/api/telemetry/ai-director")
-def post_ai_director(payload: AiDirectorPayload):
-    """Analyze live frame telemetry stream and return real-time AI director directives.
-    No auth required — this endpoint is for local game AI only.
-    """
+def post_ai_director(
+    payload: AiDirectorPayload,
+    x_api_write_secret: Optional[str] = Header(None)
+):
+    """Analyze live frame telemetry stream and return real-time AI director directives."""
+    verify_write_access(x_api_write_secret)
     try:
         payload_dict = payload.model_dump()
         directive = kimi_service.evaluate_telemetry_directive(payload_dict)

@@ -28,12 +28,14 @@ class CinematicNarrativeOverlay:
         self._avatar_frames: List[pg.Surface] = []
         self._avatar_frame_idx: int = 0
         self._avatar_frame_timer: float = 0.0
-        self._AVATAR_FRAME_SPEED: float = 0.08  # seconds per frame
+        self._AVATAR_FRAME_SPEED: float = 0.28  # seconds per frame (calm, ominous demon pacing)
 
         # Surface & dimension caching
         self._width: int = 1280
         self._height: int = 720
         self._vignette_surface: Optional[pg.Surface] = None
+        self._btn1_rect: Optional[pg.Rect] = None
+        self._btn2_rect: Optional[pg.Rect] = None
         self._rebuild_vignette()
 
     def _rebuild_vignette(self) -> None:
@@ -95,16 +97,28 @@ class CinematicNarrativeOverlay:
         self._avatar_frame_idx = 0
 
     def handle_event(self, event: pg.event.Event) -> bool:
-        """Handle keypresses [1] or [2] to select story choice."""
+        """Handle keypresses [1], [2], SPACE, ENTER, ESC, or mouse clicks to select story choice."""
         if not self.is_active or not self._current_event:
             return False
 
         if event.type == pg.KEYDOWN:
-            if event.key in (pg.K_1, pg.K_KP1, pg.K_RETURN, pg.K_SPACE):
+            if event.key in (pg.K_1, pg.K_KP1, pg.K_RETURN, pg.K_SPACE, pg.K_ESCAPE):
                 self._select_option(1)
                 return True
             elif event.key in (pg.K_2, pg.K_KP2) and "option_2_label" in self._current_event:
                 self._select_option(2)
+                return True
+        elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            mpos = event.pos
+            if self._btn2_rect and self._btn2_rect.collidepoint(mpos):
+                self._select_option(2)
+                return True
+            elif self._btn1_rect and self._btn1_rect.collidepoint(mpos):
+                self._select_option(1)
+                return True
+            elif "option_2_label" not in self._current_event:
+                # In single-option monologue, clicking anywhere advances
+                self._select_option(1)
                 return True
         return False
 
@@ -159,9 +173,9 @@ class CinematicNarrativeOverlay:
 
         # 2. Modern UI Dialogue Panel Base
         card_w = int(self._width * 0.85)
-        card_h = 170
+        card_h = 180
         card_x = (self._width - card_w) // 2
-        card_y = self._height - card_h - 30
+        card_y = self._height - card_h - 25
 
         # Background with a sleek dark glass look
         card_rect = pg.Rect(card_x, card_y, card_w, card_h)
@@ -190,30 +204,50 @@ class CinematicNarrativeOverlay:
         # Separator line under speaker
         pg.draw.line(surface, (80, 75, 70), (card_x + 25, card_y + 45), (card_x + card_w - 25, card_y + 45), 1)
 
-        # 4. Draw Typewriter Dialogue Text (Crisp, High Contrast)
+        # 4. Draw Typewriter Dialogue Text with Word Wrap
         font_body = AssetManager.get_font(None, 20)
-        dialogue_surf = font_body.render(self._displayed_text, True, (240, 240, 245))
-        surface.blit(dialogue_surf, (card_x + 25, card_y + 60))
+        max_line_width = card_w - 50
+        words = self._displayed_text.split(" ")
+        lines = []
+        cur_line = ""
+        for word in words:
+            test_line = f"{cur_line} {word}".strip() if cur_line else word
+            if font_body.size(test_line)[0] <= max_line_width:
+                cur_line = test_line
+            else:
+                if cur_line:
+                    lines.append(cur_line)
+                cur_line = word
+        if cur_line:
+            lines.append(cur_line)
+
+        line_y = card_y + 55
+        for line in lines[:3]:
+            d_surf = font_body.render(line, True, (240, 240, 245))
+            surface.blit(d_surf, (card_x + 25, line_y))
+            line_y += 22
 
         # 5. Draw Modern Interactive Choice Buttons
-        opt1 = str(self._current_event.get("option_1_label", "[1] Choice 1"))
+        opt1 = str(self._current_event.get("option_1_label", "[SPACE] Continue"))
 
         font_choice = AssetManager.get_font(None, 18)
         
-        # Button 1 (Embrace / Affirmative) - Pill Shape
+        # Button 1 (Embrace / Affirmative / Continue) - Pill Shape
         btn1_w = font_choice.size(opt1)[0] + 40
-        btn1_rect = pg.Rect(card_x + 25, card_y + 120, btn1_w, 32)
-        pg.draw.rect(surface, (30, 50, 40, 230), btn1_rect, border_radius=16)
-        pg.draw.rect(surface, (80, 200, 100), btn1_rect, width=1, border_radius=16)
+        self._btn1_rect = pg.Rect(card_x + 25, card_y + 130, btn1_w, 34)
+        pg.draw.rect(surface, (30, 50, 40, 230), self._btn1_rect, border_radius=17)
+        pg.draw.rect(surface, (80, 200, 100), self._btn1_rect, width=1, border_radius=17)
         opt1_surf = font_choice.render(opt1, True, (160, 240, 160))
-        surface.blit(opt1_surf, (card_x + 45, card_y + 127))
+        surface.blit(opt1_surf, (card_x + 45, card_y + 137))
 
         # Button 2 (Reject / Negative) - Pill Shape (Only if option_2_label exists)
         if "option_2_label" in self._current_event:
             opt2 = str(self._current_event["option_2_label"])
             btn2_w = font_choice.size(opt2)[0] + 40
-            btn2_rect = pg.Rect(card_x + btn1_w + 40, card_y + 120, btn2_w, 32)
-            pg.draw.rect(surface, (50, 25, 30, 230), btn2_rect, border_radius=16)
-            pg.draw.rect(surface, (220, 80, 80), btn2_rect, width=1, border_radius=16)
+            self._btn2_rect = pg.Rect(card_x + btn1_w + 45, card_y + 130, btn2_w, 34)
+            pg.draw.rect(surface, (50, 25, 30, 230), self._btn2_rect, border_radius=17)
+            pg.draw.rect(surface, (220, 80, 80), self._btn2_rect, width=1, border_radius=17)
             opt2_surf = font_choice.render(opt2, True, (240, 150, 150))
-            surface.blit(opt2_surf, (card_x + btn1_w + 60, card_y + 127))
+            surface.blit(opt2_surf, (card_x + btn1_w + 65, card_y + 137))
+        else:
+            self._btn2_rect = None

@@ -87,7 +87,27 @@ _INTERNAL_CLIPBOARD = ""
 
 def get_clipboard_text() -> str:
     global _INTERNAL_CLIPBOARD
-    # 1. Try tkinter
+    if sys.platform == "win32":
+        # Windows: use ctypes Win32 API only.
+        # NEVER use tkinter on Windows — clipboard calls cause fatal C-level crashes
+        # in Python 3.14 that cannot be caught by Python exception handling.
+        try:
+            import ctypes
+            CF_UNICODETEXT = 13
+            if ctypes.windll.user32.OpenClipboard(None):
+                h = ctypes.windll.user32.GetClipboardData(CF_UNICODETEXT)
+                if h:
+                    ptr = ctypes.windll.kernel32.GlobalLock(h)
+                    val = ctypes.wstring_at(ptr)
+                    ctypes.windll.kernel32.GlobalUnlock(h)
+                    ctypes.windll.user32.CloseClipboard()
+                    if val:
+                        return val
+                ctypes.windll.user32.CloseClipboard()
+        except Exception:
+            pass
+        return _INTERNAL_CLIPBOARD  # Always return on Windows — skip Tkinter
+    # Non-Windows: try tkinter then pygame.scrap
     try:
         import tkinter as tk
         r = tk.Tk()
@@ -116,7 +136,29 @@ def get_clipboard_text() -> str:
 def set_clipboard_text(text: str):
     global _INTERNAL_CLIPBOARD
     _INTERNAL_CLIPBOARD = text
-    # 1. Try tkinter
+    if sys.platform == "win32":
+        # Windows: use ctypes Win32 API only.
+        # NEVER use tkinter on Windows — clipboard_clear() causes a fatal
+        # C-level access violation in Python 3.14 that bypasses exception handling.
+        try:
+            import ctypes
+            import ctypes.wintypes
+            CF_UNICODETEXT = 13
+            GMEM_MOVEABLE = 0x0002
+            text_bytes = (text + "\x00").encode("utf-16-le")
+            h = ctypes.windll.kernel32.GlobalAlloc(GMEM_MOVEABLE, len(text_bytes))
+            if h:
+                ptr = ctypes.windll.kernel32.GlobalLock(h)
+                ctypes.memmove(ptr, text_bytes, len(text_bytes))
+                ctypes.windll.kernel32.GlobalUnlock(h)
+                if ctypes.windll.user32.OpenClipboard(None):
+                    ctypes.windll.user32.EmptyClipboard()
+                    ctypes.windll.user32.SetClipboardData(CF_UNICODETEXT, h)
+                    ctypes.windll.user32.CloseClipboard()
+        except Exception:
+            pass
+        return  # Always return on Windows — skip Tkinter and pygame.scrap
+    # Non-Windows: try tkinter then pygame.scrap
     try:
         import tkinter as tk
         r = tk.Tk()
@@ -127,7 +169,6 @@ def set_clipboard_text(text: str):
         r.destroy()
     except Exception:
         pass
-    # 2. Try pygame.scrap
     try:
         import pygame.scrap as scrap
         if not scrap.get_init():

@@ -141,7 +141,7 @@ class GameState(PlayingState):
         # Entity groups
         self.player = pg.sprite.GroupSingle()
         self.player.add(
-            Player(200, self.height + 135, self.audio_manager)
+            Player(200, 222, self.audio_manager)
         )
         self.obstacle_group: pg.sprite.Group = pg.sprite.Group()
         self.ambient_group: pg.sprite.Group = pg.sprite.Group()
@@ -1202,7 +1202,7 @@ class GameState(PlayingState):
                             "speaker_name": "Andras, Marquis of Discord",
                             "avatar_sprite": "assets/Agis",
                             "dialogue_text": "I know your past. I saw what happened... your family, the fire, the screaming. You couldn't save them. The world took everything from you. I will return because there is danger ahead. Your power will not be enough to save yourself.",
-                            "option_1_label": "[1] Awaken",
+                            "option_1_label": "[SPACE] Continue",
                             "option_1_buff": {"close_overlay_only": True, "clear_magic_void": True}
                         }
                     else:

@@ -592,6 +592,16 @@ class BloodZombieEditorApp:
             except Exception as e:
                 print(f"Backup warning: {e}")
 
+        # Write to app's configured config_path directly
+        try:
+            parent_dir = os.path.dirname(self.config_path)
+            if parent_dir:
+                os.makedirs(parent_dir, exist_ok=True)
+            with open(self.config_path, "w", encoding="utf-8") as f:
+                json.dump(self.config, f, indent=2)
+        except Exception as e:
+            print(f"Direct file write warning: {e}")
+
         # Write clean JSON config and sync to RAM cache, SQLite, and cloud API
         try:
             from src.game.services import ConfigClient

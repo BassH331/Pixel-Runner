@@ -82,3 +82,44 @@ def test_player_guard_stun_mechanic():
     # Apply guard-break attack damage
     player.take_damage(20.0, is_guard_break=True)
     assert player.state == PlayerState.GUARD_STUN
+
+
+def test_cinematic_narrative_overlay_space_and_return_advance():
+    """Verify pressing SPACE or RETURN advances single-option monologue."""
+    overlay = CinematicNarrativeOverlay()
+    callback_mock = MagicMock()
+    evt = {
+        "speaker_name": "Andras, Marquis of Discord",
+        "dialogue_text": "I know your past...",
+        "option_1_label": "[SPACE] Continue",
+        "option_1_buff": {"close_overlay_only": True}
+    }
+    overlay.activate(evt, callback_mock)
+    
+    space_event = pg.event.Event(pg.KEYDOWN, key=pg.K_SPACE)
+    handled = overlay.handle_event(space_event)
+    assert handled
+    assert not overlay.is_active
+    callback_mock.assert_called_once_with({"close_overlay_only": True})
+
+    # Test RETURN
+    callback_mock.reset_mock()
+    overlay.activate(evt, callback_mock)
+    return_event = pg.event.Event(pg.KEYDOWN, key=pg.K_RETURN)
+    handled = overlay.handle_event(return_event)
+    assert handled
+    assert not overlay.is_active
+    callback_mock.assert_called_once_with({"close_overlay_only": True})
+
+
+def test_cinematic_narrative_overlay_slowed_animation_delay():
+    """Verify demon avatar frame delay is slowed to 0.28s for deliberate pacing."""
+    overlay = CinematicNarrativeOverlay()
+    assert overlay._AVATAR_FRAME_SPEED == 0.28
+
+
+def test_player_spawn_ground_level_alignment():
+    """Verify player spawned at y=222 has rect.bottom aligned at ground_y 606."""
+    player = Player(200, 222, MagicMock())
+    assert player.rect.bottom == 606
+

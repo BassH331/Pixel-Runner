@@ -90,6 +90,95 @@ STORY_SFX_TIMING = {
         {"name": "magic_sfx", "volume": 0.2, "delay": (0.9, 1.1)}],
 }
 
+class PixelRunnerEngine(V3XCore):
+    """
+    V3X Core Engine tailored for Pixel Runner cross-platform presentation.
+    
+    Architectural Guarantees:
+    1. Locks internal logical viewport to sovereign BASE_WIDTH x BASE_HEIGHT (1280x720).
+    2. Utilizes pg.SCALED | pg.RESIZABLE for smooth, hardware-accelerated scaling and letterboxing/pillarboxing.
+    3. Centers the window on display startup (SDL_VIDEO_CENTERED = "1").
+    4. Automatically maximizes window on PC to fill the screen cleanly above the Windows taskbar.
+    5. Native fullscreen support with toggle hotkeys (F11, Alt+Enter) and CLI flag (--fullscreen).
+    """
+
+    def __init__(
+        self,
+        title: str = "Runner: Guardian of the Star-Fire",
+        fullscreen: bool = False,
+        windowed: bool = False,
+        base_width: int = BASE_WIDTH,
+        base_height: int = BASE_HEIGHT,
+    ) -> None:
+        os.environ["SDL_VIDEO_CENTERED"] = "1"
+        pg.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=2048)
+        pg.init()
+        pg.mixer.set_num_channels(32)
+
+        self.width = base_width
+        self.height = base_height
+
+        # Initialize display with hardware scaling
+        flags = pg.SCALED | pg.RESIZABLE
+        self.screen = pg.display.set_mode((self.width, self.height), flags)
+        pg.display.set_caption(title)
+
+        try:
+            win = pg.Window.from_display_module()
+            if fullscreen:
+                pg.display.toggle_fullscreen()
+            elif not windowed:
+                # Fill screen normally like standard PC desktop applications (cleanly docked above taskbar)
+                win.maximize()
+        except Exception as e:
+            print(f"[DISPLAY INIT] Window configuration note: {e}")
+
+        self.clock = pg.time.Clock()
+        from v3x_zulfiqar_gideon import SettingsManager, AudioManager, StateManager
+
+        self.settings = SettingsManager()
+        self.audio_manager = AudioManager()
+        self.state_manager = StateManager(audio_manager=self.audio_manager)
+        self.is_running = True
+
+    def run(self, initial_state_class, **kwargs) -> None:
+        """Start the main game loop with fullscreen hotkey support."""
+        initial_state = initial_state_class(self.state_manager, **kwargs)
+        self.state_manager.push(initial_state)
+
+        dt_target = 1000.0 / 60.0
+        accumulator = 0.0
+
+        while self.is_running:
+            fps_cap = self.settings.get("fps_cap")
+            elapsed = self.clock.tick(fps_cap)
+
+            if elapsed > 100.0:
+                elapsed = 100.0
+
+            accumulator += elapsed
+
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.quit()
+                elif event.type == pg.KEYDOWN:
+                    # Seamless F11 or Alt+Enter fullscreen toggle
+                    if event.key == pg.K_F11 or (
+                        event.key in (pg.K_RETURN, pg.K_KP_ENTER) and (event.mod & pg.KMOD_ALT)
+                    ):
+                        pg.display.toggle_fullscreen()
+                        continue
+                self.state_manager.handle_event(event)
+
+            while accumulator >= dt_target:
+                self.state_manager.update(dt_target)
+                accumulator -= dt_target
+
+            self.audio_manager.update()
+            self.state_manager.draw(self.screen)
+            pg.display.update()
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser()
@@ -97,6 +186,8 @@ def main():
     parser.add_argument("--dev", action="store_true", default=False, help="Launch directly into the game scene, bypassing intro scenes")
     parser.add_argument("--track", action="store_true", default=False, help="Enable gameplay telemetry tracking")
     parser.add_argument("--level", type=str, default=None, help="Path to level configuration JSON")
+    parser.add_argument("--fullscreen", action="store_true", default=False, help="Launch game in exclusive fullscreen mode")
+    parser.add_argument("--windowed", action="store_true", default=False, help="Launch game in default unmaximized 1280x720 windowed mode")
     args, _ = parser.parse_known_args()
 
     if args.track:
@@ -202,7 +293,13 @@ def main():
     )
 
     # ── 2. Launch ───────────────────────────────────────────────────────────
-    engine = V3XCore() # Auto-scaling
+    engine = PixelRunnerEngine(
+        title="Runner: Guardian of the Star-Fire",
+        fullscreen=args.fullscreen,
+        windowed=args.windowed,
+        base_width=BASE_WIDTH,
+        base_height=BASE_HEIGHT,
+    )
     init_joystick()
     engine.launch(manifest)
 
