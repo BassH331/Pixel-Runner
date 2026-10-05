@@ -1,0 +1,97 @@
+{
+    "timing": {
+        "slide_in_time": 0.35,
+        "default_hold_time": 13.79,
+        "slide_out_time": 0.44,
+        "words_per_sec": 0.35,
+        "base_hold_pad": 2.5,
+        "easing_type": "cubic_ease_out",
+        "breath_shimmer_enabled": true,
+        "breath_amplitude": 2.0,
+        "breath_speed": 3.5,
+        "fade_on_slide_out": true
+    },
+    "layout": {
+        "anchor": "top_right",
+        "tab_width": 390,
+        "min_height": 82,
+        "margin_x": 20,
+        "top_y": 105,
+        "padding_x": 14,
+        "padding_y": 12,
+        "corner_radius": 10,
+        "border_width": 2,
+        "accent_notch_width": 5,
+        "accent_notch_enabled": true,
+        "spacing": 4,
+        "badge_size": 50,
+        "icon_size": 36
+    },
+    "colors": {
+        "bg_color": [
+            8,
+            14,
+            26,
+            245
+        ],
+        "inner_color": [
+            14,
+            24,
+            44,
+            235
+        ],
+        "border_color": [
+            38,
+            0,
+            37,
+            230
+        ],
+        "accent_notch_color": [
+            102,
+            34,
+            255,
+            240
+        ],
+        "badge_bg_color": [
+            6,
+            12,
+            20,
+            240
+        ],
+        "badge_border_color": [
+            117,
+            84,
+            172,
+            220
+        ],
+        "title_color": [
+            109,
+            77,
+            207
+        ],
+        "title_shadow_color": [
+            0,
+            0,
+            0
+        ],
+        "body_color": [
+            210,
+            235,
+            250
+        ],
+        "body_shadow_color": [
+            4,
+            10,
+            18
+        ]
+    },
+    "typography": {
+        "title_font_path": "assets/font/Abaddon Bold.ttf",
+        "title_font_size": 22,
+        "title_drop_shadow": true,
+        "body_font_path": "assets/graphics/Darinia/Darinia.ttf",
+        "body_font_size": 15,
+        "body_drop_shadow": true,
+        "line_spacing": 1.0
+    }
+}

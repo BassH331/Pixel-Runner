@@ -1,5 +1,16 @@
-import pygame as pg
+import sys
 import os
+
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+import pygame as pg
 
 # pyrefly: ignore [missing-import]
 from v3x_zulfiqar_gideon import V3XCore, V3XManifest
@@ -183,6 +194,8 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--start-dist", type=float, default=None)
+    parser.add_argument("--duration", type=float, default=None, help="Duration for simulation in seconds")
+    parser.add_argument("--target-event-id", type=str, default=None, help="Target event ID for simulation")
     parser.add_argument("--dev", action="store_true", default=False, help="Launch directly into the game scene, bypassing intro scenes")
     parser.add_argument("--track", action="store_true", default=False, help="Enable gameplay telemetry tracking")
     parser.add_argument("--level", type=str, default=None, help="Path to level configuration JSON")
@@ -301,7 +314,29 @@ def main():
         base_height=BASE_HEIGHT,
     )
     init_joystick()
-    engine.launch(manifest)
+    try:
+        engine.launch(manifest)
+    except SystemExit:
+        # Clean exit path (sys.exit / engine.quit) — re-raise as-is.
+        raise
+    except Exception:
+        # Unhandled crash: ensure SDL mixer is silenced immediately so audio
+        # doesn't keep playing after the game window closes, then re-raise
+        # so the original traceback is still printed.
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        # Guaranteed cleanup on every exit path (crash, sys.exit, normal).
+        try:
+            import pygame as _pg
+            if _pg.mixer.get_init():
+                _pg.mixer.music.stop()
+                _pg.mixer.stop()
+            if _pg.get_init():
+                _pg.quit()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     main()

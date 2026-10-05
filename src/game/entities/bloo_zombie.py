@@ -8,9 +8,10 @@ from __future__ import annotations
 import os
 import math
 import random
+import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Final, Optional
+from typing import TYPE_CHECKING, Final, Optional, Callable
 
 import pygame as pg
 
@@ -115,6 +116,20 @@ class BloodZombie(EntityAudioMixin, Actor):
         BloodZombieState.DEATH: StateConfig(0.15, loops=False, interruptible=False),
     }
 
+    def apply_corruption_scaling(self, corruption_value: float) -> None:
+        """Scale HP and speed when player corruption is high (>66).
+
+        Mirrors BaseEnemy.apply_corruption_scaling so BossEncounterManager
+        can call this method uniformly on any boss entity.
+        At corruption > 66: HP +10%, speed +5%.
+        """
+        if not getattr(self, "is_boss", False):
+            return
+        if corruption_value > 66:
+            self._max_health *= 1.10
+            self._health = self._max_health
+            self._speed *= 1.05
+
     def __init__(
         self,
         x: int,
@@ -134,6 +149,11 @@ class BloodZombie(EntityAudioMixin, Actor):
         self.natively_facing_left: bool = False
         self.state_configs = self.STATE_CONFIGS
         self.tier = tier
+
+        # In-combat saucy taunt system wired to SideNotification
+        self.taunt_callback: Optional[Callable[[str, str], None]] = None
+        self._last_taunt_time: float = 0.0
+        self._taunt_cooldown: float = 9.0
 
         # Load hitbox margins specifically for blood_zombie boss
         margins_key = "boss:bloodzombie"
@@ -686,8 +706,10 @@ class BloodZombie(EntityAudioMixin, Actor):
             self.attack_state.end()
             if self._health <= 0:
                 SquadTokenManager.get_instance().unregister_enemy(id(self))
+                self._trigger_taunt("death")
                 self.set_state(BloodZombieState.DEATH, force=True)
             else:
+                self._trigger_taunt("hit")
                 self.set_state(BloodZombieState.HURT, force=True)
             return
 
@@ -700,17 +722,64 @@ class BloodZombie(EntityAudioMixin, Actor):
         # If health is depleted, switch to death animation
         if self._health <= 0:
             SquadTokenManager.get_instance().unregister_enemy(id(self))
+            self._trigger_taunt("death")
             self.set_state(BloodZombieState.DEATH, force=True)
         else:
+            self._trigger_taunt("hit")
             self.set_state(BloodZombieState.HURT, force=True)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Private: AI Logic
     # ─────────────────────────────────────────────────────────────────────────
 
+    def _trigger_taunt(self, category: str = "combat") -> None:
+        """Trigger an in-character saucy taunt mixing archaic and modern vulgarity."""
+        if not getattr(self, "taunt_callback", None):
+            return
+        now = time.time()
+        cooldown = 4.0 if category == "death" else getattr(self, "_taunt_cooldown", 9.0)
+        if category != "death" and (now - getattr(self, "_last_taunt_time", 0.0)) < cooldown:
+            return
+        self._last_taunt_time = now
+
+        taunts = {
+            "combat": [
+                "Come on, pretty boy, bleed for me! Don't tell me you're getting winded already!",
+                "That all you got, you milk-livered bastard? My dead nan swung harder than that!",
+                "By the black rot, you're a clumsy piece of shit. Stand still and let me gut ya!",
+                "Ha! Call that a guard? Pure shite! I’ll carve that smug look right off your mug!",
+                "You're all piss and wind, ain't ya? Dance faster before I tear your bloody throat out!",
+                "Tough prick, aren't you? But bleed long enough and you'll all scream the bloody same!",
+                "Gods above, what a sodding bore. Die already so I can feast on your marrow!",
+            ],
+            "hit": [
+                "Ooh, felt that one! Got some bite in ya, you filthy cur... cracking your bones will be all the sweeter!",
+                "Is that your best swing, soft-meat? My dead nan hit harder than that!",
+                "A scratch! Barely nicked me, dog! I'll take both your eyes for that!",
+            ],
+            "player_hit": [
+                "Aww, did the little warrior get a scratch? Bleed for me, you sniveling cur!",
+                "Taste that iron on your tongue? That's your life running out, pretty boy!",
+                "Too slow, coward! One more nick and I'll string your guts from the trees!",
+            ],
+            "death": [
+                "Damn you... bloody hell... you'll drown in this forest yet, bastard...",
+            ],
+        }
+        pool = taunts.get(category, taunts["combat"])
+        line = random.choice(pool)
+        try:
+            self.taunt_callback(line, "Blood Zombie")
+        except Exception:
+            pass
+
     def _update_ai(self, dt_sec: float = 0.016) -> None:
         if self._player is None or self.state in (BloodZombieState.HURT, BloodZombieState.DEATH):
             return
+        
+        # Periodic combat taunt during active chase/engagement
+        if self.state in (BloodZombieState.CHASE, BloodZombieState.ATTACK) and not getattr(self, "ai_frozen", False):
+            self._trigger_taunt("combat")
             
         # 1. Perception Update
         alert = self.perception.update(dt_sec, self.rect, self.facing_left, self._player)
@@ -790,6 +859,8 @@ class BloodZombie(EntityAudioMixin, Actor):
         self._attack_count += 1
         if self._player and hasattr(self._player, "rect"):
             self.facing_left = (self.rect.centerx > self._player.rect.centerx)
+        if random.random() < 0.4:
+            self._trigger_taunt("player_hit")
         if random.random() < 0.5:
             # Primary attack animation
             self.animations[BloodZombieState.ATTACK] = self._attack1_frames

@@ -1093,25 +1093,43 @@ class Player(Actor):
         return self._invincibility_timer > 0 or grants_inv
 
     @property
-    def health(self) -> int: return self._health
+    def health(self) -> int: return int(self._health)
+    @health.setter
+    def health(self, value: int | float) -> None: self._health = int(value)
+
     @property
-    def max_health(self) -> int: return self._max_health
+    def max_health(self) -> int: return int(self._max_health)
+    @max_health.setter
+    def max_health(self, value: int | float) -> None: self._max_health = int(value)
+
     @property
-    def mana(self) -> float: return self._mana
+    def mana(self) -> float: return float(self._mana)
+    @mana.setter
+    def mana(self, value: float | int) -> None: self._mana = float(value)
+
     @property
-    def max_mana(self) -> float: return self._max_mana
+    def max_mana(self) -> float: return float(self._max_mana)
+    @max_mana.setter
+    def max_mana(self, value: float | int) -> None: self._max_mana = float(value)
+
     @property
-    def stamina(self) -> float: return self._stamina
+    def stamina(self) -> float: return float(self._stamina)
+    @stamina.setter
+    def stamina(self, value: float | int) -> None: self._stamina = float(value)
+
     @property
-    def max_stamina(self) -> float: return self._max_stamina
+    def max_stamina(self) -> float: return float(self._max_stamina)
+    @max_stamina.setter
+    def max_stamina(self, value: float | int) -> None: self._max_stamina = float(value)
+
     @property
     def is_enhanced(self) -> bool: return self._is_enhanced
+    @is_enhanced.setter
+    def is_enhanced(self, value: bool) -> None: self._is_enhanced = bool(value)
     @property
     def entity_id(self) -> int: return id(self)
     @property
     def current_frame_index(self) -> int: return int(self.animation_index)
-    @property
-    def is_dead(self) -> bool: return self.state == PlayerState.DEATH
     @property
     def is_running(self) -> bool: return self.state == PlayerState.RUN
     @property
@@ -1318,8 +1336,23 @@ class Player(Actor):
         elif self.state != PlayerState.DEFEND and self.state != PlayerState.GUARD_STUN:
             self._transition_to(PlayerState.HURT)
             self._invincibility_duration = 0.3
-            
         return True
+
+    @property
+    def is_dead(self) -> bool:
+        """Return True if player health is depleted or in DEATH state."""
+        return self._health <= 0 or self.state == PlayerState.DEATH
+
+    @is_dead.setter
+    def is_dead(self, value: bool) -> None:
+        """Allow setting is_dead for resuscitation or defeat."""
+        if not value:
+            if self._health <= 0:
+                self._health = getattr(self, "max_health", 100)
+            self.set_state(PlayerState.IDLE, force=True)
+        else:
+            self._health = 0
+            self.set_state(PlayerState.DEATH, force=True)
 
     def trigger_guard_stun(self, duration: float = 1.5) -> None:
         """Break player's shield defense and apply Guard Stun lock out."""
@@ -1572,8 +1605,12 @@ class Player(Actor):
             
         return False
 
-    def set_state(self, new_state: Enum, force: bool = False) -> None:
+    def set_state(self, new_state: Any, force: bool = False) -> None:
         """Sets the player state, applying post-damage invincibility upon exiting HURT state."""
+        if isinstance(new_state, str):
+            clean_name = new_state.upper()
+            if hasattr(PlayerState, clean_name):
+                new_state = getattr(PlayerState, clean_name)
         was_attacking = self.is_attacking
         if self.state == PlayerState.HURT and new_state != PlayerState.HURT:
             if self._invincibility_duration > 0:

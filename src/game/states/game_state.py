@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import json
+import time
 from random import randint
 from typing import TYPE_CHECKING, Final, Optional, Any
 
@@ -18,7 +19,7 @@ from src.game.entities.enemy import Enemy
 from v3x_zulfiqar_gideon import WorldEventManager, InteractionPoint, WorldLoader, Sky
 from src.game.entities.wizard_npc import WizardNPC
 from src.game.entities.generic_npc import GenericNPC, _GenericNPCState
-from src.game.entities.player import Player
+from src.game.entities.player import Player, PlayerState
 from src.game.entities.skeleton import Skeleton, SkeletonState
 from src.game.entities.fire_wizard import FireWizard
 from src.game.entities.green_monster import GreenMonster
@@ -35,6 +36,10 @@ from src.game.systems.wave_manager import WaveManager
 from src.game.systems.combat_system import CombatSystem
 from src.game.systems.cutscene_manager import CutsceneManager
 from src.game.systems.shadow_renderer import ShadowRenderer
+from src.game.systems.corruption_manager import CorruptionManager
+from src.game.systems.storyline_config_manager import StorylineConfigManager
+from src.game.systems.whisperer_system import WhispererSystem
+from src.game.systems.boss_encounter_manager import BossEncounterManager
 from src.game.effects.particle_system import ParticleManager
 from src.game.services.save_manager import SaveManager
 from src.game.debug.simulation_runner import SimulationRunner
@@ -98,6 +103,21 @@ class GameState(PlayingState):
         self.event_bus = EventBus()
         self.event_bus.subscribe(EntityDied, self._on_entity_died)
 
+        # Corruption Meter (central narrative spine — Sub-task 1)
+        _storyline_cfg_mgr = StorylineConfigManager()
+        self._storyline_cfg: dict = _storyline_cfg_mgr.data
+        self.corruption_manager = CorruptionManager(self.event_bus, self._storyline_cfg)
+
+        # Relic Manager (Sub-task 2) — must be created after corruption_manager
+        from src.game.systems.relic_manager import RelicManager
+        self.relic_reveal_overlay: Optional[Any] = None
+        self.relic_manager = RelicManager(
+            self.event_bus,
+            self.corruption_manager,
+            self._storyline_cfg,
+            self._show_relic_reveal,
+        )
+
         # Decoupled Combat & Cutscene Systems
         self.combat_system = CombatSystem(self)
         self.cutscene_manager = CutsceneManager(self)
@@ -156,7 +176,9 @@ class GameState(PlayingState):
         self.npc_group: pg.sprite.Group = pg.sprite.Group()
 
         # HUD Overlay System (Player UI, Boss Health Bar, Banners, Objectives, Tutorials)
-        self.hud_overlay = HUDOverlay(self.width, self.height)
+        self.hud_overlay = HUDOverlay(self.width, self.height,
+                                      corruption_manager=self.corruption_manager,
+                                      relic_manager=self.relic_manager)
         self.player_ui = self.hud_overlay.player_ui
         self.objective_display = self.hud_overlay.objective_display
         self.notification_banner = self.hud_overlay.notification_banner
@@ -164,6 +186,46 @@ class GameState(PlayingState):
         self.tutorial_overlay = self.hud_overlay.tutorial_overlay
         from src.game.ui.cinematic_narrative_overlay import CinematicNarrativeOverlay
         self.cinematic_narrative_overlay = CinematicNarrativeOverlay()
+
+        # watsonx.ai Dialogue Client (Sub-task 7) — async dynamic Andras dialogue
+        from src.game.services.watsonx_dialogue_client import WatsonxDialogueClient
+        _andras_barks = (
+            self._storyline_cfg.get("whisperer_barks", {})
+            .get("andras", {})
+            .get("on_boss_spawn", [])
+        )
+        _fallback_lines = [b["text"] for b in _andras_barks] if _andras_barks else None
+        self.watsonx_client = WatsonxDialogueClient(fallback_barks=_fallback_lines)
+
+        # Whisperer System (Sub-task 3) — reactive bark dialogue for Andras and Moon Knight
+        self.whisperer_system = WhispererSystem(
+            self.event_bus,
+            self.corruption_manager,
+            self._storyline_cfg,
+            self.cinematic_narrative_overlay,
+            watsonx_client=self.watsonx_client,
+            relic_manager=self.relic_manager,
+            side_notification=self.side_notification,
+        )
+
+        # Boss Encounter Manager (Sub-task 4) — pre-fight dialogue, AI freeze, stat scaling
+        _boss_sequence: list = self._storyline_cfg.get("boss_dialogue_sequence") or []
+        # Fall back to level_1.json boss_sequence once level_data is loaded (patched below)
+        self._boss_sequence_from_level: list = []
+        self.boss_encounter_manager = BossEncounterManager(
+            self.event_bus,
+            self.corruption_manager,
+            self._storyline_cfg,
+            self.cinematic_narrative_overlay,
+            _boss_sequence,
+        )
+
+        # Ending Manager (Sub-task 5) — resolves endings on FinalBossDefeated
+        from src.game.systems.ending_manager import EndingManager
+        from src.game.systems.custom_events import FinalBossDefeated
+        self.ending_manager = EndingManager(self.manager, self._storyline_cfg, SaveManager)
+        self.event_bus.subscribe(FinalBossDefeated, self._on_final_boss_defeated)
+
         self._current_interacting_npc = None
         self.trippy_zoom = TrIPPyZoomEffect(self.width, self.height)
         self.clean_camera_zoom = CleanCameraZoom(self.width, self.height)
@@ -174,6 +236,13 @@ class GameState(PlayingState):
         self.trigger_manager = ObjectiveTriggerManager()
         self._setup_triggers()
         self._game_start_ticks: int = pg.time.get_ticks()
+
+        # The Eye Observer Bridge & Boss In-Combat Taunt Tracking
+        self._current_boss = None
+        self._current_boss_title: str = ""
+        self._boss_combat_taunt_timer: float = 12.0
+        self._last_spoken_taunt: Optional[dict] = None
+        self._eye_heartbeat_frame: int = 0
 
         # Screen Border Flame Animation Frames (Spirit of the Scythe Trance)
         self._screen_border_flames: list[pg.Surface] = []
@@ -186,7 +255,8 @@ class GameState(PlayingState):
                 ]
         
         # World System (data-driven environment, parallax background, & distance events)
-        self.world_system = WorldManager(self.width, self.height)
+        self.world_system = WorldManager(self.width, self.height,
+                                         notification_callback=self._show_ambient_lore)
         self.environment_manager = self.world_system.environment_manager
         self.world_manager = self.world_system.event_manager
         self.sky = self.world_system.sky
@@ -228,7 +298,7 @@ class GameState(PlayingState):
         parser = argparse.ArgumentParser()
         parser.add_argument("--start-dist", type=float, default=None)
         parser.add_argument("--duration", type=float, default=None)
-        parser.add_argument("--target-event-id", type=int, default=None)
+        parser.add_argument("--target-event-id", type=str, default=None)
         args, _ = parser.parse_known_args()
 
         self._sim_type = "level"
@@ -317,6 +387,11 @@ class GameState(PlayingState):
                 # Wire the completion callback to trigger the story climax
                 self.player_ui._soul_complete_callback = self._on_soul_quota_reached
             # ────────────────────────────────────────────────────────────────
+
+            # Boss sequence from level JSON — patch into BossEncounterManager
+            _level_boss_seq: list = level_data.get("boss_sequence", [])
+            if _level_boss_seq:
+                self.boss_encounter_manager._boss_sequence = _level_boss_seq
 
             # Wave Manager spawn zones & bat configuration
             self.wave_manager.load_level_config(level_data)
@@ -413,21 +488,46 @@ class GameState(PlayingState):
     def _setup_triggers(self) -> None:
         """Configure time-based and flag-based objective triggers."""
 
-        # Congratulations on first skeleton kill
+        # First encounter trigger (The Whispering Grimoire)
         try:
             self.trigger_manager.add_trigger(
-                text="Well done, warrior! The undead fall before your blade. "
-                     "Keep moving and stay vigilant for more threats ahead.",
-                title="First kill!!",
+                text="Look at the wretched thing slithering through the brush. "
+                     "Those who step into this forest change from their very first encounter... "
+                     "breathe it in, runner. The hunt has already marked you.",
+                title="The Whispering Grimoire",
                 trigger_type="flag",
-                flag_name="first_kill",
-                icon_path="assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
+                flag_name="first_encounter",
+                icon_path="assets/graphics/magic_book_single/magic_book.png",
             )
         except TypeError:
             self.trigger_manager.add_trigger(
-                text="Well done, warrior! The undead fall before your blade. "
-                     "Keep moving and stay vigilant for more threats ahead.",
-                title="First kill!!",
+                text="Look at the wretched thing slithering through the brush. "
+                     "Those who step into this forest change from their very first encounter... "
+                     "breathe it in, runner. The hunt has already marked you.",
+                title="The Whispering Grimoire",
+                trigger_type="flag",
+                flag_name="first_encounter",
+            )
+
+        # First kill trigger (Grimoire of Andras taunt)
+        try:
+            self.trigger_manager.add_trigger(
+                text="Did you feel that snap of bone? How delicious. "
+                     "Those who step into this forest change from their very first kill... "
+                     "and the curse has already taken root in your blood. "
+                     "There is no turning back now, killer.",
+                title="Grimoire of Andras",
+                trigger_type="flag",
+                flag_name="first_kill",
+                icon_path="assets/graphics/magic_book_single/magic_book.png",
+            )
+        except TypeError:
+            self.trigger_manager.add_trigger(
+                text="Did you feel that snap of bone? How delicious. "
+                     "Those who step into this forest change from their very first kill... "
+                     "and the curse has already taken root in your blood. "
+                     "There is no turning back now, killer.",
+                title="Grimoire of Andras",
                 trigger_type="flag",
                 flag_name="first_kill",
             )
@@ -507,10 +607,13 @@ class GameState(PlayingState):
             npc = WizardNPC(
                 x=self.width + 50,
                 y=ground_y,
-                text=params["text"],
+                text=params.get("text", ""),
                 title=params["title"],
                 scale=params.get("scale"),  # Respect level configuration scale
                 proximity_radius=params.get("radius", 160),
+                dialogue=params.get("dialogue"),
+                corruption_manager=self.corruption_manager,
+                relic_manager=self.relic_manager,
             )
             setattr(npc, "event_id", params.get("_event_id"))
             setattr(npc, "event_distance", params.get("_event_distance"))
@@ -525,7 +628,7 @@ class GameState(PlayingState):
                 x=spawn_x,
                 y=ground_y,
                 sprite_dir=params["sprite_dir"],
-                text=params["text"],
+                text=params.get("text", ""),
                 title=params.get("title", "NPC"),
                 scale=params.get("scale"),  # Respect level configuration scale
                 proximity_radius=params.get("radius", 160),
@@ -536,6 +639,9 @@ class GameState(PlayingState):
                 spawn_sprite_dir=params.get("spawn_sprite_dir"),
                 is_intro_npc=is_intro,
                 voice_line_id=params.get("voice_line_id"),
+                dialogue=params.get("dialogue"),
+                corruption_manager=self.corruption_manager,
+                relic_manager=self.relic_manager,
             )
             setattr(npc, "event_id", params.get("_event_id"))
             setattr(npc, "event_distance", params.get("_event_distance"))
@@ -601,6 +707,61 @@ class GameState(PlayingState):
             notification="yellow"
         )
 
+        # Track active boss and timer for The Eye observer & in-combat taunts
+        self._current_boss = boss
+        self._current_boss_title = title
+        self._boss_combat_taunt_timer = 12.0
+
+        # Wire up boss's in-game taunts directly to SideNotification & The Eye Live Bridge
+        boss.taunt_callback = lambda text, t=title: self._dispatch_in_combat_taunt(text, t)
+
+        # Check if this boss is the Blood Zombie for her dedicated cutscene & saucy taunts
+        from src.game.entities.bloo_zombie import BloodZombie
+        is_blood_zombie = (
+            "blood" in title.lower()
+            or isinstance(boss, BloodZombie)
+            or type(boss).__name__ == "BloodZombie"
+        )
+        if is_blood_zombie:
+            # Blood Zombie Mini Short Cutscene before the battle begins
+            if hasattr(self, "cinematic_narrative_overlay"):
+                boss.ai_frozen = True
+                cutscene_event = {
+                    "speaker_name": "Blood Zombie",
+                    "avatar_sprite": "assets/graphics/bloodZombie/Idle",
+                    "dialogue_text": (
+                        "Another wandering meat-sack stumbling through the bramble... "
+                        "You think you're a savior? Look at this red dirt, dog—you're just "
+                        "the next pig for the slaughter. Draw your steel so I can spill your guts!"
+                    ),
+                    "option_1_label": "[SPACE] Draw Blade",
+                    "option_1_buff": {"start_blood_zombie_combat": True}
+                }
+
+                def _on_blood_zombie_cutscene_dismiss(buff):
+                    boss.ai_frozen = False
+                    self._dispatch_in_combat_taunt(
+                        "Don't trip over your own boots, boy! I want to taste your fear while it's fresh!",
+                        "Blood Zombie",
+                        hold=8.5,
+                    )
+
+                self.cinematic_narrative_overlay.activate(cutscene_event, _on_blood_zombie_cutscene_dismiss)
+        else:
+            # Notify whisperer system so Andras / Moon Knight can react (Sub-task 3)
+            self.whisperer_system.notify_boss_spawn(title)
+
+            # Begin boss encounter sequence — pre-fight dialogue, AI freeze (Sub-task 4)
+            # Resolve the config key the same way _emit_relic_drops does.
+            stripped_title = title.removeprefix("The ").strip()
+            class_name = type(boss).__name__
+            _enc_key = (
+                stripped_title
+                if stripped_title in self.boss_encounter_manager._dialogue_config
+                else class_name
+            )
+            self.boss_encounter_manager.begin_encounter(_enc_key, boss)
+
         # Kick off a non-blocking fetch for a cloud-aggregated difficulty
         # recommendation. The boss spawns off-screen with several seconds of
         # lead time before the fight starts, giving this time to complete; if
@@ -613,6 +774,112 @@ class GameState(PlayingState):
             self._pending_difficulty_boss = boss
         if self.tracker.enabled and boss_key:
             self.tracker.set_boss_key(boss_key)
+
+    def _dispatch_in_combat_taunt(self, text: str, speaker: str, hold: float = 6.0, icon: Optional[str] = None) -> None:
+        """Dispatches an in-combat audio bark and notification card."""
+        ic = icon or "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
+        self.side_notification.show(text, speaker, icon=ic, hold=hold)
+        if hasattr(self, "audio_manager") and self.audio_manager:
+            try:
+                self.audio_manager.play_sound("boss_taunt")
+            except Exception:
+                pass
+        self._last_spoken_taunt = {
+            "speaker": speaker,
+            "text": text,
+            "timestamp": time.time(),
+            "is_taunt": True,
+        }
+
+    def _dispatch_boss_combat_taunt(self) -> None:
+        """Picks and triggers a periodic combat taunt from active boss."""
+        if not getattr(self, "_current_boss", None) or not self._current_boss.alive():
+            return
+        if getattr(self._current_boss, "ai_frozen", False):
+            return
+
+        title = getattr(self, "_current_boss_title", "Boss")
+        stripped = title.removeprefix("The ").strip()
+        class_name = type(self._current_boss).__name__
+        cfg = (
+            self.boss_encounter_manager._dialogue_config.get(stripped)
+            or self.boss_encounter_manager._dialogue_config.get(class_name)
+            or {}
+        )
+        taunts = cfg.get("combat_taunts", [])
+        if not taunts and hasattr(self._current_boss, "_taunts"):
+            taunts = getattr(self._current_boss, "_taunts", [])
+
+        if not taunts:
+            taunts = [
+                f"You cannot withstand the power of {title}!",
+                "Your mortal shell will break upon my blade!",
+                "Is that all the resistance you can muster?!",
+            ]
+
+        import random
+        line = random.choice(taunts)
+        self._dispatch_in_combat_taunt(line, title, hold=6.5)
+
+    def _update_boss_combat_taunts(self, dt: float) -> None:
+        """Ticks the in-combat taunt timer for the active encounter."""
+        if not getattr(self, "_current_boss", None) or not self._current_boss.alive():
+            return
+        if getattr(self._current_boss, "ai_frozen", False):
+            return
+
+        self._boss_combat_taunt_timer -= dt
+        if self._boss_combat_taunt_timer <= 0:
+            import random
+            self._boss_combat_taunt_timer = random.uniform(14.0, 18.0)
+            self._dispatch_boss_combat_taunt()
+
+    def _emit_the_eye_heartbeat(self) -> None:
+        """Emits live running game state to scratch/the_eye_live_state.json for The Eye plugin."""
+        try:
+            player_sprite = self.player.sprite if hasattr(self, "player") else None
+            p_health = float(getattr(player_sprite, "health", 100.0)) if player_sprite else 0.0
+            p_max_health = float(getattr(player_sprite, "max_health", 100.0)) if player_sprite else 100.0
+            dist = int(getattr(self, "world_distance", 0))
+            corr = float(self.corruption_manager.value) if hasattr(self, "corruption_manager") else 0.0
+            boss_name = None
+            boss_hp = None
+            if getattr(self, "_current_boss", None) and self._current_boss.alive():
+                boss_name = getattr(self, "_current_boss_title", "Boss")
+                boss_hp = float(getattr(self._current_boss, "health", 0.0))
+
+            if dist < 3500:
+                act = "Act I: The Forest Verge"
+            elif dist < 10500:
+                act = "Act II: Whispering Woods"
+            elif dist < 16500:
+                act = "Act III: Threshold of Discord"
+            else:
+                act = "Act IV: The Crimson Crucible"
+
+            end_dist = getattr(self, "level_end_distance", 36000)
+            live_state = {
+                "timestamp": time.time(),
+                "world_distance": dist,
+                "level_end_distance": end_dist,
+                "progress_ratio": min(1.0, max(0.0, dist / max(1, end_dist))),
+                "player_health": p_health,
+                "player_max_health": p_max_health,
+                "corruption": corr,
+                "total_souls": int(getattr(self, "total_souls", 0)),
+                "active_boss": boss_name,
+                "active_boss_health": boss_hp,
+                "active_act": act,
+                "last_spoken_taunt": getattr(self, "_last_spoken_taunt", None),
+            }
+            os.makedirs("scratch", exist_ok=True)
+            tmp_path = os.path.join("scratch", "the_eye_live_state.json.tmp")
+            out_path = os.path.join("scratch", "the_eye_live_state.json")
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(live_state, f)
+            os.replace(tmp_path, out_path)
+        except Exception:
+            pass
 
     def _on_soul_quota_reached(self) -> None:
         """Triggered when the soul harvest counter reaches 10,000.
@@ -633,6 +900,16 @@ class GameState(PlayingState):
             "The Fabricator's Betrayal",
             icon="assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
         )
+
+    def _show_ambient_lore(self, text: str, duration: float = 8.5) -> None:
+        """Callback used by WorldManager to display ambient lore notifications."""
+        if hasattr(self, "hud_overlay") and hasattr(self.hud_overlay, "side_notification"):
+            self.hud_overlay.side_notification.show(
+                text,
+                "The Grimoire Whispers",
+                icon="assets/graphics/magic_book_single/magic_book.png",
+                hold=max(duration, 8.5),
+            )
 
     # ─────────────────────────────────────────────────────────────────────────
     # State Lifecycle
@@ -674,7 +951,19 @@ class GameState(PlayingState):
             self.bg_music_channel_id = None
         if self.tracker is not None:
             self.tracker.close()
+        if hasattr(self, "watsonx_client"):
+            self.watsonx_client.shutdown()
         
+    def _show_relic_reveal(self, reveal_state) -> None:
+        """Display a relic lore cutscene as an in-game overlay without breaking GameState lifecycle."""
+        self.relic_reveal_overlay = reveal_state
+        reveal_state.manager = self.manager
+        reveal_state._on_dismiss = self._on_relic_reveal_dismissed
+        reveal_state.on_enter()
+
+    def _on_relic_reveal_dismissed(self) -> None:
+        self.relic_reveal_overlay = None
+
     def handle_event(self, event: pg.event.Event) -> None:
         """
         Process input events.
@@ -682,6 +971,11 @@ class GameState(PlayingState):
         Args:
             event: Pygame event to process.
         """
+        # While relic reveal cutscene overlay is active, capture input (keyboard, mouse, gamepad)
+        if hasattr(self, "relic_reveal_overlay") and self.relic_reveal_overlay and self.relic_reveal_overlay.is_active:
+            if self.relic_reveal_overlay.handle_event(event):
+                return
+
         # While cinematic narrative overlay is active, capture keypress choices [1] or [2]
         if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:
             if self.cinematic_narrative_overlay.handle_event(event):
@@ -716,6 +1010,12 @@ class GameState(PlayingState):
             for point in self.interaction_group:
                 if point.can_interact:
                     self.side_notification.show(point.text, point.title)
+                    self._last_spoken_taunt = {
+                        "speaker": point.title,
+                        "text": point.text,
+                        "timestamp": time.time(),
+                        "is_taunt": False,
+                    }
                     self._current_interacting_npc = point
                     point.mark_interacted()
                     break
@@ -723,7 +1023,28 @@ class GameState(PlayingState):
                 # Check NPC group if no interaction point was triggered
                 for npc in self.npc_group:
                     if npc.can_interact:
-                        self.side_notification.show(npc.text, npc.title)
+                        # Use get_dialogue() if available for corruption/relic-aware text
+                        if hasattr(npc, "get_dialogue"):
+                            corruption = (
+                                self.corruption_manager.value
+                                if hasattr(self, "corruption_manager")
+                                else 0.0
+                            )
+                            relics = (
+                                list(self.relic_manager.collected_ids())
+                                if hasattr(self, "relic_manager")
+                                else []
+                            )
+                            dialogue_text = npc.get_dialogue(corruption, relics)
+                        else:
+                            dialogue_text = npc.text
+                        self.side_notification.show(dialogue_text, npc.title)
+                        self._last_spoken_taunt = {
+                            "speaker": npc.title,
+                            "text": dialogue_text,
+                            "timestamp": time.time(),
+                            "is_taunt": False,
+                        }
                         self._current_interacting_npc = npc
                         npc.mark_interacted()
                         break
@@ -917,6 +1238,41 @@ class GameState(PlayingState):
             # Auto-save progress upon boss defeat
             SaveManager.auto_save(self)
 
+            # ── Boss death line & sequence advance (Sub-task 4) ──────────────
+            _boss_title: str = getattr(enemy, "boss_title", "")
+            _stripped = _boss_title.removeprefix("The ").strip()
+            _class_name = type(enemy).__name__
+            _death_key = (
+                _stripped
+                if _stripped in self.boss_encounter_manager._dialogue_config
+                else _class_name
+            )
+            self.boss_encounter_manager.on_boss_died(_death_key)
+            self.boss_encounter_manager.advance_sequence()
+
+            # Clear active boss & record death line for The Eye live bridge
+            self._current_boss = None
+            self._current_boss_title = ""
+            death_cfg = self.boss_encounter_manager._dialogue_config.get(_death_key, {})
+            if death_cfg and death_cfg.get("death_line"):
+                self._last_spoken_taunt = {
+                    "speaker": _boss_title or _death_key,
+                    "text": death_cfg.get("death_line"),
+                    "timestamp": time.time(),
+                    "is_taunt": False,
+                }
+            # ─────────────────────────────────────────────────────────────────
+
+            # ── Relic Drop ───────────────────────────────────────────────────
+            self._emit_relic_drops(enemy)
+            # ─────────────────────────────────────────────────────────────────
+
+            # ── Final Boss → queue FinalBossDefeated after all relics resolve ─
+            if self.boss_encounter_manager.is_final_boss(_death_key):
+                _class_name_for_evt = type(enemy).__name__
+                self.relic_manager.set_final_boss_pending(_class_name_for_evt)
+            # ─────────────────────────────────────────────────────────────────
+
         if soul_reward > 0:
             self.total_souls += soul_reward
             self.player_ui.add_souls(soul_reward)
@@ -929,6 +1285,44 @@ class GameState(PlayingState):
                   f"souls+={soul_reward} total={self.player_ui.current_soul_total}")
 
         self.trigger_manager.set_flag("first_kill")
+
+    def _emit_relic_drops(self, enemy) -> None:
+        """Emit RelicDropped events for every relic bound to the defeated boss.
+
+        Lookup order:
+          1. ``boss_title`` attribute stripped of a leading ``"The "`` prefix
+             (handles titles like ``"The Gatekeeper"`` → ``"Gatekeeper"``).
+          2. Python class name of the boss instance (e.g. ``"GreenMonster"``).
+        """
+        from src.game.systems.custom_events import RelicDropped
+        relic_boss_map: dict = getattr(self, "_storyline_cfg", {}).get("relic_boss_map", {})
+        if not relic_boss_map:
+            return
+
+        # Build lookup keys in priority order.
+        boss_title: str = getattr(enemy, "boss_title", "")
+        stripped_title = boss_title.removeprefix("The ").strip()
+        class_name = type(enemy).__name__
+
+        relics: list[dict] = (
+            relic_boss_map.get(stripped_title)
+            or relic_boss_map.get(boss_title)
+            or relic_boss_map.get(class_name)
+            or []
+        )
+
+        for relic_entry in relics:
+            self.event_bus.emit(RelicDropped(
+                relic_id=relic_entry["relic_id"],
+                corruption_delta=float(relic_entry["corruption_delta"]),
+                boss_name=class_name,
+            ))
+            print(f"[GameState] RelicDropped emitted: '{relic_entry['relic_id']}' "
+                  f"(boss={class_name}, title='{boss_title}')")
+
+    def _on_final_boss_defeated(self, event) -> None:
+        """Delegate to EndingManager when all final boss relics have been revealed."""
+        self.ending_manager.resolve(event)
 
     def _is_boss_active(self) -> bool:
         """Check if any boss is currently active and alive in the scene."""
@@ -970,7 +1364,11 @@ class GameState(PlayingState):
             except Exception:
                 pass
 
-        # Freeze gameplay while tutorial or objective overlay is active
+        # Freeze gameplay while tutorial, objective, or relic reveal overlay is active
+        if hasattr(self, "relic_reveal_overlay") and self.relic_reveal_overlay and self.relic_reveal_overlay.is_active:
+            self.relic_reveal_overlay.update(dt)
+            return
+
         if self.tutorial_overlay.is_active:
             self.tutorial_overlay.update(dt)
             return
@@ -978,6 +1376,26 @@ class GameState(PlayingState):
         # Update notification banners (runs independently of gameplay freeze)
         self.notification_banner.update(dt)
         self.side_notification.update(dt)
+
+        # Corruption meter frame update (reserved for future decay mechanics)
+        self.corruption_manager.update(dt)
+
+        # Relic Manager — tick pending drop timers and trigger reveals (Sub-task 2)
+        self.relic_manager.update(dt)
+
+        # Whisperer System — bark cooldown and threshold polling (Sub-task 3)
+        self.whisperer_system.update(dt)
+
+        # Boss Encounter Manager — dialogue phase timer (Sub-task 4)
+        self.boss_encounter_manager.update(dt)
+
+        # Boss in-combat taunts periodic evaluation (The Eye Trigger Scheduling)
+        self._update_boss_combat_taunts(dt)
+
+        # The Eye Live State Observer Heartbeat (The Eye Live Bridge)
+        self._eye_heartbeat_frame += 1
+        if self._eye_heartbeat_frame % 10 == 0:
+            self._emit_the_eye_heartbeat()
 
         from src.game.systems.item_lore_system import ItemLoreSystem
         ItemLoreSystem.get_instance().update(dt)
@@ -1148,12 +1566,10 @@ class GameState(PlayingState):
             else:
                 npc.update(dt, scroll_speed=self.bg_scroll_speed)
 
-        # Player fall off-screen (safe-out for testing)
-        if player_sprite.rect.top > self.height + 200:
-            print("[FALL DEATH] Player fell off the world grid — exiting safely.")
-            pg.quit()
-            import sys
-            sys.exit(0)
+        # Player fall off-screen (trigger proper game-over death transition)
+        if player_sprite.rect.top > self.height + 200 and not getattr(player_sprite, "is_dead", False):
+            print("[FALL DEATH] Player fell off the world grid — triggering game-over transition.")
+            player_sprite.take_damage(99999)
 
         # Enemy fall off-screen (reap soul award & remove from memory)
         soul_values = self._soul_harvest_config.get("soul_values", {})
@@ -1221,6 +1637,11 @@ class GameState(PlayingState):
                     if not getattr(npc, "is_magic_book", False):
                         # Store a reference so we can explode him later (only if he is actually Andras)
                         self._andras_npc_ref = npc
+
+        # Check first encounter flag when any enemy is in scene
+        if not getattr(self, "_first_encounter_flagged", False) and len(self.obstacle_group) > 0:
+            self._first_encounter_flagged = True
+            self.trigger_manager.set_flag("first_encounter")
 
         # Check time/flag triggers
         elapsed = (current_time - self._game_start_ticks) / 1000.0
@@ -1470,12 +1891,14 @@ class GameState(PlayingState):
             # Revive the player and grant them the demonic power in-place!
             player_sprite = self.player.sprite
             if player_sprite:
-                player_sprite.is_dead = False
                 player_sprite.max_health = 200
                 player_sprite._health = 200
+                player_sprite.is_dead = False
                 player_sprite.is_enhanced = True
-                player_sprite.set_state("idle", force=True)
-                player_sprite.invulnerable_timer = 2000.0  # 2 seconds of invulnerability
+                player_sprite.set_state(PlayerState.IDLE, force=True)
+                player_sprite.can_move = True
+                player_sprite._invincibility_duration = 2.0
+                player_sprite._invincibility_timer = 0.0
                 
                 # Dark transformation burst on the player
                 VisualEffectManager.spawn_hit_vfx(
@@ -1647,15 +2070,14 @@ class GameState(PlayingState):
             
         # ── Magic Book Darkness ──
         if getattr(self, "in_magic_void", False):
-            dark_surf = pg.Surface(surface.get_size(), pg.SRCALPHA)
-            dark_surf.fill((0, 0, 0, 255))
-            surface.blit(dark_surf, (0, 0))
+            surface.fill((0, 0, 0))
         elif getattr(self, "magic_book_dist", 9999.0) < 800.0:
             alpha = max(0, min(255, int(255.0 * (1.0 - (self.magic_book_dist - 100) / 700.0))))
             if alpha > 0:
-                dark_surf = pg.Surface(surface.get_size(), pg.SRCALPHA)
-                dark_surf.fill((0, 0, 0, alpha))
-                surface.blit(dark_surf, (0, 0))
+                if not hasattr(self, "_dark_overlay_surf") or self._dark_overlay_surf is None or self._dark_overlay_surf.get_size() != surface.get_size():
+                    self._dark_overlay_surf = pg.Surface(surface.get_size(), pg.SRCALPHA)
+                self._dark_overlay_surf.fill((0, 0, 0, alpha))
+                surface.blit(self._dark_overlay_surf, (0, 0))
         # ── Transformation Corruption Screen Vignette ──
         player_sprite = self.player.sprite
         if player_sprite and getattr(player_sprite, "is_enhanced", False):
@@ -1678,6 +2100,10 @@ class GameState(PlayingState):
         # Draw Cinematic Narrative Overlay (Slow-Motion Vignette & Dialogue Prompt UI)
         if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:
             self.cinematic_narrative_overlay.draw(surface)
+
+        # Draw Relic Reveal Cutscene Overlay (Lore Panel & Dim Backdrop)
+        if hasattr(self, "relic_reveal_overlay") and self.relic_reveal_overlay and self.relic_reveal_overlay.is_active:
+            self.relic_reveal_overlay.draw(surface)
 
     def _apply_narrative_choice_buff(self, buff_data: dict) -> None:
         """Apply narrative choice stat modifications selected in CinematicNarrativeOverlay."""

@@ -40,18 +40,28 @@ class WizardNPC(Actor):
         title: str = "Wizard",
         scale: Optional[float] = None,
         proximity_radius: int = 160,
+        dialogue: Optional[dict] = None,
+        corruption_manager=None,
+        relic_manager=None,
     ) -> None:
         super().__init__(x, y)
 
         # Apply data-driven margins from the HitboxRegistry
         margins = HitboxRegistry.get_margins("wizard_npc")
 
-        self.text = text
+        # Store the full dialogue dict if provided; fall back to plain string.
+        self._dialogue_data: dict | str = dialogue if dialogue is not None else text
+        # text property always returns the plain default string for backward compat
+        self.text = (
+            dialogue.get("default", text) if isinstance(dialogue, dict) else text
+        )
         self.title = title
         self.proximity_radius = proximity_radius
         self._interacted: bool = False
         self._in_range: bool = False
         self.scale = scale if scale is not None else margins.scale
+        self._corruption_manager = corruption_manager
+        self._relic_manager = relic_manager
 
         # --- Animation ---
         self._load_animations()
@@ -111,6 +121,38 @@ class WizardNPC(Actor):
         )
         bg.blit(text_surf, (self._PROMPT_PADDING_X, self._PROMPT_PADDING_Y))
         return bg
+
+    def get_dialogue(self, corruption_level: float = 0.0, relics_collected: list | None = None) -> str:
+        """Return the appropriate dialogue variant based on game state.
+
+        Priority:
+        1. Relic branch — shown if a matching relic has been collected.
+        2. Corruption variant (high/mid/low).
+        3. Default dialogue.
+        """
+        if relics_collected is None:
+            relics_collected = []
+
+        if not isinstance(self._dialogue_data, dict):
+            return str(self._dialogue_data)
+
+        # 1. Relic branch check
+        branch = self._dialogue_data.get("relic_branch", {})
+        if branch and branch.get("relic_id") in relics_collected:
+            return branch.get("text", "")
+
+        # 2. Corruption variants
+        variants = self._dialogue_data.get("corruption_variants", {})
+        if variants:
+            if corruption_level > 66 and "high" in variants:
+                return variants["high"]
+            elif corruption_level > 33 and "mid" in variants:
+                return variants["mid"]
+            elif "low" in variants:
+                return variants["low"]
+
+        # 3. Default
+        return self._dialogue_data.get("default", self.text)
 
     @property
     def can_interact(self) -> bool:

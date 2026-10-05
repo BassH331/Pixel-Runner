@@ -88,22 +88,31 @@ _INTERNAL_CLIPBOARD = ""
 def get_clipboard_text() -> str:
     global _INTERNAL_CLIPBOARD
     if sys.platform == "win32":
-        # Windows: use ctypes Win32 API only.
+        # Windows: use ctypes Win32 API only with explicit 64-bit pointer types.
         # NEVER use tkinter on Windows — clipboard calls cause fatal C-level crashes
         # in Python 3.14 that cannot be caught by Python exception handling.
         try:
             import ctypes
             CF_UNICODETEXT = 13
-            if ctypes.windll.user32.OpenClipboard(None):
-                h = ctypes.windll.user32.GetClipboardData(CF_UNICODETEXT)
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            user32.GetClipboardData.restype = ctypes.c_void_p
+            user32.GetClipboardData.argtypes = [ctypes.c_uint]
+            kernel32.GlobalLock.restype = ctypes.c_void_p
+            kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+            kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+
+            if user32.OpenClipboard(None):
+                h = user32.GetClipboardData(CF_UNICODETEXT)
                 if h:
-                    ptr = ctypes.windll.kernel32.GlobalLock(h)
-                    val = ctypes.wstring_at(ptr)
-                    ctypes.windll.kernel32.GlobalUnlock(h)
-                    ctypes.windll.user32.CloseClipboard()
-                    if val:
-                        return val
-                ctypes.windll.user32.CloseClipboard()
+                    ptr = kernel32.GlobalLock(h)
+                    if ptr:
+                        val = ctypes.wstring_at(ptr)
+                        kernel32.GlobalUnlock(h)
+                        user32.CloseClipboard()
+                        if val:
+                            return val
+                user32.CloseClipboard()
         except Exception:
             pass
         return _INTERNAL_CLIPBOARD  # Always return on Windows — skip Tkinter
@@ -137,24 +146,34 @@ def set_clipboard_text(text: str):
     global _INTERNAL_CLIPBOARD
     _INTERNAL_CLIPBOARD = text
     if sys.platform == "win32":
-        # Windows: use ctypes Win32 API only.
+        # Windows: use ctypes Win32 API only with explicit 64-bit pointer types.
         # NEVER use tkinter on Windows — clipboard_clear() causes a fatal
         # C-level access violation in Python 3.14 that bypasses exception handling.
         try:
             import ctypes
-            import ctypes.wintypes
             CF_UNICODETEXT = 13
             GMEM_MOVEABLE = 0x0002
+            kernel32 = ctypes.windll.kernel32
+            user32 = ctypes.windll.user32
+            kernel32.GlobalAlloc.restype = ctypes.c_void_p
+            kernel32.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
+            kernel32.GlobalLock.restype = ctypes.c_void_p
+            kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+            kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+            user32.SetClipboardData.restype = ctypes.c_void_p
+            user32.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
+
             text_bytes = (text + "\x00").encode("utf-16-le")
-            h = ctypes.windll.kernel32.GlobalAlloc(GMEM_MOVEABLE, len(text_bytes))
+            h = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(text_bytes))
             if h:
-                ptr = ctypes.windll.kernel32.GlobalLock(h)
-                ctypes.memmove(ptr, text_bytes, len(text_bytes))
-                ctypes.windll.kernel32.GlobalUnlock(h)
-                if ctypes.windll.user32.OpenClipboard(None):
-                    ctypes.windll.user32.EmptyClipboard()
-                    ctypes.windll.user32.SetClipboardData(CF_UNICODETEXT, h)
-                    ctypes.windll.user32.CloseClipboard()
+                ptr = kernel32.GlobalLock(h)
+                if ptr:
+                    ctypes.memmove(ptr, text_bytes, len(text_bytes))
+                    kernel32.GlobalUnlock(h)
+                    if user32.OpenClipboard(None):
+                        user32.EmptyClipboard()
+                        user32.SetClipboardData(CF_UNICODETEXT, h)
+                        user32.CloseClipboard()
         except Exception:
             pass
         return  # Always return on Windows — skip Tkinter and pygame.scrap
@@ -2336,6 +2355,13 @@ class App:
         except Exception:
             return False
 
+    @staticmethod
+    def _event_dist_key(e: dict) -> float:
+        try:
+            return float(e.get("distance", 0))
+        except (ValueError, TypeError):
+            return 0.0
+
     def load(self, idx: int):
         self.active_idx = idx
         if not self._is_valid_level(self.level_files[idx]):
@@ -2353,7 +2379,7 @@ class App:
         self.level_data.setdefault("world_events", [])
         self.level_backup = copy.deepcopy(self.level_data)
         self.pending = copy.deepcopy(self.level_data["world_events"])
-        self.pending.sort(key=lambda e: e["distance"])
+        self.pending.sort(key=self._event_dist_key)
         self.reg_del = set()
         HitboxRegistry.begin_transaction()
 
@@ -2377,7 +2403,7 @@ class App:
                         break
             if not is_used:
                 HitboxRegistry._cached_config.pop(k, None)
-        self.pending.sort(key=lambda e: e["distance"])
+        self.pending.sort(key=self._event_dist_key)
         self.level_data["world_events"] = copy.deepcopy(self.pending)
         with open(self.level_files[self.active_idx], "w") as fh:
             if fcntl:
@@ -2391,7 +2417,7 @@ class App:
     def rollback(self):
         self.level_data = copy.deepcopy(self.level_backup)
         self.pending = copy.deepcopy(self.level_data["world_events"])
-        self.pending.sort(key=lambda e: e["distance"])
+        self.pending.sort(key=self._event_dist_key)
         self.reg_del = set()
         HitboxRegistry.rollback_transaction()
         self.modal = None
@@ -3244,7 +3270,16 @@ class App:
         return -1
 
     def _next_id(self) -> int:
-        return max((e["id"] for e in self.pending), default=0) + 1
+        numeric_ids: list[int] = []
+        for e in self.pending:
+            if not isinstance(e, dict):
+                continue
+            val = e.get("id")
+            if isinstance(val, int) and not isinstance(val, bool):
+                numeric_ids.append(val)
+            elif isinstance(val, str) and val.isdigit():
+                numeric_ids.append(int(val))
+        return max(numeric_ids, default=0) + 1
 
     def _init_s3(self, etype: str, idx: int):
         ev   = self.pending[idx] if idx >= 0 else {}
@@ -3296,7 +3331,9 @@ class App:
         ui   = self.s3_ui
         t    = self.s3_type
         ev   = self.pending[self.s3_idx] if self.s3_idx >= 0 else {}
-        eid  = ev.get("id", self._next_id())
+        eid  = ev.get("id")
+        if eid is None or eid == "":
+            eid = self._next_id()
         dist = int(ui["dist"].val)
         raw_params = ev.get("params", {})
         p: dict = copy.deepcopy(raw_params) if isinstance(raw_params, dict) else {}
@@ -3417,7 +3454,7 @@ class App:
         ev = self._read_s3()
         if self.s3_mode == "create": self.pending.append(ev)
         else: self.pending[self.s3_idx] = ev
-        self.pending.sort(key=lambda e: e["distance"])
+        self.pending.sort(key=self._event_dist_key)
         self.go2()
 
     def simulate_s3(self):
@@ -3437,7 +3474,7 @@ class App:
             temp_pending.append(ev)
         else:
             temp_pending[self.s3_idx] = ev
-        temp_pending.sort(key=lambda e: e["distance"])
+        temp_pending.sort(key=self._event_dist_key)
 
         # Real-flow simulation: do NOT skip to the edited event.
         # Starting at 0 keeps all earlier NPCs/objects in their proper order.
@@ -3459,7 +3496,7 @@ class App:
 
         level_file = self.level_files[self.active_idx]
         try:
-            with open(level_file, "r") as f:
+            with open(level_file, "r", encoding="utf-8") as f:
                 original_content = f.read()
         except Exception as e:
             print(f"Error backing up level file: {e}")
@@ -3477,7 +3514,7 @@ class App:
         temp_data = copy.deepcopy(self.level_data)
         temp_data["world_events"] = temp_pending
         try:
-            with open(level_file, "w") as f:
+            with open(level_file, "w", encoding="utf-8") as f:
                 json.dump(temp_data, f, indent=4)
         except Exception as e:
             print(f"Error writing temporary simulation file: {e}")
@@ -3498,15 +3535,15 @@ class App:
                 "--duration", str(duration),
                 "--target-event-id", str(ev.get('id')),
             ]
-            venv_python = os.path.join(".venv", "bin", "python")
+            venv_python = os.path.join(".venv", "Scripts", "python.exe") if os.name == "nt" else os.path.join(".venv", "bin", "python")
             if os.path.exists(venv_python):
                 cmd[0] = venv_python
-            subprocess.run(cmd, env=dict(os.environ, PYTHONPATH="."))
+            subprocess.run(cmd, env=dict(os.environ, PYTHONPATH=".", PYTHONIOENCODING="utf-8"))
         except Exception as e:
             print(f"Error launching game subprocess: {e}")
         finally:
             try:
-                with open(level_file, "w") as f:
+                with open(level_file, "w", encoding="utf-8") as f:
                     f.write(original_content)
             except Exception as e:
                 print(f"Error restoring original level file content: {e}")
@@ -3515,7 +3552,7 @@ class App:
         # simulation reporter, but now the run itself matches the real level flow.
         if os.path.exists(report_file):
             try:
-                with open(report_file, "r") as f:
+                with open(report_file, "r", encoding="utf-8") as f:
                     report = json.load(f)
                 if report.get("status") == "FAILED":
                     self.modal = ModalDialog(
@@ -3532,18 +3569,18 @@ class App:
     def delete_event(self, idx: int):
         ev = self.pending[idx]
         def _do():
-            if ev["type"] == "npc" and ev["params"].get("npc_type") == "generic":
-                sd = ev["params"].get("sprite_dir","")
+            if ev.get("type") == "npc" and ev.get("params", {}).get("npc_type") == "generic":
+                sd = ev.get("params", {}).get("sprite_dir","")
                 if sd: self.reg_del.add(_npc_key(sd))
-            elif ev["type"] == "boss":
-                sd = ev["params"].get("sprite_dir","")
+            elif ev.get("type") == "boss":
+                sd = ev.get("params", {}).get("sprite_dir","")
                 self.reg_del.add(_registry_key("boss", "", sd))
             self.pending.pop(idx)
-            self.pending.sort(key=lambda e: e["distance"])
+            self.pending.sort(key=self._event_dist_key)
             self.modal = None
         self.modal = ModalDialog(
             "Delete Event?",
-            f"Remove event #{ev['id']} at {ev['distance']}m + its registry entry?",
+            f"Remove event #{ev.get('id', '?')} at {ev.get('distance', 0)}m + its registry entry?",
             _do, lambda: setattr(self,"modal",None))
 
     def run(self):
@@ -3857,14 +3894,17 @@ class App:
             if not (ly0-ROW < ry < ly0+lh): continue
             pg.draw.rect(self.surf, PANEL2, row, border_radius=6)
             pg.draw.rect(self.surf, BORDER, row, width=1, border_radius=6)
-            tc  = TC.get(ev["type"], TXT2)
-            tb  = self.sf.render(ev["type"].upper(), True, tc)
+            tc  = TC.get(ev.get("type"), TXT2)
+            tb  = self.sf.render(str(ev.get("type", "")).upper(), True, tc)
             self.surf.blit(tb, (row.x+8, ry+(ROW-4-tb.get_height())//2))
-            lbl = (ev["params"].get("title") or
-                   f"{ev['params'].get('count','?')}× {ev['params'].get('type','bat')}")
-            self.surf.blit(self.f.render(f"{ev['distance']}m  —  {lbl}", True, TXT),
-                           (row.x+115, ry+(ROW-4-self.f.size(lbl)[1])//2))
-            def _ed(idx=i): self.go3("edit", self.pending[idx]["type"], idx)
+            params = ev.get("params") or {}
+            lbl = (params.get("title") or
+                   params.get("text") or
+                   f"{params.get('count','?')}× {params.get('type','bat')}")
+            dist_val = ev.get("distance", 0)
+            self.surf.blit(self.f.render(f"{dist_val}m  —  {lbl}", True, TXT),
+                           (row.x+115, ry+(ROW-4-self.f.size(str(lbl))[1])//2))
+            def _ed(idx=i): self.go3("edit", self.pending[idx].get("type", "npc"), idx)
             def _dl(idx=i): self.delete_event(idx)
             eb = Button("EDIT", row.right-148, ry+8, 60, 30, _ed, "ghost")
             db = Button("✕",    row.right-78,  ry+8, 34, 30, _dl, "danger")

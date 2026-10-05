@@ -1,13 +1,13 @@
 {
   "slot_id": "auto",
-  "player_health": 90,
-  "player_mana": 200.0,
+  "player_health": 197,
+  "player_mana": 193.29999999999848,
   "world_distance": 2560.0,
   "max_distance": 2560.0,
-  "souls_collected": 8505,
+  "souls_collected": 8515,
   "bosses_defeated": [],
-  "timestamp": "2026-10-02 23:10:11",
-  "playtime_seconds": 52.431,
+  "timestamp": "2026-10-05 04:44:48",
+  "playtime_seconds": 259.496,
   "level_path": "game_data/level_1.json",
   "version": 1
 }

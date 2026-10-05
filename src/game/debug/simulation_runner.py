@@ -229,15 +229,15 @@ class SimulationRunner:
                 markdown_lines.append("")
 
             os.makedirs("scratch", exist_ok=True)
-            with open("scratch/simulation_report.json", "w") as f:
+            with open("scratch/simulation_report.json", "w", encoding="utf-8") as f:
                 json.dump(report_data, f, indent=4)
 
-            with open("scratch/simulation_report.md", "w") as f:
+            with open("scratch/simulation_report.md", "w", encoding="utf-8") as f:
                 f.write("\n".join(markdown_lines))
 
             print(f"\n{'='*60}")
             print(f"[WAVE SIMULATION REPORT] Status: {report_data['status']}")
-            print(f"  Distance: {report_data.get('start_distance', 0):.0f} → {self.game.world_distance:.0f}")
+            print(f"  Distance: {report_data.get('start_distance', 0):.0f} -> {self.game.world_distance:.0f}")
             print(f"  Duration: {self.game._simulation_timer:.0f}ms")
             print(f"  Dynamic Enemies Spawned: {len(self.game._simulation_wave_enemies)}")
             print(f"{'='*60}")
@@ -429,15 +429,15 @@ class SimulationRunner:
             markdown_lines.insert(2, f"**Overall Status:** PASSED ✅")
 
         os.makedirs("scratch", exist_ok=True)
-        with open("scratch/simulation_report.json", "w") as f:
+        with open("scratch/simulation_report.json", "w", encoding="utf-8") as f:
             json.dump(report_data, f, indent=4)
 
-        with open("scratch/simulation_report.md", "w") as f:
+        with open("scratch/simulation_report.md", "w", encoding="utf-8") as f:
             f.write("\n".join(markdown_lines))
 
         print(f"\n{'='*60}")
         print(f"[SIMULATION REPORT] Status: {report_data['status']}")
-        print(f"  Distance: {report_data.get('start_distance', 0):.0f} → {self.game.world_distance:.0f}")
+        print(f"  Distance: {report_data.get('start_distance', 0):.0f} -> {self.game.world_distance:.0f}")
         print(f"  Duration: {self.game._simulation_timer:.0f}ms")
         for npc in report_data["npcs"]:
             status = npc['status']

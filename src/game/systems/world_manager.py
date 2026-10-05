@@ -15,12 +15,21 @@ from src.game.systems.environment_manager import EnvironmentManager, Environment
 class WorldManager:
     """Unified manager for level environment, parallax layers, props, and distance events."""
 
-    def __init__(self, screen_width: int, screen_height: int) -> None:
+    def __init__(
+        self,
+        screen_width: int,
+        screen_height: int,
+        notification_callback: Optional[Callable[[str, float], None]] = None,
+    ) -> None:
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self._notification_callback = notification_callback
 
         self.environment_manager = EnvironmentManager(screen_width, screen_height)
         self.event_manager = WorldEventManager()
+
+        # Register built-in ambient_lore handler immediately so callers don't need to.
+        self.event_manager.register_handler("ambient_lore", self._handle_ambient_lore)
 
     @property
     def ground_y(self) -> int:
@@ -64,6 +73,12 @@ class WorldManager:
         """Update parallax layers, environmental props, and check distance event triggers."""
         self.environment_manager.update(dt_seconds, bg_scroll_speed * 60.0)
         self.event_manager.update(world_distance)
+
+    def _handle_ambient_lore(self, params: dict) -> None:
+        """Handler for 'ambient_lore' distance events — shows flavour text via notification."""
+        text = params.get("text", "")
+        if text and self._notification_callback:
+            self._notification_callback(text, 5.0)
 
     def draw(self, target_surface: pg.Surface, camera_offset_x: float = 0.0) -> None:
         """Render sky, background parallax layers, and environmental props onto target_surface."""

@@ -7,13 +7,34 @@ import pygame as pg
 from unittest.mock import MagicMock
 
 from src.game.ui.cinematic_narrative_overlay import CinematicNarrativeOverlay
+from v3x_zulfiqar_gideon import UITheme
 from src.game.entities.player import Player, PlayerState
 
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_pygame():
     pg.init()
-    pg.display.set_mode((800, 600), pg.HIDDEN)
+    pg.display.set_mode((1280, 720), pg.HIDDEN)
+    UITheme.configure_buttons(
+        assets={
+            "big": ("dummy_big", "dummy_big_p"),
+            "medium": ("dummy_med", "dummy_med_p"),
+            "cancel": ("dummy_cancel", "dummy_cancel_p"),
+            "new_start": ("dummy_new", "dummy_new_p"),
+        },
+        font_path="assets/font/Abaddon Bold.ttf"
+    )
+    UITheme.configure_notifications(
+        banner_path="assets/graphics/UI/PNG/IRONY TITLE  Large.png",
+        icons={"gray": "dummy_gray", "red": "dummy_red", "yellow": "dummy_yellow"},
+        font_path="assets/font/Abaddon Bold.ttf"
+    )
+    UITheme.configure_overlays(
+        stone_path="assets/graphics/UI/PNG/UI board Medium  stone.png",
+        parchment_path="assets/graphics/UI/PNG/UI board Medium  parchment.png",
+        title_font_path="assets/font/Abaddon Bold.ttf",
+        body_font_path="assets/graphics/Darinia/Darinia.ttf",
+    )
     yield
     pg.quit()
 
@@ -122,4 +143,40 @@ def test_player_spawn_ground_level_alignment():
     """Verify player spawned at y=222 has rect.bottom aligned at ground_y 606."""
     player = Player(200, 222, MagicMock())
     assert player.rect.bottom == 606
+
+
+def test_player_demonic_pact_revival_and_is_dead_setter():
+    """Verify player is_dead setter and GameState._on_pact_choice resuscitation."""
+    from src.game.states.game_state import GameState
+    from v3x_zulfiqar_gideon import StateManager
+
+    player = Player(200, 222, MagicMock())
+    # 1. Test is_dead setter
+    player.is_dead = True
+    assert player.is_dead
+    assert player.state == PlayerState.DEATH
+
+    player.is_dead = False
+    assert not player.is_dead
+    assert player.state == PlayerState.IDLE
+
+    # 2. Test string-safe set_state
+    player.set_state("idle", force=True)
+    assert player.state == PlayerState.IDLE
+
+    # 3. Test GameState._on_pact_choice resuscitation
+    sm = StateManager(audio_manager=MagicMock())
+    game_state = GameState(sm)
+    p = game_state.player.sprite
+    p.is_dead = True
+    assert p.is_dead
+
+    # Trigger demonic pact transformation choice
+    game_state._on_pact_choice({"trigger_transformation": True})
+
+    assert not p.is_dead
+    assert p.is_enhanced
+    assert p.health == 200
+    assert p.state == PlayerState.IDLE
+    assert p.can_move
 

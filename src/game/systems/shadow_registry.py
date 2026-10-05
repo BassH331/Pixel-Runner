@@ -51,6 +51,8 @@ class ShadowRegistry:
 
     _cache: dict[str, ShadowProfile] = {}
     _last_mtime: float = -1.0
+    _last_check_time: float = 0.0
+    _CHECK_INTERVAL_SEC: float = 1.5
 
     DEFAULTS: dict[str, ShadowProfile] = {
         "default": ShadowProfile(alpha=120, squash_ratio=0.25, y_offset=0, fade_height=250.0, ground_snap=12.0, scale_mult=1.0),
@@ -113,7 +115,13 @@ class ShadowRegistry:
 
     @classmethod
     def _check_reload(cls) -> None:
-        """Reload configuration if the file timestamp has changed."""
+        """Reload configuration if the file timestamp has changed (throttled)."""
+        import time
+        now = time.monotonic()
+        if now - cls._last_check_time < cls._CHECK_INTERVAL_SEC and cls._cache:
+            return
+        cls._last_check_time = now
+
         if not os.path.exists(CONFIG_PATH):
             if not cls._cache:
                 cls._cache = {k: ShadowProfile(**asdict(v)) for k, v in cls.DEFAULTS.items()}

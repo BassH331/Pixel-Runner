@@ -2,6 +2,7 @@ import os
 import pygame as pg
 from typing import Dict, Any, Optional, Callable, List
 from v3x_zulfiqar_gideon import AssetManager, UITheme
+from src.game.systems.custom_events import Speaker
 
 
 class CinematicNarrativeOverlay:
@@ -16,6 +17,7 @@ class CinematicNarrativeOverlay:
         self.is_active: bool = False
         self._current_event: Optional[Dict[str, Any]] = None
         self._on_choice_selected: Optional[Callable[[Dict[str, Any]], None]] = None
+        self._speaker: Optional[Speaker] = None
 
         # Text animation states
         self._full_text: str = ""
@@ -88,11 +90,31 @@ class CinematicNarrativeOverlay:
 
         self.is_active = True
 
+    def show_bark(self, text: str, speaker: Optional[Speaker] = None) -> None:
+        """Show a whisperer bark line via the overlay.
+
+        Creates a minimal narrative event dict so the existing typewriter
+        and panel machinery runs unchanged.  No avatar is loaded and the
+        dismiss prompt reads "[ ] Continue" so the player can skip.
+
+        Args:
+            text:    The bark text to display with typewriter animation.
+            speaker: Optional ``Speaker`` enum value that controls the
+                     overlay tint and label colour.
+        """
+        self._speaker = speaker
+        event: Dict[str, Any] = {
+            "dialogue_text": text,
+            "option_1_label": "[SPACE] Continue",
+        }
+        self.activate(event)
+
     def deactivate(self) -> None:
         """Dismiss overlay and restore full game speed."""
         self.is_active = False
         self._current_event = None
         self._on_choice_selected = None
+        self._speaker = None
         self._avatar_frames = []
         self._avatar_frame_idx = 0
 
@@ -160,9 +182,20 @@ class CinematicNarrativeOverlay:
         if not self.is_active or not self._current_event:
             return
 
-        # 1. Draw radial vignette (full black void)
+        # 1. Draw radial vignette — tinted per speaker when a bark is active
         if self._vignette_surface:
-            surface.blit(self._vignette_surface, (0, 0))
+            if self._speaker is Speaker.ANDRAS:
+                tint = pg.Surface((self._width, self._height), pg.SRCALPHA)
+                tint.fill((60, 0, 10, 160))
+                surface.blit(self._vignette_surface, (0, 0))
+                surface.blit(tint, (0, 0))
+            elif self._speaker is Speaker.MOON_KNIGHT:
+                tint = pg.Surface((self._width, self._height), pg.SRCALPHA)
+                tint.fill((10, 20, 60, 140))
+                surface.blit(self._vignette_surface, (0, 0))
+                surface.blit(tint, (0, 0))
+            else:
+                surface.blit(self._vignette_surface, (0, 0))
 
         # 1.5 Draw animated Avatar Sprite centered in the void
         if self._avatar_frames:
@@ -193,14 +226,36 @@ class CinematicNarrativeOverlay:
         pg.draw.rect(surface, (255, 215, 110), top_accent_rect)
 
         # 3. Draw Speaker Tag (Modern Header)
-        speaker = str(self._current_event.get("speaker_name", "Kimi Narrative Director"))
-        font_title = AssetManager.get_font(None, 24)
-        speaker_surf = font_title.render(speaker, True, (255, 220, 100))
-        # Add a subtle drop shadow to the speaker text
-        speaker_shadow = font_title.render(speaker, True, (0, 0, 0))
-        surface.blit(speaker_shadow, (card_x + 27, card_y + 17))
-        surface.blit(speaker_surf, (card_x + 25, card_y + 15))
-        
+        # When a whisperer bark is active, override the speaker label with a
+        # small all-caps coloured label; otherwise use the event's speaker_name.
+        if self._speaker is Speaker.ANDRAS:
+            speaker_label = "ANDRAS"
+            speaker_colour = (200, 30, 30)
+        elif self._speaker is Speaker.MOON_KNIGHT:
+            speaker_label = "MOON KNIGHT"
+            speaker_colour = (120, 160, 220)
+        else:
+            speaker_label = str(self._current_event.get("speaker_name", "Kimi Narrative Director"))
+            speaker_colour = (255, 220, 100)
+
+        if self._speaker is not None:
+            # Small all-caps whisperer label (11px) drawn above the standard header position
+            font_whisper = AssetManager.get_font(None, 11)
+            label_surf = font_whisper.render(speaker_label, True, speaker_colour)
+            label_shadow = font_whisper.render(speaker_label, True, (0, 0, 0))
+            surface.blit(label_shadow, (card_x + 27, card_y + 7))
+            surface.blit(label_surf, (card_x + 25, card_y + 6))
+            font_title = AssetManager.get_font(None, 24)
+            # Render transparent placeholder for speaker_name slot so layout stays intact
+            speaker_shadow_surf = font_title.render("", True, (0, 0, 0))
+            surface.blit(speaker_shadow_surf, (card_x + 27, card_y + 17))
+        else:
+            font_title = AssetManager.get_font(None, 24)
+            speaker_surf = font_title.render(speaker_label, True, speaker_colour)
+            speaker_shadow_surf = font_title.render(speaker_label, True, (0, 0, 0))
+            surface.blit(speaker_shadow_surf, (card_x + 27, card_y + 17))
+            surface.blit(speaker_surf, (card_x + 25, card_y + 15))
+
         # Separator line under speaker
         pg.draw.line(surface, (80, 75, 70), (card_x + 25, card_y + 45), (card_x + card_w - 25, card_y + 45), 1)
 

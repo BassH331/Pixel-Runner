@@ -143,6 +143,9 @@ class EnvironmentProp:
     def draw(self, surface: pg.Surface, cam_x: float = 0.0, cam_y: float = 0.0) -> None:
         draw_x = int(self.pos_x - cam_x * self.parallax_ratio)
         draw_y = int(self.pos_y - cam_y)
+        sw, sh = surface.get_size()
+        if draw_x + self.width < 0 or draw_x > sw or draw_y + self.height < 0 or draw_y > sh:
+            return
         surface.blit(self.image, (draw_x, draw_y))
 
     @staticmethod
@@ -503,8 +506,11 @@ class EnvironmentManager:
             if self.sky:
                 self.sky.draw(surface)
 
-        prop_indices = {p.layer_index for p in self.props}
-        all_indices = sorted(set(self.layer_stacks.keys()) | prop_indices)
+        props_by_layer: dict[int, list[EnvironmentProp]] = {}
+        for prop in self.props:
+            props_by_layer.setdefault(prop.layer_index, []).append(prop)
+
+        all_indices = sorted(set(self.layer_stacks.keys()) | set(props_by_layer.keys()))
         if min_layer is not None or max_layer is not None:
             active_indices = [
                 idx for idx in all_indices
@@ -524,9 +530,8 @@ class EnvironmentManager:
                 if player_layer:
                     player_layer.draw(surface, cam_y=cam_y)
 
-            for prop in self.props:
-                if prop.layer_index == l_idx:
-                    prop.draw(surface, cam_x=cam_x, cam_y=cam_y)
+            for prop in props_by_layer.get(l_idx, []):
+                prop.draw(surface, cam_x=cam_x, cam_y=cam_y)
 
     def to_config_dict(self) -> Dict[str, Any]:
         """Exports current environment configuration dictionary for saving."""

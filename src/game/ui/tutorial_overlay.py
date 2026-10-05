@@ -299,6 +299,7 @@ class TutorialOverlay:
         # ── Surface Caches ──────────────────────────────────────────────────
         self._prompt_surf_cache: dict = {}
         self._counter_surf_cache: dict = {}
+        self._desc_lines_cache: dict = {}
 
         # ── Pre-load key images per step ────────────────────────────────────
         self._step_key_imgs: list[list[pg.Surface]] = []
@@ -416,9 +417,11 @@ class TutorialOverlay:
         surface.blit(title_surf, title_rect)
 
         # ── 6. Description text (below title) ──────────────────────────────
-        desc_lines = self._wrap_text(
-            step.description, self._desc_font, p["text_max_width"], self._desc_color
-        )
+        if self._step_idx not in self._desc_lines_cache:
+            self._desc_lines_cache[self._step_idx] = self._wrap_text(
+                step.description, self._desc_font, p["text_max_width"], self._desc_color
+            )
+        desc_lines = self._desc_lines_cache[self._step_idx]
         y = title_rect.bottom + self._desc_title_gap
         for line_surf in desc_lines:
             surface.blit(line_surf, line_surf.get_rect(centerx=p["text_centerx"], top=y))

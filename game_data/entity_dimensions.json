@@ -205,7 +205,7 @@
         "top": 0,
         "bottom": 0,
         "ground_offset": 34,
-        "scale": 2.0
+        "scale": 1.5
     },
     "generic_npc_magic book by captainskeleto": {
         "left": 0,
@@ -213,7 +213,7 @@
         "top": 0,
         "bottom": 0,
         "ground_offset": 34,
-        "scale": 3.0
+        "scale": 1.5
     },
     "generic_npc_magic_book_single": {
         "left": 0,
@@ -221,6 +221,38 @@
         "top": 0,
         "bottom": 0,
         "ground_offset": 34,
-        "scale": 3.0
+        "scale": 1.5
+    },
+    "generic_npc_wizard": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_wizard_npc": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_ronin": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_spr_roninidle_strip8_frames": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
     }
 }

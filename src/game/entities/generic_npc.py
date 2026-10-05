@@ -109,10 +109,20 @@ class GenericNPC(Actor):
         is_intro_npc: bool = False,
         walk_speed: float = -150.0,
         voice_line_id: Optional[str] = None,
+        dialogue: Optional[dict] = None,
+        corruption_manager=None,
+        relic_manager=None,
     ) -> None:
         super().__init__(x, y)
 
-        self.text = text
+        # Store the full dialogue dict if provided; fall back to plain string.
+        self._dialogue_data: dict | str = dialogue if dialogue is not None else text
+        # text always surfaces the plain default for backward compat
+        self.text = (
+            dialogue.get("default", text) if isinstance(dialogue, dict) else text
+        )
+        self._corruption_manager = corruption_manager
+        self._relic_manager = relic_manager
         self.title = title
         self.proximity_radius = proximity_radius
         self._interacted: bool = False
@@ -241,8 +251,9 @@ class GenericNPC(Actor):
             raw_idle_frames = AssetManager.get_animation_frames(sprite_dir)
 
         if not raw_idle_frames:
-            placeholder = pg.Surface((32, 32), pg.SRCALPHA)
-            placeholder.fill((255, 0, 255, 180))
+            print(f"[WARN] GenericNPC '{self.title}' failed to find idle frames at '{sprite_dir}'. Using empty placeholder.")
+            placeholder = pg.Surface((1, 1), pg.SRCALPHA)
+            placeholder.fill((0, 0, 0, 0))
             raw_idle_frames = [placeholder]
 
         scaled_idle = [
@@ -355,6 +366,38 @@ class GenericNPC(Actor):
         pg.draw.rect(bg, (220, 220, 230, 160), (0, 0, w, h), width=2, border_radius=self._PROMPT_BORDER_RADIUS)
         bg.blit(text_surf, (self._PROMPT_PADDING_X, self._PROMPT_PADDING_Y))
         return bg
+
+    def get_dialogue(self, corruption_level: float = 0.0, relics_collected: list | None = None) -> str:
+        """Return the appropriate dialogue variant based on game state.
+
+        Priority:
+        1. Relic branch — shown if a matching relic has been collected.
+        2. Corruption variant (high/mid/low).
+        3. Default dialogue.
+        """
+        if relics_collected is None:
+            relics_collected = []
+
+        if not isinstance(self._dialogue_data, dict):
+            return str(self._dialogue_data)
+
+        # 1. Relic branch check
+        branch = self._dialogue_data.get("relic_branch", {})
+        if branch and branch.get("relic_id") in relics_collected:
+            return branch.get("text", "")
+
+        # 2. Corruption variants
+        variants = self._dialogue_data.get("corruption_variants", {})
+        if variants:
+            if corruption_level > 66 and "high" in variants:
+                return variants["high"]
+            elif corruption_level > 33 and "mid" in variants:
+                return variants["mid"]
+            elif "low" in variants:
+                return variants["low"]
+
+        # 3. Default
+        return self._dialogue_data.get("default", self.text)
 
     @property
     def can_interact(self) -> bool:

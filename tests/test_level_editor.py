@@ -476,6 +476,109 @@ class TestTextInputAndTextArea(unittest.TestCase):
         self.assertEqual(ta.val, "A\n    ")
 
 
+class TestEventIdAndDistanceRobustness(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pg.init()
+        pg.display.set_mode((200, 200), pg.HIDDEN)
+
+    def test_next_id_with_mixed_string_and_integer_ids(self):
+        app = MagicMock(spec=App)
+        app.pending = [
+            {"id": "lore_scarred_wall", "distance": 400},
+            {"id": 10, "distance": 650},
+            {"id": "npc_broken_pilgrim", "distance": 800},
+            {"id": 14, "distance": 1200},
+            {"id": "20", "distance": 1500},
+            {"id": True, "distance": 100},
+            {"distance": 2000},
+        ]
+        next_id = App._next_id(app)
+        self.assertEqual(next_id, 21)
+
+    def test_next_id_empty_pending(self):
+        app = MagicMock(spec=App)
+        app.pending = []
+        self.assertEqual(App._next_id(app), 1)
+
+    def test_next_id_only_string_ids(self):
+        app = MagicMock(spec=App)
+        app.pending = [
+            {"id": "lore_scarred_wall"},
+            {"id": "lore_bone_cairn"},
+        ]
+        self.assertEqual(App._next_id(app), 1)
+
+    def test_event_dist_key_robustness(self):
+        self.assertEqual(App._event_dist_key({"distance": 500}), 500.0)
+        self.assertEqual(App._event_dist_key({"distance": "750"}), 750.0)
+        self.assertEqual(App._event_dist_key({"distance": "invalid"}), 0.0)
+        self.assertEqual(App._event_dist_key({}), 0.0)
+        self.assertEqual(App._event_dist_key({"distance": None}), 0.0)
+
+    def test_read_s3_with_mixed_ids_in_pending(self):
+        app = MagicMock(spec=App)
+        app.pending = [
+            {"id": "lore_scarred_wall", "distance": 400},
+            {"id": 10, "distance": 650},
+        ]
+        app.s3_type = "interaction"
+        app.s3_ui = {
+            "title": MagicMock(val="New Sign"),
+            "text": MagicMock(val="Test Dialogue"),
+            "radius": MagicMock(val=160),
+            "dist": MagicMock(val=500),
+        }
+        # In create mode (s3_idx = -1)
+        app.s3_idx = -1
+        app._next_id = lambda: App._next_id(app)
+        ev = App._read_s3(app)
+        self.assertEqual(ev["id"], 11)
+        self.assertEqual(ev["distance"], 500)
+        self.assertEqual(ev["params"]["title"], "New Sign")
+
+        # In edit mode (s3_idx = 0) targeting string-id event
+        app.s3_idx = 0
+        ev_edit = App._read_s3(app)
+        self.assertEqual(ev_edit["id"], "lore_scarred_wall")
+
+    def test_simulation_target_event_id_arg_parsing(self):
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--start-dist", type=float, default=None)
+        parser.add_argument("--duration", type=float, default=None)
+        parser.add_argument("--target-event-id", type=str, default=None)
+
+        args = parser.parse_args(["--start-dist", "0", "--duration", "6.0", "--target-event-id", "lore_scarred_wall"])
+        self.assertEqual(args.target_event_id, "lore_scarred_wall")
+        self.assertEqual(args.start_dist, 0.0)
+        self.assertEqual(args.duration, 6.0)
+
+        # Numeric string ID
+        args_num = parser.parse_args(["--target-event-id", "10"])
+        self.assertEqual(args_num.target_event_id, "10")
+
+    def test_write_simulation_report_utf8_encoding(self):
+        from src.game.debug.simulation_runner import SimulationRunner
+        game = MagicMock()
+        game._sim_start_distance = 0.0
+        game.max_bg_scroll_speed = 350.0
+        game.world_distance = 800.0
+        game._simulation_timer = 2000.0
+        game._sim_type = "level"
+        game._simulation_expected_npcs = {}
+        game._simulation_npcs = {}
+        runner = SimulationRunner(game)
+        runner.write_simulation_report()
+
+        # Verify scratch/simulation_report.md exists and can be read as UTF-8 with emojis
+        report_md = os.path.join("scratch", "simulation_report.md")
+        self.assertTrue(os.path.exists(report_md))
+        with open(report_md, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("Overall Status", content)
+
+
 if __name__ == "__main__":
     unittest.main()
 

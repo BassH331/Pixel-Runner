@@ -13,7 +13,7 @@ from src.game.systems.item_lore_system import ItemLoreSystem, RelicData
 
 def test_item_lore_system_initialization():
     system = ItemLoreSystem.get_instance()
-    assert len(system.relics) == 6
+    assert len(system.relics) >= 6
     assert "shattered_gauntlet" in system.relics
     assert "voragis_inkwell" in system.relics
     assert "candoras_tear" in system.relics

@@ -16,6 +16,10 @@ class PlayerUI:
         self.start_time = 0
         self.power_ups = []
 
+        # ── Corruption Indicator ─────────────────────────────────────────────
+        self.corruption_manager = None  # Set by GameState via HUDOverlay
+        # ─────────────────────────────────────────────────────────────────────
+
         # ── Soul Harvest System ──────────────────────────────────────────────
         self.souls_collected = 0          # Souls gained *this level* (added on top of starting)
         self.soul_harvest_start = 9000    # Pre-existing souls from Kaelen's past hunts
@@ -34,18 +38,21 @@ class PlayerUI:
             scaled = pg.transform.scale(frame, (frame.get_width() * 3, frame.get_height() * 3))
             self.health_frames.append(scaled)
 
-        # Modern unified bar spacing
+        # Modern unified bar spacing (4-layer core: Health, Mana, Stamina, Corruption)
         self.health_bar_pos = (20, 15)
         self.mana_bar_pos = (20, self.health_bar_pos[1] + 50)
         self.stamina_bar_pos = (20, self.mana_bar_pos[1] + 50)
+        self.corruption_bar_pos = (20, self.stamina_bar_pos[1] + 50)
         self._resource_bar_size = (200, 14)
 
-        self.souls_icon_pos = (20, self.stamina_bar_pos[1] + 52)
-        self.relic_icon_pos = (20, self.souls_icon_pos[1] + 62)
+        # Backward compatibility alias for tests
+        self.souls_icon_pos = (20, self.corruption_bar_pos[1])
+        self.relic_icon_pos = (20, self.corruption_bar_pos[1] + 62)
         self.power_up_icon_pos = (20, self.relic_icon_pos[1] + 52)
         self.time_pos = (pg.display.Info().current_w - 160, 20)
 
         self.souls_icon = self.load_icon("assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png", (36, 36))
+        self.corruption_icon = self.load_icon("assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon1.png", (36, 36))
         self.relic_icon = self.load_icon("assets/graphics/ui/relic_icon.png", (36, 36))
         self.power_up_icons = {
             "double_jump": self.load_icon("assets/graphics/ui/powerup_doublejump.png", (36, 36)),
@@ -69,6 +76,7 @@ class PlayerUI:
 
         # Performance surface caches for low-end GPU/CPU hardware
         self._framed_icon_cache: dict = {}
+        self._shadow_text_cache: dict = {}
         self._souls_label_surf: pg.Surface = self._render_shadowed_text(self.small_font, "SOULS", (140, 120, 180))
         self._relics_cache: tuple = (None, None)
         self._time_cache: tuple = (None, None)
@@ -89,7 +97,7 @@ class PlayerUI:
             return pg.transform.scale(icon, size)
         except Exception:
             surface = pg.Surface(size, pg.SRCALPHA)
-            surface.fill((255, 0, 255))
+            surface.fill((0, 0, 0, 0))
             return surface
 
     def _make_clock_icon(self, size):
@@ -115,6 +123,11 @@ class PlayerUI:
 
     def _render_shadowed_text(self, font, text: str, color: tuple) -> pg.Surface:
         """Render text with a 1px dark drop-shadow for readability over any background."""
+        cache_key = (id(font), text, color)
+        cached = getattr(self, "_shadow_text_cache", None)
+        if cached is not None and cache_key in cached:
+            return cached[cache_key]
+
         if not pg.font.get_init():
             try:
                 pg.font.init()
@@ -128,6 +141,10 @@ class PlayerUI:
             combined = pg.Surface((w + abs(sx), h + abs(sy)), pg.SRCALPHA)
             combined.blit(shadow_surf, (max(sx, 0), max(sy, 0)))
             combined.blit(text_surf, (max(-sx, 0), max(-sy, 0)))
+            if cached is not None:
+                if len(cached) > 256:
+                    cached.clear()
+                cached[cache_key] = combined
             return combined
         except Exception:
             fallback = pg.Surface((80, 20), pg.SRCALPHA)
@@ -299,8 +316,8 @@ class PlayerUI:
             fill_color=(255, 210, 40), bg_color=(35, 30, 15), border_color=(255, 220, 80)
         )
 
-        # ── Soul Harvest Display ─────────────────────────────────────────────
-        self._draw_soul_harvest(surface, float_y)
+        # ── Primary Narrative Spine: Corruption Bar (4th Core Resource) ──────
+        self._draw_corruption_bar(surface, float_y)
 
         # Draw Relics counter with golden glowing frame
         relic_y = self.relic_icon_pos[1] + float_y
@@ -353,6 +370,56 @@ class PlayerUI:
                 current_mana=getattr(self, "current_mana", 100.0),
                 max_mana=getattr(self, "max_mana", 100.0)
             )
+
+    def _draw_corruption_bar(self, surface: pg.Surface, float_y: int) -> None:
+        """Draw the primary narrative corruption meter below the stamina bar.
+
+        Displays a themed framed icon and modern glowing resource bar with
+        smooth color transitions across corruption tiers:
+          pure    (0–33)   → deep amethyst (120, 50, 200)
+          tainted (33–66)  → blood crimson (200, 40, 50)
+          void    (66–100) → abyssal red   (255, 20, 20)
+        """
+        val = self.corruption_manager.value if self.corruption_manager else 0.0
+        val = max(0.0, min(100.0, val))
+
+        if val <= 33:
+            t = val / 33.0
+            r = int(100 + t * (200 - 100))
+            g = int(40 - t * 10)
+            b = int(180 - t * 120)
+            fill_color = (r, g, b)
+            border_color = (min(255, r + 50), min(255, g + 30), min(255, b + 50))
+            tier_name = "PURE"
+        elif val <= 66:
+            t = (val - 33) / 33.0
+            r = int(200 + t * 55)
+            g = int(30 - t * 10)
+            b = int(60 - t * 40)
+            fill_color = (r, g, b)
+            border_color = (255, 70, 80)
+            tier_name = "TAINTED"
+        else:
+            fill_color = (255, 20, 20)
+            border_color = (255, 100, 40)
+            tier_name = "VOID"
+
+        y_pos = (self.corruption_bar_pos[0], self.corruption_bar_pos[1] + float_y)
+        self._draw_resource_bar(
+            surface,
+            y_pos,
+            self.corruption_icon,
+            val,
+            100.0,
+            fill_color=fill_color,
+            bg_color=(25, 10, 25),
+            border_color=border_color,
+        )
+
+        label_surf = self._render_shadowed_text(
+            self.small_font, f"CORRUPTION: {int(val)}% [{tier_name}]", border_color
+        )
+        surface.blit(label_surf, (self.corruption_bar_pos[0] + 52, y_pos[1] + 28))
 
     def _draw_soul_harvest(self, surface: pg.Surface, float_y: int) -> None:
         souls_y = self.souls_icon_pos[1] + float_y

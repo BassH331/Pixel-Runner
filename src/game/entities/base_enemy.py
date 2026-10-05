@@ -74,6 +74,7 @@ class BaseEnemy(EntityAudioMixin, Actor):
         self._max_health: float = 100.0
         self._speed: float = 2.5
         self.facing_left: bool = False
+        self.ai_frozen: bool = False  # set True by BossEncounterManager during pre-fight dialogue
         self._margin_left: Optional[int] = None
         self._margin_right: Optional[int] = None
         self.frame_offsets: dict = {}
@@ -106,6 +107,19 @@ class BaseEnemy(EntityAudioMixin, Actor):
     @property
     def is_dead(self) -> bool:
         return self._health <= 0.0
+
+    def apply_corruption_scaling(self, corruption_value: float) -> None:
+        """Scale HP and speed for bosses when player corruption is high (>66).
+
+        Only applies when ``self.is_boss`` is True (set by BossManager.spawn_boss).
+        At corruption > 66: HP +10 %, speed +5 %.
+        """
+        if not getattr(self, "is_boss", False):
+            return
+        if corruption_value > 66:
+            self._max_health *= 1.10
+            self._health = self._max_health
+            self._speed *= 1.05
 
     def get_render_position(self) -> tuple[int, int]:
         """Calculate screen (draw_x, draw_y) for sprite rendering and shadow alignment."""

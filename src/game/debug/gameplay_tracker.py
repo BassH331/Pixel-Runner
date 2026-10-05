@@ -211,7 +211,7 @@ class GameplayTracker:
             self.current_file_index += 1
             
             # Open persistent file handle for append
-            self._file_handle = open(self.current_file_path, "a")
+            self._file_handle = open(self.current_file_path, "a", encoding="utf-8")
             
             if self.console_output:
                 print(f"[TRACKER] Rotated to: {self.current_file_path.name}")
@@ -219,10 +219,19 @@ class GameplayTracker:
             print(f"[TRACKER ERROR] Failed to rotate file: {e}")
     
     def _write_manifest(self) -> None:
-        """Update latest_session.json manifest with current session state."""
+        """Update latest_session.json manifest with current session state.
+
+        Guarded against interpreter-teardown NameError: during ``__del__``
+        Python may have already set builtins like ``open`` and ``json`` to
+        ``None``, causing a spurious NameError.  We check for that before
+        attempting any I/O.
+        """
         if not self.enabled or not self.current_file_path:
             return
-        
+        # Guard against interpreter shutdown where builtins are set to None.
+        if open is None or json is None:
+            return
+
         try:
             manifest = {
                 "session_timestamp": self.session_timestamp,
@@ -233,8 +242,8 @@ class GameplayTracker:
                 "event_count": self.event_count,
                 "config": self.config,
             }
-            
-            with open(self.manifest_path, "w") as f:
+
+            with open(self.manifest_path, "w", encoding="utf-8") as f:
                 json.dump(manifest, f, indent=2)
         except Exception as e:
             print(f"[TRACKER ERROR] Failed to write manifest: {e}")
