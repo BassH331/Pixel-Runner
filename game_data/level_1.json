@@ -276,14 +276,6 @@
     ],
     "world_events": [
         {
-            "id": "lore_scarred_wall",
-            "distance": 400,
-            "type": "ambient_lore",
-            "params": {
-                "text": "The wall ahead is scarred with a sigil you do not recognise \u2014 and yet your hand reaches toward it before you stop yourself."
-            }
-        },
-        {
             "id": 10,
             "distance": 650,
             "type": "npc",
@@ -297,39 +289,6 @@
                 "is_magic_book": true,
                 "is_intro_npc": false,
                 "voice_line_id": ""
-            }
-        },
-        {
-            "id": "npc_broken_pilgrim",
-            "distance": 800,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Broken Pilgrim",
-                "text": "I came here looking for the man who died in the void. They say Andras offered him a second chance. I wonder sometimes if the man accepted.",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/Wizard_NPC",
-                "scale": 2.0,
-                "dialogue": {
-                    "default": "I came here looking for the man who died in the void. They say Andras offered him a second chance. I wonder sometimes if the man accepted.",
-                    "corruption_variants": {
-                        "low": "You look... untouched. Hold onto that. Tightly.",
-                        "mid": "I can see it in your eyes. The same look he had. Please \u2014 turn back.",
-                        "high": "You are already past the point he was at when I last saw him. I am sorry."
-                    },
-                    "relic_branch": {
-                        "relic_id": "shattered_gauntlet",
-                        "text": "You found the gauntlet. Then you know where this started. You know what he lost."
-                    }
-                }
-            }
-        },
-        {
-            "id": "lore_bone_cairn",
-            "distance": 1500,
-            "type": "ambient_lore",
-            "params": {
-                "text": "A small cairn of bones. Not a grave \u2014 an offering. Someone left this for Andras."
             }
         },
         {
@@ -352,31 +311,6 @@
             }
         },
         {
-            "id": "npc_void_scribe",
-            "distance": 2200,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Void Scribe",
-                "text": "I record what Andras makes. Names, dates, fates. The ledger is never full. There is always room.",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/Wizard_NPC",
-                "scale": 2.0,
-                "dialogue": {
-                    "default": "I record what Andras makes. Names, dates, fates. The ledger is never full. There is always room.",
-                    "corruption_variants": {
-                        "low": "No entry for you yet. Keep it that way.",
-                        "mid": "Your name is... pencilled in. Lightly. For now.",
-                        "high": "I have been waiting for you. Your page is nearly ready."
-                    },
-                    "relic_branch": {
-                        "relic_id": "hollowed_ledger_page",
-                        "text": "You found a page. One of many. Did you read the names? Did you recognise any of them?"
-                    }
-                }
-            }
-        },
-        {
             "id": 11,
             "distance": 3500,
             "type": "npc",
@@ -388,39 +322,6 @@
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0,
                 "voice_line_id": "evil_eye_bones"
-            }
-        },
-        {
-            "id": "npc_candora_messenger",
-            "distance": 4000,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Candora's Messenger",
-                "text": "Candora sent me to find the runner before he is lost. I may be too late. I am rarely early.",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/Wizard_NPC",
-                "scale": 2.0,
-                "dialogue": {
-                    "default": "Candora sent me to find the runner before he is lost. I may be too late. I am rarely early.",
-                    "corruption_variants": {
-                        "low": "She still sees you. The light does not abandon the willing.",
-                        "mid": "She grieves for what you are becoming. But she has not looked away.",
-                        "high": "I cannot reach you now. The void is too thick. But Candora... she still tries."
-                    },
-                    "relic_branch": {
-                        "relic_id": "candoras_tear",
-                        "text": "You carry her tear. She wept for you specifically. Do you understand what that means?"
-                    }
-                }
-            }
-        },
-        {
-            "id": "lore_void_bloom",
-            "distance": 3000,
-            "type": "ambient_lore",
-            "params": {
-                "text": "A flower grows from a crack in the earth ahead \u2014 black petals, silver centre. It turns toward you as you pass."
             }
         },
         {
@@ -471,47 +372,6 @@
                     "idle": "idle",
                     "walk": "walk"
                 }
-            }
-        },
-        {
-            "id": "lore_faded_mural",
-            "distance": 5000,
-            "type": "ambient_lore",
-            "params": {
-                "text": "A mural, half-collapsed. It shows a figure standing at a threshold. The figure's face has been scratched out."
-            }
-        },
-        {
-            "id": "npc_previous_runner",
-            "distance": 6500,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "The Previous Runner",
-                "text": "I recognise that mark. I wore it once. I thought it made me stronger. I was right. I was also wrong.",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/Ronin/spr_RoninIdle_strip8_frames",
-                "scale": 2.0,
-                "dialogue": {
-                    "default": "I recognise that mark. I wore it once. I thought it made me stronger. I was right. I was also wrong.",
-                    "corruption_variants": {
-                        "low": "You fight it better than I did. That is either strength or stubbornness. Either may save you.",
-                        "mid": "This is where I started losing myself. The mid-point. It does not feel like a point of no return. That is the trap.",
-                        "high": "I cannot tell you apart from what I became. That frightens me more than Andras ever did."
-                    },
-                    "relic_branch": {
-                        "relic_id": "amalgam_core",
-                        "text": "You found the core. Then you know what Andras intended both of us to become. Run. Or don't. It may not matter now."
-                    }
-                }
-            }
-        },
-        {
-            "id": "lore_void_sound",
-            "distance": 7500,
-            "type": "ambient_lore",
-            "params": {
-                "text": "The world goes quiet. For three seconds, even your footsteps make no sound. Then it returns \u2014 louder than before."
             }
         },
         {

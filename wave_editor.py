@@ -235,9 +235,7 @@ class WaveEditorApp:
 
     def load(self, idx: int):
         self.active_idx = idx
-        with open(self.level_files[idx]) as fh:
-            if fcntl:
-                fcntl.flock(fh, fcntl.LOCK_EX)
+        with open(self.level_files[idx], "r", encoding="utf-8") as fh:
             self.level_data = json.load(fh)
         from src.game.entities.hitbox_registry import HitboxRegistry
         HitboxRegistry.sync_with_level_config(self.level_data)
@@ -246,12 +244,24 @@ class WaveEditorApp:
         self.pending = copy.deepcopy(self.level_data["spawn_zones"])
 
     def commit(self):
-        self.level_data["spawn_zones"] = sorted(
+        target_path = self.level_files[self.active_idx]
+        disk_data = copy.deepcopy(self.level_data)
+        if os.path.exists(target_path):
+            try:
+                with open(target_path, "r", encoding="utf-8") as fh:
+                    disk_data = json.load(fh)
+            except Exception as e:
+                print(f"[WaveEditor] Could not re-read disk file: {e}")
+
+        disk_data["spawn_zones"] = sorted(
             self.pending, key=lambda z: z.get("min_dist", 0))
-        with open(self.level_files[self.active_idx], "w") as fh:
-            if fcntl:
-                fcntl.flock(fh, fcntl.LOCK_EX)
-            json.dump(self.level_data, fh, indent=4)
+
+        tmp_path = f"{target_path}.tmp_{os.getpid()}"
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(disk_data, fh, indent=4)
+        os.replace(tmp_path, target_path)
+
+        self.level_data = disk_data
         self.level_backup = copy.deepcopy(self.level_data)
         self.modal = None
 

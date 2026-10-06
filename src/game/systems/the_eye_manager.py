@@ -1322,20 +1322,30 @@ class TheEyePerceptionManager:
     def save_perception(self) -> Tuple[bool, str]:
         """
         Persist all perception/conversation modifications back to disk.
-        Automatically creates timestamped backups of modified files.
+        Automatically re-reads disk state to preserve external changes (e.g. from level editor),
+        updates only existing entities without resurrecting deleted ones, and creates non-empty backups.
         """
         try:
             # 1. Update storyline_data for boss dialogues & relics
-            if "boss_dialogue" not in self.storyline_data:
-                self.storyline_data["boss_dialogue"] = {}
+            if os.path.exists(self.storyline_path):
+                try:
+                    with open(self.storyline_path, "r", encoding="utf-8") as f:
+                        disk_storyline = json.load(f)
+                except Exception:
+                    disk_storyline = copy.deepcopy(self.storyline_data)
+            else:
+                disk_storyline = copy.deepcopy(self.storyline_data)
+
+            if "boss_dialogue" not in disk_storyline:
+                disk_storyline["boss_dialogue"] = {}
 
             for node in self.nodes:
                 if node.source_file == "storyline" and node.source_key:
                     if node.source_key.startswith("boss_dialogue."):
                         boss_key = node.source_key.split(".", 1)[1]
-                        if boss_key not in self.storyline_data["boss_dialogue"]:
-                            self.storyline_data["boss_dialogue"][boss_key] = {}
-                        bd = self.storyline_data["boss_dialogue"][boss_key]
+                        if boss_key not in disk_storyline["boss_dialogue"]:
+                            disk_storyline["boss_dialogue"][boss_key] = {}
+                        bd = disk_storyline["boss_dialogue"][boss_key]
                         if "pre_fight" in node.conversations:
                             bd["pre_fight"] = node.conversations["pre_fight"]
                         if "death_line" in node.conversations:
@@ -1350,16 +1360,30 @@ class TheEyePerceptionManager:
 
                     elif node.source_key.startswith("relics."):
                         relic_k = node.source_key.split(".", 1)[1]
-                        if "relics" in self.storyline_data and relic_k in self.storyline_data["relics"]:
-                            r_entry = self.storyline_data["relics"][relic_k]
+                        if "relics" in disk_storyline and relic_k in disk_storyline["relics"]:
+                            r_entry = disk_storyline["relics"][relic_k]
                             r_entry["memory_text"] = node.conversations.get("primary", r_entry.get("memory_text", ""))
                             r_entry["lore"] = node.conversations.get("lore", r_entry.get("lore", ""))
 
-                elif node.source_file == "level_1" and node.source_key:
+            self.storyline_data = disk_storyline
+            self._save_with_backup(self.storyline_path, self.storyline_data)
+
+            # 2. Update level_data for world_events & entities FRESH from disk
+            if os.path.exists(self.level_path):
+                try:
+                    with open(self.level_path, "r", encoding="utf-8") as f:
+                        disk_level = json.load(f)
+                except Exception:
+                    disk_level = copy.deepcopy(self.level_data)
+            else:
+                disk_level = copy.deepcopy(self.level_data)
+
+            world_events = disk_level.get("world_events", [])
+            entities = disk_level.get("entities", [])
+            for node in self.nodes:
+                if node.source_file == "level_1" and node.source_key:
                     if node.source_key.startswith("entities.") or node.source_key.startswith("world_events."):
                         ent_id = node.source_key.split(".", 1)[1]
-                        world_events = self.level_data.get("world_events", [])
-                        entities = self.level_data.get("entities", [])
                         for ent in (world_events + entities):
                             is_match = (str(ent.get("id")) == ent_id)
                             if not is_match and ent_id == "magic_book" and (ent.get("params", {}).get("is_magic_book") or ent.get("is_magic_book") or str(ent.get("id")) == "10"):
@@ -1380,7 +1404,7 @@ class TheEyePerceptionManager:
                                 if "combat_taunts" in node.conversations:
                                     params["combat_taunts"] = node.conversations["combat_taunts"]
 
-            self._save_with_backup(self.storyline_path, self.storyline_data)
+            self.level_data = disk_level
             self._save_with_backup(self.level_path, self.level_data)
 
             self.revision += 1
@@ -1392,13 +1416,37 @@ class TheEyePerceptionManager:
         if not file_path or not data:
             return
         os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
-        if os.path.exists(file_path):
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
             backup_path = f"{file_path}.backup_{int(time.time())}"
             try:
-                with open(file_path, "r", encoding="utf-8") as src, open(backup_path, "w", encoding="utf-8") as dst:
-                    dst.write(src.read())
+                with open(file_path, "r", encoding="utf-8") as src:
+                    content = src.read()
+                if content.strip():
+                    with open(backup_path, "w", encoding="utf-8") as dst:
+                        dst.write(content)
             except Exception:
                 pass
 
-        with open(file_path, "w", encoding="utf-8") as f:
+            # Prune old backups, retain at most 5 newest non-empty backups
+            try:
+                dirname = os.path.dirname(os.path.abspath(file_path))
+                basename = os.path.basename(file_path)
+                backups = sorted([
+                    os.path.join(dirname, f)
+                    for f in os.listdir(dirname)
+                    if f.startswith(f"{basename}.backup_")
+                ], key=os.path.getmtime)
+                while len(backups) > 5:
+                    old_b = backups.pop(0)
+                    try:
+                        os.remove(old_b)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        # Atomic transactional write: write to temp file then replace
+        tmp_path = f"{file_path}.tmp_{os.getpid()}"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
+        os.replace(tmp_path, file_path)

@@ -1978,8 +1978,8 @@ class GameState(PlayingState):
             if getattr(amb, "bg_layer_depth", 4) == 3:
                 amb.draw(target)
 
-        # 4. Draw Layer 4+ (Foreground Props, Objects, and Foliage)
-        self.environment_manager.draw(target, cam_x=self.world_distance, min_layer=4, clear_bg=False)
+        # 4. Draw Layers 4-6 (Background Props, Objects, Road, behind player)
+        self.environment_manager.draw(target, cam_x=self.world_distance, min_layer=4, max_layer=6, clear_bg=False, foreground_pass=False)
         
         # UI layer
         self.hud_overlay.draw_world_ui(target)
@@ -2044,6 +2044,9 @@ class GameState(PlayingState):
         # Enemies
         for enemy in self.obstacle_group:
             enemy.draw(target)
+
+        # 5. Foreground Environment Pass (Props in front of player & Layers 7+)
+        self.environment_manager.draw(target, cam_x=self.world_distance, min_layer=7, clear_bg=False, foreground_pass=True)
             
         # Hit Visual Effects
         VisualEffectManager.draw(target)

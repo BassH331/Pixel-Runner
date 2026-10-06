@@ -1,16 +1,8 @@
 {
-    "enemy": {
-        "left": 69,
-        "right": 69,
-        "top": 69,
-        "bottom": 66,
-        "ground_offset": 169,
-        "scale": 1.11
-    },
     "player": {
-        "left": 367,
-        "right": 389,
-        "top": 191,
+        "left": 315,
+        "right": 315,
+        "top": 150,
         "bottom": 0,
         "ground_offset": 34,
         "scale": 3.0
@@ -20,72 +12,24 @@
         "right": 65,
         "top": 20,
         "bottom": 0,
-        "ground_offset": 35,
-        "scale": 2.09
+        "ground_offset": 127,
+        "scale": 2.0
+    },
+    "enemy": {
+        "left": 80,
+        "right": 80,
+        "top": 100,
+        "bottom": 100,
+        "ground_offset": 0,
+        "scale": 2.0
     },
     "wizard_npc": {
         "left": 0,
         "right": 0,
         "top": 0,
-        "bottom": 77,
-        "ground_offset": 34,
-        "scale": 3.0
-    },
-    "boss:wizard": {
-        "left": 211,
-        "right": 242,
-        "top": 177,
-        "bottom": 180,
-        "ground_offset": 35,
-        "scale": 4.11
-    },
-    "generic_npc": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
         "bottom": 0,
         "ground_offset": 34,
-        "scale": 1.0
-    },
-    "blood_zombie": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 0,
-        "scale": 3.0
-    },
-    "green_monster": {
-        "left": 168,
-        "right": 159,
-        "top": 75,
-        "bottom": 30,
-        "ground_offset": 35,
-        "scale": 3.0
-    },
-    "skeleton_zombie": {
-        "left": 21,
-        "right": 55,
-        "top": 44,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 3.0
-    },
-    "boss:bloodzombie": {
-        "left": 88,
-        "right": 189,
-        "top": 132,
-        "bottom": 33,
-        "ground_offset": 65,
         "scale": 2.0
-    },
-    "generic_npc_goblin": {
-        "left": 198,
-        "right": 196,
-        "top": 208,
-        "bottom": 154,
-        "ground_offset": 34,
-        "scale": 3.0
     },
     "generic_npc_masked_man": {
         "left": 0,
@@ -95,93 +39,13 @@
         "ground_offset": 34,
         "scale": 2.0
     },
-    "generic_npc_totem": {
+    "generic_npc_goblin": {
         "left": 0,
         "right": 0,
         "top": 0,
         "bottom": 0,
         "ground_offset": 34,
         "scale": 2.0
-    },
-    "boss:green_monster": {
-        "left": 196,
-        "right": 197,
-        "top": 100,
-        "bottom": 36,
-        "ground_offset": 35,
-        "scale": 2.63
-    },
-    "generic_npc_fairy": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
-    },
-    "generic_npc_shadow_warrior": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
-    },
-    "generic_npc_agis": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 3.38
-    },
-    "generic_npc_redmoontower": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
-    },
-    "generic_npc_necromancer": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 3.38
-    },
-    "generic_npc_props": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
-    },
-    "generic_npc_no bg": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
-    },
-    "generic_npc_evil eye beast for itch": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
-    },
-    "boss:skeletonzombie": {
-        "left": 65,
-        "right": 65,
-        "top": 20,
-        "bottom": 0,
-        "ground_offset": 35,
-        "scale": 3.05
     },
     "shadow_assassin": {
         "left": 50,
@@ -199,21 +63,13 @@
         "ground_offset": 111,
         "scale": 2.5
     },
-    "generic_npc_magic book _16.png": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
+    "boss:bloodzombie": {
+        "left": 65,
+        "right": 65,
+        "top": 20,
         "bottom": 0,
-        "ground_offset": 34,
-        "scale": 1.5
-    },
-    "generic_npc_magic book by captainskeleto": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
-        "bottom": 0,
-        "ground_offset": 34,
-        "scale": 1.5
+        "ground_offset": 65,
+        "scale": 2.0
     },
     "generic_npc_magic_book_single": {
         "left": 0,
@@ -223,7 +79,7 @@
         "ground_offset": 34,
         "scale": 1.5
     },
-    "generic_npc_wizard": {
+    "generic_npc_evil eye beast for itch": {
         "left": 0,
         "right": 0,
         "top": 0,
@@ -231,7 +87,7 @@
         "ground_offset": 34,
         "scale": 2.0
     },
-    "generic_npc_wizard_npc": {
+    "generic_npc_no bg": {
         "left": 0,
         "right": 0,
         "top": 0,
@@ -239,20 +95,20 @@
         "ground_offset": 34,
         "scale": 2.0
     },
-    "generic_npc_ronin": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
+    "boss:green_monster": {
+        "left": 65,
+        "right": 65,
+        "top": 20,
         "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
+        "ground_offset": 127,
+        "scale": 2.63
     },
-    "generic_npc_spr_roninidle_strip8_frames": {
-        "left": 0,
-        "right": 0,
-        "top": 0,
+    "boss:wizard": {
+        "left": 65,
+        "right": 65,
+        "top": 20,
         "bottom": 0,
-        "ground_offset": 34,
-        "scale": 2.0
+        "ground_offset": 127,
+        "scale": 4.11
     }
 }

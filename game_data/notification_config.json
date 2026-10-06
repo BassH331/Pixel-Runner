@@ -19,7 +19,7 @@
         "top_y": 105,
         "padding_x": 14,
         "padding_y": 12,
-        "corner_radius": 10,
+        "corner_radius": 24,
         "border_width": 2,
         "accent_notch_width": 5,
         "accent_notch_enabled": true,

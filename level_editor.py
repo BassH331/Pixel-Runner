@@ -2371,9 +2371,7 @@ class App:
                 lambda: setattr(self, "modal", None),
             )
             return
-        with open(self.level_files[idx], "r") as fh:
-            if fcntl:
-                fcntl.flock(fh, fcntl.LOCK_EX)
+        with open(self.level_files[idx], "r", encoding="utf-8") as fh:
             self.level_data = json.load(fh)
         HitboxRegistry.sync_with_level_config(self.level_data)
         self.level_data.setdefault("world_events", [])
@@ -2385,7 +2383,7 @@ class App:
 
         # Persist the selected level as the default for the game
         try:
-            with open(os.path.join("game_data", ".level_default.json"), "w") as df:
+            with open(os.path.join("game_data", ".level_default.json"), "w", encoding="utf-8") as df:
                 json.dump({"last_level": self.level_files[self.active_idx]}, df)
         except Exception:
             pass
@@ -2404,12 +2402,63 @@ class App:
             if not is_used:
                 HitboxRegistry._cached_config.pop(k, None)
         self.pending.sort(key=self._event_dist_key)
-        self.level_data["world_events"] = copy.deepcopy(self.pending)
-        with open(self.level_files[self.active_idx], "w") as fh:
-            if fcntl:
-                fcntl.flock(fh, fcntl.LOCK_EX)
-            json.dump(self.level_data, fh, indent=4)
+
+        target_path = self.level_files[self.active_idx]
+        disk_data = copy.deepcopy(self.level_data)
+        if os.path.exists(target_path):
+            try:
+                with open(target_path, "r", encoding="utf-8") as fh:
+                    disk_data = json.load(fh)
+            except Exception as e:
+                print(f"[LevelEditor] Warning: could not re-read disk level before commit: {e}")
+
+        # Smart 3-way merge for world_events to preserve external plugin modifications (e.g. from The Eye)
+        backup_events_map = {str(e.get("id")): e for e in self.level_backup.get("world_events", []) if e.get("id") is not None}
+        disk_events_map = {str(e.get("id")): e for e in disk_data.get("world_events", []) if e.get("id") is not None}
+
+        merged_events = []
+        for ev in copy.deepcopy(self.pending):
+            eid = str(ev.get("id")) if ev.get("id") is not None else None
+            if eid and eid in disk_events_map:
+                disk_ev = disk_events_map[eid]
+                backup_ev = backup_events_map.get(eid, {})
+
+                ev_params = ev.setdefault("params", {})
+                disk_params = disk_ev.get("params", {})
+                backup_params = backup_ev.get("params", {})
+
+                # Preserve perception & taunt keys managed by The Eye
+                for p_key in ("dialogue", "combat_taunts", "voice_line_id"):
+                    if p_key in disk_params and (p_key not in ev_params or ev_params.get(p_key) == backup_params.get(p_key)):
+                        ev_params[p_key] = copy.deepcopy(disk_params[p_key])
+
+                # 3-way text merge: if user in LevelEditor did not change text, take disk update
+                if ev_params.get("text") == backup_params.get("text") and "text" in disk_params:
+                    ev_params["text"] = disk_params["text"]
+
+                # Preserve any extra plugin keys in disk_params
+                for extra_k, extra_v in disk_params.items():
+                    if extra_k not in ev_params:
+                        ev_params[extra_k] = copy.deepcopy(extra_v)
+
+            merged_events.append(ev)
+
+        disk_data["world_events"] = merged_events
+        if "environment" in self.level_data:
+            disk_data["environment"] = copy.deepcopy(self.level_data["environment"])
+        if "level_name" in self.level_data:
+            disk_data["level_name"] = self.level_data["level_name"]
+        if "level_end_distance" in self.level_data:
+            disk_data["level_end_distance"] = self.level_data["level_end_distance"]
+
+        # Atomic transactional write: write to .tmp then os.replace
+        tmp_path = f"{target_path}.tmp_{os.getpid()}"
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(disk_data, fh, indent=4)
+        os.replace(tmp_path, target_path)
+
         HitboxRegistry.commit_transaction()
+        self.level_data = disk_data
         self.level_backup = copy.deepcopy(self.level_data)
         self.reg_del = set()
         self.modal = None
@@ -2736,9 +2785,8 @@ class App:
             self.native_surf = pg.Surface((1280, 720))
             native_surf = self.native_surf
 
-        # Render Sky, Background Parallax, and Environment Props onto native game surface
-        # (env_mgr.draw fills surface first, then renders all layers — same pipeline as game)
-        self.env_mgr.draw(native_surf, cam_x=self.cam_x, cam_y=self.cam_y)
+        # Render Sky, Background Parallax, and Environment Props onto native game surface (layers <= 6, behind player)
+        self.env_mgr.draw(native_surf, cam_x=self.cam_x, cam_y=self.cam_y, foreground_pass=False)
 
         # FL Studio Piano Roll Style Snap Grid Overlay (semi-transparent, over the scene)
         if self.grid_snap > 0:
@@ -2794,7 +2842,8 @@ class App:
                 c_lbl = self.sf.render(f"CONTACT Y: +{int(offset_y)}px", True, (0, 255, 255))
                 native_surf.blit(c_lbl, (prect.right + 8, contact_draw_y - c_lbl.get_height() // 2))
 
-            ptag = self.sf.render(f"[{col_icon}] L{prop.layer_index} | Pos: ({int(prop.pos_x)}, {int(prop.pos_y)}) | Size: {prop.width}x{prop.height}px | Scale: {prop.scale:.1f}x", True, (20, 20, 20))
+            front_badge = " [FRONT]" if prop.is_in_front() else " [BEHIND]"
+            ptag = self.sf.render(f"[{col_icon}] L{prop.layer_index}{front_badge} | Pos: ({int(prop.pos_x)}, {int(prop.pos_y)}) | Size: {prop.width}x{prop.height}px | Scale: {prop.scale:.1f}x", True, (20, 20, 20))
             tag_box = ptag.get_rect(midbottom=(prect.centerx, max(12, prect.y - 6))).inflate(12, 6)
             pg.draw.rect(native_surf, box_col, tag_box, border_radius=4)
             native_surf.blit(ptag, ptag.get_rect(center=tag_box.center))
@@ -2847,6 +2896,9 @@ class App:
             ]
             for bx, by in bat_coords:
                 native_surf.blit(bat_tex, (bx, by))
+
+        # Foreground Environment Pass (Layers >= 7 & In-Front Props render in front of player)
+        self.env_mgr.draw(native_surf, cam_x=self.cam_x, cam_y=self.cam_y, foreground_pass=True, clear_bg=False)
 
         # Blit native 1280x720 surface scaled smoothly to the 16:9 editor viewport
         avail_rect = self._get_s5_avail_bounds()
@@ -2964,6 +3016,17 @@ class App:
             b_l_6 = Button("📌 L6 Ground", 174, left_panel.y + 250, 92, 26, _set_l6_ground, "primary")
             b_l_m.draw(self.surf, self.sf); b_l_p.draw(self.surf, self.sf); b_l_6.draw(self.surf, self.sf)
 
+            # In Front of Player Z-Order Toggle
+            def _toggle_in_front():
+                prop.in_front = not prop.is_in_front()
+                self.level_data["environment"] = self.env_mgr.to_config_dict()
+
+            is_fg = prop.is_in_front()
+            fg_label = "👁 In Front of Player: ON" if is_fg else "👤 In Front of Player: OFF"
+            fg_style = "success" if is_fg else "ghost"
+            b_fg = Button(fg_label, 14, left_panel.y + 280, 252, 26, _toggle_in_front, fg_style)
+            b_fg.draw(self.surf, self.sf)
+
             col_type = getattr(prop, "collision_type", "solid")
             col_labels = {
                 "solid": "🧱 Type: Solid Ground",
@@ -2977,7 +3040,7 @@ class App:
                 "hazard": "warning",
                 "deco": "ghost"
             }
-            self.surf.blit(self.sf.render("Physics & Collision Type:", True, TXT2), (14, left_panel.y + 284))
+            self.surf.blit(self.sf.render("Physics & Collision Type:", True, TXT2), (14, left_panel.y + 312))
 
             def _cycle_col_type():
                 types = ["solid", "platform", "hazard", "deco"]
@@ -2990,7 +3053,7 @@ class App:
                     prop.parallax_ratio = 1.0
                 self.level_data["environment"] = self.env_mgr.to_config_dict()
 
-            b_col_type = Button(col_labels.get(col_type, "🧱 Type: Solid Ground"), 14, left_panel.y + 304, 252, 30, _cycle_col_type, col_styles.get(col_type, "primary"))
+            b_col_type = Button(col_labels.get(col_type, "🧱 Type: Solid Ground"), 14, left_panel.y + 332, 252, 28, _cycle_col_type, col_styles.get(col_type, "primary"))
             b_col_type.draw(self.surf, self.sf)
 
             # Ground Surface Contact Y Offset Controls (for Solid & Platform props)
@@ -2998,7 +3061,7 @@ class App:
                 offset_y = getattr(prop, "collision_offset_y", 0.0)
                 eff_contact_y = int(prop.pos_y + offset_y)
                 lbl_offset = self.sf.render(f"Contact Offset: +{int(offset_y)}px (Y: {eff_contact_y}px)", True, ACCENT)
-                self.surf.blit(lbl_offset, (14, left_panel.y + 342))
+                self.surf.blit(lbl_offset, (14, left_panel.y + 366))
 
                 def _adj_offset(delta: float):
                     cur = getattr(prop, "collision_offset_y", 0.0)
@@ -3010,11 +3073,11 @@ class App:
                     prop.auto_detect_collision_offset()
                     self.level_data["environment"] = self.env_mgr.to_config_dict()
 
-                b_off_m5 = Button("-5px", 14, left_panel.y + 364, 55, 24, lambda: _adj_offset(-5.0), "ghost")
-                b_off_p5 = Button("+5px", 74, left_panel.y + 364, 55, 24, lambda: _adj_offset(5.0), "ghost")
-                b_off_m1 = Button("-1px", 134, left_panel.y + 364, 55, 24, lambda: _adj_offset(-1.0), "ghost")
-                b_off_p1 = Button("+1px", 194, left_panel.y + 364, 55, 24, lambda: _adj_offset(1.0), "ghost")
-                b_off_auto = Button("🪄 Auto Detect Contact Line", 14, left_panel.y + 394, 252, 28, _auto_detect_offset, "primary")
+                b_off_m5 = Button("-5px", 14, left_panel.y + 388, 55, 24, lambda: _adj_offset(-5.0), "ghost")
+                b_off_p5 = Button("+5px", 74, left_panel.y + 388, 55, 24, lambda: _adj_offset(5.0), "ghost")
+                b_off_m1 = Button("-1px", 134, left_panel.y + 388, 55, 24, lambda: _adj_offset(-1.0), "ghost")
+                b_off_p1 = Button("+1px", 194, left_panel.y + 388, 55, 24, lambda: _adj_offset(1.0), "ghost")
+                b_off_auto = Button("🪄 Auto Detect Contact Line", 14, left_panel.y + 416, 252, 26, _auto_detect_offset, "primary")
 
                 b_off_m5.draw(self.surf, self.sf); b_off_p5.draw(self.surf, self.sf)
                 b_off_m1.draw(self.surf, self.sf); b_off_p1.draw(self.surf, self.sf)
@@ -3025,7 +3088,7 @@ class App:
             b_dup = Button("📋 Duplicate (Ctrl+D)", 14, left_panel.bottom - 95, 252, 36, self.duplicate_selected_prop, "primary")
             b_del = Button("🗑 Delete Prop (Delete)", 14, left_panel.bottom - 50, 252, 38, self.delete_selected_prop, "danger")
             b_dup.draw(self.surf, self.f); b_del.draw(self.surf, self.f)
-            self._s5b += [b_px_m, b_px_p, b_py_m, b_py_p, b_sc_m, b_sc_p, b_sc1, b_sc2, b_sc3, b_sc4, b_l_m, b_l_p, b_col_type, b_dup, b_del]
+            self._s5b += [b_px_m, b_px_p, b_py_m, b_py_p, b_sc_m, b_sc_p, b_sc1, b_sc2, b_sc3, b_sc4, b_l_m, b_l_p, b_fg, b_col_type, b_dup, b_del]
 
         else:
             hdr = self.tf.render("5-Layer Environment Engine", True, ACCENT)
@@ -3270,15 +3333,15 @@ class App:
         return -1
 
     def _next_id(self) -> int:
-        numeric_ids: list[int] = []
+        numeric_ids = []
         for e in self.pending:
-            if not isinstance(e, dict):
+            eid = e.get("id")
+            if isinstance(eid, bool):
                 continue
-            val = e.get("id")
-            if isinstance(val, int) and not isinstance(val, bool):
-                numeric_ids.append(val)
-            elif isinstance(val, str) and val.isdigit():
-                numeric_ids.append(int(val))
+            if isinstance(eid, int):
+                numeric_ids.append(eid)
+            elif isinstance(eid, str) and eid.isdigit():
+                numeric_ids.append(int(eid))
         return max(numeric_ids, default=0) + 1
 
     def _init_s3(self, etype: str, idx: int):

@@ -102,6 +102,7 @@ class EnvironmentProp:
         is_ground: bool = True,
         collision_type: str = "solid",  # "solid", "platform", "deco"
         collision_offset_y: float = 0.0,
+        in_front: Optional[bool] = None,
     ) -> None:
         self.texture_path = texture_path
         self.slice_rect = slice_rect
@@ -115,6 +116,7 @@ class EnvironmentProp:
         self.is_ground = is_ground
         self.collision_type = collision_type
         self.collision_offset_y = collision_offset_y
+        self.in_front = in_front
 
         raw_texture = AssetManager.get_texture(texture_path)
         if slice_rect and len(slice_rect) == 4:
@@ -139,6 +141,12 @@ class EnvironmentProp:
 
         self.width = self.image.get_width()
         self.height = self.image.get_height()
+
+    def is_in_front(self) -> bool:
+        """Determines if prop renders in foreground in front of player and entities."""
+        if self.in_front is not None:
+            return bool(self.in_front)
+        return self.layer_index >= 7
 
     def draw(self, surface: pg.Surface, cam_x: float = 0.0, cam_y: float = 0.0) -> None:
         draw_x = int(self.pos_x - cam_x * self.parallax_ratio)
@@ -178,6 +186,7 @@ class EnvironmentProp:
             "is_ground": self.is_ground,
             "collision_type": self.collision_type,
             "collision_offset_y": self.collision_offset_y,
+            "in_front": self.is_in_front(),
         }
 
 
@@ -452,6 +461,7 @@ class EnvironmentManager:
                     is_ground=pdata.get("is_ground", True),
                     collision_type=pdata.get("collision_type", "solid"),
                     collision_offset_y=pdata.get("collision_offset_y", 0.0),
+                    in_front=pdata.get("in_front", pdata.get("is_foreground", None)),
                 ))
             except Exception:
                 pass
@@ -499,8 +509,21 @@ class EnvironmentManager:
         min_layer: Optional[int] = None,
         max_layer: Optional[int] = None,
         clear_bg: bool = True,
+        foreground_pass: Optional[bool] = None,
     ) -> None:
-        """Draw sky followed by explicit layers in strict back-to-front depth order."""
+        """Draw sky followed by explicit layers in strict back-to-front depth order.
+        
+        If foreground_pass is False, renders background terrain (layers <= 6) and props where is_in_front() is False.
+        If foreground_pass is True, renders foreground layers (layers >= 7) and props where is_in_front() is True.
+        """
+        if foreground_pass is True:
+            clear_bg = False
+            if min_layer is None:
+                min_layer = 7
+        elif foreground_pass is False:
+            if max_layer is None:
+                max_layer = 6
+
         if clear_bg and (min_layer is None or min_layer <= 1):
             surface.fill((20, 20, 32))
             if self.sky:
@@ -508,6 +531,10 @@ class EnvironmentManager:
 
         props_by_layer: dict[int, list[EnvironmentProp]] = {}
         for prop in self.props:
+            if foreground_pass is True and not prop.is_in_front():
+                continue
+            if foreground_pass is False and prop.is_in_front():
+                continue
             props_by_layer.setdefault(prop.layer_index, []).append(prop)
 
         all_indices = sorted(set(self.layer_stacks.keys()) | set(props_by_layer.keys()))
