@@ -16,3 +16,5 @@ assets/audio/voiceovers/cache/
 test_pitch.mp3
 assets/audio/voiceovers/*.wav
 tools/chatterbox-venv/
+screenshot_*.png
+*env_production*

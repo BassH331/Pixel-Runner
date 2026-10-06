@@ -153,7 +153,12 @@
                 "high": "You already belong to him. Stop pretending otherwise."
             },
             "is_final": false,
-            "watsonx_taunt": false
+            "watsonx_taunt": false,
+            "combat_taunts": [
+                "Crush the worm!",
+                "His mark will not shield you from my stone!",
+                "Tear the runner limb from limb!"
+            ]
         },
         "BloodZombie": {
             "role": "corrupted_soul",
@@ -169,7 +174,14 @@
                 "high": "You are already further gone than I was at this point. I am sorry."
             },
             "is_final": false,
-            "watsonx_taunt": false
+            "watsonx_taunt": false,
+            "combat_taunts": [
+                "Come on, pretty boy, bleed for me! Don't tell me you're getting winded already!",
+                "That all you got, you milk-livered bastard? My dead nan swung harder than that!",
+                "By the black rot, you're a clumsy piece of shit. Stand still and let me gut ya!",
+                "Ha! Call that a guard? Pure shite! I\u2019ll carve that smug look right off your mug!",
+                "Thou callest that a swing?! Come closer, whelp, my teeth are thirsty!"
+            ]
         },
         "FireWizard": {
             "role": "corrupted_paragon",
@@ -184,7 +196,11 @@
                 "high": "We are the same, you and I. That is why this hurts."
             },
             "is_final": false,
-            "watsonx_taunt": false
+            "watsonx_taunt": false,
+            "combat_taunts": [
+                "Burn, runner! Feel the purity of agony!",
+                "Cinder and ash! That is all we leave behind!"
+            ]
         },
         "DarkRonin": {
             "role": "corrupted_paragon",
@@ -200,7 +216,10 @@
                 "high": "You are already his. This fight is a formality. I hope you understand what you've become."
             },
             "is_final": true,
-            "watsonx_taunt": true
+            "watsonx_taunt": true,
+            "combat_taunts": [
+                "You swing like a desperate dog!"
+            ]
         }
     },
     "corruption": {

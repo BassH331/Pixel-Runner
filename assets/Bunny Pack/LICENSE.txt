@@ -1,0 +1,18 @@
+Asset Land Usage License
+
+Copyright (c) 2026 Asset Land
+
+You are free to:
+- Use these assets in personal and commercial projects
+- Modify the assets to fit your project
+
+You may not:
+- Redistribute or resell the assets as is, in standalone files or asset packs
+- Claim the assets as your own
+
+Credit:
+Please credit as:
+"Assets by Asset Land"
+
+These game assets were created in Aseprite, and if you have any further questions or concerns you can always reach out to me personally using the email here at assetlandpark@gmail.com. 
+

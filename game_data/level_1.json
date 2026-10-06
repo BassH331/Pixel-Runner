@@ -282,13 +282,18 @@
             "params": {
                 "npc_type": "generic",
                 "title": "The Sealed Book",
-                "text": "",
+                "text": "Those that come into this forest change from the very first kill, and their very first encounter with the creatures of this forest.",
                 "radius": 80,
                 "sprite_dir": "assets/graphics/magic_book_single",
                 "scale": 1.5,
                 "is_magic_book": true,
                 "is_intro_npc": false,
-                "voice_line_id": ""
+                "voice_line_id": "",
+                "combat_taunts": [
+                    "Flesh and bone walk these woods, yet you carry mere iron. Let us see how long your pulse lasts.",
+                    "The blood of the forest is on your hands. There is no turning back now, wanderer.",
+                    "Each strike feeds the tome. Your iron is merely our quill."
+                ]
             }
         },
         {
@@ -321,7 +326,12 @@
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0,
-                "voice_line_id": "evil_eye_bones"
+                "voice_line_id": "evil_eye_bones",
+                "combat_taunts": [
+                    "Yes, tear them apart! Why fight as a mortal when you can be a god?",
+                    "Let them feel your wrath! Use my shadow!",
+                    "Don't hold back. Give in to the void."
+                ]
             }
         },
         {
@@ -335,7 +345,11 @@
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0,
-                "voice_line_id": "evil_eye_gatekeeper"
+                "voice_line_id": "evil_eye_gatekeeper",
+                "combat_taunts": [
+                    "Harvest his life force! Gorge upon his spirit!",
+                    "Let no marrow go unconsumed!"
+                ]
             }
         },
         {
@@ -349,7 +363,11 @@
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Moonstone_Keeper Eldermoon_Grove - By SUCART/Idle-MoonstoneKeeper-SUCART/No BG",
                 "scale": 2.0,
-                "voice_line_id": "moonstone_keeper_warning"
+                "voice_line_id": "moonstone_keeper_warning",
+                "combat_taunts": [
+                    "Steel yourself, runner. Truth is sharper than blades.",
+                    "Candora's light judges all who step across this grove."
+                ]
             }
         },
         {
