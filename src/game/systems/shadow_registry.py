@@ -169,7 +169,7 @@ class ShadowRegistry:
     @classmethod
     def save_profile(cls, key: str, profile: ShadowProfile) -> bool:
         """
-        Save or update a shadow profile in game_data/shadow_config.json.
+        Save or update a shadow profile in game_data/shadow_config.json atomically.
         """
         cls._check_reload()
         norm_key = cls.normalize_key(key)
@@ -178,14 +178,12 @@ class ShadowRegistry:
         # Prepare full dictionary for disk serialization
         data = {k: v.to_dict() for k, v in cls._cache.items()}
 
-        os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
         try:
-            with open(CONFIG_PATH, "w") as f:
-                if fcntl:
-                    fcntl.flock(f, fcntl.LOCK_EX)
-                json.dump(data, f, indent=4)
-            cls._last_mtime = os.path.getmtime(CONFIG_PATH)
-            return True
+            from src.game.utils.atomic_save import atomic_merge_json
+            success, _ = atomic_merge_json(CONFIG_PATH, data, indent=4)
+            if success and os.path.exists(CONFIG_PATH):
+                cls._last_mtime = os.path.getmtime(CONFIG_PATH)
+            return success
         except Exception as e:
             print(f"[ShadowRegistry] Failed to save {CONFIG_PATH}: {e}")
             return False

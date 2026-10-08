@@ -42,21 +42,13 @@ def generate_lock_data(config_dict: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 def save_config_and_lock(config_dict: Dict[str, Any], config_path: str, lock_path: str) -> None:
-    """Save configuration JSON and its corresponding lock file."""
-    # Ensure parent directories exist
-    os.makedirs(os.path.dirname(config_path), exist_ok=True)
-    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
-    
+    """Save configuration JSON and its corresponding lock file atomically."""
     # Generate lock first (verifies all files exist)
     lock_data = generate_lock_data(config_dict)
     
-    # Save config
-    with open(config_path, "w") as f:
-        json.dump(config_dict, f, indent=4)
-        
-    # Save lock
-    with open(lock_path, "w") as f:
-        json.dump(lock_data, f, indent=4)
+    from src.game.utils.atomic_save import atomic_write_json
+    atomic_write_json(config_path, config_dict, indent=4)
+    atomic_write_json(lock_path, lock_data, indent=4)
 
 def verify_config_integrity(config_path: str, lock_path: str) -> Tuple[bool, str]:
     """

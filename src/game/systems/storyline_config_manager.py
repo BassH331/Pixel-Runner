@@ -16,7 +16,8 @@ class StorylineConfigManager:
     _instance: Optional["StorylineConfigManager"] = None
 
     def __init__(self, config_path: str = CONFIG_PATH):
-        StorylineConfigManager._instance = self
+        if StorylineConfigManager._instance is None or config_path == CONFIG_PATH:
+            StorylineConfigManager._instance = self
         self.config_path = config_path
         self._last_mtime: float = 0.0
         self.data: Dict[str, Any] = {}
@@ -62,21 +63,16 @@ class StorylineConfigManager:
         return False
 
     def save_config(self, new_data: Dict[str, Any]) -> bool:
-        """Save configuration back to JSON with automatic backup creation."""
+        """Save configuration back to JSON atomically with validated backup creation."""
         try:
-            # Backup existing file if present
-            if os.path.exists(self.config_path):
-                backup_path = f"{self.config_path}.backup_{int(time.time())}"
-                with open(self.config_path, "r", encoding="utf-8") as src, open(backup_path, "w", encoding="utf-8") as dst:
-                    dst.write(src.read())
-
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                json.dump(new_data, f, indent=2)
-
-            self.data = new_data
-            self._last_mtime = os.path.getmtime(self.config_path)
-            print(f"[StorylineConfigManager] Configuration saved to {self.config_path}")
-            return True
+            from src.game.utils.atomic_save import atomic_merge_json
+            success, merged = atomic_merge_json(self.config_path, new_data, indent=2)
+            if success:
+                self.data = merged
+                self._last_mtime = os.path.getmtime(self.config_path) if os.path.exists(self.config_path) else time.time()
+                print(f"[StorylineConfigManager] Configuration saved to {self.config_path}")
+                return True
+            return False
         except Exception as e:
             print(f"[StorylineConfigManager] Error saving configuration: {e}")
             return False

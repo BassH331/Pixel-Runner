@@ -47,9 +47,8 @@ def load_manifest():
 
 
 def save_manifest(manifest):
-    os.makedirs(os.path.dirname(MANIFEST_PATH), exist_ok=True)
-    with open(MANIFEST_PATH, "w") as f:
-        json.dump(manifest, f, indent=2)
+    from src.game.utils.atomic_save import atomic_write_json
+    atomic_write_json(MANIFEST_PATH, manifest, indent=2)
 
 
 def get_env_status():

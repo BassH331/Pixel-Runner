@@ -402,13 +402,13 @@ class PowerIconsEditor:
         return self._default_config()
 
     def save_config(self):
-        os.makedirs("game_data", exist_ok=True)
-        if os.path.exists(CONFIG_PATH):
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            shutil.copy2(CONFIG_PATH, f"game_data/power_icons_config.backup_{ts}.json")
-        with open(CONFIG_PATH, "w") as f:
-            json.dump(self.config, f, indent=2)
-        self.toast.show("✓ Saved successfully!", C_GREEN)
+        from src.game.utils.atomic_save import atomic_merge_json
+        success, merged = atomic_merge_json(CONFIG_PATH, self.config, indent=2)
+        if success:
+            self.config = merged
+            self.toast.show("✓ Saved successfully!", C_GREEN)
+        else:
+            self.toast.show("❌ Save failed!", (200, 50, 50))
 
     # ── Widget construction ────────────────────────────────────────────────────
 

@@ -809,10 +809,13 @@ class BossEditorApp:
         self.presets_data[str(self.active_preset_slot)] = current_config
         
         try:
-            os.makedirs(os.path.dirname(self.presets_path), exist_ok=True)
-            with open(self.presets_path, "w") as f:
-                json.dump(self.presets_data, f, indent=4)
-            self.toast_message = f"Saved to Preset {self.active_preset_slot}!"
+            from src.game.utils.atomic_save import atomic_merge_json
+            success, merged = atomic_merge_json(self.presets_path, self.presets_data, indent=4)
+            if success:
+                self.presets_data = merged
+                self.toast_message = f"Saved to Preset {self.active_preset_slot}!"
+            else:
+                self.toast_message = "Error: Atomic Save Failed"
             self.toast_timer = 2.0
         except Exception as e:
             self.toast_message = f"Error: {e}"

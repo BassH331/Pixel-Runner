@@ -221,26 +221,23 @@ class NotificationConfigManager:
         return False
 
     def save_config(self, new_data: Dict[str, Any]) -> bool:
-        """Save configuration with automatic timestamped backup."""
+        """Save configuration atomically with validated backup creation."""
         try:
-            if os.path.exists(self.config_path):
-                backup_path = f"{self.config_path}.backup_{int(time.time())}"
-                with open(self.config_path, "r", encoding="utf-8") as src, open(backup_path, "w", encoding="utf-8") as dst:
-                    dst.write(src.read())
-
-            self._save_to_disk(new_data)
-            self.data = json.loads(json.dumps(new_data))
-            self._last_mtime = os.path.getmtime(self.config_path)
-            self.revision += 1
-            return True
+            from src.game.utils.atomic_save import atomic_merge_json
+            success, merged = atomic_merge_json(self.config_path, new_data, indent=4)
+            if success:
+                self.data = merged
+                self._last_mtime = os.path.getmtime(self.config_path) if os.path.exists(self.config_path) else time.time()
+                self.revision += 1
+                return True
+            return False
         except Exception as e:
             print(f"[NotificationConfigManager] Failed to save {self.config_path}: {e}")
             return False
 
     def _save_to_disk(self, data: Dict[str, Any]) -> None:
-        os.makedirs(os.path.dirname(os.path.abspath(self.config_path)), exist_ok=True)
-        with open(self.config_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
+        from src.game.utils.atomic_save import atomic_write_json
+        atomic_write_json(self.config_path, data, indent=4)
 
     def apply_preset(self, preset_key: str) -> bool:
         """Apply a curated visual theme preset."""

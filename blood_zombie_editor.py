@@ -582,25 +582,14 @@ class BloodZombieEditorApp:
 
         self.config["frame_offsets"] = self.frame_offsets
 
-        # Create backup file first
-        if os.path.exists(self.config_path):
-            timestamp = time.strftime("%Y%m%d_%H%M%S")
-            backup_path = f"game_data/enemy_blood_zombie_config.backup_{timestamp}.json"
-            try:
-                with open(self.config_path, "r", encoding="utf-8") as src, open(backup_path, "w", encoding="utf-8") as dst:
-                    dst.write(src.read())
-            except Exception as e:
-                print(f"Backup warning: {e}")
-
-        # Write to app's configured config_path directly
+        # Save atomically with validated rolling backup creation and disk merge
         try:
-            parent_dir = os.path.dirname(self.config_path)
-            if parent_dir:
-                os.makedirs(parent_dir, exist_ok=True)
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                json.dump(self.config, f, indent=2)
+            from src.game.utils.atomic_save import atomic_merge_json
+            success, merged = atomic_merge_json(self.config_path, self.config, indent=2)
+            if success:
+                self.config = merged
         except Exception as e:
-            print(f"Direct file write warning: {e}")
+            print(f"Direct atomic file write warning: {e}")
 
         # Write clean JSON config and sync to RAM cache, SQLite, and cloud API
         try:

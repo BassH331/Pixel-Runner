@@ -118,10 +118,8 @@ def load_config() -> dict:
 
 def save_config(cfg: dict) -> bool:
     try:
-        os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
-        with open(CONFIG_PATH, "w") as f:
-            json.dump(cfg, f, indent=2)
-        return True
+        from src.game.utils.atomic_save import atomic_write_json
+        return atomic_write_json(CONFIG_PATH, cfg, indent=2)
     except Exception as e:
         print(f"[Cutscene Editor] Error saving config: {e}")
         return False

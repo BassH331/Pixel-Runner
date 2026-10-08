@@ -112,15 +112,11 @@ class HitboxRegistry:
 
     @classmethod
     def save_all(cls) -> None:
-        """Persists the current cached registry configuration to JSON securely using an exclusive lock."""
-        os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+        """Persists the current cached registry configuration to JSON atomically."""
         try:
+            from src.game.utils.atomic_save import atomic_write_json
             data = {name: asdict(margins) for name, margins in cls._cached_config.items()}
-            with open(CONFIG_PATH, "w") as f:
-                # Acquire exclusive lock for database safety/consistency
-                if fcntl:
-                    fcntl.flock(f, fcntl.LOCK_EX)
-                json.dump(data, f, indent=4)
+            atomic_write_json(CONFIG_PATH, data, indent=4)
         except Exception as e:
             print(f"Error saving hitbox configuration to {CONFIG_PATH}: {e}")
 
