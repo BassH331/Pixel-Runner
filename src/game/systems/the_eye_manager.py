@@ -1182,18 +1182,25 @@ class TheEyePerceptionManager:
         if node:
             if s.category == "encounter":
                 node.conversations["primary"] = s.text
-            elif s.category == "combat_taunt" and s.list_idx is not None:
-                taunts = node.conversations.get("combat_taunts", [])
-                if 0 <= s.list_idx < len(taunts):
+            elif s.category == "combat_taunt":
+                taunts = node.conversations.setdefault("combat_taunts", [])
+                if s.list_idx is not None and s.list_idx < len(taunts):
                     taunts[s.list_idx] = s.text
-            elif s.category == "pre_fight" and s.list_idx is not None:
-                pfs = node.conversations.get("pre_fight", [])
-                if 0 <= s.list_idx < len(pfs):
+                elif s.text not in taunts:
+                    taunts.append(s.text)
+            elif s.category == "pre_fight":
+                pfs = node.conversations.setdefault("pre_fight", [])
+                if s.list_idx is not None and s.list_idx < len(pfs):
                     pfs[s.list_idx] = s.text
+                elif s.text not in pfs:
+                    pfs.append(s.text)
             elif s.category == "death_line":
                 node.conversations["death_line"] = s.text
             elif s.category.startswith("corruption_"):
                 node.conversations[s.category] = s.text
+            elif s.category == "relic":
+                if "relic_branch" in node.conversations and isinstance(node.conversations["relic_branch"], dict):
+                    node.conversations["relic_branch"]["text"] = s.text
 
         return True
 
@@ -1326,7 +1333,9 @@ class TheEyePerceptionManager:
         updates only existing entities without resurrecting deleted ones, and creates non-empty backups.
         """
         try:
-            # 1. Update storyline_data for boss dialogues & relics
+            from src.game.utils.atomic_save import atomic_write_json
+
+            # 1. Update storyline_data for boss dialogues, enemy taunts & relics
             if os.path.exists(self.storyline_path):
                 try:
                     with open(self.storyline_path, "r", encoding="utf-8") as f:
@@ -1338,6 +1347,10 @@ class TheEyePerceptionManager:
 
             if "boss_dialogue" not in disk_storyline:
                 disk_storyline["boss_dialogue"] = {}
+            if "enemy_taunts" not in disk_storyline:
+                disk_storyline["enemy_taunts"] = {}
+            if "relics" not in disk_storyline:
+                disk_storyline["relics"] = {}
 
             for node in self.nodes:
                 if node.source_file == "storyline" and node.source_key:
@@ -1346,6 +1359,8 @@ class TheEyePerceptionManager:
                         if boss_key not in disk_storyline["boss_dialogue"]:
                             disk_storyline["boss_dialogue"][boss_key] = {}
                         bd = disk_storyline["boss_dialogue"][boss_key]
+                        if "primary" in node.conversations:
+                            bd["primary"] = node.conversations["primary"]
                         if "pre_fight" in node.conversations:
                             bd["pre_fight"] = node.conversations["pre_fight"]
                         if "death_line" in node.conversations:
@@ -1354,19 +1369,31 @@ class TheEyePerceptionManager:
                             bd["combat_taunts"] = node.conversations["combat_taunts"]
                         if "corruption_variants" not in bd:
                             bd["corruption_variants"] = {}
-                        bd["corruption_variants"]["low"] = node.conversations.get("corruption_low", "")
-                        bd["corruption_variants"]["mid"] = node.conversations.get("corruption_mid", "")
-                        bd["corruption_variants"]["high"] = node.conversations.get("corruption_high", "")
+                        bd["corruption_variants"]["low"] = node.conversations.get("corruption_low", bd["corruption_variants"].get("low", ""))
+                        bd["corruption_variants"]["mid"] = node.conversations.get("corruption_mid", bd["corruption_variants"].get("mid", ""))
+                        bd["corruption_variants"]["high"] = node.conversations.get("corruption_high", bd["corruption_variants"].get("high", ""))
+
+                    elif node.source_key.startswith("enemy_taunts."):
+                        enemy_k = node.source_key.split(".", 1)[1]
+                        if enemy_k not in disk_storyline["enemy_taunts"]:
+                            disk_storyline["enemy_taunts"][enemy_k] = {}
+                        et = disk_storyline["enemy_taunts"][enemy_k]
+                        if "primary" in node.conversations:
+                            et["primary"] = node.conversations["primary"]
+                        if "combat_taunts" in node.conversations:
+                            et["combat_taunts"] = node.conversations["combat_taunts"]
+                        if "death_line" in node.conversations:
+                            et["death_line"] = node.conversations["death_line"]
 
                     elif node.source_key.startswith("relics."):
                         relic_k = node.source_key.split(".", 1)[1]
-                        if "relics" in disk_storyline and relic_k in disk_storyline["relics"]:
+                        if relic_k in disk_storyline["relics"]:
                             r_entry = disk_storyline["relics"][relic_k]
                             r_entry["memory_text"] = node.conversations.get("primary", r_entry.get("memory_text", ""))
                             r_entry["lore"] = node.conversations.get("lore", r_entry.get("lore", ""))
 
             self.storyline_data = disk_storyline
-            self._save_with_backup(self.storyline_path, self.storyline_data)
+            atomic_write_json(self.storyline_path, self.storyline_data, indent=2)
 
             # 2. Update level_data for world_events & entities FRESH from disk
             if os.path.exists(self.level_path):
@@ -1380,32 +1407,53 @@ class TheEyePerceptionManager:
 
             world_events = disk_level.get("world_events", [])
             entities = disk_level.get("entities", [])
+            all_entities = world_events + entities
+
             for node in self.nodes:
                 if node.source_file == "level_1" and node.source_key:
-                    if node.source_key.startswith("entities.") or node.source_key.startswith("world_events."):
-                        ent_id = node.source_key.split(".", 1)[1]
-                        for ent in (world_events + entities):
-                            is_match = (str(ent.get("id")) == ent_id)
-                            if not is_match and ent_id == "magic_book" and (ent.get("params", {}).get("is_magic_book") or ent.get("is_magic_book") or str(ent.get("id")) == "10"):
-                                is_match = True
-                            if is_match:
-                                params = ent.get("params", {})
-                                if "text" in params and "primary" in node.conversations:
-                                    params["text"] = node.conversations["primary"]
-                                if "dialogue" in params:
-                                    d_block = params["dialogue"]
-                                    if "default" in d_block:
-                                        d_block["default"] = node.conversations["primary"]
-                                    if "corruption_variants" in d_block:
-                                        cv = d_block["corruption_variants"]
-                                        cv["low"] = node.conversations.get("corruption_low", cv.get("low", ""))
-                                        cv["mid"] = node.conversations.get("corruption_mid", cv.get("mid", ""))
-                                        cv["high"] = node.conversations.get("corruption_high", cv.get("high", ""))
-                                if "combat_taunts" in node.conversations:
-                                    params["combat_taunts"] = node.conversations["combat_taunts"]
+                    ent_id_str = node.source_key.split(".", 1)[1] if "." in node.source_key else node.source_key
+                    
+                    matched_ent = None
+                    for ent in all_entities:
+                        e_id = str(ent.get("id"))
+                        e_title = str(ent.get("params", {}).get("title", ""))
+                        
+                        if e_id == ent_id_str:
+                            matched_ent = ent
+                            break
+                        elif ent_id_str == "magic_book" and (ent.get("params", {}).get("is_magic_book") or e_id == "10"):
+                            matched_ent = ent
+                            break
+                        elif ent_id_str in ("npc_void_scribe", "void_scribe") and ("Void Scribe" in e_title or e_id == "11"):
+                            matched_ent = ent
+                            break
+                        elif ent_id_str in ("npc_candora_messenger", "candora") and ("Candora" in e_title or e_id == "13"):
+                            matched_ent = ent
+                            break
+                        elif ent_id_str in ("npc_previous_runner", "previous_runner") and ("Previous Runner" in e_title or e_id == "12"):
+                            matched_ent = ent
+                            break
+
+                    if matched_ent:
+                        params = matched_ent.setdefault("params", {})
+                        if "primary" in node.conversations:
+                            params["text"] = node.conversations["primary"]
+                        if "dialogue" in params:
+                            d_block = params["dialogue"]
+                            if "default" in d_block:
+                                d_block["default"] = node.conversations["primary"]
+                            if "corruption_variants" in d_block:
+                                cv = d_block["corruption_variants"]
+                                cv["low"] = node.conversations.get("corruption_low", cv.get("low", ""))
+                                cv["mid"] = node.conversations.get("corruption_mid", cv.get("mid", ""))
+                                cv["high"] = node.conversations.get("corruption_high", cv.get("high", ""))
+                        if "combat_taunts" in node.conversations:
+                            params["combat_taunts"] = node.conversations["combat_taunts"]
+                        if "death_line" in node.conversations:
+                            params["death_line"] = node.conversations["death_line"]
 
             self.level_data = disk_level
-            self._save_with_backup(self.level_path, self.level_data)
+            atomic_write_json(self.level_path, self.level_data, indent=4)
 
             self.revision += 1
             return True, "Story tree perception successfully saved with timestamped backups!"
@@ -1413,40 +1461,5 @@ class TheEyePerceptionManager:
             return False, f"Failed to save story tree perception: {e}"
 
     def _save_with_backup(self, file_path: str, data: Dict[str, Any]) -> None:
-        if not file_path or not data:
-            return
-        os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
-        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-            backup_path = f"{file_path}.backup_{int(time.time())}"
-            try:
-                with open(file_path, "r", encoding="utf-8") as src:
-                    content = src.read()
-                if content.strip():
-                    with open(backup_path, "w", encoding="utf-8") as dst:
-                        dst.write(content)
-            except Exception:
-                pass
-
-            # Prune old backups, retain at most 5 newest non-empty backups
-            try:
-                dirname = os.path.dirname(os.path.abspath(file_path))
-                basename = os.path.basename(file_path)
-                backups = sorted([
-                    os.path.join(dirname, f)
-                    for f in os.listdir(dirname)
-                    if f.startswith(f"{basename}.backup_")
-                ], key=os.path.getmtime)
-                while len(backups) > 5:
-                    old_b = backups.pop(0)
-                    try:
-                        os.remove(old_b)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
-        # Atomic transactional write: write to temp file then replace
-        tmp_path = f"{file_path}.tmp_{os.getpid()}"
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-        os.replace(tmp_path, file_path)
+        from src.game.utils.atomic_save import atomic_write_json
+        atomic_write_json(file_path, data, indent=4)
