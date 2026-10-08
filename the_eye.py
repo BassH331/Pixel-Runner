@@ -152,7 +152,7 @@ class AnimatedAllSeeingEye:
 
 # ── Interactive UI Components ─────────────────────────────────────────────────
 class EyeButton:
-    """Clickable styled button with hover and active states."""
+    """Clickable styled button with hover, click press animation, and success flash states."""
 
     def __init__(
         self,
@@ -169,20 +169,51 @@ class EyeButton:
         self.border_color = border_color
         self.hovered = False
         self.is_active = False
+        self.pressed_timer = 0.0
+        self.success_timer = 0.0
+        self.success_text = ""
+
+    def trigger_success(self, msg: str = "", duration: float = 2.0) -> None:
+        """Trigger glowing visual feedback state on button."""
+        self.success_timer = duration
+        self.success_text = msg
+
+    def update(self, dt: float) -> None:
+        """Advance animation timers."""
+        if self.pressed_timer > 0:
+            self.pressed_timer = max(0.0, self.pressed_timer - dt)
+        if self.success_timer > 0:
+            self.success_timer = max(0.0, self.success_timer - dt)
 
     def handle_event(self, event: pg.event.Event) -> bool:
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
+                self.pressed_timer = 0.15
                 return True
         return False
 
-    def draw(self, surface: pg.Surface, font: pg.font.Font) -> None:
+    def draw(self, surface: pg.Surface, font: pg.font.Font, dt: float = 0.0) -> None:
+        if dt > 0:
+            self.update(dt)
+
         m_pos = pg.mouse.get_pos()
         self.hovered = self.rect.collidepoint(m_pos)
 
-        if self.is_active:
+        # Offset rect for press animation (2px down when pressed)
+        draw_rect = self.rect.move(0, 2) if self.pressed_timer > 0 else self.rect.copy()
+
+        if self.pressed_timer > 0:
+            bg_col = (35, 140, 75)
+            bdr_col = (0, 255, 160)
+            txt_col = (255, 255, 255)
+        elif self.success_timer > 0:
+            bg_col = (20, 130, 65)
+            bdr_col = (0, 255, 180)
+            txt_col = (255, 255, 255)
+        elif self.is_active:
             bg_col = C_SEL_BG
             bdr_col = C_CYAN
+            txt_col = self.text_color
         elif self.hovered:
             bg_col = (
                 min(255, self.color_theme[0] + 25),
@@ -190,15 +221,20 @@ class EyeButton:
                 min(255, self.color_theme[2] + 35),
             )
             bdr_col = C_BORDER_HI
+            txt_col = self.text_color
         else:
             bg_col = self.color_theme
             bdr_col = self.border_color
+            txt_col = self.text_color
 
-        pg.draw.rect(surface, bg_col, self.rect, border_radius=6)
-        pg.draw.rect(surface, bdr_col, self.rect, width=1, border_radius=6)
+        pg.draw.rect(surface, bg_col, draw_rect, border_radius=6)
+        bdr_width = 2 if (self.pressed_timer > 0 or self.success_timer > 0) else 1
+        pg.draw.rect(surface, bdr_col, draw_rect, width=bdr_width, border_radius=6)
 
-        txt_surf = font.render(self.text, True, self.text_color)
-        surface.blit(txt_surf, txt_surf.get_rect(center=self.rect.center))
+        display_text = self.success_text if (self.success_timer > 0 and self.success_text) else self.text
+        txt_surf = font.render(display_text, True, txt_col)
+        surface.blit(txt_surf, txt_surf.get_rect(center=draw_rect.center))
+
 
 
 class MultiLineTextInput:
@@ -1121,6 +1157,10 @@ class TheEyeApp:
         self.status_msg = "3D Story Tree Ready · Drag to Orbit in 3D · Click any node to inspect properties."
         self.status_timer = 0.0
 
+        # Save Confirmation Toast Banner
+        self.save_toast_msg = ""
+        self.save_toast_timer = 0.0
+
         # Live Game Observer Bridge
         self.live_state_path = os.path.join("scratch", "the_eye_live_state.json")
         self.is_game_connected = False
@@ -1313,7 +1353,15 @@ class TheEyeApp:
         """Persist all speech and taunt modifications to disk with backups."""
         self._commit_editor_to_speech()
         success, msg = self.mgr.save_perception()
-        self.status_msg = f"{msg}"
+        if success:
+            self.btn_save.trigger_success("✓ SAVED!", duration=2.5)
+            self.save_toast_msg = "✓ PERCEPTION & DIALOGUE SAVED TO DISK!"
+            self.save_toast_timer = 3.5
+            self.status_msg = f"✓ SUCCESS: {msg}"
+        else:
+            self.save_toast_msg = f"❌ SAVE FAILED: {msg}"
+            self.save_toast_timer = 4.0
+            self.status_msg = f"❌ ERROR: {msg}"
         self.status_timer = 4.5
 
     def revert_selected_node(self) -> None:
@@ -1466,6 +1514,26 @@ class TheEyeApp:
         if self.status_timer > 0:
             self.status_timer -= dt
 
+        if self.save_toast_timer > 0:
+            self.save_toast_timer = max(0.0, self.save_toast_timer - dt)
+
+        # Update button animation timers
+        self.btn_save.update(dt)
+        self.btn_revert.update(dt)
+        self.btn_mode_3d.update(dt)
+        self.btn_mode_2d.update(dt)
+        self.btn_reset_cam.update(dt)
+        self.btn_orbit_toggle.update(dt)
+        self.btn_filter_all.update(dt)
+        self.btn_filter_taunt.update(dt)
+        self.btn_filter_dialogue.update(dt)
+        self.btn_type_dialogue.update(dt)
+        self.btn_type_taunt.update(dt)
+        self.btn_add_speech.update(dt)
+        self.btn_del_speech.update(dt)
+        for _, btn in self.cat_buttons:
+            btn.update(dt)
+
         # Pulse for beacon & live orbit tracking
         self.live_pulse = (self.live_pulse + dt * 3.5) % (2.0 * math.pi)
 
@@ -1509,8 +1577,33 @@ class TheEyeApp:
         # 4. Bottom Status Bar
         self._draw_status_bar()
 
+        # 5. Top-Center Save Confirmation Toast Banner
+        self._draw_save_toast_banner()
+
         if not self.headless:
             pg.display.flip()
+
+    def _draw_save_toast_banner(self) -> None:
+        if self.save_toast_timer <= 0 or not self.save_toast_msg:
+            return
+
+        toast_w = 480
+        toast_h = 38
+        toast_x = (self.sw - toast_w) // 2
+        toast_y = 10
+        toast_rect = pg.Rect(toast_x, toast_y, toast_w, toast_h)
+
+        toast_surf = pg.Surface((toast_w, toast_h), pg.SRCALPHA)
+        toast_surf.fill((10, 35, 20, 240))
+        pg.draw.rect(toast_surf, (0, 255, 160), toast_surf.get_rect(), width=2, border_radius=8)
+
+        is_error = "FAILED" in self.save_toast_msg or "ERROR" in self.save_toast_msg
+        text_col = (255, 80, 80) if is_error else (0, 255, 180)
+
+        txt_surf = self.f_badge.render(self.save_toast_msg, True, text_col)
+        toast_surf.blit(txt_surf, txt_surf.get_rect(center=(toast_w // 2, toast_h // 2)))
+
+        self.screen.blit(toast_surf, toast_rect)
 
     def _draw_header(self) -> None:
         hdr_rect = pg.Rect(0, 0, self.sw, 56)

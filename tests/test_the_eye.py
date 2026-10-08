@@ -357,6 +357,39 @@ def test_the_eye_live_observer_bridge_sync(tmp_path, monkeypatch):
         json.dump(stale_data, f)
 
     app._poll_live_game_state()
-    assert app.is_game_connected is False
+    assert not app.is_game_connected
+
+
+def test_the_eye_button_click_animation_and_save_toast():
+    """Verify EyeButton press timer, success trigger, and save toast confirmation banner."""
+    app = TheEyeApp(headless=True)
+
+    # 1. Test EyeButton click event
+    click_event = pg.event.Event(pg.MOUSEBUTTONDOWN, {"button": 1, "pos": (1150, 20)})
+    handled = app.btn_save.handle_event(click_event)
+    assert handled is True
+    assert app.btn_save.pressed_timer == 0.15
+
+    # 2. Advance time and draw frame during press state
+    app.update(0.05)
+    assert app.btn_save.pressed_timer > 0
+    app.draw()
+
+    # 3. Test save_changes triggers button success state and top banner toast
+    app.save_changes()
+    assert app.btn_save.success_timer > 0
+    assert app.btn_save.success_text == "✓ SAVED!"
+    assert app.save_toast_timer > 0
+    assert "✓ PERCEPTION & DIALOGUE SAVED TO DISK!" in app.save_toast_msg
+
+    # 4. Step frame and render toast banner
+    app.update(0.1)
+    app.draw()
+
+    # 5. Fast-forward past timers
+    app.update(4.0)
+    assert app.btn_save.success_timer == 0.0
+    assert app.save_toast_timer == 0.0
+
 
 

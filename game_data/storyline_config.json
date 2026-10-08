@@ -1,550 +1,567 @@
 {
-    "version": "1.0.0",
-    "relics": {
-        "shattered_gauntlet": {
-            "id": "shattered_gauntlet",
-            "title": "Shattered Gauntlet",
-            "name": "Shattered Gauntlet",
-            "subtitle": "The Defeat",
-            "category": "The Defeat",
-            "memory_text": "You fell on the battlefield. Your armor crushed. You were supposed to die here. Then, a voice offered you a second chance.",
-            "lore": "A gauntlet crushed into pieces \u2014 the last thing you wore before death took you. Andras found you here, broken and forgotten. He offered a hand. You took it.",
-            "icon_path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
-            "flashback_duration": 3.5
-        },
-        "herbalists_satchel": {
-            "id": "herbalists_satchel",
-            "title": "Tainted Sigil",
-            "category": "The Pact",
-            "memory_text": "The mark of Andras, Marquis of Discord. A burning brand on your flesh that gives you unholy speed, but drains your humanity.",
-            "icon_path": "assets/graphics/ui/relic_icon.png",
-            "flashback_duration": 3.5
-        },
-        "tainted_sigil": {
-            "id": "tainted_sigil",
-            "title": "Tainted Sigil",
-            "name": "Tainted Sigil",
-            "subtitle": "The Pact",
-            "category": "The Pact",
-            "memory_text": "The mark of Andras, Marquis of Discord. A burning brand on your flesh that gives you unholy speed, but drains your humanity.",
-            "lore": "The mark burned into your skin the moment you accepted. Not a scar \u2014 a seal. Andras's sigil does not fade. It only deepens.",
-            "icon_path": "assets/graphics/ui/relic_icon.png",
-            "flashback_duration": 3.5
-        },
-        "voragis_inkwell": {
-            "id": "voragis_inkwell",
-            "title": "Vial of Void Blood",
-            "category": "The Grooming",
-            "memory_text": "Andras doesn't want you to win. He wants you to rely on his power. Every time you transform, his grip on your soul tightens.",
-            "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
-            "flashback_duration": 3.5
-        },
-        "vial_of_void_blood": {
-            "id": "vial_of_void_blood",
-            "title": "Vial of Void Blood",
-            "name": "Vial of Void Blood",
-            "subtitle": "The Grooming",
-            "category": "The Grooming",
-            "memory_text": "Andras doesn't want you to win. He wants you to rely on his power. Every time you transform, his grip on your soul tightens.",
-            "lore": "Your blood runs darker now. This vial was left for you to find. A warning from someone who walked this path before you and did not return.",
-            "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
-            "flashback_duration": 3.5
-        },
-        "hollowed_ledger_page": {
-            "id": "hollowed_ledger_page",
-            "title": "Hollowed Vessel Ledger",
-            "name": "Hollowed Ledger Page",
-            "subtitle": "The Undead",
-            "category": "The Undead",
-            "memory_text": "A list of warriors who made this deal before you. Every single one was hollowed out, their bodies possessed by lesser demons.",
-            "lore": "A page torn from a ledger. Names listed in ink that smells of rot. You recognise none of them. But there is space left at the bottom for one more entry.",
-            "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
-            "flashback_duration": 3.5
-        },
-        "candoras_tear": {
-            "id": "candoras_tear",
-            "title": "Candora's Tear",
-            "name": "Candora's Tear",
-            "subtitle": "The Angel's Light",
-            "category": "The Angel's Light",
-            "memory_text": "A warm stone left at a ruined altar. A quiet reminder from the Moon Knight that someone is rooting for you to reject the demon.",
-            "lore": "A single crystallised tear from Candora's messenger. It burns cold in your palm. Something in you remembers what warmth felt like before the pact.",
-            "icon_path": "assets/graphics/ui/powerup_invincible.png",
-            "flashback_duration": 3.5
-        },
-        "amalgam_core": {
-            "id": "amalgam_core",
-            "title": "Amalgam Core",
-            "name": "Amalgam Core",
-            "subtitle": "The Prototype",
-            "category": "The Prototype",
-            "memory_text": "This monster was Andras's previous vessel - a horrible mix of human flesh and shadow power. It's what you will turn into.",
-            "lore": "The heart of what Andras intends you to become. Not a weapon. Not a warrior. A template. You are not the first runner. You are merely the closest to completion.",
-            "icon_path": "assets/graphics/ui/powerup_speed.png",
-            "flashback_duration": 3.5
-        }
+  "version": "1.0.0",
+  "relics": {
+    "shattered_gauntlet": {
+      "id": "shattered_gauntlet",
+      "title": "Shattered Gauntlet",
+      "name": "Shattered Gauntlet",
+      "subtitle": "The Defeat",
+      "category": "The Defeat",
+      "memory_text": "You fell on the battlefield. Your armor crushed. You were supposed to die here. Then, a voice offered you a second chance.",
+      "lore": "A gauntlet crushed into pieces — the last thing you wore before death took you. Andras found you here, broken and forgotten. He offered a hand. You took it.",
+      "icon_path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
+      "flashback_duration": 3.5
     },
-    "relic_boss_map": {
-        "GreenMonster": [
-            {
-                "relic_id": "shattered_gauntlet",
-                "corruption_delta": 8
-            }
-        ],
-        "Gatekeeper": [
-            {
-                "relic_id": "tainted_sigil",
-                "corruption_delta": 10
-            }
-        ],
-        "BloodZombie": [
-            {
-                "relic_id": "vial_of_void_blood",
-                "corruption_delta": 12
-            },
-            {
-                "relic_id": "hollowed_ledger_page",
-                "corruption_delta": 6
-            }
-        ],
-        "FireWizard": [
-            {
-                "relic_id": "candoras_tear",
-                "corruption_delta": -20
-            }
-        ],
-        "DarkRonin": [
-            {
-                "relic_id": "amalgam_core",
-                "corruption_delta": 15
-            },
-            {
-                "relic_id": "candoras_tear",
-                "corruption_delta": -20
-            }
-        ]
+    "herbalists_satchel": {
+      "id": "herbalists_satchel",
+      "title": "Tainted Sigil",
+      "category": "The Pact",
+      "memory_text": "The mark of Andras, Marquis of Discord. A burning brand on your flesh that gives you unholy speed, but drains your humanity.",
+      "icon_path": "assets/graphics/ui/relic_icon.png",
+      "flashback_duration": 3.5
     },
-    "boss_dialogue": {
-        "GreenMonster": {
-            "role": "soldier",
-            "pre_fight": [
-                "You should not have come this far.",
-                "My master's patience ends here."
-            ],
-            "death_line": "The gate... holds no longer...",
-            "corruption_variants": {
-                "low": "Still clean. Andras will enjoy breaking that.",
-                "mid": "You already carry the mark. Finish what you started.",
-                "high": "You are one of us. You just don't know it yet."
-            },
-            "is_final": false,
-            "watsonx_taunt": false
-        },
-        "Gatekeeper": {
-            "role": "soldier",
-            "pre_fight": [
-                "Nothing passes this threshold.",
-                "You bear his mark. And yet you hesitate. Pathetic."
-            ],
-            "death_line": "The threshold... was never mine to hold...",
-            "corruption_variants": {
-                "low": "Soft. He chose poorly with you.",
-                "mid": "Halfway broken. I can see it in how you move.",
-                "high": "You already belong to him. Stop pretending otherwise."
-            },
-            "is_final": false,
-            "watsonx_taunt": false,
-            "combat_taunts": [
-                "Crush the worm!",
-                "His mark will not shield you from my stone!",
-                "Tear the runner limb from limb!"
-            ]
-        },
-        "BloodZombie": {
-            "role": "corrupted_soul",
-            "pre_fight": [
-                "I... remember being afraid of this.",
-                "He told me the same things he told you.",
-                "Do not become what I became."
-            ],
-            "death_line": "Finally... it ends. Do not... follow my path.",
-            "corruption_variants": {
-                "low": "There is still time. I had this chance. I wasted it.",
-                "mid": "You are halfway to what I was. Stop. Please.",
-                "high": "You are already further gone than I was at this point. I am sorry."
-            },
-            "is_final": false,
-            "watsonx_taunt": false,
-            "combat_taunts": [
-                "Come on, pretty boy, bleed for me! Don't tell me you're getting winded already!",
-                "That all you got, you milk-livered bastard? My dead nan swung harder than that!",
-                "By the black rot, you're a clumsy piece of shit. Stand still and let me gut ya!",
-                "Ha! Call that a guard? Pure shite! I\u2019ll carve that smug look right off your mug!",
-                "Thou callest that a swing?! Come closer, whelp, my teeth are thirsty!"
-            ]
-        },
-        "FireWizard": {
-            "role": "corrupted_paragon",
-            "pre_fight": [
-                "I was a guardian once. Before the fire consumed the man.",
-                "I see the same hunger in your eyes that consumed mine."
-            ],
-            "death_line": "The flame... dims. Perhaps now... I can rest.",
-            "corruption_variants": {
-                "low": "You still have light in you. I envy that. Protect it.",
-                "mid": "You walk the same edge I walked. I fell. You may not.",
-                "high": "We are the same, you and I. That is why this hurts."
-            },
-            "is_final": false,
-            "watsonx_taunt": false,
-            "combat_taunts": [
-                "Burn, runner! Feel the purity of agony!",
-                "Cinder and ash! That is all we leave behind!"
-            ]
-        },
-        "DarkRonin": {
-            "role": "corrupted_paragon",
-            "pre_fight": [
-                "So. He sent another one.",
-                "I was the last runner before you. I thought I was different.",
-                "Prove me right. Or prove me wrong. Either way, this ends here."
-            ],
-            "death_line": "You are not like me after all. Or... perhaps you are. Time will tell.",
-            "corruption_variants": {
-                "low": "You fought this far and kept your soul. I did not think that was possible.",
-                "mid": "Half-claimed. Andras will finish the rest. Unless you choose otherwise \u2014 now.",
-                "high": "You are already his. This fight is a formality. I hope you understand what you've become."
-            },
-            "is_final": true,
-            "watsonx_taunt": true,
-            "combat_taunts": [
-                "You swing like a desperate dog!"
-            ]
-        }
+    "tainted_sigil": {
+      "id": "tainted_sigil",
+      "title": "Tainted Sigil",
+      "name": "Tainted Sigil",
+      "subtitle": "The Pact",
+      "category": "The Pact",
+      "memory_text": "The mark of Andras, Marquis of Discord. A burning brand on your flesh that gives you unholy speed, but drains your humanity.",
+      "lore": "The mark burned into your skin the moment you accepted. Not a scar — a seal. Andras's sigil does not fade. It only deepens.",
+      "icon_path": "assets/graphics/ui/relic_icon.png",
+      "flashback_duration": 3.5
     },
-    "corruption": {
-        "dash_speed_multiplier": 1.5,
-        "damage_multiplier": 1.5,
-        "vignette_alpha": 180,
-        "instability_enabled": true
+    "voragis_inkwell": {
+      "id": "voragis_inkwell",
+      "title": "Vial of Void Blood",
+      "category": "The Grooming",
+      "memory_text": "Andras doesn't want you to win. He wants you to rely on his power. Every time you transform, his grip on your soul tightens.",
+      "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
+      "flashback_duration": 3.5
     },
-    "corruption_events": {
-        "enemy_kill": 0.5,
-        "player_damaged": 0.0,
-        "boss_defeated": 0.0,
-        "relic_collected": 0.0
+    "vial_of_void_blood": {
+      "id": "vial_of_void_blood",
+      "title": "Vial of Void Blood",
+      "name": "Vial of Void Blood",
+      "subtitle": "The Grooming",
+      "category": "The Grooming",
+      "memory_text": "Andras doesn't want you to win. He wants you to rely on his power. Every time you transform, his grip on your soul tightens.",
+      "lore": "Your blood runs darker now. This vial was left for you to find. A warning from someone who walked this path before you and did not return.",
+      "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
+      "flashback_duration": 3.5
     },
-    "boss_hierarchy": [
-        "green_monster",
-        "gatekeeper",
-        "necromancer",
-        "fire_wizard",
-        "dark_ronin"
-    ],
-    "whisperers": {
-        "evil_eye": {
-            "name": "Andras (Marquis of Discord)",
-            "barks": [
-                "Let them feel your wrath! Use my shadow! You are invincible when you embrace the dark!",
-                "Yes, tear them apart! Why fight as a mortal when you can be a god?",
-                "Don't hold back. Give in to the void. I am making you perfect..."
-            ]
-        },
-        "moon_knight": {
-            "name": "The Moon Knight (Candora's Angel)",
-            "barks": [
-                "Hold onto your honor, warrior! Every time you summon his flame, your soul fades.",
-                "Stay human, runner. Candora's silver light still reaches into these woods.",
-                "His gifts are a trap. Win the race, but reject his vessel."
-            ]
-        }
+    "hollowed_ledger_page": {
+      "id": "hollowed_ledger_page",
+      "title": "Hollowed Vessel Ledger",
+      "name": "Hollowed Ledger Page",
+      "subtitle": "The Undead",
+      "category": "The Undead",
+      "memory_text": "A list of warriors who made this deal before you. Every single one was hollowed out, their bodies possessed by lesser demons.",
+      "lore": "A page torn from a ledger. Names listed in ink that smells of rot. You recognise none of them. But there is space left at the bottom for one more entry.",
+      "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
+      "flashback_duration": 3.5
     },
-    "whisperer_barks": {
-        "andras": {
-            "on_kill": [
-                {
-                    "text": "Yes. Feel that? That is not guilt \u2014 that is clarity.",
-                    "corruption_range": [
-                        0,
-                        100
-                    ]
-                },
-                {
-                    "text": "Another soul for the ledger. You're getting good at this.",
-                    "corruption_range": [
-                        33,
-                        100
-                    ]
-                },
-                {
-                    "text": "Do not slow down. The darkness rewards momentum.",
-                    "corruption_range": [
-                        66,
-                        100
-                    ]
-                },
-                {
-                    "text": "They were in your way. Nothing more. Continue.",
-                    "corruption_range": [
-                        0,
-                        50
-                    ]
-                }
-            ],
-            "on_relic": [
-                {
-                    "text": "You begin to understand. These relics are not warnings \u2014 they are invitations.",
-                    "corruption_range": [
-                        0,
-                        100
-                    ]
-                },
-                {
-                    "text": "Piece by piece, runner. You are becoming what I need.",
-                    "corruption_range": [
-                        33,
-                        100
-                    ]
-                },
-                {
-                    "text": "The Amalgam Core. You see it now, don't you? Your purpose.",
-                    "corruption_range": [
-                        66,
-                        100
-                    ]
-                }
-            ],
-            "on_near_death": [
-                {
-                    "text": "Let me in. Fully. This hesitation is what nearly killed you.",
-                    "corruption_range": [
-                        0,
-                        100
-                    ]
-                },
-                {
-                    "text": "You fight with borrowed strength. Stop borrowing. Take it.",
-                    "corruption_range": [
-                        0,
-                        66
-                    ]
-                }
-            ],
-            "on_boss_spawn": [
-                {
-                    "text": "One of mine. Show them you've surpassed what they were.",
-                    "corruption_range": [
-                        0,
-                        100
-                    ]
-                },
-                {
-                    "text": "They once stood where you stand. They chose wrong.",
-                    "corruption_range": [
-                        33,
-                        100
-                    ]
-                }
-            ],
-            "on_threshold_crossed": [
-                {
-                    "text": "There it is. The seal loosens. You feel it, yes?",
-                    "corruption_range": [
-                        33,
-                        34
-                    ]
-                },
-                {
-                    "text": "Half-gone. The light in you flickers. Good.",
-                    "corruption_range": [
-                        49,
-                        51
-                    ]
-                },
-                {
-                    "text": "You are mine now. In all but name.",
-                    "corruption_range": [
-                        66,
-                        67
-                    ]
-                },
-                {
-                    "text": "Complete.",
-                    "corruption_range": [
-                        90,
-                        100
-                    ]
-                }
-            ]
-        },
-        "moon_knight": {
-            "on_kill": [
-                {
-                    "text": "Still here. Still watching. Is this the path you chose?",
-                    "corruption_range": [
-                        0,
-                        100
-                    ]
-                },
-                {
-                    "text": "You can still stop. The count is not yet beyond return.",
-                    "corruption_range": [
-                        0,
-                        50
-                    ]
-                },
-                {
-                    "text": "I see fewer stars in you with each one that falls.",
-                    "corruption_range": [
-                        33,
-                        66
-                    ]
-                },
-                {
-                    "text": "Runner. I am losing you to the dark. Please.",
-                    "corruption_range": [
-                        66,
-                        100
-                    ]
-                }
-            ],
-            "on_relic": [
-                {
-                    "text": "A relic of your fall. Hold it. Remember what it cost.",
-                    "corruption_range": [
-                        0,
-                        100
-                    ]
-                },
-                {
-                    "text": "Candora wept when the pact was made. This is her answer.",
-                    "corruption_range": [
-                        0,
-                        33
-                    ]
-                },
-                {
-                    "text": "Even now, the light persists in you. Do not mistake it for weakness.",
-                    "corruption_range": [
-                        0,
-                        66
-                    ]
-                }
-            ],
-            "on_near_death": [
-                {
-                    "text": "This is what the pact gives you. Pain borrowed against a debt you cannot repay.",
-                    "corruption_range": [
-                        0,
-                        100
-                    ]
-                },
-                {
-                    "text": "Hold on. Your own strength brought you this far. Not his.",
-                    "corruption_range": [
-                        0,
-                        50
-                    ]
-                }
-            ],
-            "on_boss_spawn": [
-                {
-                    "text": "This one was a person once. Remember that when you strike.",
-                    "corruption_range": [
-                        0,
-                        100
-                    ]
-                },
-                {
-                    "text": "Look at what Andras makes of his servants. Look closely.",
-                    "corruption_range": [
-                        0,
-                        66
-                    ]
-                }
-            ],
-            "on_threshold_crossed": [
-                {
-                    "text": "The seal tightens. You are becoming something I may not be able to reach.",
-                    "corruption_range": [
-                        33,
-                        34
-                    ]
-                },
-                {
-                    "text": "Halfway. There is still a way back. There is always a way back.",
-                    "corruption_range": [
-                        49,
-                        51
-                    ]
-                },
-                {
-                    "text": "I will not abandon you. Even now.",
-                    "corruption_range": [
-                        66,
-                        67
-                    ]
-                },
-                {
-                    "text": "...",
-                    "corruption_range": [
-                        90,
-                        100
-                    ]
-                }
-            ]
-        }
+    "candoras_tear": {
+      "id": "candoras_tear",
+      "title": "Candora's Tear",
+      "name": "Candora's Tear",
+      "subtitle": "The Angel's Light",
+      "category": "The Angel's Light",
+      "memory_text": "A warm stone left at a ruined altar. A quiet reminder from the Moon Knight that someone is rooting for you to reject the demon.",
+      "lore": "A single crystallised tear from Candora's messenger. It burns cold in your palm. Something in you remembers what warmth felt like before the pact.",
+      "icon_path": "assets/graphics/ui/powerup_invincible.png",
+      "flashback_duration": 3.5
     },
-    "endings": {
-        "dark": {
-            "title": "THE VOID CLAIMS ITS OWN",
-            "lines": [
-                "You stand at the threshold you were always meant to cross.",
-                "Andras speaks, but you no longer hear words \u2014 only purpose.",
-                "The runner is gone.",
-                "What remains is the prototype.",
-                "The ledger is complete."
-            ],
-            "andras_outro": "Well done, child. You were the best of them all.",
-            "background_tint": [
-                10,
-                0,
-                5
-            ]
-        },
-        "light": {
-            "title": "THE CHAIN BREAKS",
-            "lines": [
-                "The sigil on your skin cracks.",
-                "You feel the cold leave you \u2014 slowly, like a tide going out.",
-                "Andras screams, but the sound fades before it reaches you.",
-                "Candora's light is dim and distant.",
-                "But it is there.",
-                "You are still here."
-            ],
-            "moon_knight_outro": "You made it back. I never stopped believing you would.",
-            "background_tint": [
-                5,
-                10,
-                20
-            ]
-        },
-        "ambiguous": {
-            "title": "THE MARKED ENDURE",
-            "lines": [
-                "You are alive.",
-                "The sigil remains.",
-                "Andras is silent \u2014 for now.",
-                "You do not know what you are becoming.",
-                "Neither does he.",
-                "The world holds its breath."
-            ],
-            "andras_outro": "This is not over, runner. Not for either of us.",
-            "background_tint": [
-                8,
-                5,
-                12
-            ]
-        }
+    "amalgam_core": {
+      "id": "amalgam_core",
+      "title": "Amalgam Core",
+      "name": "Amalgam Core",
+      "subtitle": "The Prototype",
+      "category": "The Prototype",
+      "memory_text": "This monster was Andras's previous vessel - a horrible mix of human flesh and shadow power. It's what you will turn into.",
+      "lore": "The heart of what Andras intends you to become. Not a weapon. Not a warrior. A template. You are not the first runner. You are merely the closest to completion.",
+      "icon_path": "assets/graphics/ui/powerup_speed.png",
+      "flashback_duration": 3.5
     }
+  },
+  "relic_boss_map": {
+    "GreenMonster": [
+      {
+        "relic_id": "shattered_gauntlet",
+        "corruption_delta": 8
+      }
+    ],
+    "Gatekeeper": [
+      {
+        "relic_id": "tainted_sigil",
+        "corruption_delta": 10
+      }
+    ],
+    "BloodZombie": [
+      {
+        "relic_id": "vial_of_void_blood",
+        "corruption_delta": 12
+      },
+      {
+        "relic_id": "hollowed_ledger_page",
+        "corruption_delta": 6
+      }
+    ],
+    "FireWizard": [
+      {
+        "relic_id": "candoras_tear",
+        "corruption_delta": -20
+      }
+    ],
+    "DarkRonin": [
+      {
+        "relic_id": "amalgam_core",
+        "corruption_delta": 15
+      },
+      {
+        "relic_id": "candoras_tear",
+        "corruption_delta": -20
+      }
+    ]
+  },
+  "boss_dialogue": {
+    "GreenMonster": {
+      "role": "soldier",
+      "pre_fight": [
+        "You should not have come this far.",
+        "My master's patience ends here."
+      ],
+      "death_line": "The gate... holds no longer...",
+      "corruption_variants": {
+        "low": "Still clean. Andras will enjoy breaking that.",
+        "mid": "You already carry the mark. Finish what you started.",
+        "high": "You are one of us. You just don't know it yet."
+      },
+      "is_final": false,
+      "watsonx_taunt": false
+    },
+    "Gatekeeper": {
+      "role": "soldier",
+      "pre_fight": [
+        "Nothing passes this threshold.",
+        "You bear his mark. And yet you hesitate. Pathetic."
+      ],
+      "death_line": "The threshold... was never mine to hold...",
+      "corruption_variants": {
+        "low": "Soft. He chose poorly with you.",
+        "mid": "Halfway broken. I can see it in how you move.",
+        "high": "You already belong to him. Stop pretending otherwise."
+      },
+      "is_final": false,
+      "watsonx_taunt": false,
+      "combat_taunts": [
+        "Crush the worm!",
+        "His mark will not shield you from my stone!",
+        "Tear the runner limb from limb!"
+      ],
+      "primary": "Nothing passes this threshold."
+    },
+    "BloodZombie": {
+      "role": "corrupted_soul",
+      "pre_fight": [
+        "I... remember being afraid of this.",
+        "He told me the same things he told you.",
+        "Do not become what I became."
+      ],
+      "death_line": "Finally... it ends. Do not... follow my path.",
+      "corruption_variants": {
+        "low": "There is still time. I had this chance. I wasted it.",
+        "mid": "You are halfway to what I was. Stop. Please.",
+        "high": "You are already further gone than I was at this point. I am sorry."
+      },
+      "is_final": false,
+      "watsonx_taunt": false,
+      "combat_taunts": [
+        "Come on, pretty boy, bleed for me! Don't tell me you're getting winded already!",
+        "That all you got, you milk-livered bastard? My dead nan swung harder than that!",
+        "By the black rot, you're a clumsy piece of shit. Stand still and let me gut ya!",
+        "Ha! Call that a guard? Pure shite! I’ll carve that smug look right off your mug!",
+        "Thou callest that a swing?! Come closer, whelp, my teeth are thirsty!"
+      ],
+      "primary": "I... remember being afraid of this. He told me the same things he told you. Do not become what I became."
+    },
+    "FireWizard": {
+      "role": "corrupted_paragon",
+      "pre_fight": [
+        "I was a guardian once. Before the fire consumed the man.",
+        "I see the same hunger in your eyes that consumed mine."
+      ],
+      "death_line": "The flame... dims. Perhaps now... I can rest.",
+      "corruption_variants": {
+        "low": "You still have light in you. I envy that. Protect it.",
+        "mid": "You walk the same edge I walked. I fell. You may not.",
+        "high": "We are the same, you and I. That is why this hurts."
+      },
+      "is_final": false,
+      "watsonx_taunt": false,
+      "combat_taunts": [
+        "Burn, runner! Feel the purity of agony!",
+        "Cinder and ash! That is all we leave behind!"
+      ],
+      "primary": "I was a guardian once. Before the fire consumed the man."
+    },
+    "DarkRonin": {
+      "role": "corrupted_paragon",
+      "pre_fight": [
+        "So. He sent another one.",
+        "I was the last runner before you. I thought I was different.",
+        "Prove me right. Or prove me wrong. Either way, this ends here."
+      ],
+      "death_line": "You are not like me after all. Or... perhaps you are. Time will tell.",
+      "corruption_variants": {
+        "low": "You fought this far and kept your soul. I did not think that was possible.",
+        "mid": "Half-claimed. Andras will finish the rest. Unless you choose otherwise — now.",
+        "high": "You are already his. This fight is a formality. I hope you understand what you've become."
+      },
+      "is_final": true,
+      "watsonx_taunt": true,
+      "combat_taunts": [
+        "Show me what Andras promised you!",
+        "You swing like a desperate dog!",
+        "Is this the pinnacle of his new vessel?!"
+      ],
+      "primary": "So. He sent another one."
+    }
+  },
+  "corruption": {
+    "dash_speed_multiplier": 1.5,
+    "damage_multiplier": 1.5,
+    "vignette_alpha": 180,
+    "instability_enabled": true
+  },
+  "corruption_events": {
+    "enemy_kill": 0.5,
+    "player_damaged": 0.0,
+    "boss_defeated": 0.0,
+    "relic_collected": 0.0
+  },
+  "boss_hierarchy": [
+    "green_monster",
+    "gatekeeper",
+    "necromancer",
+    "fire_wizard",
+    "dark_ronin"
+  ],
+  "whisperers": {
+    "evil_eye": {
+      "name": "Andras (Marquis of Discord)",
+      "barks": [
+        "Let them feel your wrath! Use my shadow! You are invincible when you embrace the dark!",
+        "Yes, tear them apart! Why fight as a mortal when you can be a god?",
+        "Don't hold back. Give in to the void. I am making you perfect..."
+      ]
+    },
+    "moon_knight": {
+      "name": "The Moon Knight (Candora's Angel)",
+      "barks": [
+        "Hold onto your honor, warrior! Every time you summon his flame, your soul fades.",
+        "Stay human, runner. Candora's silver light still reaches into these woods.",
+        "His gifts are a trap. Win the race, but reject his vessel."
+      ]
+    }
+  },
+  "whisperer_barks": {
+    "andras": {
+      "on_kill": [
+        {
+          "text": "Yes. Feel that? That is not guilt — that is clarity.",
+          "corruption_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "text": "Another soul for the ledger. You're getting good at this.",
+          "corruption_range": [
+            33,
+            100
+          ]
+        },
+        {
+          "text": "Do not slow down. The darkness rewards momentum.",
+          "corruption_range": [
+            66,
+            100
+          ]
+        },
+        {
+          "text": "They were in your way. Nothing more. Continue.",
+          "corruption_range": [
+            0,
+            50
+          ]
+        }
+      ],
+      "on_relic": [
+        {
+          "text": "You begin to understand. These relics are not warnings — they are invitations.",
+          "corruption_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "text": "Piece by piece, runner. You are becoming what I need.",
+          "corruption_range": [
+            33,
+            100
+          ]
+        },
+        {
+          "text": "The Amalgam Core. You see it now, don't you? Your purpose.",
+          "corruption_range": [
+            66,
+            100
+          ]
+        }
+      ],
+      "on_near_death": [
+        {
+          "text": "Let me in. Fully. This hesitation is what nearly killed you.",
+          "corruption_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "text": "You fight with borrowed strength. Stop borrowing. Take it.",
+          "corruption_range": [
+            0,
+            66
+          ]
+        }
+      ],
+      "on_boss_spawn": [
+        {
+          "text": "One of mine. Show them you've surpassed what they were.",
+          "corruption_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "text": "They once stood where you stand. They chose wrong.",
+          "corruption_range": [
+            33,
+            100
+          ]
+        }
+      ],
+      "on_threshold_crossed": [
+        {
+          "text": "There it is. The seal loosens. You feel it, yes?",
+          "corruption_range": [
+            33,
+            34
+          ]
+        },
+        {
+          "text": "Half-gone. The light in you flickers. Good.",
+          "corruption_range": [
+            49,
+            51
+          ]
+        },
+        {
+          "text": "You are mine now. In all but name.",
+          "corruption_range": [
+            66,
+            67
+          ]
+        },
+        {
+          "text": "Complete.",
+          "corruption_range": [
+            90,
+            100
+          ]
+        }
+      ]
+    },
+    "moon_knight": {
+      "on_kill": [
+        {
+          "text": "Still here. Still watching. Is this the path you chose?",
+          "corruption_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "text": "You can still stop. The count is not yet beyond return.",
+          "corruption_range": [
+            0,
+            50
+          ]
+        },
+        {
+          "text": "I see fewer stars in you with each one that falls.",
+          "corruption_range": [
+            33,
+            66
+          ]
+        },
+        {
+          "text": "Runner. I am losing you to the dark. Please.",
+          "corruption_range": [
+            66,
+            100
+          ]
+        }
+      ],
+      "on_relic": [
+        {
+          "text": "A relic of your fall. Hold it. Remember what it cost.",
+          "corruption_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "text": "Candora wept when the pact was made. This is her answer.",
+          "corruption_range": [
+            0,
+            33
+          ]
+        },
+        {
+          "text": "Even now, the light persists in you. Do not mistake it for weakness.",
+          "corruption_range": [
+            0,
+            66
+          ]
+        }
+      ],
+      "on_near_death": [
+        {
+          "text": "This is what the pact gives you. Pain borrowed against a debt you cannot repay.",
+          "corruption_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "text": "Hold on. Your own strength brought you this far. Not his.",
+          "corruption_range": [
+            0,
+            50
+          ]
+        }
+      ],
+      "on_boss_spawn": [
+        {
+          "text": "This one was a person once. Remember that when you strike.",
+          "corruption_range": [
+            0,
+            100
+          ]
+        },
+        {
+          "text": "Look at what Andras makes of his servants. Look closely.",
+          "corruption_range": [
+            0,
+            66
+          ]
+        }
+      ],
+      "on_threshold_crossed": [
+        {
+          "text": "The seal tightens. You are becoming something I may not be able to reach.",
+          "corruption_range": [
+            33,
+            34
+          ]
+        },
+        {
+          "text": "Halfway. There is still a way back. There is always a way back.",
+          "corruption_range": [
+            49,
+            51
+          ]
+        },
+        {
+          "text": "I will not abandon you. Even now.",
+          "corruption_range": [
+            66,
+            67
+          ]
+        },
+        {
+          "text": "...",
+          "corruption_range": [
+            90,
+            100
+          ]
+        }
+      ]
+    }
+  },
+  "endings": {
+    "dark": {
+      "title": "THE VOID CLAIMS ITS OWN",
+      "lines": [
+        "You stand at the threshold you were always meant to cross.",
+        "Andras speaks, but you no longer hear words — only purpose.",
+        "The runner is gone.",
+        "What remains is the prototype.",
+        "The ledger is complete."
+      ],
+      "andras_outro": "Well done, child. You were the best of them all.",
+      "background_tint": [
+        10,
+        0,
+        5
+      ]
+    },
+    "light": {
+      "title": "THE CHAIN BREAKS",
+      "lines": [
+        "The sigil on your skin cracks.",
+        "You feel the cold leave you — slowly, like a tide going out.",
+        "Andras screams, but the sound fades before it reaches you.",
+        "Candora's light is dim and distant.",
+        "But it is there.",
+        "You are still here."
+      ],
+      "moon_knight_outro": "You made it back. I never stopped believing you would.",
+      "background_tint": [
+        5,
+        10,
+        20
+      ]
+    },
+    "ambiguous": {
+      "title": "THE MARKED ENDURE",
+      "lines": [
+        "You are alive.",
+        "The sigil remains.",
+        "Andras is silent — for now.",
+        "You do not know what you are becoming.",
+        "Neither does he.",
+        "The world holds its breath."
+      ],
+      "andras_outro": "This is not over, runner. Not for either of us.",
+      "background_tint": [
+        8,
+        5,
+        12
+      ]
+    }
+  },
+  "enemy_taunts": {
+    "skeleton_minion": {
+      "primary": "Rattling bones rise from the soil! Intruders shall feed the roots of the woods!",
+      "combat_taunts": [
+        "Flesh... tear the living flesh!",
+        "Join us in the dirt, mortal!",
+        "No one leaves the dark forest unbroken!"
+      ],
+      "death_line": "Returned to dust... but master will raise us again..."
+    }
+  }
 }

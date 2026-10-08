@@ -285,7 +285,7 @@
                 "text": "Those that come into this forest change from the very first kill, and their very first encounter with the creatures of this forest.",
                 "radius": 80,
                 "sprite_dir": "assets/graphics/magic_book_single",
-                "scale": 1.5,
+                "scale": 1.12,
                 "is_magic_book": true,
                 "is_intro_npc": false,
                 "voice_line_id": "",
@@ -293,7 +293,21 @@
                     "Flesh and bone walk these woods, yet you carry mere iron. Let us see how long your pulse lasts.",
                     "The blood of the forest is on your hands. There is no turning back now, wanderer.",
                     "Each strike feeds the tome. Your iron is merely our quill."
-                ]
+                ],
+                "death_line": "The pages never close... they only wait for the next fool."
+            }
+        },
+        {
+            "id": 15,
+            "distance": 783,
+            "type": "npc",
+            "params": {
+                "npc_type": "generic",
+                "title": "Slow down young warrior",
+                "text": "...",
+                "radius": 160,
+                "sprite_dir": "assets/graphics/GandalfHardcore FREE Platformer Assets/Cooking area_frames",
+                "scale": 2.0
             }
         },
         {
@@ -331,7 +345,8 @@
                     "Yes, tear them apart! Why fight as a mortal when you can be a god?",
                     "Let them feel your wrath! Use my shadow!",
                     "Don't hold back. Give in to the void."
-                ]
+                ],
+                "death_line": "I see all... you cannot flee your own reflection..."
             }
         },
         {
@@ -349,7 +364,8 @@
                 "combat_taunts": [
                     "Harvest his life force! Gorge upon his spirit!",
                     "Let no marrow go unconsumed!"
-                ]
+                ],
+                "death_line": "Starved... for now..."
             }
         },
         {
@@ -367,7 +383,8 @@
                 "combat_taunts": [
                     "Steel yourself, runner. Truth is sharper than blades.",
                     "Candora's light judges all who step across this grove."
-                ]
+                ],
+                "death_line": "The grove falls dark... may mercy find you..."
             }
         },
         {
