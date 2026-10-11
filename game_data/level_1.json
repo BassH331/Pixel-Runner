@@ -294,7 +294,15 @@
                     "The blood of the forest is on your hands. There is no turning back now, wanderer.",
                     "Each strike feeds the tome. Your iron is merely our quill."
                 ],
-                "death_line": "The pages never close... they only wait for the next fool."
+                "death_line": "The pages never close... they only wait for the next fool.",
+                "dialogue": {
+                    "default": "Those that come into this forest change from the very first kill, and their very first encounter with the creatures of this forest.",
+                    "corruption_variants": {
+                        "low": "You cling to your fragile mortal memories.",
+                        "mid": "The ink flows thicker as you harvest the slain.",
+                        "high": "We are bound together in the black ash of discord."
+                    }
+                }
             }
         },
         {
@@ -336,7 +344,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "Watcher of the Abyss",
-                "text": "Every skeleton you shatter was a mortal who refused my gift and crumbled. Break their bones, runner\u2014prove you are worthy of the darkness!",
+                "text": "Every skeleton you shatter was a mortal who refused my gift and crumbled. Break their bones, runner—prove you are worthy of the darkness!",
                 "radius": 160,
                 "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
                 "scale": 2.0,
@@ -346,7 +354,15 @@
                     "Let them feel your wrath! Use my shadow!",
                     "Don't hold back. Give in to the void."
                 ],
-                "death_line": "I see all... you cannot flee your own reflection..."
+                "death_line": "I see all... you cannot flee your own reflection...",
+                "dialogue": {
+                    "default": "Every skeleton you shatter was a mortal who refused my gift and crumbled. Break their bones, runner—prove you are worthy of the darkness!",
+                    "corruption_variants": {
+                        "low": "You hesitate! Weakness will rot you from within!",
+                        "mid": "Good! The blood quickens your pulse!",
+                        "high": "Now you see through my eye! Splendid carnage!"
+                    }
+                }
             }
         },
         {
@@ -365,7 +381,15 @@
                     "Harvest his life force! Gorge upon his spirit!",
                     "Let no marrow go unconsumed!"
                 ],
-                "death_line": "Starved... for now..."
+                "death_line": "Starved... for now...",
+                "dialogue": {
+                    "default": "Mere bone dust will not sate my hunger. The Gatekeeper ahead holds a concentrated mass of souls. Rip it from his chest!",
+                    "corruption_variants": {
+                        "low": "You still hesitate before gorging on essence.",
+                        "mid": "Your thirst matches my edge.",
+                        "high": "Drink deep, host! We are famine incarnate!"
+                    }
+                }
             }
         },
         {
@@ -384,7 +408,15 @@
                     "Steel yourself, runner. Truth is sharper than blades.",
                     "Candora's light judges all who step across this grove."
                 ],
-                "death_line": "The grove falls dark... may mercy find you..."
+                "death_line": "The grove falls dark... may mercy find you...",
+                "dialogue": {
+                    "default": "The dark flame cuts deep. Look inside: do you still remember who you were before you accepted my power, or just the blood?",
+                    "corruption_variants": {
+                        "low": "Your heart still beats in human cadence. Hold onto it.",
+                        "mid": "Shadow clouds your aura, yet your eyes still seek dawn.",
+                        "high": "Only cold void remains in your chest. A pity."
+                    }
+                }
             }
         },
         {

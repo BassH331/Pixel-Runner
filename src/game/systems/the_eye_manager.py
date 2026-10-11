@@ -234,6 +234,8 @@ class TheEyePerceptionManager:
 
         boss_dialogue = self.storyline_data.get("boss_dialogue", {})
         relics = self.storyline_data.get("relics", {})
+        enemy_taunts = self.storyline_data.get("enemy_taunts", {})
+        narrative_nodes = self.storyline_data.get("narrative_nodes", {})
 
         world_events = self.level_data.get("world_events", [])
         entities = self.level_data.get("entities", [])
@@ -247,6 +249,7 @@ class TheEyePerceptionManager:
 
         # ── 1. Node 1: Distance 0m — The Shattered Border (Prologue)
         gauntlet_relic = relics.get("shattered_gauntlet", {})
+        gauntlet_corrupt = gauntlet_relic.get("corruption_variants", {})
         self._add_node(
             StoryNode(
                 node_id="node_00_prologue",
@@ -266,12 +269,13 @@ class TheEyePerceptionManager:
                         "lore",
                         "A gauntlet crushed into pieces — the last thing you wore before death took you. Andras found you here, broken and forgotten.",
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": gauntlet_relic.get("combat_taunts", [
                         "Take my flame, warrior! Your death was meaningless; your vengeance will be eternal!",
-                    ],
-                    "corruption_low": "A faint heartbeat remains beneath the cold plate armor.",
-                    "corruption_mid": "The veins in your right arm blacken with demonic essence.",
-                    "corruption_high": "The gauntlet fuses directly into your flesh.",
+                    ]),
+                    "death_line": gauntlet_relic.get("death_line", ""),
+                    "corruption_low": gauntlet_corrupt.get("low", "A faint heartbeat remains beneath the cold plate armor."),
+                    "corruption_mid": gauntlet_corrupt.get("mid", "The veins in your right arm blacken with demonic essence."),
+                    "corruption_high": gauntlet_corrupt.get("high", "The gauntlet fuses directly into your flesh."),
                 },
                 source_file="storyline",
                 source_key="relics.shattered_gauntlet",
@@ -279,8 +283,10 @@ class TheEyePerceptionManager:
         )
 
         # ── 2. Node 2: Distance 650m — Shrine of the Cursed Grimoire
-        grim_ent = entity_dict.get("magic_book", {})
+        grim_ent = entity_dict.get("magic_book") or entity_dict.get("10", {})
         grim_params = grim_ent.get("params", {})
+        grim_dial = grim_params.get("dialogue", {})
+        grim_corrupt = grim_dial.get("corruption_variants", {})
         self._add_node(
             StoryNode(
                 node_id="node_01_grimoire",
@@ -298,14 +304,14 @@ class TheEyePerceptionManager:
                         "The blood of the forest is on your hands. There is no turning back now, wanderer.",
                         "Each strike feeds the tome. Your iron is merely our quill.",
                     ],
-                    "death_line": "The pages never close... they only wait for the next fool.",
-                    "corruption_low": "You cling to your fragile mortal memories.",
-                    "corruption_mid": "The ink flows thicker as you harvest the slain.",
-                    "corruption_high": "We are bound together in the black ash of discord.",
-                    "relic_branch": {
+                    "death_line": grim_params.get("death_line") or "The pages never close... they only wait for the next fool.",
+                    "corruption_low": grim_corrupt.get("low", "You cling to your fragile mortal memories."),
+                    "corruption_mid": grim_corrupt.get("mid", "The ink flows thicker as you harvest the slain."),
+                    "corruption_high": grim_corrupt.get("high", "We are bound together in the black ash of discord."),
+                    "relic_branch": grim_dial.get("relic_branch", {
                         "relic_id": "tainted_sigil",
                         "text": "The sigil on your wrist pulses in harmony with my scripture.",
-                    },
+                    }),
                 },
                 source_file="level_1",
                 source_key="entities.magic_book",
@@ -313,6 +319,8 @@ class TheEyePerceptionManager:
         )
 
         # ── 3. Node 3: Distance 1,080m — The Bone Fields Outpost
+        skel_dial = enemy_taunts.get("skeleton_minion", {})
+        skel_corrupt = skel_dial.get("corruption_variants", {})
         self._add_node(
             StoryNode(
                 node_id="node_02_skeletons",
@@ -324,16 +332,16 @@ class TheEyePerceptionManager:
                 sprite_path="assets/skeleton",
                 summary="The skeletal remains of past runners reanimated by necromantic ash.",
                 conversations={
-                    "primary": "Rattling bones rise from the soil! Intruders shall feed the roots of the woods!",
-                    "combat_taunts": [
+                    "primary": skel_dial.get("primary", "Rattling bones rise from the soil! Intruders shall feed the roots of the woods!"),
+                    "combat_taunts": skel_dial.get("combat_taunts", [
                         "Flesh... tear the living flesh!",
                         "Join us in the dirt, mortal!",
                         "No one leaves the dark forest unbroken!",
-                    ],
-                    "death_line": "Returned to dust... but master will raise us again...",
-                    "corruption_low": "Your strike is swift, but the woods are endless.",
-                    "corruption_mid": "You shatter bone like one accustomed to slaughter.",
-                    "corruption_high": "You smell of our master... yet you strike us down?",
+                    ]),
+                    "death_line": skel_dial.get("death_line", "Returned to dust... but master will raise us again..."),
+                    "corruption_low": skel_corrupt.get("low", "Your strike is swift, but the woods are endless."),
+                    "corruption_mid": skel_corrupt.get("mid", "You shatter bone like one accustomed to slaughter."),
+                    "corruption_high": skel_corrupt.get("high", "You smell of our master... yet you strike us down?"),
                 },
                 source_file="storyline",
                 source_key="enemy_taunts.skeleton_minion",
@@ -341,10 +349,7 @@ class TheEyePerceptionManager:
         )
 
         # ── 4. Node 4: Distance 2,200m — The Void Scribe's Crossing
-        scribe_ent = entity_dict.get("npc_void_scribe", {})
-        scribe_params = scribe_ent.get("params", {})
-        scribe_dial = scribe_params.get("dialogue", {})
-        scribe_corrupt = scribe_dial.get("corruption_variants", {})
+        scribe_saved = narrative_nodes.get("node_03_void_scribe", {})
         self._add_node(
             StoryNode(
                 node_id="node_03_void_scribe",
@@ -352,23 +357,23 @@ class TheEyePerceptionManager:
                 distance=2200,
                 act="Act I: The Forest Verge",
                 entity_type="NPC",
-                character_name=scribe_params.get("title", "Void Scribe"),
+                character_name=scribe_saved.get("title", "Void Scribe"),
                 sprite_path="assets/graphics/Wizard_NPC",
                 summary="A hooded chronicler documenting every pact, death, and hollowed warrior in the endless ledger.",
                 conversations={
-                    "primary": scribe_params.get(
-                        "text",
+                    "primary": scribe_saved.get(
+                        "primary",
                         "I record what Andras makes. Names, dates, fates. The ledger is never full. There is always room.",
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": scribe_saved.get("combat_taunts", [
                         "Do not spill ink on my ledger, runner.",
                         "Every blow you strike fills another line.",
-                    ],
-                    "death_line": "My ink may dry, but your doom is already inscribed.",
-                    "corruption_low": scribe_corrupt.get("low", "No entry for you yet. Keep it that way."),
-                    "corruption_mid": scribe_corrupt.get("mid", "Your name is... pencilled in. Lightly. For now."),
-                    "corruption_high": scribe_corrupt.get("high", "I have been waiting for you. Your page is nearly ready."),
-                    "relic_branch": scribe_dial.get(
+                    ]),
+                    "death_line": scribe_saved.get("death_line", "My ink may dry, but your doom is already inscribed."),
+                    "corruption_low": scribe_saved.get("corruption_low", "No entry for you yet. Keep it that way."),
+                    "corruption_mid": scribe_saved.get("corruption_mid", "Your name is... pencilled in. Lightly. For now."),
+                    "corruption_high": scribe_saved.get("corruption_high", "I have been waiting for you. Your page is nearly ready."),
+                    "relic_branch": scribe_saved.get(
                         "relic_branch",
                         {
                             "relic_id": "hollowed_ledger_page",
@@ -376,13 +381,13 @@ class TheEyePerceptionManager:
                         },
                     ),
                 },
-                source_file="level_1",
-                source_key="entities.npc_void_scribe",
+                source_file="storyline",
+                source_key="narrative_nodes.node_03_void_scribe",
             )
         )
 
         # ── 5. Node 5: Distance 3,000m — The Void Bloom Rift
-        bloom_ent = entity_dict.get("lore_void_bloom", {})
+        bloom_saved = narrative_nodes.get("node_04_void_bloom", {})
         self._add_node(
             StoryNode(
                 node_id="node_04_void_bloom",
@@ -394,22 +399,24 @@ class TheEyePerceptionManager:
                 sprite_path="assets/graphics/UI/PNG/Exclamation_Yellow.png",
                 summary="A pitch-black flower with silver veins that tracks the runner's steps.",
                 conversations={
-                    "primary": bloom_ent.get("params", {}).get(
-                        "text",
+                    "primary": bloom_saved.get(
+                        "primary",
                         "A flower grows from a crack in the earth ahead — black petals, silver centre. It turns toward you as you pass.",
                     ),
-                    "corruption_low": "The silver centre glows faintly with Candora's residual grace.",
-                    "corruption_mid": "The petals whisper as you sprint past.",
-                    "corruption_high": "The flower turns to ash in your wake, consumed by your void aura.",
+                    "corruption_low": bloom_saved.get("corruption_low", "The silver centre glows faintly with Candora's residual grace."),
+                    "corruption_mid": bloom_saved.get("corruption_mid", "The petals whisper as you sprint past."),
+                    "corruption_high": bloom_saved.get("corruption_high", "The flower turns to ash in your wake, consumed by your void aura."),
                 },
-                source_file="level_1",
-                source_key="entities.lore_void_bloom",
+                source_file="storyline",
+                source_key="narrative_nodes.node_04_void_bloom",
             )
         )
 
         # ── 6. Node 6: Distance 3,500m — Watcher of the Abyss
         eye1_ent = entity_dict.get("11", {})
         eye1_params = eye1_ent.get("params", {})
+        eye1_dial = eye1_params.get("dialogue", {})
+        eye1_corrupt = eye1_dial.get("corruption_variants", {})
         self._add_node(
             StoryNode(
                 node_id="node_05_watcher_abyss",
@@ -425,15 +432,15 @@ class TheEyePerceptionManager:
                         "text",
                         "Every skeleton you shatter was a mortal who refused my gift and crumbled. Break their bones, runner—prove you are worthy of the darkness!",
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": eye1_params.get("combat_taunts", [
                         "Yes, tear them apart! Why fight as a mortal when you can be a god?",
                         "Let them feel your wrath! Use my shadow!",
                         "Don't hold back. Give in to the void.",
-                    ],
-                    "death_line": "I see all... you cannot flee your own reflection...",
-                    "corruption_low": "You hesitate! Weakness will rot you from within!",
-                    "corruption_mid": "Good! The blood quickens your pulse!",
-                    "corruption_high": "Now you see through my eye! Splendid carnage!",
+                    ]),
+                    "death_line": eye1_params.get("death_line", "I see all... you cannot flee your own reflection..."),
+                    "corruption_low": eye1_corrupt.get("low", "You hesitate! Weakness will rot you from within!"),
+                    "corruption_mid": eye1_corrupt.get("mid", "Good! The blood quickens your pulse!"),
+                    "corruption_high": eye1_corrupt.get("high", "Now you see through my eye! Splendid carnage!"),
                 },
                 source_file="level_1",
                 source_key="entities.11",
@@ -441,10 +448,7 @@ class TheEyePerceptionManager:
         )
 
         # ── 7. Node 7: Distance 4,000m — Candora's Silver Beacon
-        cand_ent = entity_dict.get("npc_candora_messenger", {})
-        cand_params = cand_ent.get("params", {})
-        cand_dial = cand_params.get("dialogue", {})
-        cand_corrupt = cand_dial.get("corruption_variants", {})
+        cand_saved = narrative_nodes.get("node_06_candora_messenger", {})
         self._add_node(
             StoryNode(
                 node_id="node_06_candora_messenger",
@@ -452,23 +456,23 @@ class TheEyePerceptionManager:
                 distance=4000,
                 act="Act II: Whispering Woods",
                 entity_type="NPC",
-                character_name=cand_params.get("title", "Candora's Messenger"),
+                character_name=cand_saved.get("title", "Candora's Messenger"),
                 sprite_path="assets/graphics/Wizard_NPC",
                 summary="An emissary of the Moon Knight warning the player against yielding to the demon's pact.",
                 conversations={
-                    "primary": cand_params.get(
-                        "text",
+                    "primary": cand_saved.get(
+                        "primary",
                         "Candora sent me to find the runner before he is lost. I may be too late. I am rarely early.",
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": cand_saved.get("combat_taunts", [
                         "Hold onto your honor, warrior!",
                         "Every time you summon his flame, your soul fades.",
-                    ],
-                    "death_line": "The light dims... but Candora never forgets...",
-                    "corruption_low": cand_corrupt.get("low", "She still sees you. The light does not abandon the willing."),
-                    "corruption_mid": cand_corrupt.get("mid", "She grieves for what you are becoming. But she has not looked away."),
-                    "corruption_high": cand_corrupt.get("high", "I cannot reach you now. The void is too thick. But Candora... she still tries."),
-                    "relic_branch": cand_dial.get(
+                    ]),
+                    "death_line": cand_saved.get("death_line", "The light dims... but Candora never forgets..."),
+                    "corruption_low": cand_saved.get("corruption_low", "She still sees you. The light does not abandon the willing."),
+                    "corruption_mid": cand_saved.get("corruption_mid", "She grieves for what you are becoming. But she has not looked away."),
+                    "corruption_high": cand_saved.get("corruption_high", "I cannot reach you now. The void is too thick. But Candora... she still tries."),
+                    "relic_branch": cand_saved.get(
                         "relic_branch",
                         {
                             "relic_id": "candoras_tear",
@@ -476,13 +480,13 @@ class TheEyePerceptionManager:
                         },
                     ),
                 },
-                source_file="level_1",
-                source_key="entities.npc_candora_messenger",
+                source_file="storyline",
+                source_key="narrative_nodes.node_06_candora_messenger",
             )
         )
 
         # ── 8. Node 8: Distance 5,000m — Mural of the Scratched Face
-        mural_ent = entity_dict.get("lore_faded_mural", {})
+        mural_saved = narrative_nodes.get("node_07_mural", {})
         self._add_node(
             StoryNode(
                 node_id="node_07_mural",
@@ -494,24 +498,21 @@ class TheEyePerceptionManager:
                 sprite_path="assets/graphics/UI/PNG/Exclamation_Yellow.png",
                 summary="An ancient stone fresco of a hero whose face was deliberately erased.",
                 conversations={
-                    "primary": mural_ent.get("params", {}).get(
-                        "text",
+                    "primary": mural_saved.get(
+                        "primary",
                         "A mural, half-collapsed. It shows a figure standing at a threshold. The figure's face has been scratched out.",
                     ),
-                    "corruption_low": "The carving retains traces of human compassion.",
-                    "corruption_mid": "Deep gouges mark the stone, freshly carved by clawed hands.",
-                    "corruption_high": "The scratched face appears eerily familiar — it matches your own visage.",
+                    "corruption_low": mural_saved.get("corruption_low", "The carving retains traces of human compassion."),
+                    "corruption_mid": mural_saved.get("corruption_mid", "Deep gouges mark the stone, freshly carved by clawed hands."),
+                    "corruption_high": mural_saved.get("corruption_high", "The scratched face appears eerily familiar — it matches your own visage."),
                 },
-                source_file="level_1",
-                source_key="entities.lore_faded_mural",
+                source_file="storyline",
+                source_key="narrative_nodes.node_07_mural",
             )
         )
 
         # ── 9. Node 9: Distance 6,500m — The Previous Runner's Camp
-        ronin_ent = entity_dict.get("npc_previous_runner", {})
-        ronin_params = ronin_ent.get("params", {})
-        ronin_dial = ronin_params.get("dialogue", {})
-        ronin_corrupt = ronin_dial.get("corruption_variants", {})
+        ronin_saved = narrative_nodes.get("node_08_previous_runner", {})
         self._add_node(
             StoryNode(
                 node_id="node_08_previous_runner",
@@ -519,23 +520,23 @@ class TheEyePerceptionManager:
                 distance=6500,
                 act="Act II: Whispering Woods",
                 entity_type="NPC",
-                character_name=ronin_params.get("title", "The Previous Runner"),
+                character_name=ronin_saved.get("title", "The Previous Runner"),
                 sprite_path="assets/graphics/Ronin/spr_RoninIdle_strip8_frames",
                 summary="The weathered Ronin who made the pact before you, warning of the trap of demonic strength.",
                 conversations={
-                    "primary": ronin_params.get(
-                        "text",
+                    "primary": ronin_saved.get(
+                        "primary",
                         "I recognise that mark. I wore it once. I thought it made me stronger. I was right. I was also wrong.",
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": ronin_saved.get("combat_taunts", [
                         "Keep your guard raised, rookie!",
                         "Speed without purpose is merely a faster death!",
-                    ],
-                    "death_line": "The path claims another... forgive me...",
-                    "corruption_low": ronin_corrupt.get("low", "You fight it better than I did. That is either strength or stubbornness. Either may save you."),
-                    "corruption_mid": ronin_corrupt.get("mid", "This is where I started losing myself. The mid-point. It does not feel like a point of no return. That is the trap."),
-                    "corruption_high": ronin_corrupt.get("high", "I cannot tell you apart from what I became. That frightens me more than Andras ever did."),
-                    "relic_branch": ronin_dial.get(
+                    ]),
+                    "death_line": ronin_saved.get("death_line", "The path claims another... forgive me..."),
+                    "corruption_low": ronin_saved.get("corruption_low", "You fight it better than I did. That is either strength or stubbornness. Either may save you."),
+                    "corruption_mid": ronin_saved.get("corruption_mid", "This is where I started losing myself. The mid-point. It does not feel like a point of no return. That is the trap."),
+                    "corruption_high": ronin_saved.get("corruption_high", "I cannot tell you apart from what I became. That frightens me more than Andras ever did."),
+                    "relic_branch": ronin_saved.get(
                         "relic_branch",
                         {
                             "relic_id": "amalgam_core",
@@ -543,14 +544,16 @@ class TheEyePerceptionManager:
                         },
                     ),
                 },
-                source_file="level_1",
-                source_key="entities.npc_previous_runner",
+                source_file="storyline",
+                source_key="narrative_nodes.node_08_previous_runner",
             )
         )
 
         # ── 10. Node 10: Distance 7,000m — The Scythe's Hunger
         scythe_ent = entity_dict.get("12", {})
         scythe_params = scythe_ent.get("params", {})
+        scythe_dial = scythe_params.get("dialogue", {})
+        scythe_corrupt = scythe_dial.get("corruption_variants", {})
         self._add_node(
             StoryNode(
                 node_id="node_09_scythe_hunger",
@@ -566,14 +569,14 @@ class TheEyePerceptionManager:
                         "text",
                         "Mere bone dust will not sate my hunger. The Gatekeeper ahead holds a concentrated mass of souls. Rip it from his chest!",
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": scythe_params.get("combat_taunts", [
                         "Harvest his life force! Gorge upon his spirit!",
                         "Let no marrow go unconsumed!",
-                    ],
-                    "death_line": "Starved... for now...",
-                    "corruption_low": "You still hesitate before gorging on essence.",
-                    "corruption_mid": "Your thirst matches my edge.",
-                    "corruption_high": "Drink deep, host! We are famine incarnate!",
+                    ]),
+                    "death_line": scythe_params.get("death_line", "Starved... for now..."),
+                    "corruption_low": scythe_corrupt.get("low", "You still hesitate before gorging on essence."),
+                    "corruption_mid": scythe_corrupt.get("mid", "Your thirst matches my edge."),
+                    "corruption_high": scythe_corrupt.get("high", "Drink deep, host! We are famine incarnate!"),
                 },
                 source_file="level_1",
                 source_key="entities.12",
@@ -581,7 +584,7 @@ class TheEyePerceptionManager:
         )
 
         # ── 11. Node 11: Distance 7,500m — Silence of the Void
-        silence_ent = entity_dict.get("lore_void_sound", {})
+        silence_saved = narrative_nodes.get("node_10_void_silence", {})
         self._add_node(
             StoryNode(
                 node_id="node_10_void_silence",
@@ -593,22 +596,24 @@ class TheEyePerceptionManager:
                 sprite_path="assets/graphics/UI/PNG/Exclamation_Yellow.png",
                 summary="An acoustic dead-zone where all footsteps and heartbeat stop completely.",
                 conversations={
-                    "primary": silence_ent.get("params", {}).get(
-                        "text",
+                    "primary": silence_saved.get(
+                        "primary",
                         "The world goes quiet. For three seconds, even your footsteps make no sound. Then it returns — louder than before.",
                     ),
-                    "corruption_low": "The quiet feels unnatural and chilling.",
-                    "corruption_mid": "In the silence, you hear Andras breathing beside you.",
-                    "corruption_high": "The silence is comforting; mortal noise only irritates your senses.",
+                    "corruption_low": silence_saved.get("corruption_low", "The quiet feels unnatural and chilling."),
+                    "corruption_mid": silence_saved.get("corruption_mid", "In the silence, you hear Andras breathing beside you."),
+                    "corruption_high": silence_saved.get("corruption_high", "The silence is comforting; mortal noise only irritates your senses."),
                 },
-                source_file="level_1",
-                source_key="entities.lore_void_sound",
+                source_file="storyline",
+                source_key="narrative_nodes.node_10_void_silence",
             )
         )
 
         # ── 12. Node 12: Distance 10,500m — The Moonstone Grove
         moon_ent = entity_dict.get("13", {})
         moon_params = moon_ent.get("params", {})
+        moon_dial = moon_params.get("dialogue", {})
+        moon_corrupt = moon_dial.get("corruption_variants", {})
         self._add_node(
             StoryNode(
                 node_id="node_11_moonstone_keeper",
@@ -624,14 +629,14 @@ class TheEyePerceptionManager:
                         "text",
                         "The dark flame cuts deep. Look inside: do you still remember who you were before you accepted my power, or just the blood?",
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": moon_params.get("combat_taunts", [
                         "Steel yourself, runner. Truth is sharper than blades.",
                         "Candora's light judges all who step across this grove.",
-                    ],
-                    "death_line": "The grove falls dark... may mercy find you...",
-                    "corruption_low": "Your heart still beats in human cadence. Hold onto it.",
-                    "corruption_mid": "Shadow clouds your aura, yet your eyes still seek dawn.",
-                    "corruption_high": "Only cold void remains in your chest. A pity.",
+                    ]),
+                    "death_line": moon_params.get("death_line", "The grove falls dark... may mercy find you..."),
+                    "corruption_low": moon_corrupt.get("low", "Your heart still beats in human cadence. Hold onto it."),
+                    "corruption_mid": moon_corrupt.get("mid", "Shadow clouds your aura, yet your eyes still seek dawn."),
+                    "corruption_high": moon_corrupt.get("high", "Only cold void remains in your chest. A pity."),
                 },
                 source_file="level_1",
                 source_key="entities.13",
@@ -652,7 +657,7 @@ class TheEyePerceptionManager:
                 sprite_path="assets/graphics/green_monster",
                 summary="The colossal emerald sentinel guarding the boundary between the mortal woods and the abyss.",
                 conversations={
-                    "primary": "Nothing passes this threshold.",
+                    "primary": gatekeeper_dial.get("primary", "Nothing passes this threshold."),
                     "pre_fight": gatekeeper_dial.get(
                         "pre_fight",
                         [
@@ -660,11 +665,11 @@ class TheEyePerceptionManager:
                             "You bear his mark. And yet you hesitate. Pathetic.",
                         ],
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": gatekeeper_dial.get("combat_taunts", [
                         "Crush the worm!",
                         "His mark will not shield you from my stone!",
                         "Tear the runner limb from limb!",
-                    ],
+                    ]),
                     "death_line": gatekeeper_dial.get(
                         "death_line",
                         "The threshold... was never mine to hold...",
@@ -692,7 +697,7 @@ class TheEyePerceptionManager:
                 sprite_path="assets/graphics/bloodZombie/Idle",
                 summary="A hollowed, corrupted runner driven mad by Andras. Uncorks saucy, vulgar period & modern combat taunts.",
                 conversations={
-                    "primary": "I... remember being afraid of this. He told me the same things he told you. Do not become what I became.",
+                    "primary": blood_dial.get("primary", "I... remember being afraid of this. He told me the same things he told you. Do not become what I became."),
                     "pre_fight": blood_dial.get(
                         "pre_fight",
                         [
@@ -701,13 +706,13 @@ class TheEyePerceptionManager:
                             "Do not become what I became.",
                         ],
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": blood_dial.get("combat_taunts", [
                         "Come on, pretty boy, bleed for me! Don't tell me you're getting winded already!",
                         "That all you got, you milk-livered bastard? My dead nan swung harder than that!",
                         "By the black rot, you're a clumsy piece of shit. Stand still and let me gut ya!",
                         "Ha! Call that a guard? Pure shite! I’ll carve that smug look right off your mug!",
                         "Thou callest that a swing?! Come closer, whelp, my teeth are thirsty!",
-                    ],
+                    ]),
                     "death_line": blood_dial.get(
                         "death_line",
                         "Finally... it ends. Do not... follow my path.",
@@ -735,7 +740,7 @@ class TheEyePerceptionManager:
                 sprite_path="assets/wizard",
                 summary="A former holy paragon consumed by living flames. Reflects the runner's hunger and inner combustion.",
                 conversations={
-                    "primary": "I was a guardian once. Before the fire consumed the man.",
+                    "primary": wiz_dial.get("primary", "I was a guardian once. Before the fire consumed the man."),
                     "pre_fight": wiz_dial.get(
                         "pre_fight",
                         [
@@ -743,10 +748,10 @@ class TheEyePerceptionManager:
                             "I see the same hunger in your eyes that consumed mine.",
                         ],
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": wiz_dial.get("combat_taunts", [
                         "Burn, runner! Feel the purity of agony!",
                         "Cinder and ash! That is all we leave behind!",
-                    ],
+                    ]),
                     "death_line": wiz_dial.get(
                         "death_line",
                         "The flame... dims. Perhaps now... I can rest.",
@@ -774,7 +779,7 @@ class TheEyePerceptionManager:
                 sprite_path="assets/graphics/Ronin/spr_RoninIdle_strip8_frames",
                 summary="The ultimate corrupted paragon and previous runner. The final obstacle before the demonic throne.",
                 conversations={
-                    "primary": "So. He sent another one.",
+                    "primary": ronin_boss_dial.get("primary", "So. He sent another one."),
                     "pre_fight": ronin_boss_dial.get(
                         "pre_fight",
                         [
@@ -783,11 +788,11 @@ class TheEyePerceptionManager:
                             "Prove me right. Or prove me wrong. Either way, this ends here.",
                         ],
                     ),
-                    "combat_taunts": [
+                    "combat_taunts": ronin_boss_dial.get("combat_taunts", [
                         "Show me what Andras promised you!",
                         "You swing like a desperate dog!",
                         "Is this the pinnacle of his new vessel?!",
-                    ],
+                    ]),
                     "death_line": ronin_boss_dial.get(
                         "death_line",
                         "You are not like me after all. Or... perhaps you are. Time will tell.",
@@ -1261,12 +1266,31 @@ class TheEyePerceptionManager:
             return False
 
         node = self._node_map.get(s.parent_node_id)
-        if node and s.category == "combat_taunt" and s.list_idx is not None:
-            taunts = node.conversations.get("combat_taunts", [])
-            if 0 <= s.list_idx < len(taunts):
-                taunts.pop(s.list_idx)
+        if node:
+            if s.category == "combat_taunt":
+                taunts = node.conversations.get("combat_taunts", [])
+                if s.list_idx is not None and 0 <= s.list_idx < len(taunts):
+                    taunts.pop(s.list_idx)
+                elif s.text in taunts:
+                    taunts.remove(s.text)
+            elif s.category == "pre_fight":
+                pfs = node.conversations.get("pre_fight", [])
+                if s.list_idx is not None and 0 <= s.list_idx < len(pfs):
+                    pfs.pop(s.list_idx)
+                elif s.text in pfs:
+                    pfs.remove(s.text)
+            elif s.category == "encounter":
+                node.conversations.pop("primary", None)
+            elif s.category == "death_line":
+                node.conversations.pop("death_line", None)
+            elif s.category.startswith("corruption_"):
+                node.conversations.pop(s.category, None)
+            elif s.category == "relic":
+                if "relic_branch" in node.conversations:
+                    node.conversations.pop("relic_branch", None)
 
         self.speech_items.pop(speech_id, None)
+        self._extract_all_speech_items()
         return True
 
     def get_nodes(self) -> List[StoryNode]:
@@ -1335,7 +1359,7 @@ class TheEyePerceptionManager:
         try:
             from src.game.utils.atomic_save import atomic_write_json
 
-            # 1. Update storyline_data for boss dialogues, enemy taunts & relics
+            # 1. Update storyline_data for boss dialogues, enemy taunts, relics & narrative_nodes
             if os.path.exists(self.storyline_path):
                 try:
                     with open(self.storyline_path, "r", encoding="utf-8") as f:
@@ -1351,6 +1375,8 @@ class TheEyePerceptionManager:
                 disk_storyline["enemy_taunts"] = {}
             if "relics" not in disk_storyline:
                 disk_storyline["relics"] = {}
+            if "narrative_nodes" not in disk_storyline:
+                disk_storyline["narrative_nodes"] = {}
 
             for node in self.nodes:
                 if node.source_file == "storyline" and node.source_key:
@@ -1369,9 +1395,12 @@ class TheEyePerceptionManager:
                             bd["combat_taunts"] = node.conversations["combat_taunts"]
                         if "corruption_variants" not in bd:
                             bd["corruption_variants"] = {}
-                        bd["corruption_variants"]["low"] = node.conversations.get("corruption_low", bd["corruption_variants"].get("low", ""))
-                        bd["corruption_variants"]["mid"] = node.conversations.get("corruption_mid", bd["corruption_variants"].get("mid", ""))
-                        bd["corruption_variants"]["high"] = node.conversations.get("corruption_high", bd["corruption_variants"].get("high", ""))
+                        if "corruption_low" in node.conversations:
+                            bd["corruption_variants"]["low"] = node.conversations["corruption_low"]
+                        if "corruption_mid" in node.conversations:
+                            bd["corruption_variants"]["mid"] = node.conversations["corruption_mid"]
+                        if "corruption_high" in node.conversations:
+                            bd["corruption_variants"]["high"] = node.conversations["corruption_high"]
 
                     elif node.source_key.startswith("enemy_taunts."):
                         enemy_k = node.source_key.split(".", 1)[1]
@@ -1384,13 +1413,39 @@ class TheEyePerceptionManager:
                             et["combat_taunts"] = node.conversations["combat_taunts"]
                         if "death_line" in node.conversations:
                             et["death_line"] = node.conversations["death_line"]
+                        cv = et.setdefault("corruption_variants", {})
+                        if "corruption_low" in node.conversations:
+                            cv["low"] = node.conversations["corruption_low"]
+                        if "corruption_mid" in node.conversations:
+                            cv["mid"] = node.conversations["corruption_mid"]
+                        if "corruption_high" in node.conversations:
+                            cv["high"] = node.conversations["corruption_high"]
 
                     elif node.source_key.startswith("relics."):
                         relic_k = node.source_key.split(".", 1)[1]
-                        if relic_k in disk_storyline["relics"]:
-                            r_entry = disk_storyline["relics"][relic_k]
-                            r_entry["memory_text"] = node.conversations.get("primary", r_entry.get("memory_text", ""))
-                            r_entry["lore"] = node.conversations.get("lore", r_entry.get("lore", ""))
+                        if relic_k not in disk_storyline["relics"]:
+                            disk_storyline["relics"][relic_k] = {}
+                        r_entry = disk_storyline["relics"][relic_k]
+                        if "primary" in node.conversations:
+                            r_entry["memory_text"] = node.conversations["primary"]
+                            r_entry["primary"] = node.conversations["primary"]
+                        if "lore" in node.conversations:
+                            r_entry["lore"] = node.conversations["lore"]
+                        if "combat_taunts" in node.conversations:
+                            r_entry["combat_taunts"] = node.conversations["combat_taunts"]
+                        if "death_line" in node.conversations:
+                            r_entry["death_line"] = node.conversations["death_line"]
+                        cv = r_entry.setdefault("corruption_variants", {})
+                        if "corruption_low" in node.conversations:
+                            cv["low"] = node.conversations["corruption_low"]
+                        if "corruption_mid" in node.conversations:
+                            cv["mid"] = node.conversations["corruption_mid"]
+                        if "corruption_high" in node.conversations:
+                            cv["high"] = node.conversations["corruption_high"]
+
+                    elif node.source_key.startswith("narrative_nodes."):
+                        nar_k = node.source_key.split(".", 1)[1]
+                        disk_storyline.setdefault("narrative_nodes", {})[nar_k] = copy.deepcopy(node.conversations)
 
             self.storyline_data = disk_storyline
             atomic_write_json(self.storyline_path, self.storyline_data, indent=2)
@@ -1416,21 +1471,10 @@ class TheEyePerceptionManager:
                     matched_ent = None
                     for ent in all_entities:
                         e_id = str(ent.get("id"))
-                        e_title = str(ent.get("params", {}).get("title", ""))
-                        
                         if e_id == ent_id_str:
                             matched_ent = ent
                             break
                         elif ent_id_str == "magic_book" and (ent.get("params", {}).get("is_magic_book") or e_id == "10"):
-                            matched_ent = ent
-                            break
-                        elif ent_id_str in ("npc_void_scribe", "void_scribe") and ("Void Scribe" in e_title or e_id == "11"):
-                            matched_ent = ent
-                            break
-                        elif ent_id_str in ("npc_candora_messenger", "candora") and ("Candora" in e_title or e_id == "13"):
-                            matched_ent = ent
-                            break
-                        elif ent_id_str in ("npc_previous_runner", "previous_runner") and ("Previous Runner" in e_title or e_id == "12"):
                             matched_ent = ent
                             break
 
@@ -1438,22 +1482,29 @@ class TheEyePerceptionManager:
                         params = matched_ent.setdefault("params", {})
                         if "primary" in node.conversations:
                             params["text"] = node.conversations["primary"]
-                        if "dialogue" in params:
-                            d_block = params["dialogue"]
-                            if "default" in d_block:
-                                d_block["default"] = node.conversations["primary"]
-                            if "corruption_variants" in d_block:
-                                cv = d_block["corruption_variants"]
-                                cv["low"] = node.conversations.get("corruption_low", cv.get("low", ""))
-                                cv["mid"] = node.conversations.get("corruption_mid", cv.get("mid", ""))
-                                cv["high"] = node.conversations.get("corruption_high", cv.get("high", ""))
                         if "combat_taunts" in node.conversations:
                             params["combat_taunts"] = node.conversations["combat_taunts"]
                         if "death_line" in node.conversations:
                             params["death_line"] = node.conversations["death_line"]
 
+                        has_corrupt = any(k in node.conversations for k in ("corruption_low", "corruption_mid", "corruption_high"))
+                        if has_corrupt or "dialogue" in params:
+                            d_block = params.setdefault("dialogue", {})
+                            d_block["default"] = node.conversations.get("primary", params.get("text", ""))
+                            cv = d_block.setdefault("corruption_variants", {})
+                            if "corruption_low" in node.conversations:
+                                cv["low"] = node.conversations["corruption_low"]
+                            if "corruption_mid" in node.conversations:
+                                cv["mid"] = node.conversations["corruption_mid"]
+                            if "corruption_high" in node.conversations:
+                                cv["high"] = node.conversations["corruption_high"]
+
             self.level_data = disk_level
             atomic_write_json(self.level_path, self.level_data, indent=4)
+
+            # Update original conversations so in-session reverts track committed disk data
+            for node in self.nodes:
+                node.original_conversations = copy.deepcopy(node.conversations)
 
             self.revision += 1
             return True, "Story tree perception successfully saved with timestamped backups!"

@@ -386,3 +386,76 @@ def test_consecutive_multi_plugin_interleaved_saves(tmp_path):
     book_ev = next(e for e in final_level["world_events"] if e.get("id") == 10)
     assert book_ev["params"]["text"] == "Interleaved TheEye dialogue update!"
 
+
+def test_the_eye_close_and_reopen_persists_all_node_categories(tmp_path):
+    """
+    Simulates user workflow in The Eye:
+    1. User modifies dialogue and combat taunts across multiple nodes:
+       - Boss (Gatekeeper)
+       - Enemy (Skeleton Minions)
+       - Level NPC (The Sealed Book)
+       - Narrative NPC (Void Scribe)
+       - Relic (Shattered Gauntlet)
+    2. User clicks 'Save Changes'
+    3. User closes The Eye plugin and opens it again
+    4. Verify 100% data retention and zero silent rollbacks!
+    """
+    level_path = str(tmp_path / "eye_test_level.json")
+    story_path = str(tmp_path / "eye_test_story.json")
+
+    init_level = _create_sample_level_data()
+    with open(level_path, "w", encoding="utf-8") as f:
+        json.dump(init_level, f, indent=4)
+    with open(story_path, "w", encoding="utf-8") as f:
+        json.dump({"boss_dialogue": {}, "relics": {}, "enemy_taunts": {}}, f, indent=4)
+
+    # Launch 1: User makes changes
+    eye1 = TheEyePerceptionManager(level_path=level_path, storyline_path=story_path)
+    
+    # Boss
+    eye1.update_speech("speech_node_12_gatekeeper_primary", text="Custom Gatekeeper Primary!")
+    eye1.update_speech("speech_node_12_gatekeeper_taunt_0", text="Custom Gatekeeper Taunt 0!")
+
+    # Enemy
+    eye1.update_speech("speech_node_02_skeletons_primary", text="Custom Skeletons Primary!")
+    eye1.update_speech("speech_node_02_skeletons_taunt_0", text="Custom Skeletons Taunt 0!")
+
+    # Level NPC
+    eye1.update_speech("speech_node_01_grimoire_primary", text="Custom Grimoire Primary!")
+    eye1.update_speech("speech_node_01_grimoire_taunt_0", text="Custom Grimoire Taunt 0!")
+
+    # Narrative NPC
+    eye1.update_speech("speech_node_03_void_scribe_primary", text="Custom Void Scribe Primary!")
+    eye1.update_speech("speech_node_03_void_scribe_taunt_0", text="Custom Void Scribe Taunt 0!")
+
+    # Relic
+    eye1.update_speech("speech_node_00_prologue_primary", text="Custom Prologue Memory Text!")
+
+    # Save
+    succ, msg = eye1.save_perception()
+    assert succ, f"Save failed: {msg}"
+
+    # Close and Reopen (Launch 2)
+    eye2 = TheEyePerceptionManager(level_path=level_path, storyline_path=story_path)
+
+    # Verify all changes are restored accurately
+    assert eye2.get_speech_item("speech_node_12_gatekeeper_primary").text == "Custom Gatekeeper Primary!"
+    assert eye2.get_speech_item("speech_node_12_gatekeeper_taunt_0").text == "Custom Gatekeeper Taunt 0!"
+    assert eye2.get_speech_item("speech_node_02_skeletons_primary").text == "Custom Skeletons Primary!"
+    assert eye2.get_speech_item("speech_node_02_skeletons_taunt_0").text == "Custom Skeletons Taunt 0!"
+    assert eye2.get_speech_item("speech_node_01_grimoire_primary").text == "Custom Grimoire Primary!"
+    assert eye2.get_speech_item("speech_node_01_grimoire_taunt_0").text == "Custom Grimoire Taunt 0!"
+    assert eye2.get_speech_item("speech_node_03_void_scribe_primary").text == "Custom Void Scribe Primary!"
+    assert eye2.get_speech_item("speech_node_03_void_scribe_taunt_0").text == "Custom Void Scribe Taunt 0!"
+    assert eye2.get_speech_item("speech_node_00_prologue_primary").text == "Custom Prologue Memory Text!"
+
+    # Save again on launch 2 without changes: verify idempotency
+    succ2, msg2 = eye2.save_perception()
+    assert succ2
+
+    # Launch 3: Re-verify
+    eye3 = TheEyePerceptionManager(level_path=level_path, storyline_path=story_path)
+    assert eye3.get_speech_item("speech_node_12_gatekeeper_primary").text == "Custom Gatekeeper Primary!"
+    assert eye3.get_speech_item("speech_node_03_void_scribe_primary").text == "Custom Void Scribe Primary!"
+
+

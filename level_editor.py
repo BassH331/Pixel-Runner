@@ -2428,7 +2428,7 @@ class App:
                 backup_params = backup_ev.get("params", {})
 
                 # Preserve perception & taunt keys managed by The Eye
-                for p_key in ("dialogue", "combat_taunts", "voice_line_id"):
+                for p_key in ("dialogue", "combat_taunts", "death_line", "voice_line_id"):
                     if p_key in disk_params and (p_key not in ev_params or ev_params.get(p_key) == backup_params.get(p_key)):
                         ev_params[p_key] = copy.deepcopy(disk_params[p_key])
 

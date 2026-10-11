@@ -1508,6 +1508,9 @@ class TheEyeApp:
                 if clicked_item.node_type == "speech" and isinstance(clicked_item.data, SpeechItem):
                     self.tree_3d.selected_node_id = clicked_item.data.speech_id
                     self._sync_inspector_from_3d_selection()
+                elif clicked_item.node_type == "entity" and isinstance(clicked_item.data, StoryNode):
+                    self.tree_3d.selected_node_id = clicked_item.data.node_id
+                    self._sync_inspector_from_3d_selection()
 
     # ── Update & Rendering ────────────────────────────────────────────────────
     def update(self, dt: float) -> None:
