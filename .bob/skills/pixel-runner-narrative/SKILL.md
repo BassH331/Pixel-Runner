@@ -217,3 +217,20 @@ Boss order is enforced via `boss_sequence` in `game_data/level_1.json`. Bosses c
 | `storyline_config.json` | `whisperer_barks` | Bark pool by speaker and trigger |
 | `level_1.json` | `boss_sequence` | Ordered list of boss names |
 | `level_1.json` | `world_events` | Distance-based spawn and NPC events |
+
+
+---
+
+## Mandatory Narrative Canon
+
+Before changing any narrative content, read `storyline/NARRATIVE_CANON.md`. It is the governing narrative rulebook. The author's explicitly approved decisions outrank assumptions in older files.
+
+- Keep the religious foundation indirect and subliminal. Do not explicitly name Jesus or God in in-game dialogue, narration, relics, menus, or endings.
+- The central conflict is the warrior's temptation by Andras: the offered power appears to help him but gradually seeks to master him.
+- Express temptation, deception, the heart, truth, self-control, courage, sacrifice, and hope through character choices and consequences, not sermons.
+- Do not invent or silently canonize a protagonist backstory, a new deity or demon, the forest's origin, the stranger's identity, or Andras's final plan. Mark unresolved facts as UNDECIDED and ask the author.
+- Existing names and lore such as Voragis, Kaelen, Elysia, and Candora may conflict with the current direction. Do not propagate them as canon without author approval. Do not delete or rename code identifiers without checking references and tests.
+- Every enemy, boss, relic, bark, cutscene, and ending must reveal the central deception, show its consequences, test the warrior's heart, or support gameplay clarity.
+- Before editing, inspect the actual config and implementation. Do not claim a mechanic or story event exists unless verified.
+- Update connected narrative references together; validate JSON after any config change. Keep edits minimal and preserve game structure unless the author explicitly asks otherwise.
+- If the canon conflicts with existing content or the intended story is unclear, report the conflict instead of guessing.
