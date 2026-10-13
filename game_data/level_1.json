@@ -259,8 +259,8 @@
                     532,
                     608
                 ],
-                "pos_x": 3168.0,
-                "pos_y": -96.0,
+                "pos_x": 5120.0,
+                "pos_y": -64.0,
                 "scale": 1.5,
                 "layer_index": 7,
                 "parallax_ratio": 1.12,
@@ -379,7 +379,7 @@
                     696,
                     712
                 ],
-                "pos_x": 5287.3675213675215,
+                "pos_x": 8391.367521367521,
                 "pos_y": -84.22222222222223,
                 "scale": 1.5,
                 "layer_index": 7,
@@ -602,61 +602,6 @@
                     "Death": "death",
                     "Idle": "idle",
                     "Move": "walk"
-                }
-            }
-        },
-        {
-            "id": 11,
-            "distance": 3500,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Watcher of the Abyss",
-                "text": "Every skeleton you shatter was a mortal who refused my gift and crumbled. Break their bones, runner—prove you are worthy of the darkness!",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
-                "scale": 2.0,
-                "voice_line_id": "evil_eye_bones",
-                "combat_taunts": [
-                    "Yes, tear them apart! Why fight as a mortal when you can be a god?",
-                    "Let them feel your wrath! Use my shadow!",
-                    "Don't hold back. Give in to the void."
-                ],
-                "death_line": "I see all... you cannot flee your own reflection...",
-                "dialogue": {
-                    "default": "Every skeleton you shatter was a mortal who refused my gift and crumbled. Break their bones, runner—prove you are worthy of the darkness!",
-                    "corruption_variants": {
-                        "low": "You hesitate! Weakness will rot you from within!",
-                        "mid": "Good! The blood quickens your pulse!",
-                        "high": "Now you see through my eye! Splendid carnage!"
-                    }
-                }
-            }
-        },
-        {
-            "id": 12,
-            "distance": 7000,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "The Scythe's Hunger",
-                "text": "Mere bone dust will not sate my hunger. The Gatekeeper ahead holds a concentrated mass of souls. Rip it from his chest!",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/Evil Eye Beast For Itch/Idle",
-                "scale": 2.0,
-                "voice_line_id": "evil_eye_gatekeeper",
-                "combat_taunts": [
-                    "Harvest his life force! Gorge upon his spirit!",
-                    "Let no marrow go unconsumed!"
-                ],
-                "death_line": "Starved... for now...",
-                "dialogue": {
-                    "default": "Mere bone dust will not sate my hunger. The Gatekeeper ahead holds a concentrated mass of souls. Rip it from his chest!",
-                    "corruption_variants": {
-                        "low": "You still hesitate before gorging on essence.",
-                        "mid": "Your thirst matches my edge.",
-                        "high": "Drink deep, host! We are famine incarnate!"
-                    }
                 }
             }
         },

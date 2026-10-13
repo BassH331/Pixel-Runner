@@ -292,3 +292,186 @@ def test_book_ritual_uses_single_book_interface_asset():
     surf = pg.Surface((1280, 720), pg.SRCALPHA)
     overlay.draw(surf)
 
+
+def test_demon_time_dedicated_activation_and_no_attack_conflict():
+    """Verify Demon Time activates strictly on dedicated keys [V] and does NOT conflict with attacks (E/T/Y/RB)."""
+    dts = DemonTimeSystem()
+    dts.unlock()
+
+    # 1. Player pressing normal attack keys (E = Smash, T = Transform) must NOT trigger Demon Time
+    smash_event = pg.event.Event(pg.KEYDOWN, key=pg.K_e)
+    assert not dts.handle_input(smash_event, 0, 0, 100, 100)
+    assert not dts.is_active
+
+    transform_event = pg.event.Event(pg.KEYDOWN, key=pg.K_t)
+    assert not dts.handle_input(transform_event, 0, 0, 100, 100)
+    assert not dts.is_active
+
+    # Gamepad attack/dash buttons (Button 3 = Y/Thrust, Button 5 = RB/Dash) must NOT trigger
+    btn_thrust = pg.event.Event(pg.JOYBUTTONDOWN, button=3)
+    assert not dts.handle_input(btn_thrust, 0, 0, 100, 100)
+    assert not dts.is_active
+
+    btn_dash = pg.event.Event(pg.JOYBUTTONDOWN, button=5)
+    assert not dts.handle_input(btn_dash, 0, 0, 100, 100)
+    assert not dts.is_active
+
+    # 2. Player pressing dedicated [V] key DOES activate Demon Time
+    v_event = pg.event.Event(pg.KEYDOWN, key=pg.K_v)
+    handled = dts.handle_input(v_event, 0, 0, 100, 100)
+    assert handled
+    assert dts.is_active
+    assert dts.companion.is_overdrive
+
+
+def test_companion_autonomous_hunting_and_blasting():
+    """Verify The EYE autonomously tracks, targets, and blasts live enemies without waiting for player QTE."""
+    dts = DemonTimeSystem()
+    dts.unlock()
+    dts.activate(duration=5.0)
+    assert dts.is_active
+
+    # Mock live enemy
+    enemy = MagicMock()
+    enemy.rect = pg.Rect(500, 300, 60, 60)
+    enemy.alive.return_value = True
+    enemy._health = 100.0
+    enemy.is_dead = False
+
+    # Update system for multiple frames
+    for _ in range(25):
+        dts.update(
+            0.02,
+            player_x=100.0,
+            player_y=300.0,
+            facing_right=True,
+            enemies=[enemy],
+            boss=None,
+        )
+
+    # Companion must have acquired target and fired projectiles autonomously
+    assert dts.companion.current_target == enemy
+    assert len(dts.projectiles) >= 1
+
+    # Companion must have generated supersonic afterimages in overdrive
+    assert len(dts.companion._afterimages) >= 1
+
+    # Drawing HUD overlay renders target lock-ons without error
+    screen_surf = pg.Surface((1280, 720))
+    dts.draw_overlay(screen_surf, enemies=[enemy])
+
+
+def test_demon_time_world_time_scale_and_purge_tracking():
+    """Verify Demon Time world scroll time scale is 0.15x and targets_purged tracks eliminations."""
+    dts = DemonTimeSystem()
+    assert dts.get_world_time_scale() == 1.0
+
+    dts.unlock()
+    dts.activate(duration=4.0)
+    assert dts.get_world_time_scale() == 0.15
+    assert dts.get_enemy_time_scale() == 0.15
+
+    # Mock boss killed by projectile
+    boss = MagicMock()
+    boss.rect = pg.Rect(200, 200, 80, 80)
+    boss.alive.return_value = True
+    boss.health = 50.0
+    boss.take_damage.side_effect = lambda dmg: setattr(boss, "health", max(0.0, boss.health - dmg))
+
+    proj = VoidBallProjectile(190, 200, 200, 200, damage=65.0)
+    dts.projectiles.add(proj)
+
+    dts.update(0.016, player_x=0, player_y=0, boss=boss)
+
+    # Boss took lethal damage -> targets_purged incremented
+    assert boss.health <= 0
+    assert dts.targets_purged == 1
+
+
+def test_parallax_and_props_strict_synchronization_under_demon_time():
+    """Verify that ParallaxLayer and EnvironmentProps maintain exact lockstep alignment across normal and Demon Time."""
+    from src.game.systems.environment_manager import EnvironmentManager, EnvironmentProp
+
+    env = EnvironmentManager(1280, 720)
+    surf = pg.Surface((1280, 720))
+
+    # Create dummy prop on Layer 6 (road, parallax_ratio=1.0)
+    prop = EnvironmentProp(
+        texture_path="assets/graphics/UI/PNG/Exclamation_Yellow.png",
+        pos_x=1500.0,
+        pos_y=500.0,
+        layer_index=6,
+        parallax_ratio=1.0,
+    )
+    env.props.append(prop)
+
+    # Initial frame at world_distance = 0
+    dist = 0.0
+    scroll_speed = 8.0
+    world_scale = 1.0
+
+    # Advance 10 frames in normal running (1.0x)
+    for _ in range(10):
+        effective_scroll = scroll_speed * world_scale
+        dist += effective_scroll
+        env.update(0.016 * world_scale, effective_scroll * 60.0)
+
+    assert dist == 80.0
+    # Prop draw x at distance 80.0: 1500 - 80 = 1420
+    prop_x_normal = int(prop.pos_x - dist * prop.parallax_ratio)
+    assert prop_x_normal == 1420
+
+    # Activate Demon Time (0.15x) for 20 frames
+    world_scale = 0.15
+    for _ in range(20):
+        effective_scroll = scroll_speed * world_scale
+        dist += effective_scroll
+        env.update(0.016 * world_scale, effective_scroll * 60.0)
+
+    # Effective distance should have advanced by 20 * (8.0 * 0.15) = 24.0 pixels
+    assert dist == pytest.approx(104.0)
+    prop_x_demon = int(prop.pos_x - dist * prop.parallax_ratio)
+    assert prop_x_demon == 1396
+
+    # Return to normal running (1.0x) for 10 frames
+    world_scale = 1.0
+    for _ in range(10):
+        effective_scroll = scroll_speed * world_scale
+        dist += effective_scroll
+        env.update(0.016 * world_scale, effective_scroll * 60.0)
+
+    assert dist == pytest.approx(184.0)
+    prop_x_after = int(prop.pos_x - dist * prop.parallax_ratio)
+    assert prop_x_after == 1316
+
+
+def test_animated_prop_respects_delta_time_slowdown():
+    """Verify that animated props advance frames using delta time rather than wall clock."""
+    from src.game.systems.environment_manager import EnvironmentProp
+
+    prop = EnvironmentProp(
+        texture_path="assets/graphics/UI/PNG/Exclamation_Yellow.png",
+        pos_x=100.0,
+        pos_y=100.0,
+    )
+    # Mock multiple animation frames
+    prop.frames = [pg.Surface((32, 32)) for _ in range(4)]
+    prop.image = prop.frames[0]
+    prop.anim_speed = 0.10  # 100ms per frame
+    prop.anim_timer = 0.0
+    prop.frame_idx = 0
+
+    # Advance small delta (0.05s) -> frame should stay 0
+    prop.update(0.05)
+    assert prop.frame_idx == 0
+
+    # Advance another small delta (0.06s, total 0.11s) -> frame advances to 1
+    prop.update(0.06)
+    assert prop.frame_idx == 1
+    assert prop.image == prop.frames[1]
+
+    # Draw onto surface uses the dt-driven image
+    target = pg.Surface((1280, 720))
+    prop.draw(target, cam_x=0.0, cam_y=0.0)
+
+

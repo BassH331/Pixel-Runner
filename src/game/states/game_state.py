@@ -190,6 +190,7 @@ class GameState(PlayingState):
         # Demon Time System & The EYE companion (Level 1 narrative ability)
         from src.game.systems.demon_time_system import DemonTimeSystem
         self.demon_time_system = DemonTimeSystem()
+        self.demon_time_system.audio_manager = self.audio_manager
         self._forest_inquiry_shown: bool = False
 
         # watsonx.ai Dialogue Client — disabled; AI-generated taunts stripped.
@@ -1493,8 +1494,12 @@ class GameState(PlayingState):
             self.audio_manager.play_music(track, loop=True)
         # ────────────────────────────────────────────────────────────────────
 
-        # Track travel distance
-        self.world_distance += self.bg_scroll_speed
+        # Temporal time scale & effective world scroll
+        world_scale = self.demon_time_system.get_world_time_scale() if hasattr(self, "demon_time_system") else 1.0
+        effective_scroll = self.bg_scroll_speed * world_scale
+
+        # Track travel distance (strictly scaled by effective_scroll to prevent background & prop desynchronization)
+        self.world_distance += effective_scroll
         if self.world_distance > self.max_distance_reached:
             self.max_distance_reached = self.world_distance
 
@@ -1540,8 +1545,8 @@ class GameState(PlayingState):
                 enemy.set_ground_y(int(e_ground) if e_ground is not None else None)
 
         # Update systems
-        self.environment_manager.update(dt / 1000.0, float(self.bg_scroll_speed * 60.0))
-        self.update_background(self.bg_scroll_speed)
+        self.environment_manager.update((dt / 1000.0) * world_scale, float(effective_scroll * 60.0))
+        self.update_background(effective_scroll)
         self.hud_overlay.update(dt)
         self.player.update()
         if not self.is_interacting:
@@ -1554,15 +1559,20 @@ class GameState(PlayingState):
                 p_facing_left = getattr(player_sprite, "facing_left", False)
                 SquadCoordinator.get_instance().update_squad_roles(active_enemies_list, player_sprite.rect, p_facing_left)
 
-            # Enemies and combat slow down to 0.20x during Demon Time!
+            # Enemies and combat slow down during Demon Time (0.15x)!
             enemy_dt = dt * (self.demon_time_system.get_enemy_time_scale() if hasattr(self, "demon_time_system") else 1.0)
-            self.obstacle_group.update(enemy_dt, self.bg_scroll_speed)
+            self.obstacle_group.update(enemy_dt, effective_scroll)
 
         # Demon Time System & The EYE companion update
         if hasattr(self, "demon_time_system"):
             if not self.demon_time_system.is_unlocked and hasattr(self, "relic_manager"):
                 if self.relic_manager.is_collected("the_eye"):
                     self.demon_time_system.unlock()
+                    if hasattr(self, "side_notification") and self.side_notification:
+                        self.side_notification.show(
+                            "The watching eye awakens in your soul. Press [V] to initiate Demon Time.",
+                            "ANCIENT WEAPON: THE EYE OF ANDRAS",
+                        )
 
             p_face_right = not getattr(player_sprite, "facing_left", False) if player_sprite else True
             px = player_sprite.rect.centerx if player_sprite else 0.0
@@ -1586,10 +1596,10 @@ class GameState(PlayingState):
                 hold=6.0,
             )
 
-        self.ambient_group.update(dt, self.bg_scroll_speed)
-        self.interaction_group.update(dt, self.bg_scroll_speed)
-        VisualEffectManager.update(dt, int(self.bg_scroll_speed))
-        self.particle_manager.update(dt / 1000.0, float(self.bg_scroll_speed))
+        self.ambient_group.update(dt * world_scale, effective_scroll)
+        self.interaction_group.update(dt, effective_scroll)
+        VisualEffectManager.update(dt * world_scale, int(effective_scroll))
+        self.particle_manager.update((dt / 1000.0) * world_scale, float(effective_scroll))
         if self.player.sprite:
             self.camera.follow(self.player.sprite.rect, dt / 1000.0)
         self.camera.update(dt / 1000.0)
@@ -1608,17 +1618,17 @@ class GameState(PlayingState):
             )
             if is_intro_walking and hasattr(npc, "world_x"):
                 # Move NPC in world space so its movement is physically bound to the scrolling ground tiles
-                delta_seconds = dt / 1000.0
+                delta_seconds = (dt / 1000.0) * world_scale
                 curr_world_x = getattr(npc, "world_x")
                 new_world_x = curr_world_x + getattr(npc, "walk_speed", -150.0) * delta_seconds
                 setattr(npc, "world_x", new_world_x)
                 npc.rect.x = int(new_world_x - self.world_distance)
-                npc.update(dt, scroll_speed=0)
+                npc.update(dt * world_scale, scroll_speed=0)
             elif hasattr(npc, "world_x"):
                 npc.rect.x = int(getattr(npc, "world_x") - self.world_distance)
-                npc.update(dt, scroll_speed=0)
+                npc.update(dt * world_scale, scroll_speed=0)
             else:
-                npc.update(dt, scroll_speed=self.bg_scroll_speed)
+                npc.update(dt * world_scale, scroll_speed=effective_scroll)
 
         # Player fall off-screen (trigger proper game-over death transition)
         if player_sprite.rect.top > self.height + 200 and not getattr(player_sprite, "is_dead", False):
@@ -2190,7 +2200,11 @@ class GameState(PlayingState):
 
         # Demon Time slow-motion atmospheric vignette & QTE prompt
         if hasattr(self, "demon_time_system"):
-            self.demon_time_system.draw_overlay(surface)
+            self.demon_time_system.draw_overlay(
+                surface,
+                enemies=list(self.obstacle_group),
+                boss=getattr(self, "_current_boss", None),
+            )
 
         # Draw Cinematic Narrative Overlay (Slow-Motion Vignette & Dialogue Prompt UI)
         if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:

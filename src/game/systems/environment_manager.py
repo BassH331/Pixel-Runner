@@ -68,12 +68,18 @@ class ParallaxLayer:
             if self.x2 >= self.width:
                 self.x2 = self.x1 - self.width
 
-    def draw(self, surface: pg.Surface, cam_y: float = 0.0) -> None:
+    def draw(self, surface: pg.Surface, cam_x: Optional[float] = None, cam_y: float = 0.0) -> None:
         if self.stretch_fill:
             y_pos = int(self.pos_y_offset - cam_y * self.scroll_ratio)
         else:
             y_pos = (self.screen_height - self.height) + int(self.pos_y_offset - cam_y * self.scroll_ratio)
-        
+
+        # Synchronize parallax position with camera distance if cam_x is provided
+        if cam_x is not None and self.width > 0:
+            offset = (cam_x * self.scroll_ratio) % self.width
+            self.x1 = -offset
+            self.x2 = self.x1 + self.width
+
         surface.blit(self.image, (int(self.x1), y_pos))
         if self.repeat_x:
             surface.blit(self.image, (int(self.x2), y_pos))
@@ -198,12 +204,7 @@ class EnvironmentProp:
         if draw_x + self.width < 0 or draw_x > sw or draw_y + self.height < 0 or draw_y > sh:
             return
 
-        if len(self.frames) > 1:
-            ticks = pg.time.get_ticks() + int(self.pos_x * 7)
-            idx = int((ticks / (self.anim_speed * 1000.0)) % len(self.frames))
-            surface.blit(self.frames[idx], (draw_x, draw_y))
-        else:
-            surface.blit(self.image, (draw_x, draw_y))
+        surface.blit(self.image, (draw_x, draw_y))
 
     @staticmethod
     def auto_detect_offset_y(surface: pg.Surface) -> float:
@@ -625,7 +626,7 @@ class EnvironmentManager:
             if stack:
                 player_layer = stack.get("parallax_layer")
                 if player_layer:
-                    player_layer.draw(surface, cam_y=cam_y)
+                    player_layer.draw(surface, cam_x=cam_x, cam_y=cam_y)
 
             for prop in props_by_layer.get(l_idx, []):
                 prop.draw(surface, cam_x=cam_x, cam_y=cam_y)
