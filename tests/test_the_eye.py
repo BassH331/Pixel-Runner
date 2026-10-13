@@ -392,4 +392,60 @@ def test_the_eye_button_click_animation_and_save_toast():
     assert app.save_toast_timer == 0.0
 
 
+def test_the_eye_event_category_and_duration_controls():
+    """Verify event category chip selection, hold duration stepping, and event sync."""
+    app = TheEyeApp(headless=True)
+    # Pick a node with an associated event
+    event_node_id = None
+    for nid, node_3d in app.tree_3d.nodes_3d.items():
+        if app.mgr.get_event_by_id(nid) or app.mgr.get_event_for_node(nid):
+            event_node_id = nid
+            break
+    assert event_node_id is not None
+    app.tree_3d.selected_node_id = event_node_id
+    app._sync_inspector_from_3d_selection()
+    assert app.active_event is not None
+    initial_dur = app.active_event.hold_duration
+
+    # Test hold duration step minus and plus via EyeButton events
+    click_minus = pg.event.Event(pg.MOUSEBUTTONDOWN, {"button": 1, "pos": app.btn_hold_minus.rect.center})
+    app.handle_event(click_minus)
+    assert app.active_event.hold_duration == max(1.0, initial_dur - 1.0)
+
+    click_plus = pg.event.Event(pg.MOUSEBUTTONDOWN, {"button": 1, "pos": app.btn_hold_plus.rect.center})
+    app.handle_event(click_plus)
+    assert app.active_event.hold_duration == initial_dur
+
+    # Test event category selection via category button click
+    quota_btn = next(btn for cid, btn in app.event_cat_buttons if cid == "SOUL_QUOTA")
+    click_quota = pg.event.Event(pg.MOUSEBUTTONDOWN, {"button": 1, "pos": quota_btn.rect.center})
+    app.handle_event(click_quota)
+    assert app.active_event.category == "SOUL_QUOTA"
+    assert quota_btn.is_active is True
+
+
+def test_the_eye_test_popup_trigger():
+    """Verify test pop-up button triggers live SideNotification banner in preview."""
+    app = TheEyeApp(headless=True)
+    # Select an event node
+    for nid, node_3d in app.tree_3d.nodes_3d.items():
+        if app.mgr.get_event_by_id(nid) or app.mgr.get_event_for_node(nid):
+            app.tree_3d.selected_node_id = nid
+            app._sync_inspector_from_3d_selection()
+            break
+
+    assert app.active_event is not None
+
+    # Trigger test pop-up
+    click_test = pg.event.Event(pg.MOUSEBUTTONDOWN, {"button": 1, "pos": app.btn_test_popup.rect.center})
+    app.handle_event(click_test)
+    assert app.side_notification.is_active is True
+
+    # Advance frame and draw
+    app.update(0.1)
+    app.draw()
+    assert app.side_notification.is_active is True
+
+
+
 

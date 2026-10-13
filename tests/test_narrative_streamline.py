@@ -60,7 +60,7 @@ class TestNarrativeStreamline(unittest.TestCase):
         ui._draw_corruption_bar(surf, 0)
 
     def test_whisperer_system_cooldown_and_priority_milestones(self):
-        """Verify WhispererSystem enforces 45s ambient cooldown but forces narrative milestones."""
+        """Verify WhispererSystem is ENABLED=False by default; re-enable to verify cooldown + milestones."""
         bus = EventBus()
         config = {
             "whisperer_barks": {
@@ -83,19 +83,35 @@ class TestNarrativeStreamline(unittest.TestCase):
         ws = WhispererSystem(bus, cm, config, side_notification=mock_side)
         self.assertEqual(ws.COOLDOWN, 45.0)
 
-        # 1. First ambient bark fires
+        # --- Disabled by default: no barks fire even for forced milestones ---
+        self.assertFalse(WhispererSystem.ENABLED, "WhispererSystem must be disabled by default")
         ws._try_bark("on_kill", force=False)
-        self.assertEqual(len(fired_barks), 1)
-        self.assertEqual(fired_barks[-1][1], "First kill.")
-
-        # 2. Second ambient bark within cooldown is blocked
-        ws._try_bark("on_kill", force=False)
-        self.assertEqual(len(fired_barks), 1)  # blocked by 45s cooldown
-
-        # 3. High-impact narrative milestone forces past cooldown
         ws._try_bark("on_threshold_crossed", force=True)
-        self.assertEqual(len(fired_barks), 2)
-        self.assertEqual(fired_barks[-1][1], "Seal broken.")
+        self.assertEqual(len(fired_barks), 0, "No barks should appear when ENABLED=False")
+
+        # --- Re-enable and verify cooldown + force-bypass semantics ---
+        WhispererSystem.ENABLED = True
+        try:
+            fired_barks.clear()
+            ws._cooldown_remaining = 0.0
+
+            # 1. First ambient bark fires
+            ws._try_bark("on_kill", force=False)
+            self.assertEqual(len(fired_barks), 1)
+            self.assertEqual(fired_barks[-1][1], "First kill.")
+
+            # 2. Second ambient bark within cooldown is blocked
+            ws._try_bark("on_kill", force=False)
+            self.assertEqual(len(fired_barks), 1)  # blocked by 45s cooldown
+
+            # 3. High-impact narrative milestone forces past cooldown
+            ws._try_bark("on_threshold_crossed", force=True)
+            self.assertEqual(len(fired_barks), 2)
+            self.assertEqual(fired_barks[-1][1], "Seal broken.")
+        finally:
+            # Restore default so other tests are unaffected
+            WhispererSystem.ENABLED = False
+
 
     def test_npc_corruption_mirror_dialogue(self):
         """Verify NPCs adapt their dialogue dynamically as the player's corruption grows."""

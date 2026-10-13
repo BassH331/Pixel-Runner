@@ -1,0 +1,291 @@
+{
+  "event_node_00_prologue": {
+    "event_id": "event_node_00_prologue",
+    "category": "RELIC",
+    "title": "Relic: Shattered Gauntlet",
+    "text": "You fell on the battlefield. Your armor crushed. You were supposed to die here. Then, a voice offered you a second chance.",
+    "distance": 0,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
+    "hold_duration": 8.5,
+    "trigger_type": "relic_pickup",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_00_prologue",
+    "meta": {
+      "relic_id": "shattered_gauntlet",
+      "subtitle": "The Defeat"
+    }
+  },
+  "event_node_01_grimoire": {
+    "event_id": "event_node_01_grimoire",
+    "category": "INTERACTION",
+    "title": "The Sealed Book",
+    "text": "The book pulses with a dark energy. Strange runes glow along the spine. Something awakens in the spiritual realm.",
+    "distance": 650,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
+    "hold_duration": 8.5,
+    "trigger_type": "interaction",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_01_grimoire",
+    "meta": {
+      "entity_id": 10,
+      "npc_type": "generic"
+    }
+  },
+  "event_book_ponder": {
+    "event_id": "event_book_ponder",
+    "category": "AMBIENT_LORE",
+    "title": "The Player Wonders",
+    "text": "What does this demon want with me...?",
+    "distance": 750,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
+    "hold_duration": 6.0,
+    "trigger_type": "distance",
+    "audio_cue": "whisper",
+    "parent_node_id": "node_01_grimoire",
+    "meta": {
+      "narrative_beat": "book_ponder"
+    }
+  },
+  "event_forest_inquiry": {
+    "event_id": "event_forest_inquiry",
+    "category": "AMBIENT_LORE",
+    "title": "The Runner Questions",
+    "text": "What in God's name is this forest...?",
+    "distance": 1400,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
+    "hold_duration": 6.0,
+    "trigger_type": "distance",
+    "audio_cue": "whisper",
+    "parent_node_id": "node_02_skeletons",
+    "meta": {
+      "narrative_beat": "forest_inquiry"
+    }
+  },
+  "event_node_02_skeletons": {
+    "event_id": "event_node_02_skeletons",
+    "category": "AMBIENT_LORE",
+    "title": "Ambient Lore: Bone Fields Outpost",
+    "text": "Rattling bones rise from the soil! Intruders shall feed the roots of the woods!",
+    "distance": 1080,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
+    "hold_duration": 8.5,
+    "trigger_type": "distance",
+    "audio_cue": "whisper",
+    "parent_node_id": "node_02_skeletons",
+    "meta": {}
+  },
+  "event_node_03_void_scribe": {
+    "event_id": "event_node_03_void_scribe",
+    "category": "AMBIENT_LORE",
+    "title": "Ambient Lore: The Void Scribe's Ledger",
+    "text": "I record what Andras makes. Names, dates, fates. The ledger is never full. There is always room.",
+    "distance": 1800,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
+    "hold_duration": 8.5,
+    "trigger_type": "distance",
+    "audio_cue": "whisper",
+    "parent_node_id": "node_03_void_scribe",
+    "meta": {}
+  },
+  "event_node_04_void_bloom": {
+    "event_id": "event_node_04_void_bloom",
+    "category": "AMBIENT_LORE",
+    "title": "Discovery: The Void Bloom",
+    "text": "A flower grows from a crack in the earth ahead — black petals, silver centre. It turns toward you as you pass.",
+    "distance": 2200,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
+    "hold_duration": 8.5,
+    "trigger_type": "distance",
+    "audio_cue": "whisper",
+    "parent_node_id": "node_04_void_bloom",
+    "meta": {}
+  },
+  "event_node_05_blood_zombie": {
+    "event_id": "event_node_05_blood_zombie",
+    "category": "ITEM_DISCOVERY",
+    "title": "Spoils: Unholy Relics",
+    "text": "The Blood Zombie falls. Two dark relics remain: the Bark of the Bleeding Tree and The EYE of Andras.",
+    "distance": 2558,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
+    "hold_duration": 8.5,
+    "trigger_type": "boss_defeat",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_05_blood_zombie",
+    "meta": {
+      "boss_id": 14
+    }
+  },
+  "event_demon_time_unlocked": {
+    "event_id": "event_demon_time_unlocked",
+    "category": "ITEM_DISCOVERY",
+    "title": "The EYE Awakens",
+    "text": "The EYE awakens! Demon Time slows the world. Press [A] during Demon Time to strike with unholy precision!",
+    "distance": 2558,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/graphics/Evil Eye Beast For Itch/Idle/0.png",
+    "hold_duration": 10.0,
+    "trigger_type": "relic_pickup",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_05_blood_zombie",
+    "meta": {
+      "relic_id": "the_eye",
+      "narrative_beat": "demon_time_unlocked"
+    }
+  },
+  "event_node_06_candora_messenger": {
+    "event_id": "event_node_06_candora_messenger",
+    "category": "INTERACTION",
+    "title": "Interaction: Candora's Messenger Altar",
+    "text": "Candora sent me to find the runner before he is lost. I may be too late. I am rarely early.",
+    "distance": 3100,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
+    "hold_duration": 8.5,
+    "trigger_type": "interaction",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_06_candora_messenger",
+    "meta": {}
+  },
+  "event_node_07_mural": {
+    "event_id": "event_node_07_mural",
+    "category": "AMBIENT_LORE",
+    "title": "Ancient Inscription: The Scratched Mural",
+    "text": "A half-collapsed stone mural showing a figure at a threshold. Deep gouges mark the stone where a face once was.",
+    "distance": 3400,
+    "act": "Act I: The Forest Verge",
+    "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
+    "hold_duration": 8.5,
+    "trigger_type": "distance",
+    "audio_cue": "whisper",
+    "parent_node_id": "node_07_mural",
+    "meta": {}
+  },
+  "event_node_08_previous_runner": {
+    "event_id": "event_node_08_previous_runner",
+    "category": "INTERACTION",
+    "title": "Encounter: The Fallen Runner's Warning",
+    "text": "A wandering shade recognizes your mark: 'I thought it made me stronger. I was right. I was also wrong.'",
+    "distance": 5200,
+    "act": "Act II: The Sunken Crypts",
+    "icon_path": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
+    "hold_duration": 8.5,
+    "trigger_type": "interaction",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_08_previous_runner",
+    "meta": {}
+  },
+  "event_node_09_gatekeeper": {
+    "event_id": "event_node_09_gatekeeper",
+    "category": "SOUL_QUOTA",
+    "title": "Soul Harvest Quota: 1,000 Souls Reaped",
+    "text": "The Gatekeeper's threshold demands concentrated soul essence. Harvest quota achieved: the path unlocks.",
+    "distance": 7000,
+    "act": "Act II: The Sunken Crypts",
+    "icon_path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
+    "hold_duration": 8.5,
+    "trigger_type": "soul_quota",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_09_gatekeeper",
+    "meta": {
+      "quota": 1000
+    }
+  },
+  "event_node_10_void_silence": {
+    "event_id": "event_node_10_void_silence",
+    "category": "AMBIENT_LORE",
+    "title": "Ambient Lore: The Void Silence",
+    "text": "The world falls utterly silent. For three seconds, footsteps make no sound before reality rushes back in.",
+    "distance": 9500,
+    "act": "Act II: The Sunken Crypts",
+    "icon_path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
+    "hold_duration": 8.5,
+    "trigger_type": "distance",
+    "audio_cue": "whisper",
+    "parent_node_id": "node_10_void_silence",
+    "meta": {}
+  },
+  "event_node_11_wizard": {
+    "event_id": "event_node_11_wizard",
+    "category": "RELIC",
+    "title": "Relic: Amalgam Core",
+    "text": "The heart of Andras's prototype vessel — human flesh merged with shadow power. A warning of what lies ahead.",
+    "distance": 14250,
+    "act": "Act III: Threshold of Discord",
+    "icon_path": "assets/graphics/ui/powerup_speed.png",
+    "hold_duration": 8.5,
+    "trigger_type": "relic_pickup",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_11_wizard",
+    "meta": {
+      "relic_id": "amalgam_core"
+    }
+  },
+  "event_node_12_blood_altar": {
+    "event_id": "event_node_12_blood_altar",
+    "category": "SOUL_QUOTA",
+    "title": "Soul Harvest Quota: 5,000 Souls Reaped",
+    "text": "Five thousand souls bound to your blade. The blood tithe is honored, saturating the necrotic sigil.",
+    "distance": 18000,
+    "act": "Act III: Threshold of Discord",
+    "icon_path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
+    "hold_duration": 8.5,
+    "trigger_type": "soul_quota",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_12_blood_altar",
+    "meta": {
+      "quota": 5000
+    }
+  },
+  "event_node_13_blood_zombie": {
+    "event_id": "event_node_13_blood_zombie",
+    "category": "ITEM_DISCOVERY",
+    "title": "Item Discovery: The Blood Brand",
+    "text": "Unearthed from the ash of the high crypts. Infuses strikes with leeching crimson fire.",
+    "distance": 24000,
+    "act": "Act III: Threshold of Discord",
+    "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
+    "hold_duration": 8.5,
+    "trigger_type": "item_pickup",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_13_blood_zombie",
+    "meta": {}
+  },
+  "event_node_14_voragis_shrine": {
+    "event_id": "event_node_14_voragis_shrine",
+    "category": "RELIC",
+    "title": "Relic: Vial of Void Blood",
+    "text": "A vial left by one who walked this path before. A stark reminder that reliance on the power tightens the grip.",
+    "distance": 30000,
+    "act": "Act IV: The Obsidian Citadel",
+    "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
+    "hold_duration": 8.5,
+    "trigger_type": "relic_pickup",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_14_voragis_shrine",
+    "meta": {
+      "relic_id": "vial_of_void_blood"
+    }
+  },
+  "event_node_15_dark_ronin": {
+    "event_id": "event_node_15_dark_ronin",
+    "category": "LEVEL_COMPLETE",
+    "title": "Level Complete: Act I Extraction",
+    "text": "You have breached the outer perimeter of the Obsidian Citadel. The undead horde falters as dawn approaches.",
+    "distance": 36000,
+    "act": "Act IV: The Obsidian Citadel",
+    "icon_path": "assets/graphics/ui/powerup_invincible.png",
+    "hold_duration": 8.5,
+    "trigger_type": "level_complete",
+    "audio_cue": "reveal",
+    "parent_node_id": "node_15_dark_ronin",
+    "meta": {}
+  }
+}

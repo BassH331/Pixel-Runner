@@ -10,7 +10,17 @@
       "memory_text": "You fell on the battlefield. Your armor crushed. You were supposed to die here. Then, a voice offered you a second chance.",
       "lore": "A gauntlet crushed into pieces — the last thing you wore before death took you. Andras found you here, broken and forgotten. He offered a hand. You took it.",
       "icon_path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
-      "flashback_duration": 3.5
+      "flashback_duration": 3.5,
+      "primary": "You fell on the battlefield. Your armor crushed. You were supposed to die here. Then, a voice offered you a second chance.",
+      "combat_taunts": [
+        "Take my flame, warrior! Your death was meaningless; your vengeance will be eternal!"
+      ],
+      "death_line": "",
+      "corruption_variants": {
+        "low": "A faint heartbeat remains beneath the cold plate armor.",
+        "mid": "The veins in your right arm blacken with demonic essence.",
+        "high": "The gauntlet fuses directly into your flesh."
+      }
     },
     "herbalists_satchel": {
       "id": "herbalists_satchel",
@@ -82,6 +92,38 @@
       "lore": "The heart of what Andras intends you to become. Not a weapon. Not a warrior. A template. You are not the first runner. You are merely the closest to completion.",
       "icon_path": "assets/graphics/ui/powerup_speed.png",
       "flashback_duration": 3.5
+    },
+    "bark_of_the_great_one": {
+      "id": "bark_of_the_great_one",
+      "title": "Bark of the Bleeding Tree",
+      "name": "Bark of the Bleeding Tree",
+      "subtitle": "Unholy Relic",
+      "category": "The Bleeding Tree",
+      "memory_text": "Torn from the bleeding heart of the forest. It pulses with dark vigor.",
+      "lore": "The bark weeps crimson sap that never dries. Ripped from the Great One by the Blood Zombie’s own claws, it thrums with a heartbeat that is not yours. Hold it and feel the forest’s fury course through your veins.",
+      "icon_path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
+      "flashback_duration": 3.5,
+      "corruption_variants": {
+        "low": "The bark is warm in your hand, like a living thing.",
+        "mid": "Crimson veins spread from the bark up your forearm.",
+        "high": "The bark has fused into your skin. You can feel the tree’s rage."
+      }
+    },
+    "the_eye": {
+      "id": "the_eye",
+      "title": "The EYE of Andras",
+      "name": "The EYE of Andras",
+      "subtitle": "Ancient Weapon & Celestial Observer",
+      "category": "The Eye",
+      "memory_text": "An ancient weapon forged by Andras. It slows demon time, revealing truth behind the trees.",
+      "lore": "Created by Andras not merely as an instrument of slaughter, but as a watching eye that records every vessel who fell before you. Look into it, and see the truth of the forest.",
+      "icon_path": "assets/graphics/Evil Eye Beast For Itch/Idle/0.png",
+      "flashback_duration": 3.5,
+      "corruption_variants": {
+        "low": "The pupil follows your gaze. It sees what you see.",
+        "mid": "The eye blinks on its own now. It whispers coordinates.",
+        "high": "You see through the eye. It sees through you. There is no difference."
+      }
     }
   },
   "relic_boss_map": {
@@ -99,12 +141,12 @@
     ],
     "BloodZombie": [
       {
-        "relic_id": "vial_of_void_blood",
+        "relic_id": "bark_of_the_great_one",
         "corruption_delta": 12
       },
       {
-        "relic_id": "hollowed_ledger_page",
-        "corruption_delta": 6
+        "relic_id": "the_eye",
+        "corruption_delta": 15
       }
     ],
     "FireWizard": [
@@ -187,10 +229,7 @@
     },
     "FireWizard": {
       "role": "corrupted_paragon",
-      "pre_fight": [
-        "I was a guardian once. Before the fire consumed the man.",
-        "I see the same hunger in your eyes that consumed mine."
-      ],
+      "pre_fight": [],
       "death_line": "The flame... dims. Perhaps now... I can rest.",
       "corruption_variants": {
         "low": "You still have light in you. I envy that. Protect it.",
@@ -200,10 +239,9 @@
       "is_final": false,
       "watsonx_taunt": false,
       "combat_taunts": [
-        "Burn, runner! Feel the purity of agony!",
-        "Cinder and ash! That is all we leave behind!"
+        "New custom spoken line..."
       ],
-      "primary": "I was a guardian once. Before the fire consumed the man."
+      "primary": "New custom spoken line..."
     },
     "DarkRonin": {
       "role": "corrupted_paragon",
@@ -561,7 +599,74 @@
         "Join us in the dirt, mortal!",
         "No one leaves the dark forest unbroken!"
       ],
-      "death_line": "Returned to dust... but master will raise us again..."
+      "death_line": "Returned to dust... but master will raise us again...",
+      "corruption_variants": {
+        "low": "Your strike is swift, but the woods are endless.",
+        "mid": "You shatter bone like one accustomed to slaughter.",
+        "high": "You smell of our master... yet you strike us down?"
+      }
+    }
+  },
+  "narrative_nodes": {
+    "node_03_void_scribe": {
+      "primary": "I record what Andras makes. Names, dates, fates. The ledger is never full. There is always room.",
+      "combat_taunts": [],
+      "death_line": "My ink may dry, but your doom is already inscribed.",
+      "corruption_low": "No entry for you yet. Keep it that way.",
+      "corruption_mid": "Your name is... pencilled in. Lightly. For now.",
+      "corruption_high": "I have been waiting for you. Your page is nearly ready.",
+      "relic_branch": {
+        "relic_id": "hollowed_ledger_page",
+        "text": "You found a page. One of many. Did you read the names?"
+      }
+    },
+    "node_04_void_bloom": {
+      "primary": "A flower grows from a crack in the earth ahead — black petals, silver centre. It turns toward you as you pass.",
+      "corruption_low": "The silver centre glows faintly with Candora's residual grace.",
+      "corruption_mid": "The petals whisper as you sprint past.",
+      "corruption_high": "The flower turns to ash in your wake, consumed by your void aura."
+    },
+    "node_06_candora_messenger": {
+      "primary": "Candora sent me to find the runner before he is lost. I may be too late. I am rarely early.",
+      "combat_taunts": [
+        "Hold onto your honor, warrior!",
+        "Every time you summon his flame, your soul fades."
+      ],
+      "death_line": "The light dims... but Candora never forgets...",
+      "corruption_low": "She still sees you. The light does not abandon the willing.",
+      "corruption_mid": "She grieves for what you are becoming. But she has not looked away.",
+      "corruption_high": "I cannot reach you now. The void is too thick. But Candora... she still tries.",
+      "relic_branch": {
+        "relic_id": "candoras_tear",
+        "text": "You carry her tear. She wept for you specifically. Do you understand what that means?"
+      }
+    },
+    "node_07_mural": {
+      "primary": "A mural, half-collapsed. It shows a figure standing at a threshold. The figure's face has been scratched out.",
+      "corruption_low": "The carving retains traces of human compassion.",
+      "corruption_mid": "Deep gouges mark the stone, freshly carved by clawed hands.",
+      "corruption_high": "The scratched face appears eerily familiar — it matches your own visage."
+    },
+    "node_08_previous_runner": {
+      "primary": "I recognise that mark. I wore it once. I thought it made me stronger. I was right. I was also wrong.",
+      "combat_taunts": [
+        "Keep your guard raised, rookie!",
+        "Speed without purpose is merely a faster death!"
+      ],
+      "death_line": "The path claims another... forgive me...",
+      "corruption_low": "You fight it better than I did. That is either strength or stubbornness. Either may save you.",
+      "corruption_mid": "This is where I started losing myself. The mid-point. It does not feel like a point of no return. That is the trap.",
+      "corruption_high": "I cannot tell you apart from what I became. That frightens me more than Andras ever did.",
+      "relic_branch": {
+        "relic_id": "amalgam_core",
+        "text": "You found the core. Then you know what Andras intended both of us to become. Run. Or don't. It may not matter now."
+      }
+    },
+    "node_10_void_silence": {
+      "primary": "The world goes quiet. For three seconds, even your footsteps make no sound. Then it returns — louder than before.",
+      "corruption_low": "The quiet feels unnatural and chilling.",
+      "corruption_mid": "In the silence, you hear Andras breathing beside you.",
+      "corruption_high": "The silence is comforting; mortal noise only irritates your senses."
     }
   }
 }

@@ -124,9 +124,9 @@ class StoryState(State):
         self._wrapped_lines: list[str] = self._word_wrap(self.story_text, max_width=self.box_w - 70)
         self._black_overlay = pg.Surface((self.width, self.height), pg.SRCALPHA)
 
-        # Voiceover for prologue narration
+        # Voiceover for prologue narration — disabled until WAV assets are recorded.
         self._voiceover = VoiceoverManager()
-        self._voiceover.load_manifest()
+        # self._voiceover.load_manifest()  # disabled until voice WAVs are available
 
     def _word_wrap(self, text: str, max_width: int) -> list[str]:
         words = text.split(" ")
@@ -155,11 +155,12 @@ class StoryState(State):
         self.exit_alpha = 0.0
         if hasattr(self.manager, "audio_manager") and self.manager.audio_manager:
             self.manager.audio_manager.play_music("background_music", volume=0.45)
-        # Start prologue voiceover
-        self._voiceover.play_line("prologue_narration")
+        # Prologue voiceover — disabled; no-op when manifest is not loaded.
+        # self._voiceover.play_line("prologue_narration")
 
     def on_exit(self):
-        self._voiceover.stop(fadeout_ms=500)
+        # self._voiceover.stop(fadeout_ms=500)  # disabled
+        pass
 
     # ── Events ───────────────────────────────────────────────────────────────
 
@@ -178,7 +179,7 @@ class StoryState(State):
             elif not self.is_exiting:
                 # Second press starts smooth transition to transformation cutscene
                 self.is_exiting = True
-                self._voiceover.stop(fadeout_ms=300)
+                # self._voiceover.stop(fadeout_ms=300)  # disabled
 
     # ── Update ───────────────────────────────────────────────────────────────
 

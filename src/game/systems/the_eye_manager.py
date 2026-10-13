@@ -20,6 +20,85 @@ from typing import Dict, List, Optional, Any, Tuple
 
 LEVEL_1_PATH = "game_data/level_1.json"
 STORYLINE_PATH = "game_data/storyline_config.json"
+NOTIFICATION_EVENTS_PATH = "game_data/notification_events.json"
+
+EVENT_CATEGORIES = [
+    "INTERACTION",      # Interaction points: shrines, sealed books, gates, NPCs
+    "RELIC",            # Ancient relic discoveries & memories
+    "SOUL_QUOTA",       # Soul harvest quota milestones & threshold gates
+    "LEVEL_COMPLETE",   # Act clearance & extraction boundary reached
+    "AMBIENT_LORE",     # Environmental lore discoveries & stone inscriptions
+    "ITEM_DISCOVERY",   # Secret caches, potion drops, grimoires
+]
+
+EVENT_CATEGORY_ICONS = {
+    "INTERACTION": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
+    "RELIC": "assets/graphics/ui/relic_icon.png",
+    "SOUL_QUOTA": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png",
+    "LEVEL_COMPLETE": "assets/graphics/ui/powerup_invincible.png",
+    "AMBIENT_LORE": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png",
+    "ITEM_DISCOVERY": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png",
+}
+
+
+class GameEventItem:
+    """
+    A legitimate game perception event mapped to in-game SideNotification pop-ups.
+    Categories:
+    - INTERACTION: Interaction points (shrine, sealed book, gate, NPC dialogue)
+    - RELIC: Ancient relics and memories
+    - SOUL_QUOTA: Soul harvest milestones and threshold gates
+    - LEVEL_COMPLETE: Act clearance and extraction
+    - AMBIENT_LORE: Environmental secrets, grimoire whispers, stone carvings
+    - ITEM_DISCOVERY: Secret item caches, grimoire pages, potion drops
+    """
+
+    def __init__(
+        self,
+        event_id: str,
+        category: str,
+        title: str,
+        text: str,
+        distance: int = 0,
+        act: str = "Act I: The Forest Verge",
+        icon_path: str = "",
+        hold_duration: float = 8.5,
+        trigger_type: str = "distance",
+        audio_cue: str = "reveal",
+        parent_node_id: Optional[str] = None,
+        meta: Optional[Dict[str, Any]] = None,
+    ):
+        self.event_id = event_id
+        self.category = category.upper() if category else "INTERACTION"
+        self.title = title
+        self.text = text
+        self.distance = distance
+        self.act = act
+        self.icon_path = icon_path or EVENT_CATEGORY_ICONS.get(self.category, "assets/graphics/UI/PNG/Exclamation_Yellow.png")
+        self.hold_duration = max(1.0, float(hold_duration))
+        self.trigger_type = trigger_type
+        self.audio_cue = audio_cue
+        self.parent_node_id = parent_node_id
+        self.meta = meta or {}
+        self.original_title = title
+        self.original_text = text
+        self.original_category = self.category
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "category": self.category,
+            "title": self.title,
+            "text": self.text,
+            "distance": self.distance,
+            "act": self.act,
+            "icon_path": self.icon_path,
+            "hold_duration": self.hold_duration,
+            "trigger_type": self.trigger_type,
+            "audio_cue": self.audio_cue,
+            "parent_node_id": self.parent_node_id,
+            "meta": self.meta,
+        }
 
 
 class SpeechItem:
@@ -174,12 +253,15 @@ class TheEyePerceptionManager:
         self,
         level_path: str = LEVEL_1_PATH,
         storyline_path: str = STORYLINE_PATH,
+        events_path: str = NOTIFICATION_EVENTS_PATH,
     ):
         self.level_path = level_path
         self.storyline_path = storyline_path
+        self.events_path = events_path
         self.nodes: List[StoryNode] = []
         self._node_map: Dict[str, StoryNode] = {}
         self.speech_items: Dict[str, SpeechItem] = {}
+        self.events: Dict[str, GameEventItem] = {}
         self.level_data: Dict[str, Any] = {}
         self.storyline_data: Dict[str, Any] = {}
         self.revision: int = 0
@@ -190,9 +272,10 @@ class TheEyePerceptionManager:
         cls,
         level_path: str = LEVEL_1_PATH,
         storyline_path: str = STORYLINE_PATH,
+        events_path: str = NOTIFICATION_EVENTS_PATH,
     ) -> "TheEyePerceptionManager":
         if cls._instance is None:
-            cls._instance = TheEyePerceptionManager(level_path, storyline_path)
+            cls._instance = TheEyePerceptionManager(level_path, storyline_path, events_path)
         return cls._instance
 
     @classmethod
@@ -204,6 +287,7 @@ class TheEyePerceptionManager:
         self._load_json_files()
         self._construct_story_trail()
         self._extract_all_speech_items()
+        self._extract_game_events()
         self.revision += 1
 
     def _load_json_files(self) -> None:
@@ -932,6 +1016,146 @@ class TheEyePerceptionManager:
                     audio_cue="relic_found",
                 )
 
+    def _extract_game_events(self) -> None:
+        """Extract and initialize the legitimate game perception events."""
+        self.events.clear()
+        loaded_from_disk = False
+        if os.path.exists(self.events_path):
+            try:
+                with open(self.events_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict) and data:
+                    for eid, edata in data.items():
+                        self.events[eid] = GameEventItem(
+                            event_id=edata.get("event_id", eid),
+                            category=edata.get("category", "INTERACTION"),
+                            title=edata.get("title", ""),
+                            text=edata.get("text", ""),
+                            distance=edata.get("distance", 0),
+                            act=edata.get("act", "Act I: The Forest Verge"),
+                            icon_path=edata.get("icon_path", ""),
+                            hold_duration=edata.get("hold_duration", 8.5),
+                            trigger_type=edata.get("trigger_type", "distance"),
+                            audio_cue=edata.get("audio_cue", "reveal"),
+                            parent_node_id=edata.get("parent_node_id"),
+                            meta=edata.get("meta", {}),
+                        )
+                    loaded_from_disk = True
+            except Exception as e:
+                print(f"[TheEye] Error loading events from {self.events_path}: {e}")
+
+        # If disk file was missing or empty, build dynamically from story nodes
+        if not loaded_from_disk or not self.events:
+            for node in self.nodes:
+                eid = f"event_{node.node_id}"
+                cat = "INTERACTION"
+                if node.entity_type == "RELIC":
+                    cat = "RELIC"
+                elif "quota" in node.title.lower() or "hunger" in node.title.lower() or "tithe" in node.title.lower():
+                    cat = "SOUL_QUOTA"
+                elif node.distance >= 36000:
+                    cat = "LEVEL_COMPLETE"
+                elif node.entity_type == "LORE" or "outpost" in node.title.lower() or "mural" in node.title.lower() or "silence" in node.title.lower():
+                    cat = "AMBIENT_LORE"
+                elif "core" in node.title.lower() or "brand" in node.title.lower():
+                    cat = "ITEM_DISCOVERY"
+
+                txt = node.conversations.get("primary", node.summary)
+                self.events[eid] = GameEventItem(
+                    event_id=eid,
+                    category=cat,
+                    title=node.title,
+                    text=txt,
+                    distance=node.distance,
+                    act=node.act,
+                    icon_path=EVENT_CATEGORY_ICONS.get(cat, ""),
+                    hold_duration=8.5,
+                    trigger_type="distance",
+                    audio_cue="reveal",
+                    parent_node_id=node.node_id,
+                )
+
+    def get_events(self) -> List[GameEventItem]:
+        """Return all legitimate game events."""
+        return list(self.events.values())
+
+    def get_event_by_id(self, event_id: str) -> Optional[GameEventItem]:
+        """Get an event item by event ID or node ID."""
+        if event_id in self.events:
+            return self.events[event_id]
+        if f"event_{event_id}" in self.events:
+            return self.events[f"event_{event_id}"]
+        for ev in self.events.values():
+            if ev.parent_node_id == event_id:
+                return ev
+        return None
+
+    def get_event_for_node(self, node_id: str) -> Optional[GameEventItem]:
+        """Get the game perception event matching a story node."""
+        for ev in self.events.values():
+            if ev.parent_node_id == node_id:
+                return ev
+        return self.events.get(f"event_{node_id}")
+
+    def get_events_by_category(self, category: str) -> List[GameEventItem]:
+        """Filter events by canonical event category."""
+        cat_u = category.upper()
+        return [ev for ev in self.events.values() if ev.category == cat_u]
+
+    def update_event(
+        self,
+        event_id: str,
+        title: Optional[str] = None,
+        text: Optional[str] = None,
+        category: Optional[str] = None,
+        distance: Optional[int] = None,
+        hold_duration: Optional[float] = None,
+        icon_path: Optional[str] = None,
+        audio_cue: Optional[str] = None,
+    ) -> bool:
+        """Update properties of a legitimate game event."""
+        ev = self.get_event_by_id(event_id)
+        if not ev:
+            return False
+        if title is not None:
+            ev.title = title
+        if text is not None:
+            ev.text = text
+        if category is not None:
+            ev.category = category.upper()
+        if distance is not None:
+            ev.distance = distance
+        if hold_duration is not None:
+            ev.hold_duration = max(1.0, float(hold_duration))
+        if icon_path is not None:
+            ev.icon_path = icon_path
+        if audio_cue is not None:
+            ev.audio_cue = audio_cue
+
+        # Sync back to story node if linked
+        if ev.parent_node_id:
+            node = self.get_node_by_id(ev.parent_node_id)
+            if node:
+                if title is not None:
+                    node.title = title
+                if text is not None:
+                    node.conversations["primary"] = text
+        return True
+
+    def save_events(self) -> Tuple[bool, str]:
+        """Atomically persist event definitions to notification_events.json with backups."""
+        try:
+            from src.game.utils.atomic_save import atomic_write_json
+            events_dict = {eid: ev.to_dict() for eid, ev in self.events.items()}
+            atomic_write_json(self.events_path, events_dict, indent=2)
+            for ev in self.events.values():
+                ev.original_title = ev.title
+                ev.original_text = ev.text
+                ev.original_category = ev.category
+            return True, "Notification events successfully persisted to disk!"
+        except Exception as e:
+            return False, f"Failed to save notification events: {e}"
+
     # ══════════════════════════════════════════════════════════════════════════
     #  Unity-Style Hierarchical Tree Builders
     # ══════════════════════════════════════════════════════════════════════════
@@ -1501,6 +1725,9 @@ class TheEyePerceptionManager:
 
             self.level_data = disk_level
             atomic_write_json(self.level_path, self.level_data, indent=4)
+
+            # 3. Persist notification events registry
+            self.save_events()
 
             # Update original conversations so in-session reverts track committed disk data
             for node in self.nodes:

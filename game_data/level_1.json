@@ -5,7 +5,7 @@
     "spawn_rate_max": 15000,
     "environment": {
         "bg_music_track": "game_loop",
-        "ground_y": 551,
+        "ground_y": 568,
         "sky": {
             "enabled": true,
             "layers": [
@@ -90,7 +90,7 @@
                 "repeat_x": true,
                 "scale_x": 1.0,
                 "scale_y": 1.0,
-                "stretch_fill": false,
+                "stretch_fill": true,
                 "pos_y_offset": 0,
                 "visible": true
             },
@@ -188,7 +188,288 @@
                 "flip_y": false,
                 "is_ground": false,
                 "collision_type": "deco",
-                "collision_offset_y": 0.0
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground4/Bright/crypt.png",
+                "slice_rect": [
+                    364,
+                    20,
+                    388,
+                    524
+                ],
+                "pos_x": 2062.4102564102564,
+                "pos_y": -29.111111111111114,
+                "scale": 1.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground4/Bright/bones.png",
+                "slice_rect": [
+                    1144,
+                    620,
+                    108,
+                    116
+                ],
+                "pos_x": 2295.188034188034,
+                "pos_y": 459.88888888888886,
+                "scale": 0.5,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground4/Bright/bones.png",
+                "slice_rect": [
+                    436,
+                    760,
+                    100,
+                    100
+                ],
+                "pos_x": 2438.709401709402,
+                "pos_y": 434.3333333333333,
+                "scale": 0.7,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 2.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground4/Bright/tree.png",
+                "slice_rect": [
+                    1108,
+                    0,
+                    532,
+                    608
+                ],
+                "pos_x": 3168.0,
+                "pos_y": -96.0,
+                "scale": 1.5,
+                "layer_index": 7,
+                "parallax_ratio": 1.12,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": true
+            },
+            {
+                "texture_path": "assets/Pixel Art Tiles and Backgrounds - Mountains/Decoration/Standing Torch.png",
+                "slice_rect": [
+                    0,
+                    3,
+                    13,
+                    78
+                ],
+                "pos_x": 2389.497435897436,
+                "pos_y": 291.8333333333333,
+                "scale": 2.5,
+                "layer_index": 9,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground1/Pale/statue.png",
+                "slice_rect": [
+                    1048,
+                    72,
+                    244,
+                    448
+                ],
+                "pos_x": 5802.794871794872,
+                "pos_y": 254.22222222222223,
+                "scale": 0.5,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground4/Bright/bones.png",
+                "slice_rect": [
+                    1684,
+                    616,
+                    88,
+                    92
+                ],
+                "pos_x": 2378.164102564103,
+                "pos_y": 462.3333333333333,
+                "scale": 0.5,
+                "layer_index": 7,
+                "parallax_ratio": 1.12,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": true
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground4/Bright/bones.png",
+                "slice_rect": [
+                    680,
+                    848,
+                    220,
+                    72
+                ],
+                "pos_x": 2015.974358974359,
+                "pos_y": 499.33333333333326,
+                "scale": 0.5,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground4/Bright/bones.png",
+                "slice_rect": [
+                    132,
+                    912,
+                    156,
+                    84
+                ],
+                "pos_x": 1813.8076923076924,
+                "pos_y": 438.55555555555554,
+                "scale": 0.7,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Pixel-Art-Battlegrounds/PNG/Battleground3/Bright/tree_face.png",
+                "slice_rect": [
+                    636,
+                    0,
+                    696,
+                    712
+                ],
+                "pos_x": 5287.3675213675215,
+                "pos_y": -84.22222222222223,
+                "scale": 1.5,
+                "layer_index": 7,
+                "parallax_ratio": 1.12,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": true
+            },
+            {
+                "texture_path": "assets/Pixel Art Tiles and Backgrounds - Mountains/Decoration/Wooden Shed.png",
+                "slice_rect": [
+                    0,
+                    0,
+                    116,
+                    68
+                ],
+                "pos_x": 6064.649572649573,
+                "pos_y": 355.1111111111111,
+                "scale": 2.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/Pixel Art Tiles and Backgrounds - Mountains/Decoration/Stacked Rocks.png",
+                "slice_rect": [
+                    0,
+                    0,
+                    49,
+                    35
+                ],
+                "pos_x": 6065.75641025641,
+                "pos_y": 474.9444444444444,
+                "scale": 1.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/Pixel Art Tiles and Backgrounds - Mountains/Decoration/Stacked Rocks.png",
+                "slice_rect": [
+                    0,
+                    0,
+                    49,
+                    35
+                ],
+                "pos_x": 6255.978632478633,
+                "pos_y": 474.9444444444444,
+                "scale": 1.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
+            },
+            {
+                "texture_path": "assets/graphics/Props/spr_FirePlace_strip_frames/frame_005.png",
+                "slice_rect": [
+                    13,
+                    27,
+                    41,
+                    37
+                ],
+                "pos_x": 5801.038461538462,
+                "pos_y": 284.2692307692308,
+                "scale": 1.0,
+                "layer_index": 6,
+                "parallax_ratio": 1.0,
+                "flip_x": false,
+                "flip_y": false,
+                "is_ground": false,
+                "collision_type": "deco",
+                "collision_offset_y": 0.0,
+                "in_front": false
             }
         ]
     },
@@ -282,7 +563,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "The Sealed Book",
-                "text": "Those that come into this forest change from the very first kill, and their very first encounter with the creatures of this forest.",
+                "text": "The book pulses with a dark energy. Strange runes glow along the spine. Something awakens in the spiritual realm.",
                 "radius": 80,
                 "sprite_dir": "assets/graphics/magic_book_single",
                 "scale": 1.12,
@@ -296,26 +577,13 @@
                 ],
                 "death_line": "The pages never close... they only wait for the next fool.",
                 "dialogue": {
-                    "default": "Those that come into this forest change from the very first kill, and their very first encounter with the creatures of this forest.",
+                    "default": "The book pulses with a dark energy. Strange runes glow along the spine. Something awakens in the spiritual realm.",
                     "corruption_variants": {
-                        "low": "You cling to your fragile mortal memories.",
+                        "low": "The runes shimmer faintly, calling to something deep within.",
                         "mid": "The ink flows thicker as you harvest the slain.",
                         "high": "We are bound together in the black ash of discord."
                     }
                 }
-            }
-        },
-        {
-            "id": 15,
-            "distance": 783,
-            "type": "npc",
-            "params": {
-                "npc_type": "generic",
-                "title": "Slow down young warrior",
-                "text": "...",
-                "radius": 160,
-                "sprite_dir": "assets/graphics/GandalfHardcore FREE Platformer Assets/Cooking area_frames",
-                "scale": 2.0
             }
         },
         {
@@ -468,5 +736,6 @@
         "BloodZombie",
         "FireWizard",
         "DarkRonin"
-    ]
+    ],
+    "next_level": "level_2.json"
 }

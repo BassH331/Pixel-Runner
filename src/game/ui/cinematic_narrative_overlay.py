@@ -1,4 +1,5 @@
 import os
+import math
 import pygame as pg
 from typing import Dict, Any, Optional, Callable, List
 from v3x_zulfiqar_gideon import AssetManager, UITheme
@@ -32,6 +33,14 @@ class CinematicNarrativeOverlay:
         self._avatar_frame_timer: float = 0.0
         self._AVATAR_FRAME_SPEED: float = 0.28  # seconds per frame (calm, ominous demon pacing)
 
+        # Book Opening Ritual state
+        self._is_book_ritual: bool = False
+        self._ritual_timer: float = 0.0
+        self._ritual_elapsed: float = 0.0
+        self._book_image: Optional[pg.Surface] = None
+        self._book_frames: List[pg.Surface] = []
+        self._runic_text: str = ""
+
         # Surface & dimension caching
         self._width: int = 1280
         self._height: int = 720
@@ -63,8 +72,36 @@ class CinematicNarrativeOverlay:
         self._avatar_frame_timer = 0.0
         
         self._avatar_frames = []
+        self._book_frames = []
+        self._book_image = None
+        self._is_book_ritual = bool(narrative_event.get("is_book_ritual", False))
+        self._runic_text = str(narrative_event.get("runic_text", ""))
+        self._ritual_timer = float(narrative_event.get("duration", 5.0))
+        self._ritual_elapsed = 0.0
+
+        if self._is_book_ritual:
+            # Single book image cutscene asset (Magic Books interface / book interface7.png)
+            book_img_path = narrative_event.get("book_image_path") or os.path.join(
+                "assets", "graphics", "Magic Books interface", "book interface7.png"
+            )
+            if os.path.exists(book_img_path):
+                try:
+                    loaded = pg.image.load(book_img_path)
+                    if pg.display.get_surface():
+                        try:
+                            loaded = loaded.convert_alpha()
+                        except pg.error:
+                            pass
+                    # Sharp pixel art integer-scaled rendering (native 100x100 -> 240x240)
+                    self._book_image = pg.transform.scale(loaded, (240, 240))
+                    self._book_frames = [self._book_image]
+                except Exception as e:
+                    print(f"[CinematicOverlay] Error loading book image {book_img_path}: {e}")
+        else:
+            self._AVATAR_FRAME_SPEED = 0.28  # calm demon pacing
+
         avatar_path = narrative_event.get("avatar_sprite")
-        if avatar_path:
+        if avatar_path and not self._is_book_ritual:
             try:
                 # Special handling for Agis: load all Agis_XX.png files in sorted order
                 agis_dir = avatar_path  # e.g. 'assets/Agis'
@@ -91,17 +128,7 @@ class CinematicNarrativeOverlay:
         self.is_active = True
 
     def show_bark(self, text: str, speaker: Optional[Speaker] = None) -> None:
-        """Show a whisperer bark line via the overlay.
-
-        Creates a minimal narrative event dict so the existing typewriter
-        and panel machinery runs unchanged.  No avatar is loaded and the
-        dismiss prompt reads "[ ] Continue" so the player can skip.
-
-        Args:
-            text:    The bark text to display with typewriter animation.
-            speaker: Optional ``Speaker`` enum value that controls the
-                     overlay tint and label colour.
-        """
+        """Show a whisperer bark line via the overlay."""
         self._speaker = speaker
         event: Dict[str, Any] = {
             "dialogue_text": text,
@@ -116,6 +143,10 @@ class CinematicNarrativeOverlay:
         self._on_choice_selected = None
         self._speaker = None
         self._avatar_frames = []
+        self._book_frames = []
+        self._book_image = None
+        self._is_book_ritual = False
+        self._ritual_elapsed = 0.0
         self._avatar_frame_idx = 0
 
     def handle_event(self, event: pg.event.Event) -> bool:
@@ -152,19 +183,32 @@ class CinematicNarrativeOverlay:
         buff_key = f"option_{option_index}_buff"
         buff_data = self._current_event.get(buff_key, {})
         
-        if self._on_choice_selected:
-            self._on_choice_selected(buff_data)
-
+        callback = self._on_choice_selected
         self.deactivate()
 
+        if callback:
+            callback(buff_data)
+
     def update(self, dt: float) -> None:
-        """Update typewriter text animation and avatar frame animation."""
+        """Update typewriter text animation, avatar/book frame animation, and auto-timers."""
         if not self.is_active:
             return
 
+        # Normalize dt: engine ticks in milliseconds (~16.6ms), while timers operate in seconds
+        dt_sec = dt / 1000.0 if dt > 1.0 else dt
+
+        # Book ritual auto-timer & elapsed tracking (advances automatically if user does not press SPACE)
+        if self._is_book_ritual:
+            self._ritual_elapsed += dt_sec
+            if self._ritual_timer > 0.0:
+                self._ritual_timer -= dt_sec
+                if self._ritual_timer <= 0.0:
+                    self._select_option(1)
+                    return
+
         # Typewriter effect
         if self._char_index < len(self._full_text):
-            self._char_timer += dt
+            self._char_timer += dt_sec
             while self._char_timer >= self._CHAR_SPEED_SEC and self._char_index < len(self._full_text):
                 self._char_timer -= self._CHAR_SPEED_SEC
                 self._char_index += 1
@@ -172,7 +216,7 @@ class CinematicNarrativeOverlay:
 
         # Avatar frame cycling
         if len(self._avatar_frames) > 1:
-            self._avatar_frame_timer += dt
+            self._avatar_frame_timer += dt_sec
             if self._avatar_frame_timer >= self._AVATAR_FRAME_SPEED:
                 self._avatar_frame_timer -= self._AVATAR_FRAME_SPEED
                 self._avatar_frame_idx = (self._avatar_frame_idx + 1) % len(self._avatar_frames)
@@ -197,8 +241,70 @@ class CinematicNarrativeOverlay:
             else:
                 surface.blit(self._vignette_surface, (0, 0))
 
-        # 1.5 Draw animated Avatar Sprite centered in the void
-        if self._avatar_frames:
+        # 1.5 Draw animated Avatar Sprite or Book Opening Ritual in the void
+        if self._is_book_ritual and (self._book_image or self._book_frames):
+            bframe = self._book_image if self._book_image is not None else self._book_frames[0]
+            
+            # Levitation oscillation (smooth vertical sine wave float)
+            hover_offset = math.sin(self._ritual_elapsed * 2.2) * 8.0
+            bx = (self._width - bframe.get_width()) // 2
+            by = int((self._height - bframe.get_height()) // 3 - 15 + hover_offset)
+
+            # Multi-layer occult aura behind book:
+            # 1. Ethereal purple occult glow with breathing intensity
+            glow_pulse = 0.82 + 0.18 * math.sin(self._ritual_elapsed * 2.8)
+            glow_w = int((bframe.get_width() + 60) * glow_pulse)
+            glow_h = int((bframe.get_height() + 60) * glow_pulse)
+            glow_x = (self._width - glow_w) // 2
+            glow_y = int(by + (bframe.get_height() - glow_h) // 2)
+            glow_surf = pg.Surface((glow_w, glow_h), pg.SRCALPHA)
+            pg.draw.ellipse(glow_surf, (130, 45, 230, int(75 * glow_pulse)), glow_surf.get_rect())
+            surface.blit(glow_surf, (glow_x, glow_y))
+
+            # 2. Concentrated golden/arcane medallion core aura behind central seal
+            core_pulse = 0.75 + 0.25 * math.cos(self._ritual_elapsed * 3.4)
+            core_size = int(110 * core_pulse)
+            core_x = (self._width - core_size) // 2
+            core_y = int(by + (bframe.get_height() - core_size) // 2)
+            core_surf = pg.Surface((core_size, core_size), pg.SRCALPHA)
+            pg.draw.ellipse(core_surf, (245, 185, 45, int(65 * core_pulse)), core_surf.get_rect())
+            surface.blit(core_surf, (core_x, core_y))
+
+            # 3. Rising occult motes / sparks drifting from the open grimoire
+            for i in range(7):
+                mote_progress = (self._ritual_elapsed * 28.0 + i * 22.0) % 95.0
+                mote_x = bx + int(bframe.get_width() * (0.22 + 0.56 * ((i * 47) % 100) / 100.0) + math.sin(self._ritual_elapsed * 2.0 + i * 1.3) * 10.0)
+                mote_y = int(by + bframe.get_height() * 0.55 - mote_progress)
+                mote_alpha = int(max(0, min(190, 190 * (1.0 - (mote_progress / 95.0)))))
+                if mote_alpha > 10:
+                    mote_color = (255, 215, 120, mote_alpha) if i % 2 == 0 else (200, 140, 255, mote_alpha)
+                    mote_surf = pg.Surface((4, 4), pg.SRCALPHA)
+                    mote_surf.fill(mote_color)
+                    surface.blit(mote_surf, (mote_x, mote_y))
+
+            # 4. Render the grimoire
+            surface.blit(bframe, (bx, by))
+
+            # 5. Render untranslatable runes floating above the book
+            if self._runic_text:
+                font_runes = None
+                for fname in ("segoeuihistoric", "segoeuisymbol", "cambria", "arial"):
+                    try:
+                        font_runes = pg.font.SysFont(fname, 28)
+                        if font_runes:
+                            break
+                    except Exception:
+                        pass
+                if not font_runes:
+                    font_runes = AssetManager.get_font(None, 28)
+                rune_surf = font_runes.render(self._runic_text, True, (225, 185, 255))
+                rune_shadow = font_runes.render(self._runic_text, True, (0, 0, 0))
+                rx = (self._width - rune_surf.get_width()) // 2
+                rune_float = math.sin(self._ritual_elapsed * 2.2 + 0.6) * 4.0
+                ry = int(by - 48 + rune_float)
+                surface.blit(rune_shadow, (rx + 2, ry + 2))
+                surface.blit(rune_surf, (rx, ry))
+        elif self._avatar_frames:
             frame = self._avatar_frames[self._avatar_frame_idx % len(self._avatar_frames)]
             av_x = (self._width - frame.get_width()) // 2
             av_y = (self._height - frame.get_height()) // 3

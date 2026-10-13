@@ -38,6 +38,11 @@ class WhispererSystem:
                             display the bark text.
     """
 
+    # Set to False to silence all Andras / Moon Knight ambient bark pop-ups.
+    # Cutscenes and boss encounter dialogues are handled separately and are
+    # unaffected by this flag.
+    ENABLED: bool = False
+
     COOLDOWN: float = 45.0  # Calibrated 45-second pacing window between ambient combat chatter
 
     def __init__(
@@ -226,8 +231,16 @@ class WhispererSystem:
         return random.choice(valid)
 
     def _fire(self, speaker: Speaker, text: str) -> None:
-        """Display the bark and reset the cooldown."""
+        """Display the bark and reset the cooldown.
+
+        When ``WhispererSystem.ENABLED`` is ``False`` (the default) this method
+        is a deliberate no-op — the cooldown is still advanced so the internal
+        state machine stays consistent, but nothing is shown to the player.
+        Re-enable by setting ``WhispererSystem.ENABLED = True``.
+        """
         self._cooldown_remaining = self.COOLDOWN
+        if not self.ENABLED:
+            return
         # Prefer non-blocking side notification so gameplay is not constantly interrupted
         if getattr(self, "_side_notification", None) is not None:
             speaker_label = "Andras" if speaker == Speaker.ANDRAS else "Moon Knight"

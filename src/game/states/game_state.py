@@ -187,17 +187,17 @@ class GameState(PlayingState):
         from src.game.ui.cinematic_narrative_overlay import CinematicNarrativeOverlay
         self.cinematic_narrative_overlay = CinematicNarrativeOverlay()
 
-        # watsonx.ai Dialogue Client (Sub-task 7) — async dynamic Andras dialogue
-        from src.game.services.watsonx_dialogue_client import WatsonxDialogueClient
-        _andras_barks = (
-            self._storyline_cfg.get("whisperer_barks", {})
-            .get("andras", {})
-            .get("on_boss_spawn", [])
-        )
-        _fallback_lines = [b["text"] for b in _andras_barks] if _andras_barks else None
-        self.watsonx_client = WatsonxDialogueClient(fallback_barks=_fallback_lines)
+        # Demon Time System & The EYE companion (Level 1 narrative ability)
+        from src.game.systems.demon_time_system import DemonTimeSystem
+        self.demon_time_system = DemonTimeSystem()
+        self._forest_inquiry_shown: bool = False
 
-        # Whisperer System (Sub-task 3) — reactive bark dialogue for Andras and Moon Knight
+        # watsonx.ai Dialogue Client — disabled; AI-generated taunts stripped.
+        # VoiceoverManager / WhispererSystem ENABLED flag already suppresses pop-ups.
+        self.watsonx_client = None
+
+        # Whisperer System (Sub-task 3) — reactive bark dialogue wired but silenced
+        # (WhispererSystem.ENABLED = False).  Re-enable in whisperer_system.py to restore.
         self.whisperer_system = WhispererSystem(
             self.event_bus,
             self.corruption_manager,
@@ -730,9 +730,8 @@ class GameState(PlayingState):
                     "speaker_name": "Blood Zombie",
                     "avatar_sprite": "assets/graphics/bloodZombie/Idle",
                     "dialogue_text": (
-                        "Another wandering meat-sack stumbling through the bramble... "
-                        "You think you're a savior? Look at this red dirt, dog—you're just "
-                        "the next pig for the slaughter. Draw your steel so I can spill your guts!"
+                        "The one you didn't belong here, mortal... "
+                        "The bark of the great one, you thief!! You shall die!!"
                     ),
                     "option_1_label": "[SPACE] Draw Blade",
                     "option_1_buff": {"start_blood_zombie_combat": True}
@@ -740,13 +739,9 @@ class GameState(PlayingState):
 
                 def _on_blood_zombie_cutscene_dismiss(buff):
                     boss.ai_frozen = False
-                    self._dispatch_in_combat_taunt(
-                        "Don't trip over your own boots, boy! I want to taste your fear while it's fresh!",
-                        "Blood Zombie",
-                        hold=8.5,
-                    )
 
                 self.cinematic_narrative_overlay.activate(cutscene_event, _on_blood_zombie_cutscene_dismiss)
+
         else:
             # Notify whisperer system so Andras / Moon Knight can react (Sub-task 3)
             self.whisperer_system.notify_boss_spawn(title)
@@ -979,6 +974,29 @@ class GameState(PlayingState):
         # While cinematic narrative overlay is active, capture keypress choices [1] or [2]
         if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:
             if self.cinematic_narrative_overlay.handle_event(event):
+                return
+
+        # Check for Demon Time & The EYE QTE Void Strike input
+        if hasattr(self, "demon_time_system") and hasattr(self, "player") and self.player.sprite:
+            player_sp = self.player.sprite
+            target_x = player_sp.rect.centerx + 400.0
+            target_y = float(player_sp.rect.centery)
+            if getattr(self, "_current_boss", None) and self._current_boss.alive():
+                target_x = float(self._current_boss.rect.centerx)
+                target_y = float(self._current_boss.rect.centery)
+            elif len(self.obstacle_group) > 0:
+                first_obs = next(iter(self.obstacle_group))
+                if hasattr(first_obs, "rect"):
+                    target_x = float(first_obs.rect.centerx)
+                    target_y = float(first_obs.rect.centery)
+
+            if self.demon_time_system.handle_input(
+                event,
+                player_x=player_sp.rect.centerx,
+                player_y=player_sp.rect.centery,
+                target_x=target_x,
+                target_y=target_y,
+            ):
                 return
 
         # While tutorial overlay is active, capture its input
@@ -1389,8 +1407,9 @@ class GameState(PlayingState):
         # Boss Encounter Manager — dialogue phase timer (Sub-task 4)
         self.boss_encounter_manager.update(dt)
 
-        # Boss in-combat taunts periodic evaluation (The Eye Trigger Scheduling)
-        self._update_boss_combat_taunts(dt)
+        # Boss in-combat taunts — disabled to reduce notification noise.
+        # Uncomment the line below to restore periodic boss taunt pop-ups.
+        # self._update_boss_combat_taunts(dt)
 
         # The Eye Live State Observer Heartbeat (The Eye Live Bridge)
         self._eye_heartbeat_frame += 1
@@ -1505,14 +1524,18 @@ class GameState(PlayingState):
         player_world_x = player_sprite.rect.centerx + self.world_distance
         foot_span = max(10.0, float(player_sprite.rect.width) * 0.25)
         p_ground = self.environment_manager.get_ground_y_at(
-            (player_world_x - foot_span, player_world_x + foot_span)
+            (player_world_x - foot_span, player_world_x + foot_span),
+            current_y=float(player_sprite.rect.bottom)
         )
         player_sprite.set_ground_y(int(p_ground) if p_ground is not None else None)
 
         for enemy in self.obstacle_group:
             raw_wx = getattr(enemy, "world_x", None)
             e_world_x = float(raw_wx) if raw_wx is not None else float(enemy.rect.centerx + self.world_distance)
-            e_ground = self.environment_manager.get_ground_y_at(e_world_x)
+            e_ground = self.environment_manager.get_ground_y_at(
+                e_world_x,
+                current_y=float(enemy.rect.bottom) if hasattr(enemy, "rect") else None
+            )
             if hasattr(enemy, "set_ground_y"):
                 enemy.set_ground_y(int(e_ground) if e_ground is not None else None)
 
@@ -1531,7 +1554,38 @@ class GameState(PlayingState):
                 p_facing_left = getattr(player_sprite, "facing_left", False)
                 SquadCoordinator.get_instance().update_squad_roles(active_enemies_list, player_sprite.rect, p_facing_left)
 
-            self.obstacle_group.update(dt, self.bg_scroll_speed)
+            # Enemies and combat slow down to 0.20x during Demon Time!
+            enemy_dt = dt * (self.demon_time_system.get_enemy_time_scale() if hasattr(self, "demon_time_system") else 1.0)
+            self.obstacle_group.update(enemy_dt, self.bg_scroll_speed)
+
+        # Demon Time System & The EYE companion update
+        if hasattr(self, "demon_time_system"):
+            if not self.demon_time_system.is_unlocked and hasattr(self, "relic_manager"):
+                if self.relic_manager.is_collected("the_eye"):
+                    self.demon_time_system.unlock()
+
+            p_face_right = not getattr(player_sprite, "facing_left", False) if player_sprite else True
+            px = player_sprite.rect.centerx if player_sprite else 0.0
+            py = player_sprite.rect.centery if player_sprite else 0.0
+            self.demon_time_system.update(
+                dt / 1000.0,
+                player_x=px,
+                player_y=py,
+                facing_right=p_face_right,
+                enemies=list(self.obstacle_group),
+                boss=getattr(self, "_current_boss", None),
+            )
+
+        # Distance milestone: Forest inquiry @ 1400m
+        if not getattr(self, "_forest_inquiry_shown", False) and self.world_distance >= 1400:
+            self._forest_inquiry_shown = True
+            self.side_notification.show(
+                "What in God's name is this forest...?",
+                "The Runner Questions",
+                icon="assets/graphics/UI/PNG/Exclamation_Yellow.png",
+                hold=6.0,
+            )
+
         self.ambient_group.update(dt, self.bg_scroll_speed)
         self.interaction_group.update(dt, self.bg_scroll_speed)
         VisualEffectManager.update(dt, int(self.bg_scroll_speed))
@@ -1612,15 +1666,38 @@ class GameState(PlayingState):
                 npc.trigger_cinematic_now = False
                 if hasattr(self, "cinematic_narrative_overlay"):
                     if getattr(npc, "is_magic_book", False):
-                        # The Magic Book Intro! No pact yet.
-                        self.in_magic_void = True  # Keep screen pitch black
-                        pact_event = {
-                            "speaker_name": "Andras, Marquis of Discord",
-                            "avatar_sprite": "assets/Agis",
-                            "dialogue_text": "I know your past. I saw what happened... your family, the fire, the screaming. You couldn't save them. The world took everything from you. I will return because there is danger ahead. Your power will not be enough to save yourself.",
-                            "option_1_label": "[SPACE] Continue",
-                            "option_1_buff": {"close_overlay_only": True, "clear_magic_void": True}
+                        # ── The Magic Book: Opening Ritual & Andras' Contact ──
+                        self.in_magic_void = True  # Screen void darkness
+                        npc.kill()  # Despawn book entity from the world
+
+                        book_ritual_event = {
+                            "is_book_ritual": True,
+                            "book_image_path": "assets/graphics/Magic Books interface/book interface7.png",
+                            "speaker_name": "ANCIENT GRIMOIRE [SEAL OF ANDRAS]",
+                            "runic_text": "\u16df \u16b1 \u16a6 \u16cb \u16b9   \u16d7 \u16d6 \u16a0 \u16a2   \u16ba \u16a8 \u16cf \u16d2",
+                            "dialogue_text": "Translation: \"A vessel bound in iron... the seal is broken.\"",
+                            "option_1_label": "[SPACE] Read On",
+                            "option_1_buff": {"book_ritual_complete": True},
+                            "duration": 5.0,
                         }
+
+                        def _on_ritual_complete(buff_data):
+                            # Transition directly to Andras' canonical introduction in the void
+                            pact_event = {
+                                "speaker_name": "Andras, Marquis of Discord",
+                                "avatar_sprite": "assets/Agis",
+                                "dialogue_text": (
+                                    "The book in your hands is deadly, mortal\u2014bound to this "
+                                    "realm. You will wander blind without my flame. "
+                                    "Keep the book, we'll talk soon warrior."
+                                ),
+                                "option_1_label": "[SPACE] Continue",
+                                "option_1_buff": {"close_overlay_only": True, "clear_magic_void": True, "book_ponder": True}
+                            }
+                            self.cinematic_narrative_overlay.activate(pact_event, self._on_pact_choice)
+
+                        self.cinematic_narrative_overlay.activate(book_ritual_event, _on_ritual_complete)
+                        # ─────────────────────────────────────────────────────
                     else:
                         # Regular Andras encounter (or old intro fallback)
                         pact_event = {
@@ -1632,10 +1709,7 @@ class GameState(PlayingState):
                             "option_2_label": "[2] Resist the Darkness",
                             "option_2_buff": {"kill_player": True}
                         }
-                    self.cinematic_narrative_overlay.activate(pact_event, self._on_pact_choice)
-                    
-                    if not getattr(npc, "is_magic_book", False):
-                        # Store a reference so we can explode him later (only if he is actually Andras)
+                        self.cinematic_narrative_overlay.activate(pact_event, self._on_pact_choice)
                         self._andras_npc_ref = npc
 
         # Check first encounter flag when any enemy is in scene
@@ -1916,7 +1990,17 @@ class GameState(PlayingState):
             
         if buff_data.get("clear_magic_void"):
             self.in_magic_void = False
-            self._game_over_start_time = pg.time.get_ticks()
+
+        # ── Book Ponder: Player wonders about the demon ──────────────────
+        if buff_data.get("book_ponder"):
+            # Delayed player reflection after the Andras book encounter
+            self.side_notification.show(
+                "What does this demon want with me...?",
+                "The Runner Wonders",
+                icon="assets/graphics/UI/PNG/Exclamation_Yellow.png",
+                hold=6.0,
+            )
+        # ─────────────────────────────────────────────────────────────────
 
     def _check_game_over(self) -> None:
         """Check if game over conditions are met and handle transition."""
@@ -2045,6 +2129,10 @@ class GameState(PlayingState):
         for enemy in self.obstacle_group:
             enemy.draw(target)
 
+        # The EYE familiar companion & Demon Time projectiles
+        if hasattr(self, "demon_time_system"):
+            self.demon_time_system.draw(target, 0.0)
+
         # 5. Foreground Environment Pass (Props in front of player & Layers 7+)
         self.environment_manager.draw(target, cam_x=self.world_distance, min_layer=7, clear_bg=False, foreground_pass=True)
             
@@ -2099,6 +2187,10 @@ class GameState(PlayingState):
 
         # Screen-space HUD Overlays (Objectives, Notifications, Tutorials)
         self.hud_overlay.draw_screen_overlays(surface)
+
+        # Demon Time slow-motion atmospheric vignette & QTE prompt
+        if hasattr(self, "demon_time_system"):
+            self.demon_time_system.draw_overlay(surface)
 
         # Draw Cinematic Narrative Overlay (Slow-Motion Vignette & Dialogue Prompt UI)
         if hasattr(self, "cinematic_narrative_overlay") and self.cinematic_narrative_overlay.is_active:

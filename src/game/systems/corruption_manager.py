@@ -125,10 +125,24 @@ class CorruptionManager:
     # ── Event handlers ────────────────────────────────────────────────────────
 
     def _on_entity_died(self, event: EntityDied) -> None:
-        """Add corruption only when a non-player entity is killed."""
+        """Add corruption only when a non-player entity is killed.
+
+        Skeletons are mindless bone thralls — killing them MUST NOT increase
+        corruption.  Only meaningful kills (bosses, elite/unique enemies)
+        contribute to the corruption narrative spine.
+        """
         from src.game.entities.player import Player
         if isinstance(event.entity, Player):
             return  # Player death does not add corruption
+
+        # ── Skeleton Exclusion ────────────────────────────────────────────
+        ent_cls_name = type(event.entity).__name__
+        if (
+            ent_cls_name in ("Skeleton", "WhiteSkeleton", "SkeletonArcher")
+            or "skeleton" in ent_cls_name.lower()
+        ):
+            return  # Bone thralls grant zero corruption
+        # ─────────────────────────────────────────────────────────────────
 
         if event.is_boss:
             # Boss corruption deltas are applied by the relic system (Sub-task 2).

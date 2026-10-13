@@ -2499,7 +2499,7 @@ class App:
         self._s5b = []
 
         env_cfg = self.level_data.get("environment", {})
-        self.env_mgr = EnvironmentManager(W, H, env_config=env_cfg)
+        self.env_mgr = EnvironmentManager(1280, 720, env_config=env_cfg)
         self._init_s5_widgets()
 
     def _recenter_cam(self):
@@ -2509,7 +2509,7 @@ class App:
 
     def _init_s5_widgets(self):
         gy = self.env_mgr.ground_y
-        self.s5_ground_slider = Slider("Ground Y (px)", W - 266, 450, 252, 450, 720, gy, is_float=False)
+        self.s5_ground_slider = Slider("Ground Y (px)", W - 266, 440, 252, 450, 720, gy, is_float=False)
         self.s5_ratio_slider = None
 
     def _on_select_prop_from_slicer(self, texture_path: str, slice_rect: list[int]):
@@ -2519,7 +2519,8 @@ class App:
         init_scale = 1.0
         slice_h = slice_rect[3] if slice_rect and len(slice_rect) >= 4 else 64
         target_layer = self.active_layer_filter
-        target_ratio = 1.0 if target_layer in (3, 4) else self.env_mgr.layer_stacks.get(target_layer, {}).get("scroll_ratio", 1.0)
+        target_ratio = 1.0 if target_layer in (3, 4, 6) else self.env_mgr.layer_stacks.get(target_layer, {}).get("scroll_ratio", 1.0)
+        is_terrain = (target_layer == 3)
         new_prop = EnvironmentProp(
             texture_path=texture_path,
             slice_rect=slice_rect,
@@ -2530,8 +2531,8 @@ class App:
             parallax_ratio=target_ratio,
             flip_x=False,
             flip_y=False,
-            is_ground=True,
-            collision_type="solid",
+            is_ground=is_terrain,
+            collision_type="solid" if is_terrain else "deco",
         )
         self.env_mgr.props.append(new_prop)
         self.selected_prop_idx = len(self.env_mgr.props) - 1
@@ -2550,8 +2551,8 @@ class App:
                 parallax_ratio=p.parallax_ratio,
                 flip_x=p.flip_x,
                 flip_y=p.flip_y,
-                is_ground=getattr(p, "is_ground", True),
-                collision_type=getattr(p, "collision_type", "solid"),
+                is_ground=getattr(p, "is_ground", False),
+                collision_type=getattr(p, "collision_type", "deco"),
                 collision_offset_y=getattr(p, "collision_offset_y", 0.0),
             )
             self.env_mgr.props.append(cloned)
@@ -2584,6 +2585,10 @@ class App:
         self.level_data["environment"] = self.env_mgr.to_config_dict()
 
     def _h5(self, ev: pg.event.Event):
+        if hasattr(self, "level_mgr_modal") and self.level_mgr_modal:
+            self.level_mgr_modal.on(ev)
+            return
+
         if self.bg_picker_modal:
             self.bg_picker_modal.on(ev)
             return
@@ -2861,9 +2866,18 @@ class App:
             )
             pw, ph = player_tex.get_width(), player_tex.get_height()
             px = 120
-            eff_gy_val = self.env_mgr.get_ground_y_at(px + self.cam_x)
+            foot_center_x = px + pw // 2
+            player_world_x = self.cam_x + foot_center_x
+
+            # Evaluate effective ground level beneath player feet
+            eff_gy_val = self.env_mgr.get_ground_y_at(
+                (player_world_x - 30.0, player_world_x + 30.0),
+                fallback_to_default=True,
+                current_y=float(self.env_mgr.ground_y),
+            )
             eff_gy = eff_gy_val if eff_gy_val is not None else float(self.env_mgr.ground_y)
             py = int(eff_gy - ph - self.cam_y)
+
             if self.simulating:
                 t_step = int((pg.time.get_ticks() / 150) % 2) + 1
                 w_path = f"assets/shadow_warrior/run/run_{t_step}.png"
@@ -3237,9 +3251,13 @@ class App:
             b_stretch.draw(self.surf, self.sf)
             self._s5b.append(b_stretch)
 
-            pg.draw.line(self.surf, BORDER, (right_panel.x + 14, right_panel.y + 280), (right_panel.right - 14, right_panel.y + 280))
+            pg.draw.line(self.surf, BORDER, (right_panel.x + 14, right_panel.y + 406), (right_panel.right - 14, right_panel.y + 406))
 
-            if self.s5_ground_slider: self.s5_ground_slider.draw(self.surf, self.f, self.sf)
+            if self.s5_ground_slider:
+                self.s5_ground_slider.track.x = right_panel.x + 14
+                self.s5_ground_slider.track.y = right_panel.y + 438
+                self.s5_ground_slider.track.w = 252
+                self.s5_ground_slider.draw(self.surf, self.f, self.sf)
 
         # ── 4. BOTTOM TRACK MINIMAP & CONTROL BAR ───────────────────────────────
         bbar = pg.Rect(0, H - 65, W, 65)

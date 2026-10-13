@@ -32,9 +32,11 @@ class CutsceneManager:
         )
         self._last_npc_text: str = ""
 
-        # Voiceover playback manager
+        # Voiceover playback manager — disabled (audio assets not yet recorded).
+        # VoiceoverManager is kept instantiated for test/API compatibility.
+        # Re-enable by calling self.voiceover.load_manifest() and un-commenting play_line.
         self.voiceover = VoiceoverManager()
-        self.voiceover.load_manifest()
+        # self.voiceover.load_manifest()  # disabled until voice WAVs are available
 
     @property
     def is_interacting(self) -> bool:
@@ -204,10 +206,11 @@ class CutsceneManager:
             self.dialogue_renderer.theme = theme
             self.dialogue_renderer.set_text(active_npc.text)
 
-            # Trigger voiceover playback for this NPC's dialogue line
-            voice_id = getattr(active_npc, "voice_line_id", None)
-            if voice_id:
-                self.voiceover.play_line(voice_id)
+            # Voice playback disabled — audio assets not yet recorded.
+            # To restore: uncomment and ensure wav files exist in voice_manifest.json
+            # voice_id = getattr(active_npc, "voice_line_id", None)
+            # if voice_id:
+            #     self.voiceover.play_line(voice_id)
 
         ticks = pg.time.get_ticks()
 

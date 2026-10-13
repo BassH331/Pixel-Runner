@@ -99,10 +99,11 @@ class EnvironmentProp:
         parallax_ratio: float = 1.0,
         flip_x: bool = False,
         flip_y: bool = False,
-        is_ground: bool = True,
-        collision_type: str = "solid",  # "solid", "platform", "deco"
+        is_ground: Optional[bool] = None,
+        collision_type: str = "deco",  # "solid", "platform", "deco", "hazard"
         collision_offset_y: float = 0.0,
         in_front: Optional[bool] = None,
+        anim_speed: float = 0.1,
     ) -> None:
         self.texture_path = texture_path
         self.slice_rect = slice_rect
@@ -113,34 +114,76 @@ class EnvironmentProp:
         self.parallax_ratio = parallax_ratio
         self.flip_x = flip_x
         self.flip_y = flip_y
-        self.is_ground = is_ground
         self.collision_type = collision_type
+        self.is_ground = (collision_type in ("solid", "platform")) if is_ground is None else bool(is_ground)
         self.collision_offset_y = collision_offset_y
         self.in_front = in_front
+        self.anim_speed = anim_speed
+        self.anim_timer = 0.0
+        self.frame_idx = 0
+        self.frames: List[pg.Surface] = []
 
-        raw_texture = AssetManager.get_texture(texture_path)
-        if slice_rect and len(slice_rect) == 4:
-            rx, ry, rw, rh = slice_rect
-            rx = max(0, min(rx, raw_texture.get_width() - 1))
-            ry = max(0, min(ry, raw_texture.get_height() - 1))
-            rw = max(1, min(rw, raw_texture.get_width() - rx))
-            rh = max(1, min(rh, raw_texture.get_height() - ry))
-            sub_surf = raw_texture.subsurface(pg.Rect(rx, ry, rw, rh))
+        # Automatic frame sequence detection for animated props (e.g. fire/torch frames)
+        frame_paths: List[str] = []
+        if texture_path:
+            parent_dir = os.path.dirname(texture_path)
+            base_name = os.path.basename(texture_path)
+            if parent_dir and os.path.isdir(parent_dir):
+                candidates = sorted([
+                    os.path.join(parent_dir, f).replace("\\", "/")
+                    for f in os.listdir(parent_dir)
+                    if f.lower().endswith(".png")
+                ])
+                if len(candidates) > 1 and ("frame_" in base_name.lower() or parent_dir.endswith("_frames")):
+                    frame_paths = candidates
+
+        def _process_surface(raw_tex: pg.Surface) -> pg.Surface:
+            if slice_rect and len(slice_rect) == 4:
+                rx, ry, rw, rh = slice_rect
+                rx = max(0, min(rx, raw_tex.get_width() - 1))
+                ry = max(0, min(ry, raw_tex.get_height() - 1))
+                rw = max(1, min(rw, raw_tex.get_width() - rx))
+                rh = max(1, min(rh, raw_tex.get_height() - ry))
+                sub_surf = raw_tex.subsurface(pg.Rect(rx, ry, rw, rh))
+            else:
+                sub_surf = raw_tex
+
+            if flip_x or flip_y:
+                sub_surf = pg.transform.flip(sub_surf, flip_x, flip_y)
+
+            if scale != 1.0:
+                target_w = max(1, int(sub_surf.get_width() * scale))
+                target_h = max(1, int(sub_surf.get_height() * scale))
+                return pg.transform.smoothscale(sub_surf, (target_w, target_h))
+            return sub_surf
+
+        if frame_paths:
+            for fp in frame_paths:
+                try:
+                    tex = AssetManager.get_texture(fp)
+                    if tex and tex.get_width() > 0 and tex.get_height() > 0:
+                        self.frames.append(_process_surface(tex))
+                except Exception:
+                    pass
+
+        if self.frames:
+            self.image = self.frames[0]
         else:
-            sub_surf = raw_texture
-
-        if flip_x or flip_y:
-            sub_surf = pg.transform.flip(sub_surf, flip_x, flip_y)
-
-        if scale != 1.0:
-            target_w = max(1, int(sub_surf.get_width() * scale))
-            target_h = max(1, int(sub_surf.get_height() * scale))
-            self.image = pg.transform.smoothscale(sub_surf, (target_w, target_h))
-        else:
-            self.image = sub_surf
+            raw_texture = AssetManager.get_texture(texture_path)
+            self.image = _process_surface(raw_texture)
 
         self.width = self.image.get_width()
         self.height = self.image.get_height()
+
+    def update(self, dt: float = 0.0) -> None:
+        """Advance animated prop frame sequence."""
+        if len(self.frames) > 1 and dt > 0:
+            self.anim_timer += dt
+            if self.anim_timer >= self.anim_speed:
+                steps = int(self.anim_timer / self.anim_speed)
+                self.anim_timer -= steps * self.anim_speed
+                self.frame_idx = (self.frame_idx + steps) % len(self.frames)
+                self.image = self.frames[self.frame_idx]
 
     def is_in_front(self) -> bool:
         """Determines if prop renders in foreground in front of player and entities."""
@@ -154,7 +197,13 @@ class EnvironmentProp:
         sw, sh = surface.get_size()
         if draw_x + self.width < 0 or draw_x > sw or draw_y + self.height < 0 or draw_y > sh:
             return
-        surface.blit(self.image, (draw_x, draw_y))
+
+        if len(self.frames) > 1:
+            ticks = pg.time.get_ticks() + int(self.pos_x * 7)
+            idx = int((ticks / (self.anim_speed * 1000.0)) % len(self.frames))
+            surface.blit(self.frames[idx], (draw_x, draw_y))
+        else:
+            surface.blit(self.image, (draw_x, draw_y))
 
     @staticmethod
     def auto_detect_offset_y(surface: pg.Surface) -> float:
@@ -448,6 +497,10 @@ class EnvironmentManager:
         # 3. Environment Props
         for pdata in env_config.get("props", []):
             try:
+                col_type = pdata.get("collision_type", "deco")
+                is_grd = pdata.get("is_ground")
+                if is_grd is None:
+                    is_grd = (col_type in ("solid", "platform"))
                 self.props.append(EnvironmentProp(
                     texture_path=pdata["texture_path"],
                     slice_rect=pdata.get("slice_rect"),
@@ -458,15 +511,20 @@ class EnvironmentManager:
                     parallax_ratio=pdata.get("parallax_ratio", 1.0),
                     flip_x=pdata.get("flip_x", False),
                     flip_y=pdata.get("flip_y", False),
-                    is_ground=pdata.get("is_ground", True),
-                    collision_type=pdata.get("collision_type", "solid"),
+                    is_ground=is_grd,
+                    collision_type=col_type,
                     collision_offset_y=pdata.get("collision_offset_y", 0.0),
                     in_front=pdata.get("in_front", pdata.get("is_foreground", None)),
                 ))
             except Exception:
                 pass
 
-    def get_ground_y_at(self, x: float | tuple[float, float] | list[float], fallback_to_default: bool = True) -> Optional[float]:
+    def get_ground_y_at(
+        self,
+        x: float | tuple[float, float] | list[float],
+        fallback_to_default: bool = True,
+        current_y: Optional[float] = None,
+    ) -> Optional[float]:
         """Returns the top Y of the highest solid ground prop at world position x (or range x_min..x_max), or default ground_y if fallback_to_default is True and no solid prop contact line exists."""
         if isinstance(x, (tuple, list)):
             x_min, x_max = float(x[0]), float(x[1])
@@ -474,18 +532,28 @@ class EnvironmentManager:
             x_min, x_max = float(x), float(x)
 
         # Quantize X range into 32px spatial buckets for fast per-frame cache lookup
-        cache_key = (int(x_min) // 32, int(x_max) // 32, fallback_to_default)
+        cy_bucket = int(current_y) // 32 if current_y is not None else -1
+        cache_key = (int(x_min) // 32, int(x_max) // 32, fallback_to_default, cy_bucket)
         if cache_key in self._ground_y_cache:
             return self._ground_y_cache[cache_key]
 
         solid_ys = []
         for prop in self.props:
-            if getattr(prop, "is_ground", True) and getattr(prop, "collision_type", "solid") in ("solid", "platform"):
+            if getattr(prop, "is_ground", False) and getattr(prop, "collision_type", "deco") in ("solid", "platform"):
+                # Physical ground props must be on ground/gameplay layers (3, 4, 6) with 1:1 world scroll ratio
+                if getattr(prop, "parallax_ratio", 1.0) != 1.0 or prop.layer_index not in (3, 4, 6):
+                    continue
                 px = prop.pos_x
                 pw = prop.width
                 if max(px, x_min) <= min(px + pw, x_max):
                     offset_y = getattr(prop, "collision_offset_y", 0.0)
-                    solid_ys.append(prop.pos_y + offset_y)
+                    surf_y = prop.pos_y + offset_y
+                    if current_y is not None:
+                        # Only accept surfaces beneath or reachable from the entity's feet (with step-up tolerance of 32px)
+                        if surf_y >= current_y - 32.0:
+                            solid_ys.append(surf_y)
+                    else:
+                        solid_ys.append(surf_y)
 
         res: Optional[float] = float(min(solid_ys)) if solid_ys else (float(self.ground_y) if fallback_to_default else None)
         self._ground_y_cache[cache_key] = res
@@ -500,6 +568,8 @@ class EnvironmentManager:
             player_layer = stack.get("parallax_layer")
             if player_layer and stack.get("visible", True):
                 player_layer.update(player_speed, dt)
+        for prop in self.props:
+            prop.update(dt)
 
     def draw(
         self,
