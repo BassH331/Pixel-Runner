@@ -186,6 +186,8 @@ class GameState(PlayingState):
         self.tutorial_overlay = self.hud_overlay.tutorial_overlay
         from src.game.ui.cinematic_narrative_overlay import CinematicNarrativeOverlay
         self.cinematic_narrative_overlay = CinematicNarrativeOverlay()
+        from src.game.systems.popup_scene_manager import PopupSceneManager
+        self.popup_scene_manager = PopupSceneManager.get_instance()
 
         # Demon Time System & The EYE companion (Level 1 narrative ability)
         from src.game.systems.demon_time_system import DemonTimeSystem
@@ -554,14 +556,17 @@ class GameState(PlayingState):
 
     def _handle_interaction_spawn(self, params: dict) -> None:
         """Handler for 'interaction' events."""
-        self.interaction_group.add(InteractionPoint(
+        pt = InteractionPoint(
             x=self.width + 50,
             y=self.height - 100,
             text=params["text"],
             title=params["title"],
             proximity_radius=params["radius"],
             font_path="assets/graphics/Darinia/Darinia.ttf"
-        ))
+        )
+        setattr(pt, "event_id", params.get("_event_id"))
+        setattr(pt, "event_distance", params.get("_event_distance"))
+        self.interaction_group.add(pt)
 
     def _handle_npc_spawn(self, params: dict) -> None:
         """Handler for 'npc' events.
@@ -773,8 +778,9 @@ class GameState(PlayingState):
 
     def _dispatch_in_combat_taunt(self, text: str, speaker: str, hold: float = 6.0, icon: Optional[str] = None) -> None:
         """Dispatches an in-combat audio bark and notification card."""
+        theme = "blood_bone" if "blood" in speaker.lower() else "gothic_gold"
         ic = icon or "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
-        self.side_notification.show(text, speaker, icon=ic, hold=hold)
+        self.side_notification.show(text, speaker, icon=ic, hold=hold, theme=theme)
         if hasattr(self, "audio_manager") and self.audio_manager:
             try:
                 self.audio_manager.play_sound("boss_taunt")
@@ -890,16 +896,37 @@ class GameState(PlayingState):
         self.audio_manager.stop_music()
 
         # Show the Fabricator's revelation via non-blocking side notification
-        self.side_notification.show(
-            "Ten thousand souls bound by your hand! The Arch-Fabricator's contract was a trap, "
-            "bonding your soul to his domain. Keep the Scythe... hunt the Holy Artifacts!",
-            "The Fabricator's Betrayal",
-            icon="assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
-        )
+        popup = self.popup_scene_manager.get_popup("event_soul_quota_betrayal") if hasattr(self, "popup_scene_manager") else None
+        if popup:
+            if popup.get("enabled", True):
+                self.side_notification.show(
+                    popup.get("text", "Ten thousand souls bound by your hand!"),
+                    popup.get("title", "The Fabricator's Betrayal"),
+                    icon=popup.get("icon", "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"),
+                    hold=popup.get("hold", 7.5),
+                    theme=popup.get("theme", "blood_bone"),
+                )
+        else:
+            self.side_notification.show(
+                "Ten thousand souls bound by your hand! The Arch-Fabricator's contract was a trap, "
+                "bonding your soul to his domain. Keep the Scythe... hunt the Holy Artifacts!",
+                "The Fabricator's Betrayal",
+                icon="assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
+            )
 
     def _show_ambient_lore(self, text: str, duration: float = 8.5) -> None:
         """Callback used by WorldManager to display ambient lore notifications."""
-        if hasattr(self, "hud_overlay") and hasattr(self.hud_overlay, "side_notification"):
+        popup = self.popup_scene_manager.get_popup("event_book_ponder") if hasattr(self, "popup_scene_manager") else None
+        if popup:
+            if popup.get("enabled", True) and hasattr(self, "hud_overlay") and hasattr(self.hud_overlay, "side_notification"):
+                self.hud_overlay.side_notification.show(
+                    popup.get("text", text),
+                    popup.get("title", "The Grimoire Whispers"),
+                    icon=popup.get("icon", "assets/graphics/magic_book_single/magic_book.png"),
+                    hold=popup.get("hold", max(duration, 8.5)),
+                    theme=popup.get("theme", "grimoire_leather"),
+                )
+        elif hasattr(self, "hud_overlay") and hasattr(self.hud_overlay, "side_notification"):
             self.hud_overlay.side_notification.show(
                 text,
                 "The Grimoire Whispers",
@@ -934,6 +961,17 @@ class GameState(PlayingState):
         if self._show_objective_on_start:
             self.notification_banner.show(self._level_name, notification="yellow")
             self._show_objective_on_start = False
+
+        # Prologue / Awakening side notification if configured and enabled
+        prologue_popup = self.popup_scene_manager.get_popup("event_prologue_awakening") if hasattr(self, "popup_scene_manager") else None
+        if prologue_popup and prologue_popup.get("enabled", True):
+            self.side_notification.show(
+                prologue_popup.get("text", "The catacombs stir. Death has not taken you, but the dark beckons. Advance through the shadows."),
+                prologue_popup.get("title", "The Awakening"),
+                icon=prologue_popup.get("icon", "assets/graphics/UI/PNG/Exclamation_Yellow.png"),
+                hold=prologue_popup.get("hold", 6.0),
+                theme=prologue_popup.get("theme", "gothic_gold"),
+            )
 
         # Start tutorial on first entry
         if self._show_tutorial_on_start:
@@ -1028,7 +1066,19 @@ class GameState(PlayingState):
         if interact_pressed:
             for point in self.interaction_group:
                 if point.can_interact:
-                    self.side_notification.show(point.text, point.title)
+                    eid = getattr(point, "event_id", None)
+                    epop = self.popup_scene_manager.get_popup_by_entity(eid) if (hasattr(self, "popup_scene_manager") and eid is not None) else None
+                    if epop:
+                        if epop.get("enabled", True):
+                            self.side_notification.show(
+                                epop.get("text", point.text),
+                                epop.get("title", point.title),
+                                icon=epop.get("icon"),
+                                hold=epop.get("hold"),
+                                theme=epop.get("theme"),
+                            )
+                    else:
+                        self.side_notification.show(point.text, point.title)
                     self._last_spoken_taunt = {
                         "speaker": point.title,
                         "text": point.text,
@@ -1057,7 +1107,20 @@ class GameState(PlayingState):
                             dialogue_text = npc.get_dialogue(corruption, relics)
                         else:
                             dialogue_text = npc.text
-                        self.side_notification.show(dialogue_text, npc.title)
+
+                        eid = getattr(npc, "event_id", None)
+                        epop = self.popup_scene_manager.get_popup_by_entity(eid) if (hasattr(self, "popup_scene_manager") and eid is not None) else None
+                        if epop:
+                            if epop.get("enabled", True):
+                                self.side_notification.show(
+                                    epop.get("text", dialogue_text),
+                                    epop.get("title", npc.title),
+                                    icon=epop.get("icon"),
+                                    hold=epop.get("hold"),
+                                    theme=epop.get("theme"),
+                                )
+                        else:
+                            self.side_notification.show(dialogue_text, npc.title)
                         self._last_spoken_taunt = {
                             "speaker": npc.title,
                             "text": dialogue_text,
@@ -1509,12 +1572,23 @@ class GameState(PlayingState):
         # Check level endpoint
         if not self._level_complete and self.world_distance >= self._level_end_distance:
             self._level_complete = True
-            self.side_notification.show(
-                "You have reached the end of this land. "
-                "The undead have been pushed back... for now. "
-                "Well fought, warrior!",
-                "Level Complete",
-            )
+            popup = self.popup_scene_manager.get_popup("event_level_complete") if hasattr(self, "popup_scene_manager") else None
+            if popup:
+                if popup.get("enabled", True):
+                    self.side_notification.show(
+                        popup.get("text", "You have reached the end of this land."),
+                        popup.get("title", "Level Complete"),
+                        icon=popup.get("icon", "assets/graphics/ui/relic_icon.png"),
+                        hold=popup.get("hold", 9.0),
+                        theme=popup.get("theme", "gothic_gold"),
+                    )
+            else:
+                self.side_notification.show(
+                    "You have reached the end of this land. "
+                    "The undead have been pushed back... for now. "
+                    "Well fought, warrior!",
+                    "Level Complete",
+                )
             next_path = self.level_data.get("next_level") if isinstance(self.level_data, dict) else None
             if next_path and os.path.exists(next_path):
                 os.environ["GAME_LEVEL_PATH"] = os.path.abspath(next_path)
@@ -1569,10 +1643,21 @@ class GameState(PlayingState):
                 if self.relic_manager.is_collected("the_eye"):
                     self.demon_time_system.unlock()
                     if hasattr(self, "side_notification") and self.side_notification:
-                        self.side_notification.show(
-                            "The watching eye awakens in your soul. Press [V] to initiate Demon Time.",
-                            "ANCIENT WEAPON: THE EYE OF ANDRAS",
-                        )
+                        dt_popup = self.popup_scene_manager.get_popup("event_demon_time_unlocked") if hasattr(self, "popup_scene_manager") else None
+                        if dt_popup:
+                            if dt_popup.get("enabled", True):
+                                self.side_notification.show(
+                                    dt_popup.get("text", "The watching eye awakens in your soul. Press [V] to initiate Demon Time."),
+                                    dt_popup.get("title", "ANCIENT WEAPON: THE EYE OF ANDRAS"),
+                                    icon=dt_popup.get("icon", "assets/graphics/ui/relic_icon.png"),
+                                    hold=dt_popup.get("hold", 7.5),
+                                    theme=dt_popup.get("theme", "arcane_void"),
+                                )
+                        else:
+                            self.side_notification.show(
+                                "The watching eye awakens in your soul. Press [V] to initiate Demon Time.",
+                                "ANCIENT WEAPON: THE EYE OF ANDRAS",
+                            )
 
             p_face_right = not getattr(player_sprite, "facing_left", False) if player_sprite else True
             px = player_sprite.rect.centerx if player_sprite else 0.0
@@ -1589,12 +1674,23 @@ class GameState(PlayingState):
         # Distance milestone: Forest inquiry @ 1400m
         if not getattr(self, "_forest_inquiry_shown", False) and self.world_distance >= 1400:
             self._forest_inquiry_shown = True
-            self.side_notification.show(
-                "What in God's name is this forest...?",
-                "The Runner Questions",
-                icon="assets/graphics/UI/PNG/Exclamation_Yellow.png",
-                hold=6.0,
-            )
+            forest_popup = self.popup_scene_manager.get_popup("event_forest_inquiry_1400m") if hasattr(self, "popup_scene_manager") else None
+            if forest_popup:
+                if forest_popup.get("enabled", True):
+                    self.side_notification.show(
+                        forest_popup.get("text", "What in God's name is this forest...?"),
+                        forest_popup.get("title", "The Runner Questions"),
+                        icon=forest_popup.get("icon", "assets/graphics/UI/PNG/Exclamation_Yellow.png"),
+                        hold=forest_popup.get("hold", 6.0),
+                        theme=forest_popup.get("theme", "clean_minimalist"),
+                    )
+            else:
+                self.side_notification.show(
+                    "What in God's name is this forest...?",
+                    "The Runner Questions",
+                    icon="assets/graphics/UI/PNG/Exclamation_Yellow.png",
+                    hold=6.0,
+                )
 
         self.ambient_group.update(dt * world_scale, effective_scroll)
         self.interaction_group.update(dt, effective_scroll)
@@ -1732,8 +1828,32 @@ class GameState(PlayingState):
         self.trigger_manager.update(elapsed)
         pending = self.trigger_manager.get_pending()
         if pending:
-            icon_path = getattr(pending, "icon_path", None)
-            self.side_notification.show(pending.text, pending.title, icon=icon_path)
+            p_flag = getattr(pending, "flag", None)
+            flag_popup = None
+            if hasattr(self, "popup_scene_manager"):
+                if p_flag:
+                    flag_popup = self.popup_scene_manager.get_popup_by_flag(p_flag)
+                if not flag_popup:
+                    title_lower = getattr(pending, "title", "").lower()
+                    text_lower = getattr(pending, "text", "").lower()
+                    if "encounter" in title_lower or "encounter" in text_lower:
+                        flag_popup = self.popup_scene_manager.get_popup("event_first_encounter")
+                    elif "kill" in title_lower or "kill" in text_lower or "blood" in title_lower:
+                        flag_popup = self.popup_scene_manager.get_popup("event_first_kill")
+
+            if flag_popup:
+                if flag_popup.get("enabled", True):
+                    self.side_notification.show(
+                        flag_popup.get("text", pending.text),
+                        flag_popup.get("title", pending.title),
+                        icon=flag_popup.get("icon", getattr(pending, "icon_path", None)),
+                        hold=flag_popup.get("hold", 5.5),
+                        theme=flag_popup.get("theme", "blood_bone"),
+                    )
+            else:
+                icon_path = getattr(pending, "icon_path", None)
+                self.side_notification.show(pending.text, pending.title, icon=icon_path)
+
             if self.audio_manager and hasattr(self.audio_manager, "play_sound"):
                 self.audio_manager.play_sound("reveal")
         
@@ -2004,12 +2124,23 @@ class GameState(PlayingState):
         # ── Book Ponder: Player wonders about the demon ──────────────────
         if buff_data.get("book_ponder"):
             # Delayed player reflection after the Andras book encounter
-            self.side_notification.show(
-                "What does this demon want with me...?",
-                "The Runner Wonders",
-                icon="assets/graphics/UI/PNG/Exclamation_Yellow.png",
-                hold=6.0,
-            )
+            bp_popup = self.popup_scene_manager.get_popup("event_book_ponder") if hasattr(self, "popup_scene_manager") else None
+            if bp_popup:
+                if bp_popup.get("enabled", True):
+                    self.side_notification.show(
+                        bp_popup.get("text", "What does this demon want with me...?"),
+                        bp_popup.get("title", "The Runner Wonders"),
+                        icon=bp_popup.get("icon", "assets/graphics/UI/PNG/Exclamation_Yellow.png"),
+                        hold=bp_popup.get("hold", 6.0),
+                        theme=bp_popup.get("theme", "grimoire_leather"),
+                    )
+            else:
+                self.side_notification.show(
+                    "What does this demon want with me...?",
+                    "The Runner Wonders",
+                    icon="assets/graphics/UI/PNG/Exclamation_Yellow.png",
+                    hold=6.0,
+                )
         # ─────────────────────────────────────────────────────────────────
 
     def _check_game_over(self) -> None:

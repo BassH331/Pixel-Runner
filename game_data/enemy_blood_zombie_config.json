@@ -8,7 +8,7 @@
   "vertical_tolerance": 180.0,
   "attack_hitbox_width": 46,
   "attack_hitbox_height": 84,
-  "scale": 1.98,
+  "scale": 2.0,
   "anim_speed": 0.1,
   "ground_offset": 65,
   "lerp_viscosity": 0.06,

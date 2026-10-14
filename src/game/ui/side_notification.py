@@ -15,7 +15,7 @@ from typing import Optional, List, Tuple, Any, Union
 import pygame as pg
 
 from v3x_zulfiqar_gideon import AssetManager
-from src.game.systems.notification_config_manager import NotificationConfigManager
+from src.game.systems.notification_config_manager import NotificationConfigManager, THEME_PRESETS
 
 
 class NotificationState(Enum):
@@ -32,11 +32,13 @@ class _NotificationItem:
         title: str,
         icon: Optional[Union[str, pg.Surface]] = None,
         hold: float = 8.5,
+        theme: Optional[str] = None,
     ) -> None:
         self.text = text
         self.title = title
         self.icon = icon
         self.hold = hold
+        self.theme = theme
 
 
 class SideNotification:
@@ -186,6 +188,7 @@ class SideNotification:
         title: str = "Milestone",
         icon: Optional[Union[str, pg.Surface]] = None,
         hold: Optional[float] = None,
+        theme: Optional[str] = None,
     ) -> None:
         """
         Trigger a non-blocking side notification.
@@ -205,6 +208,7 @@ class SideNotification:
             title=title.strip(),
             icon=icon,
             hold=effective_hold,
+            theme=theme,
         )
 
         if self._state == NotificationState.IDLE:
@@ -258,7 +262,12 @@ class SideNotification:
 
         for word in words:
             test = f"{curr_line} {word}".strip() if curr_line else word
-            if font.size(test)[0] <= max_w:
+            try:
+                sz = font.size(test)[0]
+                fits = (sz <= max_w) if isinstance(sz, (int, float)) else True
+            except Exception:
+                fits = True
+            if fits:
                 curr_line = test
             else:
                 if curr_line:
@@ -270,6 +279,27 @@ class SideNotification:
 
     def _build_tab_surface(self, item: _NotificationItem) -> None:
         """Pre-render the complete notification card with dynamic height."""
+        # Resolve active theme colors & layout overrides if specified
+        theme_cfg = THEME_PRESETS.get(item.theme) if item.theme else None
+        colors = theme_cfg.get("colors", {}) if theme_cfg else {}
+        layout = theme_cfg.get("layout", {}) if theme_cfg else {}
+
+        bg_color = tuple(colors["bg_color"]) if "bg_color" in colors else self._bg_color
+        inner_color = tuple(colors["inner_color"]) if "inner_color" in colors else self._inner_color
+        border_color = tuple(colors["border_color"]) if "border_color" in colors else self._border_color
+        accent_notch_color = tuple(colors["accent_notch_color"]) if "accent_notch_color" in colors else self._accent_notch_color
+        badge_bg_color = tuple(colors["badge_bg_color"]) if "badge_bg_color" in colors else self._badge_bg_color
+        badge_border_color = tuple(colors["badge_border_color"]) if "badge_border_color" in colors else self._badge_border_color
+        title_color = tuple(colors["title_color"]) if "title_color" in colors else self._title_color
+        title_shadow_color = tuple(colors["title_shadow_color"]) if "title_shadow_color" in colors else self._title_shadow_color
+        body_color = tuple(colors["body_color"]) if "body_color" in colors else self._body_color
+        body_shadow_color = tuple(colors["body_shadow_color"]) if "body_shadow_color" in colors else self._body_shadow_color
+
+        corner_rad_val = layout.get("corner_radius", self._base_corner_radius)
+        border_w_val = layout.get("border_width", self._base_border_width)
+        accent_notch_w_val = layout.get("accent_notch_width", self._base_accent_notch_width)
+        accent_notch_enabled_val = layout.get("accent_notch_enabled", self._accent_notch_enabled)
+
         # 1. Fonts with resolution-matched sizing
         title_font_size = max(12, int(self._title_font_size * self._scale))
         body_font_size = max(10, int(self._body_font_size * self._scale))
@@ -282,6 +312,29 @@ class SideNotification:
             title_font = pg.font.SysFont("Arial", title_font_size, bold=True)
         if not body_font:
             body_font = pg.font.SysFont("Arial", body_font_size)
+
+        def _safe_render(font: pg.font.Font, text: str, antialias: bool, col: Any) -> pg.Surface:
+            try:
+                res = font.render(text, antialias, col)
+                if isinstance(res, pg.Surface):
+                    return res
+            except Exception:
+                pass
+            try:
+                clean = text.encode("ascii", "replace").decode("ascii")
+                res = font.render(clean, antialias, col)
+                if isinstance(res, pg.Surface):
+                    return res
+            except Exception:
+                pass
+            try:
+                sys_font = pg.font.SysFont("Arial", font.get_height())
+                res = sys_font.render(text, antialias, col)
+                if isinstance(res, pg.Surface):
+                    return res
+            except Exception:
+                pass
+            return pg.Surface((max(1, len(text) * 8), 16), pg.SRCALPHA)
 
         # 2. Icon badge dimensions
         badge_size = max(24, int(self._base_badge_size * self._scale))
@@ -296,11 +349,22 @@ class SideNotification:
         content_x = padding_x + badge_size + int(10 * self._scale)
         available_text_w = self._tab_width - content_x - padding_x
 
-        title_surf = title_font.render(item.title, True, self._title_color)
+        title_surf = _safe_render(title_font, item.title, True, title_color)
         lines = self._wrap_text(item.text, body_font, available_text_w)
 
-        line_h = int(body_font.get_linesize() * self._line_spacing_mult)
-        total_text_h = title_surf.get_height() + spacing + len(lines) * line_h
+        try:
+            line_size = body_font.get_linesize()
+            line_h = int(line_size * self._line_spacing_mult) if isinstance(line_size, (int, float)) else 18
+        except Exception:
+            line_h = 18
+
+        try:
+            th = title_surf.get_height()
+            th_val = int(th) if isinstance(th, (int, float)) else 22
+        except Exception:
+            th_val = 22
+
+        total_text_h = th_val + spacing + len(lines) * line_h
 
         # Dynamic card height matching text length
         min_h = int(self._base_min_height * self._scale)
@@ -311,31 +375,31 @@ class SideNotification:
         # 4. Construct composite tab surface
         tab_surf = pg.Surface((self._tab_width, self._tab_height), pg.SRCALPHA)
 
-        # Dark fantasy obsidian/slate background
-        corner_rad = max(0, int(self._base_corner_radius * self._scale))
+        # Background
+        corner_rad = max(0, int(corner_rad_val * self._scale))
         bg_rect = pg.Rect(0, 0, self._tab_width, self._tab_height)
-        pg.draw.rect(tab_surf, self._bg_color, bg_rect, border_radius=corner_rad)
+        pg.draw.rect(tab_surf, bg_color, bg_rect, border_radius=corner_rad)
 
         # Subtle gradient inner fill
         inner_pad = max(1, int(3 * self._scale))
         inner_rect = bg_rect.inflate(-inner_pad * 2, -inner_pad * 2)
         if inner_rect.width > 0 and inner_rect.height > 0:
-            pg.draw.rect(tab_surf, self._inner_color, inner_rect, border_radius=max(0, corner_rad - 2))
+            pg.draw.rect(tab_surf, inner_color, inner_rect, border_radius=max(0, corner_rad - 2))
 
-        # Antique Gold Outer Border
-        border_w = max(0, int(self._base_border_width * self._scale))
+        # Outer Border
+        border_w = max(0, int(border_w_val * self._scale))
         if border_w > 0:
-            pg.draw.rect(tab_surf, self._border_color, bg_rect, width=border_w, border_radius=corner_rad)
+            pg.draw.rect(tab_surf, border_color, bg_rect, width=border_w, border_radius=corner_rad)
 
-        # Decorative left golden accent notch
-        if self._accent_notch_enabled and self._base_accent_notch_width > 0:
-            accent_w = max(2, int(self._base_accent_notch_width * self._scale))
+        # Decorative left accent notch
+        if accent_notch_enabled_val and accent_notch_w_val > 0:
+            accent_w = max(2, int(accent_notch_w_val * self._scale))
             top_pad = border_w + int(4 * self._scale)
             accent_h = self._tab_height - top_pad * 2
             if accent_h > 0:
                 pg.draw.rect(
                     tab_surf,
-                    self._accent_notch_color,
+                    accent_notch_color,
                     (border_w, top_pad, accent_w, accent_h),
                     border_radius=max(0, corner_rad // 2),
                 )
@@ -344,11 +408,11 @@ class SideNotification:
         badge_y = (self._tab_height - badge_size) // 2
         badge_rect = pg.Rect(padding_x, badge_y, badge_size, badge_size)
         badge_radius = max(0, int(corner_rad * 0.7))
-        pg.draw.rect(tab_surf, self._badge_bg_color, badge_rect, border_radius=badge_radius)
+        pg.draw.rect(tab_surf, badge_bg_color, badge_rect, border_radius=badge_radius)
         badge_border_w = max(1, int(1.5 * self._scale))
-        pg.draw.rect(tab_surf, self._badge_border_color, badge_rect, width=badge_border_w, border_radius=badge_radius)
+        pg.draw.rect(tab_surf, badge_border_color, badge_rect, width=badge_border_w, border_radius=badge_radius)
 
-        if self._cached_icon:
+        if isinstance(self._cached_icon, pg.Surface):
             ix = badge_rect.centerx - self._cached_icon.get_width() // 2
             iy = badge_rect.centery - self._cached_icon.get_height() // 2
             tab_surf.blit(self._cached_icon, (ix, iy))
@@ -357,17 +421,17 @@ class SideNotification:
         ty = padding_y
         if self._title_drop_shadow:
             shd_offset = max(1, int(1.5 * self._scale))
-            title_shd = title_font.render(item.title, True, self._title_shadow_color)
+            title_shd = _safe_render(title_font, item.title, True, title_shadow_color)
             tab_surf.blit(title_shd, (content_x + shd_offset, ty + shd_offset))
         tab_surf.blit(title_surf, (content_x, ty))
 
         # 7. Render Body Text lines (with optional drop shadow)
-        by = ty + title_surf.get_height() + spacing
+        by = ty + th_val + spacing
         for line in lines:
             if self._body_drop_shadow:
-                line_shd = body_font.render(line, True, self._body_shadow_color)
+                line_shd = _safe_render(body_font, line, True, body_shadow_color)
                 tab_surf.blit(line_shd, (content_x + 1, by + 1))
-            line_surf = body_font.render(line, True, self._body_color)
+            line_surf = _safe_render(body_font, line, True, body_color)
             tab_surf.blit(line_surf, (content_x, by))
             by += line_h
 

@@ -43,6 +43,13 @@ class SquadCoordinator:
         self._last_role_assign_time: float = 0.0
         self._last_pincer_time: float = 0.0
 
+    def clear(self) -> None:
+        """Clear all active roles and squad coordination state for test isolation."""
+        self._enemy_roles.clear()
+        self._pincer_active = False
+        self._last_role_assign_time = 0.0
+        self._last_pincer_time = 0.0
+
     def update_squad_roles(
         self,
         enemies: List[Tuple[int, pg.Rect, bool]],  # list of (enemy_id, enemy_rect, is_alive)

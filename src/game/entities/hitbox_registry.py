@@ -21,14 +21,17 @@ class HitboxMargins:
 class HitboxRegistry:
     # Standard baseline default margins matching the verified stable hitbox reductions
     DEFAULTS = {
-        "player": HitboxMargins(left=315, right=315, top=150, bottom=0, ground_offset=34, scale=3.0),
+        "player": HitboxMargins(left=387, right=391, top=191, bottom=0, ground_offset=34, scale=3.0),
         "skeleton": HitboxMargins(left=65, right=65, top=20, bottom=0, ground_offset=127, scale=2.0),
-        "enemy": HitboxMargins(left=80, right=80, top=100, bottom=100, ground_offset=0, scale=2.0),
+        "enemy": HitboxMargins(left=75, right=75, top=75, bottom=75, ground_offset=0, scale=1.34),
         "wizard_npc": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
         "generic_npc_masked_man": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
         "generic_npc_goblin": HitboxMargins(left=0, right=0, top=0, bottom=0, ground_offset=34, scale=2.0),
         "shadow_assassin": HitboxMargins(left=50, right=50, top=30, bottom=0, ground_offset=34, scale=2.0),
         "dark_ronin": HitboxMargins(left=20, right=20, top=15, bottom=0, ground_offset=111, scale=2.5),
+        "boss:bloodzombie": HitboxMargins(left=65, right=189, top=136, bottom=28, ground_offset=65, scale=2.0),
+        "boss:green_monster": HitboxMargins(left=216, right=210, top=101, bottom=39, ground_offset=127, scale=2.63),
+        "boss:wizard": HitboxMargins(left=259, right=281, top=208, bottom=192, ground_offset=127, scale=4.11),
     }
 
     _cached_config: dict[str, HitboxMargins] = {}
@@ -117,6 +120,11 @@ class HitboxRegistry:
             from src.game.utils.atomic_save import atomic_write_json
             data = {name: asdict(margins) for name, margins in cls._cached_config.items()}
             atomic_write_json(CONFIG_PATH, data, indent=4)
+            try:
+                from src.game.services import ConfigClient
+                ConfigClient.push_config("entity_dimensions", data, async_push=False)
+            except Exception:
+                pass
         except Exception as e:
             print(f"Error saving hitbox configuration to {CONFIG_PATH}: {e}")
 

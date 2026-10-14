@@ -194,9 +194,14 @@ def test_boss_editor_simulation_bone_dust_dodge():
 
 def test_skeleton_combo_chaining_in_melee_reach():
     """Verify skeleton immediately chains into follow-up strike when player remains in melee range."""
+    from src.game.ai.squad_token_manager import SquadTokenManager
+    from src.game.ai.squad_coordinator import SquadCoordinator
+    SquadTokenManager.get_instance().clear()
+    SquadCoordinator.get_instance().clear()
     # Place player right in front of skeleton
     player = MockPlayer(x=200, y=300, is_attacking=False, facing_left=False)
     skeleton = Skeleton(260, 300, player, tier="minion")  # type: ignore
+    skeleton._ground_y = skeleton.rect.bottom  # Lock to current test ground level
     skeleton.facing_left = True  # Facing player to the left
 
     # Begin strike 1

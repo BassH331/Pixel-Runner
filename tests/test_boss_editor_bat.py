@@ -92,6 +92,9 @@ class TestBatConfigAndIntegration(unittest.TestCase):
             while bat.vel_y < 0:
                 bat.update(dt=0.016)
 
+            # Prevent glide timer from prematurely expiring during wing return stroke alignment
+            bat.glide_timer = 0.0
+
             # Advance remaining frames of stroke to return to frame 0
             while int(bat.animation_index) % len(bat.animations[EnemyState.FLY]) != 0:
                 bat.update(dt=0.016)
