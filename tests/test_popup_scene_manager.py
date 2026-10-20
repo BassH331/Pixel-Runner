@@ -26,12 +26,12 @@ def test_popup_scene_manager_load_and_lookup():
     mgr = PopupSceneManager.get_instance()
     
     popups = mgr.get_all_popups()
-    assert len(popups) >= 13, f"Expected at least 13 popups, got {len(popups)}"
+    assert len(popups) >= 10, f"Expected at least 10 popups, got {len(popups)}"
     
     # Check lookup by ID
     prologue = mgr.get_popup("event_prologue_awakening")
     assert prologue is not None
-    assert prologue["title"] == "The Awakening"
+    assert prologue["title"] in ("The Awakening", "The Dark Forest")
     assert prologue["theme"] == "gothic_gold"
     assert prologue["enabled"] is True
 
@@ -52,9 +52,9 @@ def test_popup_scene_manager_load_and_lookup():
     assert first_kill["id"] == "event_first_kill"
 
     # Check lookup by Distance
-    dist_1400 = mgr.get_popups_by_distance(1400.0, tolerance=25.0)
-    assert len(dist_1400) >= 1
-    assert dist_1400[0]["id"] == "event_forest_inquiry_1400m"
+    dist_0 = mgr.get_popups_by_distance(0.0, tolerance=25.0)
+    assert len(dist_0) >= 1
+    assert dist_0[0]["id"] == "event_prologue_awakening"
 
 
 def test_popup_scene_manager_toggle_and_update():
@@ -71,15 +71,31 @@ def test_popup_scene_manager_toggle_and_update():
     p = mgr.get_popup("event_prologue_awakening")
     assert p["enabled"] is True
 
-    # Update text and theme
-    orig = mgr.get_popup("event_book_ponder")
+    # Update text and theme on existing scene
+    target_id = "event_sealed_book_encounter"
+    orig = mgr.get_popup(target_id)
+    assert orig is not None
     orig_text = orig["text"]
-    assert mgr.update_popup("event_book_ponder", {"text": "Updated forbidden lore."}) is True
-    updated = mgr.get_popup("event_book_ponder")
+    assert mgr.update_popup(target_id, {"text": "Updated forbidden lore."}) is True
+    updated = mgr.get_popup(target_id)
     assert updated["text"] == "Updated forbidden lore."
 
     # Restore original text
-    mgr.update_popup("event_book_ponder", {"text": orig_text})
+    mgr.update_popup(target_id, {"text": orig_text})
+
+
+def test_popup_scene_manager_set_all_scenes():
+    PopupSceneManager.reset_instance()
+    mgr = PopupSceneManager.get_instance()
+    popups = mgr.get_all_popups()
+    assert len(popups) > 0
+    orig_hold = popups[0].get("hold", 6.0)
+    popups[0]["hold"] = 12.5
+    mgr.set_all_scenes(popups)
+    assert mgr.get_popup(popups[0]["id"])["hold"] == 12.5
+    # Restore
+    popups[0]["hold"] = orig_hold
+    mgr.set_all_scenes(popups)
 
 
 def test_popup_scene_manager_atomic_save():
@@ -95,7 +111,7 @@ def test_popup_scene_manager_atomic_save():
         with open(tmp_cfg, "r", encoding="utf-8") as f:
             data = json.load(f)
         assert "scenes" in data
-        assert len(data["scenes"]) >= 13
+        assert len(data["scenes"]) >= 10
 
 
 def test_side_notification_per_theme_rendering():

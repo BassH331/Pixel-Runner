@@ -563,7 +563,7 @@
             "params": {
                 "npc_type": "generic",
                 "title": "The Sealed Book",
-                "text": "The book pulses with a dark energy. Strange runes glow along the spine. Something awakens in the spiritual realm.",
+                "text": "The book pulses with a dark energy. Something awakens in the spiritual realm.",
                 "radius": 80,
                 "sprite_dir": "assets/graphics/magic_book_single",
                 "scale": 1.12,
@@ -577,7 +577,7 @@
                 ],
                 "death_line": "The pages never close... they only wait for the next fool.",
                 "dialogue": {
-                    "default": "The book pulses with a dark energy. Strange runes glow along the spine. Something awakens in the spiritual realm.",
+                    "default": "The book pulses with a dark energy. Something awakens in the spiritual realm.",
                     "corruption_variants": {
                         "low": "The runes shimmer faintly, calling to something deep within.",
                         "mid": "The ink flows thicker as you harvest the slain.",

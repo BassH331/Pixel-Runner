@@ -186,6 +186,11 @@ class PopupSceneManager:
                 return True
         return False
 
+    def set_all_scenes(self, scenes: List[Dict[str, Any]]) -> None:
+        """Replace all scenes in memory and rebuild indices."""
+        self._scenes = [dict(s) for s in scenes]
+        self._rebuild_indices()
+
     def save_config(self, target_path: Optional[str] = None) -> bool:
         """Atomically persist pop-up scenes configuration to disk."""
         path = target_path or self.config_path

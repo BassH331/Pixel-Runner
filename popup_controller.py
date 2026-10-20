@@ -165,6 +165,13 @@ def draw_icon_link(surf: pg.Surface, x: int, y: int, color: Tuple[int, int, int]
     pg.draw.rect(surf, color, pg.Rect(x + 4, y + 4, 7, 5), 1, border_radius=2)
 
 
+def draw_icon_image(surf: pg.Surface, x: int, y: int, color: Tuple[int, int, int]) -> None:
+    """Renders a miniature photo/image asset landscape icon."""
+    pg.draw.rect(surf, color, pg.Rect(x, y + 1, 14, 11), 1, border_radius=2)
+    pg.draw.circle(surf, color, (x + 4, y + 4), 1)
+    pg.draw.polygon(surf, color, [(x + 2, y + 10), (x + 6, y + 6), (x + 9, y + 9), (x + 12, y + 5), (x + 12, y + 10)])
+
+
 def draw_styled_button(
     surf: pg.Surface,
     rect: pg.Rect,
@@ -222,6 +229,8 @@ def draw_styled_button(
             draw_icon_check(surf, start_x, ic_y, ic_col)
         elif icon_type == "link":
             draw_icon_link(surf, start_x, ic_y, ic_col)
+        elif icon_type == "image":
+            draw_icon_image(surf, start_x, ic_y, ic_col)
 
     surf.blit(t_surf, (start_x + icon_w + gap, rect.centery - t_surf.get_height() // 2))
     return is_hover
@@ -348,6 +357,151 @@ class EntityCatalog:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# IconCatalog — Game Asset Icon Discovery, Categorization & Caching
+# ─────────────────────────────────────────────────────────────────────────────
+
+class IconCatalog:
+    """Discovers, categorizes, and caches 700+ pixel art icons across asset folders."""
+
+    CATEGORIES: List[Tuple[str, str]] = [
+        ("ALL", "All Asset Packs"),
+        ("UNDEAD_LOOT", "Undead Loot & Relics"),
+        ("SKILLS", "Skills & Spells"),
+        ("WARRIOR", "Warrior Icons (250)"),
+        ("MAGE", "Mage Icons (250)"),
+        ("UI_BADGES", "UI Badges & Relics"),
+    ]
+
+    QUICK_PRESETS: List[Dict[str, str]] = [
+        {"id": "skull", "name": "Cursed Skull", "pack": "Undead Loot", "path": "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"},
+        {"id": "warning", "name": "Yellow Alert", "pack": "UI Badges", "path": "assets/graphics/UI/PNG/Exclamation_Yellow.png"},
+        {"id": "relic", "name": "Golden Relic", "pack": "UI Badges", "path": "assets/graphics/ui/relic_icon.png"},
+        {"id": "grimoire", "name": "Spell Grimoire", "pack": "Mage Icons", "path": "assets/MAGE ICONS BIG PACk (by Batareya)/179.png"},
+        {"id": "blade", "name": "Warrior Blade", "pack": "Warrior Icons", "path": "assets/250 WARRIOR ICONS (pack by batareya)/10.png"},
+        {"id": "curse", "name": "Necrotic Curse", "pack": "Undead Skills", "path": "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG/Icon24.png"},
+        {"id": "crimson", "name": "Crimson Horror", "pack": "Undead Loot", "path": "assets/free-undead-loot-pixel-art-icons (2)/PNG/Transperent/Icon1.png"},
+        {"id": "speed", "name": "Void Surge", "pack": "UI Badges", "path": "assets/graphics/ui/powerup_speed.png"},
+    ]
+
+    PACK_FOLDERS: Dict[str, List[str]] = {
+        "UNDEAD_LOOT": [
+            "assets/free-undead-loot-pixel-art-icons/PNG/Transperent",
+            "assets/free-undead-loot-pixel-art-icons (2)/PNG/Transperent",
+            "assets/free-undead-loot-pixel-art-icons/Bonus/PNG/Transperent",
+            "assets/free-undead-loot-pixel-art-icons (2)/Bonus/PNG/Transperent",
+        ],
+        "SKILLS": [
+            "assets/Free-Undead-Skill-Pixel-Art-Icons/PNG",
+            "assets/Free-Undead-Skill-Pixel-Art-Icons/Bonus/PNG",
+            "assets/Free Warlock Skills/PNG",
+        ],
+        "WARRIOR": [
+            "assets/250 WARRIOR ICONS (pack by batareya)",
+        ],
+        "MAGE": [
+            "assets/MAGE ICONS BIG PACk (by Batareya)",
+        ],
+        "UI_BADGES": [
+            "assets/graphics/UI/PNG",
+            "assets/graphics/ui",
+        ],
+    }
+
+    def __init__(self, base_dir: str = BASE_DIR) -> None:
+        self.base_dir = base_dir
+        self.icons_by_category: Dict[str, List[Dict[str, str]]] = {cat[0]: [] for cat in self.CATEGORIES}
+        self.all_icons: List[Dict[str, str]] = []
+        self._thumb_cache: Dict[Tuple[str, Tuple[int, int]], pg.Surface] = {}
+        self.scan()
+
+    def scan(self) -> None:
+        """Scan asset folders and register all available PNG/JPG icons."""
+        seen_paths = set()
+        for cat_key, folders in self.PACK_FOLDERS.items():
+            for folder in folders:
+                abs_f = os.path.join(self.base_dir, folder) if not os.path.isabs(folder) else folder
+                if not os.path.exists(abs_f):
+                    continue
+                try:
+                    for fname in sorted(os.listdir(abs_f)):
+                        if fname.lower().endswith((".png", ".jpg", ".jpeg")):
+                            rel_path = os.path.relpath(os.path.join(abs_f, fname), self.base_dir).replace("\\", "/")
+                            if rel_path in seen_paths:
+                                continue
+                            seen_paths.add(rel_path)
+                            pack_name = self.get_pack_label(rel_path)
+                            item = {
+                                "path": rel_path,
+                                "filename": fname,
+                                "pack": pack_name,
+                                "category": cat_key,
+                            }
+                            self.icons_by_category[cat_key].append(item)
+                            self.all_icons.append(item)
+                except Exception as e:
+                    print(f"[IconCatalog] Error reading folder {folder}: {e}")
+
+        # Populate "ALL" category
+        self.icons_by_category["ALL"] = list(self.all_icons)
+
+    def get_pack_label(self, path: str) -> str:
+        p_lower = path.lower()
+        if "undead-loot" in p_lower:
+            return "Undead Loot"
+        elif "warlock" in p_lower:
+            return "Warlock Skills"
+        elif "undead-skill" in p_lower:
+            return "Undead Skills"
+        elif "warrior icons" in p_lower:
+            return "Warrior Icons"
+        elif "mage icons" in p_lower:
+            return "Mage Icons"
+        elif "graphics/ui" in p_lower:
+            return "UI Badges"
+        return "Asset Pack"
+
+    def filter_icons(self, category: str = "ALL", query: str = "") -> List[Dict[str, str]]:
+        cat_items = self.icons_by_category.get(category, self.all_icons)
+        q = query.strip().lower()
+        if not q:
+            return cat_items
+        return [it for it in cat_items if q in it["filename"].lower() or q in it["pack"].lower() or q in it["path"].lower()]
+
+    def get_thumbnail(self, path: Optional[str], size: Tuple[int, int] = (40, 40)) -> pg.Surface:
+        if not path:
+            return self._create_fallback_surf(size)
+        norm_path = path.replace("\\", "/")
+        key = (norm_path, size)
+        if key in self._thumb_cache:
+            return self._thumb_cache[key]
+
+        abs_path = os.path.join(self.base_dir, norm_path) if not os.path.isabs(norm_path) else norm_path
+        if os.path.exists(abs_path):
+            try:
+                raw = pg.image.load(abs_path)
+                if pg.display.get_surface() is not None:
+                    raw = raw.convert_alpha()
+                surf = pg.transform.smoothscale(raw, size)
+                self._thumb_cache[key] = surf
+                return surf
+            except Exception:
+                pass
+
+        # Fallback surface
+        surf = self._create_fallback_surf(size)
+        self._thumb_cache[key] = surf
+        return surf
+
+    def _create_fallback_surf(self, size: Tuple[int, int]) -> pg.Surface:
+        surf = pg.Surface(size, pg.SRCALPHA)
+        pg.draw.rect(surf, (36, 28, 48), (0, 0, size[0], size[1]), border_radius=4)
+        pg.draw.rect(surf, (160, 125, 45), (0, 0, size[0], size[1]), width=1, border_radius=4)
+        cx, cy = size[0] // 2, size[1] // 2
+        pg.draw.circle(surf, (220, 180, 80), (cx, cy), max(3, size[0] // 4))
+        return surf
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # PopupControllerApp — Core Interactive Plugin Engine
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -364,8 +518,11 @@ class PopupControllerApp:
 
         # Auto-maximize window on desktop like main.py
         try:
-            win = pg.Window.from_display_module()
-            win.maximize()
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                win = pg.Window.from_display_module()
+                win.maximize()
             self.width, self.height = self.screen.get_size()
         except Exception:
             pass
@@ -467,6 +624,18 @@ class PopupControllerApp:
         # Entity Picker Dropdown State
         self.show_entity_picker: bool = False
 
+        # Icon Catalog & Graphical Icon Gallery Modal State
+        self.icon_catalog = IconCatalog(BASE_DIR)
+        self.show_icon_modal: bool = False
+        self.icon_modal_target: str = "scene"  # "scene" or "add"
+        self.icon_modal_category: str = "ALL"
+        self.icon_modal_search: str = ""
+        self.icon_modal_scroll: float = 0.0
+        self.icon_modal_max_scroll: float = 0.0
+        self.icon_modal_selected_path: Optional[str] = None
+        self.icon_modal_active_input: Optional[str] = None
+        self.add_icon_str: str = "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
+
         # Select initial scene
         if self.selected_index >= 0:
             self._select_scene(self.selected_index)
@@ -517,11 +686,16 @@ class PopupControllerApp:
             "toggle_enabled": pg.Rect(ed_x + ed_w - 230, 114, 215, 32),
             "ent_card": pg.Rect(ed_x + 18, 162, ed_w - 36, 56),
             "title_box": pg.Rect(ed_x + 18, 246, ed_w - 36, 34),
-            "text_box": pg.Rect(ed_x + 18, 308, ed_w - 36, 110),
-            "dur_minus": pg.Rect(ed_x + 140, 428, 45, 28),
-            "dur_val": pg.Rect(ed_x + 195, 428, 60, 28),
-            "dur_plus": pg.Rect(ed_x + 265, 428, 45, 28),
-            "del_btn": pg.Rect(ed_x + ed_w - 145, 428, 127, 28),
+            "text_box": pg.Rect(ed_x + 18, 308, ed_w - 36, 88),
+            # Icon Preview & Controls (y: 408 to 458)
+            "icon_preview": pg.Rect(ed_x + 18, 410, 48, 48),
+            "icon_browse_btn": pg.Rect(ed_x + 76, 420, 134, 32),
+            "icon_quick_picks": {},
+            # Duration & Delete (y: 472 to 500)
+            "dur_minus": pg.Rect(ed_x + 140, 472, 45, 28),
+            "dur_val": pg.Rect(ed_x + 195, 472, 60, 28),
+            "dur_plus": pg.Rect(ed_x + 265, 472, 45, 28),
+            "del_btn": pg.Rect(ed_x + ed_w - 145, 472, 127, 28),
             "theme_tiles": {},
         }
         if tt == "entity":
@@ -529,6 +703,14 @@ class PopupControllerApp:
         elif tt == "distance":
             rects["dist_minus"] = pg.Rect(ed_x + ed_w - 140, 176, 40, 26)
             rects["dist_plus"] = pg.Rect(ed_x + ed_w - 46, 176, 40, 26)
+
+        # Quick Pick Presets in Editor Rects
+        qx = ed_x + 218
+        qy = 422
+        for p in IconCatalog.QUICK_PRESETS:
+            if qx + 30 <= ed_x + ed_w - 18:
+                rects["icon_quick_picks"][p["id"]] = (p["path"], p["name"], pg.Rect(qx, qy, 30, 30))
+                qx += 36
 
         theme_keys = list(THEME_PRESETS.keys())
         tile_w = (ed_w - 46) // 2
@@ -538,13 +720,13 @@ class PopupControllerApp:
             row = idx // 2
             col = idx % 2
             tx = ed_x + 18 + col * (tile_w + tile_gap)
-            ty = 494 + row * (tile_h + tile_gap)
+            ty = 538 + row * (tile_h + tile_gap)
             rects["theme_tiles"][t_key] = pg.Rect(tx, ty, tile_w, tile_h)
         return rects
 
     def _get_add_modal_rects(self) -> Dict[str, Any]:
         """Calculates exact hitboxes for [+ Add Pop-up] modal dialog."""
-        mw, mh = 760, 630
+        mw, mh = 760, 650
         mx0 = self.width // 2 - mw // 2
         my0 = self.height // 2 - mh // 2
 
@@ -562,11 +744,13 @@ class PopupControllerApp:
             "dist_presets": [],
             "dist_steppers": [],
             "flag_chips": [],
-            "title_input": pg.Rect(mx0 + 24, my0 + 346, mw - 48, 34),
-            "text_input": pg.Rect(mx0 + 24, my0 + 410, mw - 48, 64),
+            "title_input": pg.Rect(mx0 + 24, my0 + 338, mw - 48, 32),
+            "text_input": pg.Rect(mx0 + 24, my0 + 396, mw - 48, 56),
+            "icon_preview": pg.Rect(mx0 + 24, my0 + 466, 36, 36),
+            "icon_browse": pg.Rect(mx0 + 68, my0 + 468, 140, 32),
             "theme_chips": {},
-            "hold_minus": pg.Rect(mx0 + mw - 150, my0 + mh - 112, 36, 26),
-            "hold_plus": pg.Rect(mx0 + mw - 60, my0 + mh - 112, 36, 26),
+            "hold_minus": pg.Rect(mx0 + mw - 150, my0 + mh - 110, 36, 26),
+            "hold_plus": pg.Rect(mx0 + mw - 60, my0 + mh - 110, 36, 26),
         }
 
         # Step 2 Target Geometry
@@ -611,12 +795,101 @@ class PopupControllerApp:
         # Theme chips
         tkeys = list(THEME_PRESETS.keys())
         tx = mx0 + 24
-        ty = my0 + 504
+        ty = my0 + 524
         for tk in tkeys:
             rects["theme_chips"][tk] = pg.Rect(tx, ty, 136, 28)
             tx += 144
 
         return rects
+
+    def _get_icon_modal_rects(self) -> Dict[str, Any]:
+        """Calculates exact hitboxes for the Graphical Icon Gallery Modal dialog."""
+        mw = min(1060, self.width - 60)
+        mh = min(730, self.height - 60)
+        mx0 = self.width // 2 - mw // 2
+        my0 = self.height // 2 - mh // 2
+
+        rects: Dict[str, Any] = {
+            "modal": pg.Rect(mx0, my0, mw, mh),
+            "close": pg.Rect(mx0 + mw - 38, my0 + 16, 24, 24),
+            "search": pg.Rect(mx0 + 24, my0 + 60, 230, 30),
+            "search_clear": pg.Rect(mx0 + 226, my0 + 64, 22, 22),
+            "cat_tabs": {},
+            "grid_area": pg.Rect(mx0 + 24, my0 + 102, mw - 274, mh - 118),
+            "scrollbar": pg.Rect(mx0 + mw - 248, my0 + 102, 8, mh - 118),
+            "inspector": pg.Rect(mx0 + mw - 232, my0 + 102, 208, mh - 118),
+            "apply_btn": pg.Rect(mx0 + mw - 224, my0 + mh - 54, 192, 36),
+            "cancel_btn": pg.Rect(mx0 + mw - 224, my0 + mh - 96, 192, 32),
+            "reset_btn": pg.Rect(mx0 + mw - 224, my0 + mh - 134, 192, 28),
+            "icon_tiles": [],
+        }
+
+        # Category Tabs along the top next to search
+        tx = mx0 + 266
+        for cat_key, cat_name in IconCatalog.CATEGORIES:
+            tw = self.font_small_bold.size(cat_name)[0] + 16
+            rects["cat_tabs"][cat_key] = pg.Rect(tx, my0 + 60, tw, 30)
+            tx += tw + 6
+
+        # Filtered Icon Tiles
+        filtered = self.icon_catalog.filter_icons(self.icon_modal_category, self.icon_modal_search)
+        grid_rect = rects["grid_area"]
+        tile_sz = 46
+        tile_gap = 6
+        stride = tile_sz + tile_gap
+        cols = max(1, (grid_rect.width - 6) // stride)
+        rows = math.ceil(len(filtered) / cols) if filtered else 0
+        total_content_h = rows * stride + 10
+        self.icon_modal_max_scroll = max(0.0, float(total_content_h - grid_rect.height))
+
+        # Build tile hitboxes
+        start_y = grid_rect.y + 6 - int(self.icon_modal_scroll)
+        for idx, item in enumerate(filtered):
+            r = idx // cols
+            c = idx % cols
+            tile_x = grid_rect.x + 6 + c * stride
+            tile_y = start_y + r * stride
+            tile_rect = pg.Rect(tile_x, tile_y, tile_sz, tile_sz)
+            # Only add to active hitboxes if within or near grid_area
+            if tile_rect.bottom >= grid_rect.top and tile_rect.top <= grid_rect.bottom:
+                rects["icon_tiles"].append((item["path"], tile_rect, item))
+
+        return rects
+
+    def _open_icon_modal(self, target: str = "scene") -> None:
+        """Opens the full Graphical Icon Gallery Modal dialog."""
+        self.show_icon_modal = True
+        self.icon_modal_target = target
+        self.icon_modal_search = ""
+        self.icon_modal_scroll = 0.0
+        self.icon_modal_active_input = None
+        if target == "scene":
+            scene = self._get_selected_scene()
+            self.icon_modal_selected_path = scene.get("icon", "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png") if scene else "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
+        else:
+            self.icon_modal_selected_path = self.add_icon_str
+
+    def _close_icon_modal(self) -> None:
+        """Closes the Graphical Icon Gallery Modal."""
+        self.show_icon_modal = False
+        self.icon_modal_active_input = None
+
+    def _apply_selected_icon(self) -> None:
+        """Commits selected icon to the target scene or add modal."""
+        if not self.icon_modal_selected_path:
+            self._close_icon_modal()
+            return
+        if self.icon_modal_target == "scene":
+            scene = self._get_selected_scene()
+            if scene:
+                scene["icon"] = self.icon_modal_selected_path
+                self._trigger_preview()
+                self.toast_msg = "Pop-up icon updated successfully!"
+                self.toast_color = C_GREEN
+                self.toast_time = 3.0
+        else:
+            self.add_icon_str = self.icon_modal_selected_path
+        self._close_icon_modal()
 
     def _load_font(self, font_path: str, size: int, bold: bool = False) -> pg.font.Font:
         full_path = os.path.join(BASE_DIR, font_path)
@@ -640,11 +913,18 @@ class PopupControllerApp:
     def _select_scene(self, index: int) -> None:
         filtered = self._get_filtered_scenes()
         if 0 <= index < len(filtered):
-            scene = filtered[index]
-            real_idx = self.scenes.index(scene)
+            target_scene = filtered[index]
+            cur_scene = self._get_selected_scene()
+            if cur_scene and cur_scene != target_scene:
+                if self.edit_title_str.strip():
+                    cur_scene["title"] = self.edit_title_str
+                if self.edit_text_str.strip():
+                    cur_scene["text"] = self.edit_text_str
+
+            real_idx = self.scenes.index(target_scene)
             self.selected_index = real_idx
-            self.edit_title_str = str(scene.get("title", ""))
-            self.edit_text_str = str(scene.get("text", ""))
+            self.edit_title_str = str(target_scene.get("title", ""))
+            self.edit_text_str = str(target_scene.get("text", ""))
             self.active_field = None
             self.show_entity_picker = False
             self._trigger_preview()
@@ -697,15 +977,16 @@ class PopupControllerApp:
         self.is_preview_animating = True
         self.preview_timer = 0.0
 
-    def _save_changes(self) -> None:
+    def _save_changes(self) -> bool:
         """Save current edit buffers into scene and persist atomically."""
         scene = self._get_selected_scene()
-        if not scene:
-            return
+        if scene:
+            if self.edit_title_str.strip():
+                scene["title"] = self.edit_title_str
+            if self.edit_text_str.strip():
+                scene["text"] = self.edit_text_str
 
-        scene["title"] = self.edit_title_str
-        scene["text"] = self.edit_text_str
-
+        self.manager.set_all_scenes(self.scenes)
         success = self.manager.save_config()
         if success:
             self.toast_msg = "Config saved successfully! Pop-ups updated in running game."
@@ -714,6 +995,7 @@ class PopupControllerApp:
             self.toast_msg = "Error saving config file!"
             self.toast_color = C_RED
         self.toast_time = 3.5
+        return success
 
     def _set_theme(self, theme_key: str) -> None:
         scene = self._get_selected_scene()
@@ -738,6 +1020,7 @@ class PopupControllerApp:
         self.add_title_str = ent.get("title", "New Pop-up") if ent else "New Pop-up"
         self.add_text_str = "A powerful entity blocks your advance. Steel your resolve."
         self.add_theme_str = "blood_bone"
+        self.add_icon_str = "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
         self.add_hold_val = 7.0
         self.add_active_input = None
 
@@ -754,6 +1037,7 @@ class PopupControllerApp:
             "text": self.add_text_str.strip() or "Notification message.",
             "trigger_type": self.add_trigger_type,
             "theme": self.add_theme_str,
+            "icon": self.add_icon_str,
             "hold": self.add_hold_val,
             "enabled": True,
         }
@@ -772,15 +1056,26 @@ class PopupControllerApp:
             new_scene["description"] = f"Event triggered by flag: {new_scene['flag']}"
 
         self.manager.add_popup(new_scene)
+        self.manager.save_config()
         self.scenes = self.manager.get_all_popups()
         self.scenes.sort(key=lambda s: float(s.get("distance", 0)))
 
-        # Select newly created scene
-        for i, s in enumerate(self.scenes):
+        # Select newly created scene in filtered list
+        filtered = self._get_filtered_scenes()
+        found_idx = None
+        for i, s in enumerate(filtered):
             if s.get("id") == sid:
-                self.selected_index = i
+                found_idx = i
                 break
-        self._select_scene(self.selected_index)
+        if found_idx is None:
+            self.filter_tab = "ALL"
+            filtered = self._get_filtered_scenes()
+            for i, s in enumerate(filtered):
+                if s.get("id") == sid:
+                    found_idx = i
+                    break
+        if found_idx is not None:
+            self._select_scene(found_idx)
 
         self.toast_msg = "New pop-up created and saved!"
         self.toast_color = C_GREEN
@@ -794,11 +1089,17 @@ class PopupControllerApp:
             return
         sid = scene.get("id", "")
         self.manager.delete_popup(sid)
+        self.manager.save_config()
         self.scenes = self.manager.get_all_popups()
         self.scenes.sort(key=lambda s: float(s.get("distance", 0)))
-        self.selected_index = max(0, min(self.selected_index, len(self.scenes) - 1))
-        if self.scenes:
-            self._select_scene(self.selected_index)
+        filtered = self._get_filtered_scenes()
+        if filtered:
+            idx = max(0, min(self.selected_index, len(filtered) - 1))
+            self._select_scene(idx)
+        else:
+            self.selected_index = -1
+            self.edit_title_str = ""
+            self.edit_text_str = ""
         self.toast_msg = f"Deleted pop-up '{sid}'."
         self.toast_color = C_AMBER
         self.toast_time = 3.5
@@ -828,6 +1129,7 @@ class PopupControllerApp:
     def handle_events(self) -> None:
         for event in pg.event.get():
             if event.type == pg.QUIT:
+                self._save_changes()
                 self.running = False
                 return
 
@@ -840,6 +1142,20 @@ class PopupControllerApp:
             elif event.type == pg.KEYDOWN:
                 if event.key == pg.K_s and (event.mod & pg.KMOD_CTRL):
                     self._save_changes()
+                    continue
+
+                if self.show_icon_modal:
+                    if event.key == pg.K_ESCAPE:
+                        self._close_icon_modal()
+                    elif self.icon_modal_active_input == "search":
+                        if event.key in (pg.K_RETURN, pg.K_ESCAPE):
+                            self.icon_modal_active_input = None
+                        elif event.key == pg.K_BACKSPACE:
+                            self.icon_modal_search = self.icon_modal_search[:-1]
+                            self.icon_modal_scroll = 0.0
+                        elif event.unicode:
+                            self.icon_modal_search += event.unicode
+                            self.icon_modal_scroll = 0.0
                     continue
 
                 if self.show_add_modal:
@@ -912,7 +1228,10 @@ class PopupControllerApp:
 
             elif event.type == pg.MOUSEWHEEL:
                 mx, my = pg.mouse.get_pos()
-                if mx < self.timeline_w:
+                if self.show_icon_modal:
+                    self.icon_modal_scroll -= event.y * 52
+                    self.icon_modal_scroll = max(0.0, min(self.icon_modal_max_scroll, self.icon_modal_scroll))
+                elif mx < self.timeline_w:
                     self.scroll_y -= event.y * 36
                     self.scroll_y = max(0.0, min(self.max_scroll, self.scroll_y))
 
@@ -931,6 +1250,11 @@ class PopupControllerApp:
 
     def _handle_click(self, pos: Tuple[int, int]) -> None:
         mx, my = pos
+
+        # If Graphical Icon Gallery Modal is active, intercept clicks
+        if self.show_icon_modal:
+            self._handle_icon_modal_click(pos)
+            return
 
         # If Add Modal is active, intercept clicks
         if self.show_add_modal:
@@ -1031,6 +1355,22 @@ class PopupControllerApp:
             self.active_field = "text"
             return
 
+        # Pop-up Icon & Visual Badge controls
+        if (ed_rects.get("icon_browse_btn") and ed_rects["icon_browse_btn"].collidepoint(mx, my)) or \
+           (ed_rects.get("icon_preview") and ed_rects["icon_preview"].collidepoint(mx, my)):
+            self._open_icon_modal(target="scene")
+            return
+
+        for p_id, p_info in ed_rects.get("icon_quick_picks", {}).items():
+            p_path, p_name, p_rect = p_info
+            if p_rect.collidepoint(mx, my):
+                scene["icon"] = p_path
+                self._trigger_preview()
+                self.toast_msg = f"Icon set to {p_name}"
+                self.toast_color = C_GREEN
+                self.toast_time = 2.5
+                return
+
         if ed_rects.get("dur_minus") and ed_rects["dur_minus"].collidepoint(mx, my):
             cur_hold = float(scene.get("hold", 6.0))
             scene["hold"] = max(2.0, round(cur_hold - 0.5, 1))
@@ -1124,6 +1464,12 @@ class PopupControllerApp:
             self.add_active_input = "text"
             return
 
+        # Step 4.5: Pop-up Icon Picker
+        if (rects.get("icon_browse") and rects["icon_browse"].collidepoint(mx, my)) or \
+           (rects.get("icon_preview") and rects["icon_preview"].collidepoint(mx, my)):
+            self._open_icon_modal(target="add")
+            return
+
         # Step 5: Visual Theme Selector Chips
         for tk, chip_rect in rects.get("theme_chips", {}).items():
             if chip_rect.collidepoint(mx, my):
@@ -1137,6 +1483,57 @@ class PopupControllerApp:
         if rects["hold_plus"].collidepoint(mx, my):
             self.add_hold_val = min(15.0, round(self.add_hold_val + 0.5, 1))
             return
+
+    def _handle_icon_modal_click(self, pos: Tuple[int, int]) -> None:
+        """Handles clicks inside the Graphical Icon Gallery Modal dialog."""
+        mx, my = pos
+        rects = self._get_icon_modal_rects()
+
+        # Close / Cancel
+        if rects["close"].collidepoint(mx, my) or rects["cancel_btn"].collidepoint(mx, my):
+            self._close_icon_modal()
+            return
+
+        # Confirm & Apply
+        if rects["apply_btn"].collidepoint(mx, my):
+            self._apply_selected_icon()
+            return
+
+        # Reset to default skull
+        if rects["reset_btn"].collidepoint(mx, my):
+            self.icon_modal_selected_path = "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
+            return
+
+        # Search box focus
+        if rects["search"].collidepoint(mx, my):
+            self.icon_modal_active_input = "search"
+            return
+
+        # Search clear
+        if rects["search_clear"].collidepoint(mx, my) and self.icon_modal_search:
+            self.icon_modal_search = ""
+            self.icon_modal_scroll = 0.0
+            return
+
+        # Category Tabs
+        for cat_key, tab_rect in rects.get("cat_tabs", {}).items():
+            if tab_rect.collidepoint(mx, my):
+                self.icon_modal_category = cat_key
+                self.icon_modal_scroll = 0.0
+                return
+
+        # Icon Grid Tiles
+        for path, tile_rect, item in rects.get("icon_tiles", []):
+            if tile_rect.collidepoint(mx, my):
+                if self.icon_modal_selected_path == path:
+                    # Double-click or clicking already selected icon applies it immediately
+                    self._apply_selected_icon()
+                else:
+                    self.icon_modal_selected_path = path
+                return
+
+        # Click outside search box unfocuses search
+        self.icon_modal_active_input = None
 
     def _handle_entity_picker_click(self, pos: Tuple[int, int]) -> bool:
         mx, my = pos
@@ -1585,9 +1982,56 @@ class PopupControllerApp:
             cursor_surf = safe_render_text(self.font_ui, "|", C_GOLD)
             self.screen.blit(cursor_surf, (text_box.x + 8 + cx_offset, max(text_box.y + 8, line_y - 18)))
 
+        # Section: Pop-up Icon & Visual Badge
+        lbl_icon = safe_render_text(self.font_ui_bold, "Pop-up Icon & Visual Badge:", C_TEXT_LIGHT)
+        self.screen.blit(lbl_icon, (ed_x + 18, 400))
+
+        # Framed Icon Preview Box
+        ic_box = ed_rects.get("icon_preview", pg.Rect(ed_x + 18, 410, 48, 48))
+        is_ic_hover = ic_box.collidepoint(mx, my)
+        curr_icon_path = scene.get("icon", "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png")
+        pg.draw.rect(self.screen, (12, 10, 18), ic_box, border_radius=6)
+        ic_border_col = C_GOLD if is_ic_hover else (140, 115, 60)
+        pg.draw.rect(self.screen, ic_border_col, ic_box, width=2 if is_ic_hover else 1, border_radius=6)
+
+        # Draw icon thumbnail inside preview box
+        thumb_surf = self.icon_catalog.get_thumbnail(curr_icon_path, (38, 38))
+        self.screen.blit(thumb_surf, (ic_box.centerx - thumb_surf.get_width() // 2, ic_box.centery - thumb_surf.get_height() // 2))
+
+        # Button: [🖼 Browse Icons...]
+        btn_browse = ed_rects.get("icon_browse_btn", pg.Rect(ed_x + 76, 420, 134, 32))
+        draw_styled_button(
+            surf=self.screen,
+            rect=btn_browse,
+            text="Browse Gallery...",
+            font=self.font_small_bold,
+            text_color=C_TEXT_LIGHT,
+            bg_color=(28, 24, 38),
+            border_color=(75, 65, 95),
+            hover_bg=(45, 38, 62),
+            hover_border=C_GOLD,
+            icon_type="image",
+            icon_color=C_GOLD,
+        )
+
+        # Quick Pick Presets
+        quick_label = safe_render_text(self.font_small, "Quick Presets:", C_TEXT_MUTED)
+        self.screen.blit(quick_label, (ed_x + 218, 402))
+
+        for p_id, p_info in ed_rects.get("icon_quick_picks", {}).items():
+            p_path, p_name, p_rect = p_info
+            is_active_preset = (curr_icon_path == p_path)
+            is_pre_hover = p_rect.collidepoint(mx, my)
+            pg.draw.rect(self.screen, (16, 13, 24), p_rect, border_radius=4)
+            p_border = C_GOLD if is_active_preset else ((100, 90, 130) if is_pre_hover else (45, 38, 58))
+            p_bwidth = 2 if is_active_preset else 1
+            pg.draw.rect(self.screen, p_border, p_rect, width=p_bwidth, border_radius=4)
+            p_thumb = self.icon_catalog.get_thumbnail(p_path, (24, 24))
+            self.screen.blit(p_thumb, (p_rect.centerx - p_thumb.get_width() // 2, p_rect.centery - p_thumb.get_height() // 2))
+
         # Section: Hold Duration Controls & Delete Pop-up
         lbl_dur = safe_render_text(self.font_ui_bold, "Hold Duration:", C_TEXT_LIGHT)
-        self.screen.blit(lbl_dur, (ed_x + 18, 434))
+        self.screen.blit(lbl_dur, (ed_x + 18, 476))
 
         # Stepper [-0.5s] [ 6.0s ] [+0.5s]
         draw_styled_button(self.screen, ed_rects["dur_minus"], "-0.5s", self.font_ui_bold, C_TEXT_LIGHT, (32, 28, 44), (65, 60, 85), hover_bg=(48, 42, 66))
@@ -1616,7 +2060,7 @@ class PopupControllerApp:
 
         # Section: Preset Theme Selector (2-Column Grid of Responsive Cards)
         lbl_theme = safe_render_text(self.font_ui_bold, "Visual Pop-up Theme:", C_TEXT_LIGHT)
-        self.screen.blit(lbl_theme, (ed_x + 18, 468))
+        self.screen.blit(lbl_theme, (ed_x + 18, 514))
 
         curr_theme = scene.get("theme", "gothic_gold")
         theme_keys = list(THEME_PRESETS.keys())
@@ -1766,7 +2210,11 @@ class PopupControllerApp:
         if self.show_add_modal:
             self._draw_add_modal()
 
-        # ── 8. Toast Notification ───────────────────────────────────────────
+        # ── 8. Graphical Icon Gallery Modal Dialog ──────────────────────────
+        if self.show_icon_modal:
+            self._draw_icon_modal()
+
+        # ── 9. Toast Notification ───────────────────────────────────────────
         if self.toast_msg and self.toast_time > 0:
             t_surf = safe_render_text(self.font_ui_bold, self.toast_msg, self.toast_color)
             total_w = 14 + 10 + t_surf.get_width()
@@ -1972,9 +2420,39 @@ class PopupControllerApp:
         b_str = self.add_text_str + ("|" if is_bin_active and int(self.cursor_blink_time * 2) % 2 == 0 else "")
         self.screen.blit(safe_render_text(self.font_small, b_str[:120], C_TEXT_LIGHT), (b_in.x + 10, b_in.y + 8))
 
-        # ── Step 5: Visual Theme Selector ──
-        step5_lbl = safe_render_text(self.font_small_bold, "5. Visual Theme Preset:", C_TEXT_LIGHT)
-        self.screen.blit(step5_lbl, (modal_rect.x + 24, modal_rect.y + 486))
+        # ── Step 4.5: Pop-up Icon Selection ──
+        step_ic_lbl = safe_render_text(self.font_small_bold, "5. Pop-up Icon & Visual Badge:", C_TEXT_LIGHT)
+        self.screen.blit(step_ic_lbl, (modal_rect.x + 24, modal_rect.y + 458))
+
+        ic_prev = rects.get("icon_preview", pg.Rect(modal_rect.x + 24, modal_rect.y + 466, 36, 36))
+        pg.draw.rect(self.screen, (12, 10, 18), ic_prev, border_radius=4)
+        pg.draw.rect(self.screen, C_GOLD, ic_prev, width=1, border_radius=4)
+        ic_thumb = self.icon_catalog.get_thumbnail(self.add_icon_str, (28, 28))
+        self.screen.blit(ic_thumb, (ic_prev.centerx - ic_thumb.get_width() // 2, ic_prev.centery - ic_thumb.get_height() // 2))
+
+        btn_ic_browse = rects.get("icon_browse", pg.Rect(modal_rect.x + 68, modal_rect.y + 468, 140, 32))
+        draw_styled_button(
+            surf=self.screen,
+            rect=btn_ic_browse,
+            text="Change Icon...",
+            font=self.font_small_bold,
+            text_color=C_TEXT_LIGHT,
+            bg_color=(28, 24, 38),
+            border_color=(75, 65, 95),
+            hover_bg=(45, 38, 62),
+            hover_border=C_GOLD,
+            icon_type="image",
+            icon_color=C_GOLD,
+        )
+
+        ic_fn = os.path.basename(self.add_icon_str)
+        ic_pk = self.icon_catalog.get_pack_label(self.add_icon_str)
+        lbl_ic_desc = safe_render_text(self.font_small, f"{ic_pk} / {ic_fn}", C_TEXT_MUTED)
+        self.screen.blit(lbl_ic_desc, (btn_ic_browse.right + 12, btn_ic_browse.centery - lbl_ic_desc.get_height() // 2))
+
+        # ── Step 6: Visual Theme Selector ──
+        step6_lbl = safe_render_text(self.font_small_bold, "6. Visual Theme Preset:", C_TEXT_LIGHT)
+        self.screen.blit(step6_lbl, (modal_rect.x + 24, modal_rect.y + 508))
 
         for tk, chip in rects.get("theme_chips", {}).items():
             is_active = (self.add_theme_str == tk)
@@ -2026,12 +2504,190 @@ class PopupControllerApp:
             icon_color=C_GREEN,
         )
 
+    def _draw_icon_modal(self) -> None:
+        """Renders the Graphical Icon Gallery Modal dialog."""
+        # Deep translucent dark glass scrim
+        scrim = pg.Surface((self.width, self.height), pg.SRCALPHA)
+        scrim.fill((0, 0, 0, 215))
+        self.screen.blit(scrim, (0, 0))
+
+        rects = self._get_icon_modal_rects()
+        modal_rect = rects["modal"]
+        mx, my = pg.mouse.get_pos()
+
+        # Modal Window Container
+        pg.draw.rect(self.screen, (20, 16, 28), modal_rect, border_radius=10)
+        pg.draw.rect(self.screen, (160, 125, 45), modal_rect, width=2, border_radius=10)
+        pg.draw.rect(self.screen, (48, 40, 24), modal_rect.inflate(-6, -6), width=1, border_radius=8)
+
+        # Header Title & Subtitle
+        draw_icon_image(self.screen, modal_rect.x + 24, modal_rect.y + 20, C_GOLD)
+        mhdr = safe_render_text(self.font_heading, "SELECT POP-UP NOTIFICATION ICON", C_GOLD)
+        self.screen.blit(mhdr, (modal_rect.x + 46, modal_rect.y + 16))
+
+        filtered = self.icon_catalog.filter_icons(self.icon_modal_category, self.icon_modal_search)
+        cat_label = dict(IconCatalog.CATEGORIES).get(self.icon_modal_category, "All Asset Packs")
+        msub = safe_render_text(self.font_small, f"Browsing {cat_label} · Showing {len(filtered)} icons", C_TEXT_MUTED)
+        self.screen.blit(msub, (modal_rect.x + 46, modal_rect.y + 36))
+
+        # Close X Button with hover
+        btn_close = rects["close"]
+        is_close_hover = btn_close.collidepoint(mx, my)
+        pg.draw.rect(self.screen, (42, 24, 30) if is_close_hover else (28, 22, 34), btn_close, border_radius=4)
+        x_txt = safe_render_text(self.font_ui_bold, "✕", C_RED if is_close_hover else C_TEXT_MUTED)
+        self.screen.blit(x_txt, (btn_close.centerx - x_txt.get_width() // 2, btn_close.centery - x_txt.get_height() // 2))
+
+        # ── Search Filter Box ──
+        srch_box = rects["search"]
+        is_srch_active = (self.icon_modal_active_input == "search")
+        pg.draw.rect(self.screen, C_INPUT_BG, srch_box, border_radius=6)
+        srch_border = C_INPUT_FOCUS if is_srch_active else ((80, 70, 95) if srch_box.collidepoint(mx, my) else C_INPUT_BORDER)
+        pg.draw.rect(self.screen, srch_border, srch_box, width=2 if is_srch_active else 1, border_radius=6)
+        draw_icon_search(self.screen, srch_box.x + 8, srch_box.centery - 7, C_GOLD if is_srch_active else C_TEXT_MUTED)
+
+        if self.icon_modal_search:
+            s_text = self.icon_modal_search + ("|" if is_srch_active and int(self.cursor_blink_time * 2) % 2 == 0 else "")
+            st_surf = safe_render_text(self.font_ui, s_text, C_GOLD)
+        else:
+            placeholder = "Search icons..." if is_srch_active else "Filter icons (e.g. skull, 10)..."
+            st_surf = safe_render_text(self.font_small, placeholder, (95, 90, 115))
+        self.screen.blit(st_surf, (srch_box.x + 28, srch_box.centery - st_surf.get_height() // 2))
+
+        # Clear search button [✕]
+        if self.icon_modal_search:
+            clr_rect = rects["search_clear"]
+            is_clr_hover = clr_rect.collidepoint(mx, my)
+            clr_txt = safe_render_text(self.font_small_bold, "✕", C_GOLD if is_clr_hover else C_TEXT_MUTED)
+            self.screen.blit(clr_txt, (clr_rect.centerx - clr_txt.get_width() // 2, clr_rect.centery - clr_txt.get_height() // 2))
+
+        # ── Category Tabs Bar ──
+        for cat_key, tab_rect in rects.get("cat_tabs", {}).items():
+            is_active = (self.icon_modal_category == cat_key)
+            is_hover = tab_rect.collidepoint(mx, my)
+            cat_name = dict(IconCatalog.CATEGORIES).get(cat_key, cat_key)
+
+            bg_col = (46, 36, 18) if is_active else ((34, 28, 44) if is_hover else (24, 20, 32))
+            border_col = C_GOLD if is_active else ((80, 70, 100) if is_hover else (50, 42, 65))
+            text_col = C_GOLD if is_active else (C_TEXT_LIGHT if is_hover else C_TEXT_MUTED)
+
+            pg.draw.rect(self.screen, bg_col, tab_rect, border_radius=6)
+            pg.draw.rect(self.screen, border_col, tab_rect, width=2 if is_active else 1, border_radius=6)
+            tab_lbl = safe_render_text(self.font_small_bold, cat_name, text_col)
+            self.screen.blit(tab_lbl, (tab_rect.centerx - tab_lbl.get_width() // 2, tab_rect.centery - tab_lbl.get_height() // 2))
+
+        # ── Icon Grid Container ──
+        grid_area = rects["grid_area"]
+        pg.draw.rect(self.screen, (13, 10, 18), grid_area, border_radius=6)
+        pg.draw.rect(self.screen, (45, 38, 58), grid_area, width=1, border_radius=6)
+
+        # Clip rendering to grid area
+        self.screen.set_clip(grid_area)
+        for path, tile_rect, item in rects.get("icon_tiles", []):
+            is_sel = (self.icon_modal_selected_path == path)
+            is_hover = tile_rect.collidepoint(mx, my)
+
+            tile_bg = (48, 38, 65) if is_sel else ((34, 28, 46) if is_hover else (20, 16, 26))
+            tile_border = C_GOLD if is_sel else ((110, 95, 140) if is_hover else (45, 38, 58))
+            b_width = 2 if is_sel else (2 if is_hover else 1)
+
+            pg.draw.rect(self.screen, tile_bg, tile_rect, border_radius=5)
+            pg.draw.rect(self.screen, tile_border, tile_rect, width=b_width, border_radius=5)
+
+            # Draw cached icon thumbnail
+            thumb = self.icon_catalog.get_thumbnail(path, (34, 34))
+            self.screen.blit(thumb, (tile_rect.centerx - thumb.get_width() // 2, tile_rect.centery - thumb.get_height() // 2))
+        self.screen.set_clip(None)
+
+        # Grid Scrollbar
+        if self.icon_modal_max_scroll > 0:
+            sb_rect = rects["scrollbar"]
+            pg.draw.rect(self.screen, (24, 20, 32), sb_rect, border_radius=3)
+            track_h = sb_rect.height
+            thumb_h = max(24, int(track_h * (track_h / (track_h + self.icon_modal_max_scroll))))
+            thumb_y = sb_rect.y + int((self.icon_modal_scroll / self.icon_modal_max_scroll) * (track_h - thumb_h))
+            thumb_rect = pg.Rect(sb_rect.x, thumb_y, sb_rect.width, thumb_h)
+            pg.draw.rect(self.screen, (110, 95, 140), thumb_rect, border_radius=3)
+
+        # ── Right Inspector & Actions Pane ──
+        insp_rect = rects["inspector"]
+        pg.draw.rect(self.screen, (16, 13, 24), insp_rect, border_radius=6)
+        pg.draw.rect(self.screen, (48, 40, 64), insp_rect, width=1, border_radius=6)
+
+        # Large Icon Preview Frame
+        preview_box = pg.Rect(insp_rect.centerx - 38, insp_rect.y + 14, 76, 76)
+        pg.draw.rect(self.screen, (10, 8, 16), preview_box, border_radius=8)
+        pg.draw.rect(self.screen, C_GOLD, preview_box, width=2, border_radius=8)
+
+        sel_path = self.icon_modal_selected_path or "assets/free-undead-loot-pixel-art-icons/PNG/Transperent/Icon1.png"
+        large_thumb = self.icon_catalog.get_thumbnail(sel_path, (58, 58))
+        self.screen.blit(large_thumb, (preview_box.centerx - large_thumb.get_width() // 2, preview_box.centery - large_thumb.get_height() // 2))
+
+        # Selected Details
+        pack_name = self.icon_catalog.get_pack_label(sel_path)
+        fname = os.path.basename(sel_path)
+
+        lbl_hdr = safe_render_text(self.font_small_bold, "SELECTED ICON", C_GOLD)
+        self.screen.blit(lbl_hdr, (insp_rect.centerx - lbl_hdr.get_width() // 2, preview_box.bottom + 10))
+
+        lbl_fn = safe_render_text(self.font_ui_bold, fname, C_TEXT_LIGHT)
+        self.screen.blit(lbl_fn, (insp_rect.centerx - min(lbl_fn.get_width(), insp_rect.width - 20) // 2, preview_box.bottom + 30))
+
+        lbl_pk = safe_render_text(self.font_small, pack_name, C_TEXT_MUTED)
+        self.screen.blit(lbl_pk, (insp_rect.centerx - lbl_pk.get_width() // 2, preview_box.bottom + 50))
+
+        # Relative path display truncated
+        trunc_p = sel_path if len(sel_path) <= 24 else f"...{sel_path[-22:]}"
+        lbl_p = safe_render_text(self.font_mono, trunc_p, (120, 110, 140))
+        self.screen.blit(lbl_p, (insp_rect.centerx - lbl_p.get_width() // 2, preview_box.bottom + 70))
+
+        # Preset Reset Button
+        draw_styled_button(
+            surf=self.screen,
+            rect=rects["reset_btn"],
+            text="Default Skull",
+            font=self.font_small,
+            text_color=(200, 180, 220),
+            bg_color=(26, 22, 36),
+            border_color=(60, 50, 75),
+            hover_bg=(40, 32, 52),
+            hover_border=(120, 100, 150),
+        )
+
+        # Cancel Button
+        draw_styled_button(
+            surf=self.screen,
+            rect=rects["cancel_btn"],
+            text="Cancel",
+            font=self.font_small_bold,
+            text_color=C_TEXT_MUTED,
+            bg_color=(32, 26, 40),
+            border_color=(70, 60, 90),
+            hover_bg=(46, 38, 58),
+            hover_border=(110, 95, 135),
+        )
+
+        # Apply Button
+        draw_styled_button(
+            surf=self.screen,
+            rect=rects["apply_btn"],
+            text="✓ Apply Icon",
+            font=self.font_ui_bold,
+            text_color=C_GREEN,
+            bg_color=(22, 46, 30),
+            border_color=(60, 180, 95),
+            hover_bg=(32, 70, 44),
+            hover_border=(80, 240, 130),
+            icon_type="check",
+            icon_color=C_GREEN,
+        )
+
     def run(self) -> None:
         while self.running:
             dt = self.clock.tick(60) / 1000.0
             self.handle_events()
             self.update(dt)
             self.draw()
+        self._save_changes()
         pg.quit()
 
 

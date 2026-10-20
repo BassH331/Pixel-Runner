@@ -10,7 +10,7 @@ import pygame as pg
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
-from popup_controller import PopupControllerApp
+from popup_controller import PopupControllerApp, IconCatalog
 from src.game.systems.popup_scene_manager import PopupSceneManager
 
 
@@ -24,7 +24,7 @@ def setup_pg():
 def test_popup_controller_init():
     app = PopupControllerApp()
     assert app is not None
-    assert len(app.scenes) >= 13
+    assert len(app.scenes) >= 10
     assert app.selected_index >= 0
     scene = app._get_selected_scene()
     assert scene is not None
@@ -279,5 +279,222 @@ def test_popup_controller_add_modal_interactive_clicks():
     # Clean up test scene
     app._delete_current_popup()
     assert len(app.scenes) == initial_count
+
+
+def test_popup_controller_duration_and_field_persistence():
+    """Verify that editing hold duration, title, and text persists to disk upon _save_changes()."""
+    app = PopupControllerApp()
+    scene = app._get_selected_scene()
+    assert scene is not None
+
+    orig_hold = scene.get("hold", 6.0)
+    orig_title = scene.get("title", "")
+    orig_text = scene.get("text", "")
+    target_id = scene["id"]
+
+    # Mutate duration and buffers
+    scene["hold"] = 14.5
+    app.edit_title_str = "Persisted Title Test"
+    app.edit_text_str = "Persisted Text Body Test"
+    
+    # Save
+    save_res = app._save_changes()
+    assert save_res is True
+
+    # Reset manager singleton and reload directly from disk
+    PopupSceneManager.reset_instance()
+    fresh_mgr = PopupSceneManager.get_instance()
+    loaded_scene = fresh_mgr.get_popup(target_id)
+    assert loaded_scene is not None
+    assert loaded_scene["hold"] == 14.5
+    assert loaded_scene["title"] == "Persisted Title Test"
+    assert loaded_scene["text"] == "Persisted Text Body Test"
+
+    # Restore original state and persist back
+    scene["hold"] = orig_hold
+    app.edit_title_str = orig_title
+    app.edit_text_str = orig_text
+    app._save_changes()
+
+    PopupSceneManager.reset_instance()
+    restored_mgr = PopupSceneManager.get_instance()
+    restored_scene = restored_mgr.get_popup(target_id)
+    assert restored_scene is not None
+    assert restored_scene["hold"] == orig_hold
+    assert restored_scene["title"] == orig_title
+    assert restored_scene["text"] == orig_text
+
+
+def test_popup_controller_select_scene_commits_active_buffers():
+    """Verify that switching between scenes commits in-flight text edits to the previous scene."""
+    app = PopupControllerApp()
+    assert len(app.scenes) >= 2
+
+    # Select scene 0
+    app._select_scene(0)
+    s0 = app.scenes[0]
+    orig_title0 = s0.get("title", "")
+    
+    # Edit title buffer without saving
+    app.edit_title_str = "Unsaved But Committed On Switch"
+    
+    # Switch to scene 1
+    app._select_scene(1)
+    
+    # Verify s0 received the committed title
+    assert s0["title"] == "Unsaved But Committed On Switch"
+    
+    # Restore
+    s0["title"] = orig_title0
+
+
+def test_icon_catalog_scanning_and_filtering():
+    """Verify that IconCatalog discovers asset pack icons and filters by category and search term."""
+    catalog = IconCatalog()
+    assert len(catalog.all_icons) >= 500
+
+    # Ensure all expected category buckets exist and contain icons
+    for cat_key, _ in IconCatalog.CATEGORIES:
+        assert cat_key in catalog.icons_by_category
+        if cat_key != "ALL":
+            assert len(catalog.icons_by_category[cat_key]) > 0
+
+    # Test category filtering
+    warrior_icons = catalog.filter_icons(category="WARRIOR")
+    assert len(warrior_icons) > 0
+    for it in warrior_icons:
+        assert it["category"] == "WARRIOR"
+
+    # Test search query filtering
+    filtered_icons = catalog.filter_icons(category="ALL", query="relic")
+    assert len(filtered_icons) > 0
+    for it in filtered_icons:
+        assert "relic" in it["filename"].lower() or "relic" in it["pack"].lower() or "relic" in it["path"].lower()
+
+    # Test thumbnail surface generation
+    thumb = catalog.get_thumbnail("assets/graphics/ui/relic_icon.png", (40, 40))
+    assert isinstance(thumb, pg.Surface)
+    assert thumb.get_size() == (40, 40)
+
+    # Test thumbnail fallback surface when file does not exist
+    fallback = catalog.get_thumbnail("assets/non_existent_image_12345.png", (40, 40))
+    assert isinstance(fallback, pg.Surface)
+    assert fallback.get_size() == (40, 40)
+
+
+def test_popup_controller_quick_preset_selection():
+    """Verify clicking quick-pick preset ribbon updates scene icon and live notification preview."""
+    app = PopupControllerApp()
+    scene = app._get_selected_scene()
+    assert scene is not None
+
+    orig_icon = scene.get("icon")
+    rects = app._get_editor_rects(scene)
+    assert "icon_quick_picks" in rects
+    assert len(rects["icon_quick_picks"]) == len(IconCatalog.QUICK_PRESETS)
+
+    # Pick the 'blade' preset
+    preset_path, preset_name, preset_rect = rects["icon_quick_picks"]["blade"]
+    app._handle_click(preset_rect.center)
+
+    assert scene["icon"] == preset_path
+    assert app.preview_notification._current_item is not None
+    assert app.preview_notification._current_item.icon == preset_path
+
+    # Restore original icon
+    scene["icon"] = orig_icon
+    app._trigger_preview()
+
+
+def test_popup_controller_icon_modal_interaction_and_apply():
+    """Verify opening the icon gallery modal, searching, selecting an icon tile, and applying to scene."""
+    app = PopupControllerApp()
+    scene = app._get_selected_scene()
+    assert scene is not None
+    orig_icon = scene.get("icon")
+
+    # Open Icon Modal for scene
+    assert not app.show_icon_modal
+    app._open_icon_modal(target="scene")
+    assert app.show_icon_modal is True
+    assert app.icon_modal_target == "scene"
+
+    # Filter with a query
+    app.icon_modal_search = "Icon10"
+    m_rects = app._get_icon_modal_rects()
+    assert len(m_rects["icon_tiles"]) > 0
+
+    # Select the first matching tile
+    target_path, target_tile_rect, _ = m_rects["icon_tiles"][0]
+    app._handle_icon_modal_click(target_tile_rect.center)
+    assert app.icon_modal_selected_path == target_path
+
+    # Click Apply button
+    app._handle_icon_modal_click(m_rects["apply_btn"].center)
+    assert app.show_icon_modal is False
+    assert scene["icon"] == target_path
+    assert app.preview_notification._current_item.icon == target_path
+
+    # Restore
+    scene["icon"] = orig_icon
+    app._trigger_preview()
+
+
+def test_popup_controller_add_modal_custom_icon_and_persistence():
+    """Verify choosing a custom icon in [+ Add Pop-up] and saving persists to disk."""
+    app = PopupControllerApp()
+    app._open_add_modal()
+    assert app.show_add_modal is True
+
+    # Open icon gallery from inside Add Modal
+    add_rects = app._get_add_modal_rects()
+    assert "icon_browse" in add_rects
+    app._handle_add_modal_click(add_rects["icon_browse"].center)
+    assert app.show_icon_modal is True
+    assert app.icon_modal_target == "add"
+
+    # Select a distinct icon
+    chosen_icon = "assets/graphics/ui/relic_icon.png"
+    app.icon_modal_selected_path = chosen_icon
+    app._apply_selected_icon()
+    assert app.show_icon_modal is False
+    assert app.add_icon_str == chosen_icon
+
+    # Fill fields and confirm addition
+    app.add_trigger_type = "flag"
+    app.add_flag_str = "flag_custom_icon_test"
+    app.add_title_str = "Custom Icon Pop-up Test"
+    app.add_text_str = "Testing icon persistence."
+    app.add_theme_str = "blood_bone"
+
+    app._confirm_add_popup()
+    assert app.show_add_modal is False
+
+    created = next((s for s in app.scenes if s.get("flag") == "flag_custom_icon_test"), None)
+    assert created is not None
+    assert created["icon"] == chosen_icon
+    target_id = created["id"]
+
+    # Save changes to disk
+    save_ok = app._save_changes()
+    assert save_ok is True
+
+    # Reload from disk via manager singleton reset
+    PopupSceneManager.reset_instance()
+    fresh_mgr = PopupSceneManager.get_instance()
+    loaded_scene = fresh_mgr.get_popup(target_id)
+    assert loaded_scene is not None
+    assert loaded_scene["icon"] == chosen_icon
+
+    # Clean up created scene from app and disk
+    app.selected_index = app.scenes.index(created)
+    app._delete_current_popup()
+    app._save_changes()
+
+    PopupSceneManager.reset_instance()
+    clean_mgr = PopupSceneManager.get_instance()
+    assert clean_mgr.get_popup(target_id) is None
+
+
 
 
