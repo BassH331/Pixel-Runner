@@ -259,9 +259,7 @@
       "is_final": true,
       "watsonx_taunt": true,
       "combat_taunts": [
-        "Show me what Andras promised you!",
-        "You swing like a desperate dog!",
-        "Is this the pinnacle of his new vessel?!"
+        "You swing like a desperate dog!"
       ],
       "primary": "So. He sent another one."
     }
