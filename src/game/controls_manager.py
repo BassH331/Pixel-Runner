@@ -135,15 +135,23 @@ class ControlsManager:
             self.reset_to_defaults()
 
     def save_config(self) -> bool:
-        """Save active configuration to local JSON file atomically."""
+        """Save active configuration to local JSON file atomically, preserving external keys."""
         data = {
             "active_mode": self.mode,
             "keyboard_bindings": self.keyboard_bindings,
             "joystick_bindings": self.joystick_bindings,
         }
         try:
-            from src.game.utils.atomic_save import atomic_write_json
-            return atomic_write_json(CONFIG_PATH, data, indent=4)
+            from src.game.utils.atomic_save import atomic_merge_json
+            success, _ = atomic_merge_json(
+                CONFIG_PATH,
+                data,
+                domain_keys=["active_mode", "keyboard_bindings", "joystick_bindings"],
+                indent=4,
+                backup=True,
+                max_backups=5,
+            )
+            return success
         except Exception as e:
             print(f"[ControlsManager] Failed to save controls config: {e}")
             return False

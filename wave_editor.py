@@ -256,10 +256,8 @@ class WaveEditorApp:
         disk_data["spawn_zones"] = sorted(
             self.pending, key=lambda z: z.get("min_dist", 0))
 
-        tmp_path = f"{target_path}.tmp_{os.getpid()}"
-        with open(tmp_path, "w", encoding="utf-8") as fh:
-            json.dump(disk_data, fh, indent=4)
-        os.replace(tmp_path, target_path)
+        from src.game.utils.atomic_save import atomic_write_json
+        atomic_write_json(target_path, disk_data, indent=4, backup=True, max_backups=5)
 
         self.level_data = disk_data
         self.level_backup = copy.deepcopy(self.level_data)
@@ -337,24 +335,22 @@ class WaveEditorApp:
             temp_pending[self.s3_idx] = z
 
         level_file = self.level_files[self.active_idx]
-        try:
-            with open(level_file, "r") as f:
-                original_content = f.read()
-        except Exception as e:
-            print(f"Error backing up level file: {e}")
-            return
-
-        temp_data = dict(self.level_data)
+        temp_data = copy.deepcopy(self.level_data)
         temp_data["spawn_zones"] = temp_pending
+
+        # Write to temporary simulation file rather than modifying production level_file
+        sim_file = f"{level_file}.sim_{os.getpid()}.json"
         try:
-            with open(level_file, "w") as f:
-                json.dump(temp_data, f, indent=4)
+            from src.game.utils.atomic_save import atomic_write_json
+            if not atomic_write_json(sim_file, temp_data, backup=False):
+                print("Error writing temporary simulation file")
+                return
         except Exception as e:
             print(f"Error writing temporary simulation file: {e}")
             return
 
         # Start distance: max(0, min_dist - 200)
-        start_dist = max(0.0, float(z["min_dist"]) - 200.0)
+        start_dist = max(0.0, float(z.get("min_dist", 0)) - 200.0)
 
         import subprocess
         import sys
@@ -363,19 +359,29 @@ class WaveEditorApp:
         pg.display.flip()
 
         try:
-            cmd = [sys.executable, "main.py", "--start-dist", str(start_dist), "--duration", "6.0"]
-            venv_python = os.path.join(".venv", "bin", "python")
+            cmd = [
+                sys.executable,
+                "main.py",
+                "--level", sim_file,
+                "--start-dist", str(start_dist),
+                "--duration", "6.0",
+            ]
+            venv_python = (
+                os.path.join(".venv", "Scripts", "python.exe")
+                if os.name == "nt"
+                else os.path.join(".venv", "bin", "python")
+            )
             if os.path.exists(venv_python):
                 cmd[0] = venv_python
-            subprocess.run(cmd, env=dict(os.environ, PYTHONPATH="."))
+            subprocess.run(cmd, env=dict(os.environ, PYTHONPATH=".", PYTHONIOENCODING="utf-8"))
         except Exception as e:
             print(f"Error launching game subprocess: {e}")
-
-        try:
-            with open(level_file, "w") as f:
-                f.write(original_content)
-        except Exception as e:
-            print(f"Error restoring original level file content: {e}")
+        finally:
+            if os.path.exists(sim_file):
+                try:
+                    os.remove(sim_file)
+                except Exception:
+                    pass
 
         # Check simulation report results
         report_file = "scratch/simulation_report.json"
@@ -641,6 +647,10 @@ class WaveEditorApp:
         sim = Button("Simulate  ▶", W-690, H-BTMBAR_H+8, 210, 42, self.simulate, "primary")
         sub.draw(self.surf, self.f); cnl.draw(self.surf, self.f); sim.draw(self.surf, self.f)
         self._s3b += [sub, cnl, sim]
+
+
+# Backward compatibility alias
+App = WaveEditorApp
 
 
 if __name__ == "__main__":

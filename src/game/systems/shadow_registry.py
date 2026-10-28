@@ -135,9 +135,11 @@ class ShadowRegistry:
                         fcntl.flock(f, fcntl.LOCK_SH)
                     data = json.load(f)
                 loaded: dict[str, ShadowProfile] = {}
+                profile_fields = {"alpha", "squash_ratio", "fade_height", "ground_snap", "scale_mult", "y_offset"}
                 for k, v in data.items():
-                    if isinstance(v, dict):
-                        loaded[cls.normalize_key(k)] = ShadowProfile.from_dict(v)
+                    norm_k = cls.normalize_key(k)
+                    if isinstance(v, dict) and (norm_k in cls.DEFAULTS or any(pk in v for pk in profile_fields)):
+                        loaded[norm_k] = ShadowProfile.from_dict(v)
                 cls._cache = loaded
                 cls._last_mtime = mtime
         except Exception as e:
@@ -175,12 +177,16 @@ class ShadowRegistry:
         norm_key = cls.normalize_key(key)
         cls._cache[norm_key] = profile
 
-        # Prepare full dictionary for disk serialization
-        data = {k: v.to_dict() for k, v in cls._cache.items()}
-
         try:
             from src.game.utils.atomic_save import atomic_merge_json
-            success, _ = atomic_merge_json(CONFIG_PATH, data, indent=4)
+            success, _ = atomic_merge_json(
+                CONFIG_PATH,
+                {norm_key: profile.to_dict()},
+                domain_keys=[norm_key],
+                indent=4,
+                backup=True,
+                max_backups=5,
+            )
             if success and os.path.exists(CONFIG_PATH):
                 cls._last_mtime = os.path.getmtime(CONFIG_PATH)
             return success

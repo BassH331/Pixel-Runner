@@ -69,6 +69,16 @@ C_INPUT_BORDER = (65, 60, 82)
 C_INPUT_FOCUS = (255, 215, 80)
 
 
+def _safe_float(val: Any, default: float = 0.0) -> float:
+    """Safely converts val to float, handling None, empty str, or invalid values without raising TypeError."""
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
 def safe_render_text(font: pg.font.Font, text: str, color: Tuple[int, int, int]) -> pg.Surface:
     """Safely renders text with glyph fallback."""
     try:
@@ -289,12 +299,12 @@ class EntityCatalog:
             return None
 
     def get_all_entities(self) -> List[Dict[str, Any]]:
-        return sorted(self.entities.values(), key=lambda e: float(e.get("distance", 0)))
+        return sorted(self.entities.values(), key=lambda e: _safe_float(e.get("distance", 0)))
 
     def get_nearest_entity(self, distance: float) -> Optional[Dict[str, Any]]:
         if not self.entities:
             return None
-        return min(self.entities.values(), key=lambda e: abs(float(e.get("distance", 0)) - distance))
+        return min(self.entities.values(), key=lambda e: abs(_safe_float(e.get("distance", 0)) - distance))
 
     def _find_image_recursive(self, path: str) -> Optional[str]:
         if not path:
@@ -506,7 +516,11 @@ class IconCatalog:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class PopupControllerApp:
-    def __init__(self) -> None:
+    def __init__(self, headless: bool = False) -> None:
+        self.headless = headless
+        if headless:
+            os.environ["SDL_VIDEODRIVER"] = "dummy"
+
         pg.init()
         pg.font.init()
 
@@ -517,15 +531,16 @@ class PopupControllerApp:
         pg.display.set_caption("Pixel Runner — Pop-up Notification Control System")
 
         # Auto-maximize window on desktop like main.py
-        try:
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                win = pg.Window.from_display_module()
-                win.maximize()
-            self.width, self.height = self.screen.get_size()
-        except Exception:
-            pass
+        if not headless:
+            try:
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    win = pg.Window.from_display_module()
+                    win.maximize()
+                self.width, self.height = self.screen.get_size()
+            except Exception:
+                pass
 
         self.clock = pg.time.Clock()
         self.running = True
@@ -548,7 +563,7 @@ class PopupControllerApp:
         # Systems & Pop-up Config
         self.manager = PopupSceneManager.get_instance()
         self.scenes: List[Dict[str, Any]] = self.manager.get_all_popups()
-        self.scenes.sort(key=lambda s: float(s.get("distance", 0)))
+        self.scenes.sort(key=lambda s: _safe_float(s.get("distance", 0)))
         self.selected_index: int = 0 if self.scenes else -1
 
         # Timeline Layout & Scrolling
@@ -1058,7 +1073,7 @@ class PopupControllerApp:
         self.manager.add_popup(new_scene)
         self.manager.save_config()
         self.scenes = self.manager.get_all_popups()
-        self.scenes.sort(key=lambda s: float(s.get("distance", 0)))
+        self.scenes.sort(key=lambda s: _safe_float(s.get("distance", 0)))
 
         # Select newly created scene in filtered list
         filtered = self._get_filtered_scenes()
@@ -1091,7 +1106,7 @@ class PopupControllerApp:
         self.manager.delete_popup(sid)
         self.manager.save_config()
         self.scenes = self.manager.get_all_popups()
-        self.scenes.sort(key=lambda s: float(s.get("distance", 0)))
+        self.scenes.sort(key=lambda s: _safe_float(s.get("distance", 0)))
         filtered = self._get_filtered_scenes()
         if filtered:
             idx = max(0, min(self.selected_index, len(filtered) - 1))
@@ -1336,13 +1351,13 @@ class PopupControllerApp:
             return
 
         if ed_rects.get("dist_minus") and ed_rects["dist_minus"].collidepoint(mx, my):
-            cur_dist = float(scene.get("distance", 0))
+            cur_dist = _safe_float(scene.get("distance", 0))
             scene["distance"] = max(0.0, cur_dist - 50.0)
             self._trigger_preview()
             return
 
         if ed_rects.get("dist_plus") and ed_rects["dist_plus"].collidepoint(mx, my):
-            cur_dist = float(scene.get("distance", 0))
+            cur_dist = _safe_float(scene.get("distance", 0))
             scene["distance"] = cur_dist + 50.0
             self._trigger_preview()
             return
@@ -1737,7 +1752,7 @@ class PopupControllerApp:
 
             # Tag & Entity Badges
             ttype = scene.get("trigger_type", "distance")
-            dist = scene.get("distance", 0)
+            dist = _safe_float(scene.get("distance", 0))
             if ttype == "entity":
                 eid = scene.get("entity_id", "?")
                 ent = self.catalog.get_entity(eid)
@@ -1746,7 +1761,7 @@ class PopupControllerApp:
                 tag_bg = (52, 28, 70)
                 tag_border = (160, 75, 210)
             elif ttype == "distance":
-                tag_label = f"📍 {int(float(dist))}m"
+                tag_label = f"📍 {int(dist)}m"
                 tag_bg = (28, 48, 80)
                 tag_border = (65, 120, 210)
             else:
@@ -1877,19 +1892,26 @@ class PopupControllerApp:
         pg.draw.rect(self.screen, (60, 50, 80), ent_card_rect, width=1, border_radius=6)
 
         eid = scene.get("entity_id")
-        if tt == "entity" and eid is not None:
-            avatar = self.catalog.get_avatar_surface(int(eid), size=(44, 44))
+        parsed_eid = None
+        if eid is not None:
+            try:
+                parsed_eid = int(eid)
+            except (ValueError, TypeError):
+                parsed_eid = None
+
+        if tt == "entity" and parsed_eid is not None:
+            avatar = self.catalog.get_avatar_surface(parsed_eid, size=(44, 44))
             self.screen.blit(avatar, (ent_card_rect.x + 6, ent_card_rect.y + 6))
 
-            ent = self.catalog.get_entity(int(eid))
-            ename = ent.get("title", f"Entity #{eid}") if ent else f"Entity #{eid}"
+            ent = self.catalog.get_entity(parsed_eid)
+            ename = ent.get("title", f"Entity #{parsed_eid}") if ent else f"Entity #{parsed_eid}"
             etier = ent.get("tier", "encounter").upper() if ent else "ENTITY"
             ehp = f" • Health: {ent.get('health')}" if ent and ent.get("health") else ""
 
             e_title = safe_render_text(self.font_ui_bold, f"Linked Entity: {ename} [{etier}{ehp}]", C_GOLD)
             self.screen.blit(e_title, (ent_card_rect.x + 58, ent_card_rect.y + 8))
 
-            e_sub = safe_render_text(self.font_small, f"Level 1 World Event #{eid} @ {scene.get('distance')}m • Proximity Approach Trigger", C_TEXT_LIGHT)
+            e_sub = safe_render_text(self.font_small, f"Level 1 World Event #{parsed_eid} @ {scene.get('distance')}m • Proximity Approach Trigger", C_TEXT_LIGHT)
             self.screen.blit(e_sub, (ent_card_rect.x + 58, ent_card_rect.y + 30))
 
             # Change Entity Button
@@ -1908,12 +1930,19 @@ class PopupControllerApp:
                 icon_color=(210, 200, 230),
             )
 
+        elif tt == "entity":
+            e_title = safe_render_text(self.font_ui_bold, f"Linked Entity: #{eid} [UNRESOLVED]", C_GOLD)
+            self.screen.blit(e_title, (ent_card_rect.x + 14, ent_card_rect.y + 8))
+            e_sub = safe_render_text(self.font_small, f"Unresolved or non-numeric entity ID: {eid}", C_TEXT_LIGHT)
+            self.screen.blit(e_sub, (ent_card_rect.x + 14, ent_card_rect.y + 30))
+
         elif tt == "distance":
-            nearest = self.catalog.get_nearest_entity(float(scene.get("distance", 0)))
+            dist_val = _safe_float(scene.get("distance", 0))
+            nearest = self.catalog.get_nearest_entity(dist_val)
             near_str = f" • Nearest Entity: {nearest['title']} @ {nearest['distance']}m" if nearest else ""
-            d_title = safe_render_text(self.font_ui_bold, f"Linked Trigger: Distance Milestone @ {int(float(scene.get('distance', 0)))}m", C_CYAN)
+            d_title = safe_render_text(self.font_ui_bold, f"Linked Trigger: Distance Milestone @ {int(dist_val)}m", C_CYAN)
             self.screen.blit(d_title, (ent_card_rect.x + 14, ent_card_rect.y + 8))
-            d_sub = safe_render_text(self.font_small, f"Triggers when player runs past {int(float(scene.get('distance', 0)))}m mark{near_str}", C_TEXT_LIGHT)
+            d_sub = safe_render_text(self.font_small, f"Triggers when player runs past {int(dist_val)}m mark{near_str}", C_TEXT_LIGHT)
             self.screen.blit(d_sub, (ent_card_rect.x + 14, ent_card_rect.y + 30))
 
             # Distance adjustment stepper: [-50m] and [+50m]
@@ -2166,7 +2195,7 @@ class PopupControllerApp:
         # Calculate Reading Metrics
         word_count = len(self.edit_text_str.split())
         est_read_time = round(max(1.5, word_count * 0.35 + 2.0), 1)
-        configured_hold = float(scene.get("hold", 6.0))
+        configured_hold = _safe_float(scene.get("hold"), 6.0)
         is_pace_good = (configured_hold >= est_read_time - 0.5)
 
         m1_lbl = safe_render_text(self.font_small, "• Word Count:", C_TEXT_MUTED)

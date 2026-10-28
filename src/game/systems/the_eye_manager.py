@@ -1738,6 +1738,10 @@ class TheEyePerceptionManager:
         except Exception as e:
             return False, f"Failed to save story tree perception: {e}"
 
+    def save_all(self) -> Tuple[bool, str]:
+        """Alias for save_perception to provide unified editor plugin API."""
+        return self.save_perception()
+
     def _save_with_backup(self, file_path: str, data: Dict[str, Any]) -> None:
         from src.game.utils.atomic_save import atomic_write_json
         atomic_write_json(file_path, data, indent=4)

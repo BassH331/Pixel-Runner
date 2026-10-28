@@ -72,7 +72,10 @@ class TestPlayerEditor(unittest.TestCase):
         # Verify backup was created
         self.app.scan_backups()
         self.assertGreater(len(self.app.backups), 0)
-        self.assertTrue(self.app.backups[0].startswith("player_config.backup_"))
+        self.assertTrue(
+            self.app.backups[0].startswith("player_config.backup_") or
+            self.app.backups[0].startswith("player_config.json.backup_")
+        )
 
     def test_rollback(self):
         """Test rollback to a previous backup configuration."""

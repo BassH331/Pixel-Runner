@@ -10,7 +10,7 @@ import os
 from typing import Optional, List, Tuple, Any
 import pygame as pg
 
-from v3x_zulfiqar_gideon import ParchmentDisplay, AssetManager
+from v3x_zulfiqar_gideon import ParchmentDisplay, AssetManager, UITheme
 from src.game.ui.animated_dialogue_renderer import AnimatedDialogueRenderer
 
 
@@ -31,7 +31,20 @@ class ObjectiveDisplay(ParchmentDisplay):
     def __init__(self, **kwargs) -> None:
         kwargs.setdefault("line_spacing", 12)
         kwargs.setdefault("prompt_text", "[ Press ENTER or SPACE to continue ]")
-        super().__init__(**kwargs)
+        try:
+            super().__init__(**kwargs)
+        except ValueError as exc:
+            if "ParchmentDisplay assets not configured in UITheme" in str(exc):
+                UITheme.configure_overlays(
+                    stone_path="assets/graphics/UI/PNG/UI board Medium  stone.png",
+                    parchment_path="assets/graphics/UI/PNG/UI board Medium  parchment.png",
+                    title_font_path="assets/Colorfiction_HandDrawnFonts/Colorfiction - Gothic - Regular.otf",
+                    body_font_path="assets/Colorfiction_HandDrawnFonts/Colorfiction - Papyrus.otf",
+                    text_color=(60, 40, 20),
+                )
+                super().__init__(**kwargs)
+            else:
+                raise
         self._fx_state: FXState = FXState.COMPLETE
         self._current_theme: str = "necromancer_dark_fire"
 

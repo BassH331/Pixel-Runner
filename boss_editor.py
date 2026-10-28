@@ -547,6 +547,7 @@ class BossEditorApp:
         self.scrollbar_dragging = False
         self.max_slider_scroll = 0
 
+        self.minion_config_path = "game_data/enemy_skeleton_minion_config.json"
         self.sliders: Dict[str, Slider] = {}
         self.build_sliders()
 
@@ -985,35 +986,25 @@ class BossEditorApp:
                     self.sliders["detection_range"].val = config["attack_range"]
 
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        # Create timestamped backup of current file
-        if os.path.exists(config_path):
-            try:
-                import shutil
-                from datetime import datetime
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                base_name = os.path.splitext(os.path.basename(config_path))[0]
-                backup_path = f"game_data/{base_name}.backup_{ts}.json"
-                shutil.copy2(config_path, backup_path)
-                print(f"[INFO] Created config backup at {backup_path}")
-            except Exception as e:
-                print(f"[WARNING] Failed to create backup: {e}")
-
         try:
-            with open(config_path, "w") as f:
-                json.dump(config, f, indent=2)
+            from src.game.utils.atomic_save import atomic_write_json, prune_backups
+
+            # Atomic transactional write with rolling backups (max 5)
+            atomic_write_json(config_path, config, indent=2, backup=True, max_backups=5)
+            prune_backups(config_path, max_backups=5)
 
             # If editing skeleton, also save to minion skeleton config file to keep in-game minion AI in sync
             if boss_key == "skeleton":
-                minion_path = "game_data/enemy_skeleton_minion_config.json"
+                minion_path = getattr(self, "minion_config_path", "game_data/enemy_skeleton_minion_config.json")
                 if os.path.exists(minion_path):
                     try:
-                        with open(minion_path, "r") as mf:
+                        with open(minion_path, "r", encoding="utf-8") as mf:
                             minion_cfg = json.load(mf)
                         for sync_key in ("spidey_sense", "teleport_dist_min", "teleport_dist_max", "teleport_cooldown", "teleport_reaction_delay", "speed"):
                             if sync_key in config:
                                 minion_cfg[sync_key] = config[sync_key]
-                        with open(minion_path, "w") as mf:
-                            json.dump(minion_cfg, mf, indent=2)
+                        atomic_write_json(minion_path, minion_cfg, indent=2, backup=True, max_backups=5)
+                        prune_backups(minion_path, max_backups=5)
                     except Exception as me:
                         print(f"[WARNING] Failed to sync minion config: {me}")
 

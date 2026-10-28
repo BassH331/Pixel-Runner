@@ -833,7 +833,7 @@ class PlayerEditorApp:
         if os.path.exists(self.config_dir):
             files = os.listdir(self.config_dir)
             for f in files:
-                if f.startswith("player_config.backup_") and f.endswith(".json"):
+                if (f.startswith("player_config.backup_") and f.endswith(".json")) or f.startswith("player_config.json.backup_") or (f.startswith("player_config") and ".backup_" in f):
                     self.backups.append(f)
             # Sort chronologically by name
             self.backups.sort(reverse=True)
@@ -1081,33 +1081,35 @@ class PlayerEditorApp:
             
         os.makedirs(self.config_dir, exist_ok=True)
         
-        # Safe transaction: 1. Backup old config first
-        if os.path.exists(self.config_path):
-            try:
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                backup_filename = f"player_config.backup_{ts}.json"
-                backup_path = os.path.join(self.config_dir, backup_filename)
-                shutil.copy2(self.config_path, backup_path)
-                print(f"[INFO] Created dynamic config backup at {backup_path}")
-            except Exception as e:
-                print(f"[WARNING] Backup creation failed: {e}")
-
-        # Safe transaction: 2. Write atomic save
+        # Safe transaction: Atomic write with rolling backups (max 5) and external key preservation
         try:
-            temp_path = self.config_path + ".tmp"
+            from src.game.utils.atomic_save import atomic_write_json, prune_backups
             combined_data = {
                 "states": self.config,
                 "attacks": self.attack_config
             }
-            with open(temp_path, "w") as f:
-                json.dump(combined_data, f, indent=2)
-            os.replace(temp_path, self.config_path) # Atomic file replace
-            self.show_toast("Config Committed & Saved!")
-            self.scan_backups()
-            self.selected_backup_index = -1
-            
-            # Save returns back to Main Menu
-            self.mode = "MENU"
+            # Preserve external/unowned top-level keys from existing disk file
+            if os.path.exists(self.config_path):
+                try:
+                    with open(self.config_path, "r", encoding="utf-8") as f:
+                        disk_data = json.load(f)
+                    if isinstance(disk_data, dict):
+                        for k, v in disk_data.items():
+                            if k not in combined_data:
+                                combined_data[k] = v
+                except Exception:
+                    pass
+
+            success = atomic_write_json(self.config_path, combined_data, indent=2, backup=True, max_backups=5)
+            if success:
+                prune_backups(self.config_path, max_backups=5)
+                self.show_toast("Config Committed & Saved!")
+                self.scan_backups()
+                self.selected_backup_index = -1
+                self.mode = "MENU"
+            else:
+                self.show_toast("Commit Failed!")
+                print("[ERROR] Atomic commit failed")
         except Exception as e:
             self.show_toast("Commit Failed!")
             print(f"[ERROR] Atomic commit failed: {e}")
@@ -1121,7 +1123,7 @@ class PlayerEditorApp:
         backup_path = os.path.join(self.config_dir, backup_file)
         
         try:
-            with open(backup_path, "r") as f:
+            with open(backup_path, "r", encoding="utf-8") as f:
                 rolled_data = json.load(f)
             
             if isinstance(rolled_data, dict) and ("states" in rolled_data or "attacks" in rolled_data):
@@ -1144,7 +1146,8 @@ class PlayerEditorApp:
             elif self.mode == "ATTACKS":
                 self.load_attack_parameters(self.selected_attack)
                 
-            self.show_toast(f"Rolled back to {backup_file[21:36]}!")
+            display_name = backup_file.split("backup_")[-1].replace(".json", "")
+            self.show_toast(f"Rolled back to {display_name}!")
         except Exception as e:
             self.show_toast("Rollback Failed!")
             print(f"[ERROR] Rollback failed: {e}")
@@ -1962,15 +1965,7 @@ class PlayerEditorApp:
             self.save_current_attack_parameters()
             
         # Perform final write
-        try:
-            combined_data = {
-                "states": self.config,
-                "attacks": self.attack_config
-            }
-            with open(self.config_path, "w") as f:
-                json.dump(combined_data, f, indent=2)
-        except Exception as e:
-            print(f"[ERROR] Failed to save config on exit: {e}")
+        self.request_save_config()
             
         pg.quit()
 

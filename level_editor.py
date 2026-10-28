@@ -2451,15 +2451,15 @@ class App:
         if "level_end_distance" in self.level_data:
             disk_data["level_end_distance"] = self.level_data["level_end_distance"]
 
-        # Atomic transactional write: write to .tmp then os.replace
-        tmp_path = f"{target_path}.tmp_{os.getpid()}"
-        with open(tmp_path, "w", encoding="utf-8") as fh:
-            json.dump(disk_data, fh, indent=4)
-        os.replace(tmp_path, target_path)
+        # Atomic transactional write via unified atomic_save
+        from src.game.utils.atomic_save import atomic_write_json
+        atomic_write_json(target_path, disk_data, indent=4, backup=True, max_backups=5)
 
         HitboxRegistry.commit_transaction()
         self.level_data = disk_data
         self.level_backup = copy.deepcopy(self.level_data)
+        self.pending = copy.deepcopy(disk_data["world_events"])
+        self.pending.sort(key=self._event_dist_key)
         self.reg_del = set()
         self.modal = None
 

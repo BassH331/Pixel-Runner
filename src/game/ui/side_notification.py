@@ -106,6 +106,16 @@ class SideNotification:
         """Returns True if a notification is currently animating or displayed."""
         return self._state != NotificationState.IDLE
 
+    def clear(self) -> None:
+        """Reset notification state, dismiss active display, and clear pending queue."""
+        self._state = NotificationState.IDLE
+        self._timer = 0.0
+        self._current_item = None
+        self._queue.clear()
+        self._current_tab_surface = None
+        self._cached_icon = None
+        self._current_x = float(self._screen_width)
+
     def _apply_config(self, force_rebuild: bool = False) -> None:
         """Read and apply styling and timing parameters from config manager."""
         cfg = self._config_mgr.data if self._config_mgr else {}

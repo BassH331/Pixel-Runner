@@ -53,8 +53,10 @@ class PopupSceneManager:
         self._scenes_by_flag: Dict[str, Dict[str, Any]] = {}
         self.load_config()
 
-    def load_config(self) -> bool:
+    def load_config(self, config_path: Optional[str] = None) -> bool:
         """Load pop-up scenes from disk safely."""
+        if config_path is not None:
+            self.config_path = config_path
         if not os.path.exists(self.config_path):
             self._scenes = []
             self._rebuild_indices()
@@ -100,11 +102,17 @@ class PopupSceneManager:
                 self._scenes_by_id[sid] = scene
 
             eid = scene.get("entity_id")
+            ttype = scene.get("trigger_type")
             if eid is not None:
-                try:
-                    self._scenes_by_entity[int(eid)] = scene
-                except (ValueError, TypeError):
-                    pass
+                # Only register in _scenes_by_entity when trigger_type == "entity"
+                # or when trigger_type is not a non-entity trigger and entity_id is an integer
+                if ttype == "entity" or (ttype not in ("flag", "distance") and isinstance(eid, int)):
+                    try:
+                        int_eid = int(eid)
+                        if int_eid not in self._scenes_by_entity or ttype == "entity":
+                            self._scenes_by_entity[int_eid] = scene
+                    except (ValueError, TypeError):
+                        pass
 
             flag = scene.get("flag")
             if flag:
@@ -136,12 +144,20 @@ class PopupSceneManager:
     def get_popups_by_distance(self, distance: float, tolerance: float = 30.0) -> List[Dict[str, Any]]:
         """Retrieve all pop-up scenes near the given distance."""
         self.check_reload()
+        if distance is None:
+            return []
         matches: List[Dict[str, Any]] = []
         for s in self._scenes:
             if s.get("trigger_type") == "distance":
-                target_dist = s.get("distance", -9999)
-                if abs(distance - target_dist) <= tolerance:
-                    matches.append(dict(s))
+                target_dist = s.get("distance")
+                if target_dist is None:
+                    continue
+                try:
+                    target_dist_f = float(target_dist)
+                    if abs(distance - target_dist_f) <= tolerance:
+                        matches.append(dict(s))
+                except (ValueError, TypeError):
+                    continue
         return matches
 
     def update_popup(self, scene_id: str, new_fields: Dict[str, Any]) -> bool:
@@ -192,14 +208,26 @@ class PopupSceneManager:
         self._rebuild_indices()
 
     def save_config(self, target_path: Optional[str] = None) -> bool:
-        """Atomically persist pop-up scenes configuration to disk."""
+        """Atomically persist pop-up scenes configuration to disk, preserving external keys."""
         path = target_path or self.config_path
-        payload = {
-            "version": "1.0",
-            "description": "Canonical Scene and Entity Pop-up Notification Configuration for Pixel-Runner",
-            "scenes": self._scenes,
-        }
-        success = atomic_write_json(path, payload, indent=2, backup=True)
+        disk_data: Dict[str, Any] = {}
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        disk_data = loaded
+            except Exception:
+                disk_data = {}
+
+        payload = dict(disk_data)
+        if "version" not in payload:
+            payload["version"] = "1.0"
+        if "description" not in payload:
+            payload["description"] = "Canonical Scene and Entity Pop-up Notification Configuration for Pixel-Runner"
+        payload["scenes"] = self._scenes
+
+        success = atomic_write_json(path, payload, indent=2, backup=True, max_backups=5)
         if success and path == self.config_path and os.path.exists(path):
             self._last_mtime = os.path.getmtime(path)
         return success

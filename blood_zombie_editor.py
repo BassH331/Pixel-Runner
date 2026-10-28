@@ -165,6 +165,10 @@ class MetaphorSlider:
             self.val = int(round(raw_val))
 
 
+# Backward compatibility alias
+Slider = MetaphorSlider
+
+
 class Button:
     def __init__(self, text: str, x: int, y: int, w: int, h: int, callback: Any, active: bool = False, color_accent: Optional[Tuple[int, int, int]] = None):
         self.text = text
