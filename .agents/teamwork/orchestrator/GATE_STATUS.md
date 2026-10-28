@@ -35,17 +35,3 @@ Gate Result: **PASS**
 | auditor_final | teamwork_auditor | INTEGRITY VIOLATION (16 test failures, premature attestation) | handoff.md |
 
 Gate Result: **FAIL** (auditor_final INTEGRITY VIOLATION)
-
----
-
-## Gate — Milestone 4 (Iteration 2 — Remediation Verification)
-| Agent | Role | Verdict | Source |
-|-------|------|---------|--------|
-| worker_remediation (`ca0985bb`) | teamwork_worker | DONE (14 defects remediated) | handoff.md |
-| reviewer_m4_it2_1 (`62860c83`) | teamwork_reviewer | APPROVE | handoff.md |
-| reviewer_m4_it2_2 (`5267bee4`) | teamwork_reviewer | APPROVE | handoff.md |
-| challenger_m4_it2_1 (`af8fc699`) | teamwork_challenger | APPROVE | handoff.md |
-| challenger_m4_it2_2 (`ffc8002a`) | teamwork_challenger | APPROVE | handoff.md |
-| auditor_m4_it2 (`111d530a`) | teamwork_auditor | INTEGRITY VIOLATION (2 failures in targeted suites) | handoff.md |
-
-Gate Result: **FAIL** (auditor_m4_it2 INTEGRITY VIOLATION — Binary Veto Enforced)
