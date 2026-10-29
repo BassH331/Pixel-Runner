@@ -1,1 +1,170 @@
-{}
+{
+    "enemy": {
+        "left": 75,
+        "right": 75,
+        "top": 75,
+        "bottom": 75,
+        "ground_offset": 0,
+        "scale": 1.34
+    },
+    "player": {
+        "left": 387,
+        "right": 391,
+        "top": 191,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 3.0
+    },
+    "skeleton": {
+        "left": 65,
+        "right": 65,
+        "top": 20,
+        "bottom": 0,
+        "ground_offset": 127,
+        "scale": 2.0
+    },
+    "wizard_npc": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "boss:wizard": {
+        "left": 259,
+        "right": 281,
+        "top": 208,
+        "bottom": 192,
+        "ground_offset": 127,
+        "scale": 4.11
+    },
+    "generic_npc": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 1.0
+    },
+    "blood_zombie": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 0,
+        "scale": 1.62
+    },
+    "green_monster": {
+        "left": 168,
+        "right": 159,
+        "top": 75,
+        "bottom": 30,
+        "ground_offset": 35,
+        "scale": 2.41
+    },
+    "skeleton_zombie": {
+        "left": 21,
+        "right": 55,
+        "top": 44,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 1.0
+    },
+    "boss:bloodzombie": {
+        "left": 65,
+        "right": 189,
+        "top": 136,
+        "bottom": 28,
+        "ground_offset": 65,
+        "scale": 2.0
+    },
+    "generic_npc_goblin": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_masked_man": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "shadow_assassin": {
+        "left": 50,
+        "right": 50,
+        "top": 30,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "dark_ronin": {
+        "left": 20,
+        "right": 20,
+        "top": 15,
+        "bottom": 0,
+        "ground_offset": 111,
+        "scale": 2.5
+    },
+    "boss:green_monster": {
+        "left": 216,
+        "right": 210,
+        "top": 101,
+        "bottom": 39,
+        "ground_offset": 127,
+        "scale": 2.63
+    },
+    "generic_npc_new_character": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 5.0
+    },
+    "test_entity": {
+        "left": 5,
+        "right": 5,
+        "top": 10,
+        "bottom": 0,
+        "ground_offset": 0,
+        "scale": 1.0
+    },
+    "generic_npc_magic_book_single": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 1.12
+    },
+    "generic_npc_cooking area_frames": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_no bg": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    },
+    "generic_npc_gandalfhardcore portal sheet_frames": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0,
+        "ground_offset": 34,
+        "scale": 2.0
+    }
+}
