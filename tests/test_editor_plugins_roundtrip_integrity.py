@@ -164,10 +164,11 @@ class TestEditorPluginsRoundtripIntegrity:
         })
 
         # Commit 7 times to verify atomic writes and backup pruning
-        for step in range(1, 8):
-            fake_ts = 1700000000 + (step * 25)
-            with patch("time.time", return_value=fake_ts):
-                app.commit()
+        with patch("level_editor.HitboxRegistry.commit_transaction"):
+            for step in range(1, 8):
+                fake_ts = 1700000000 + (step * 25)
+                with patch("time.time", return_value=fake_ts):
+                    app.commit()
 
         with open(tmp_target, "r", encoding="utf-8") as f:
             committed = json.load(f)

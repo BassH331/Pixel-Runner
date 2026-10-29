@@ -116,15 +116,23 @@ class HitboxRegistry:
     @classmethod
     def save_all(cls) -> None:
         """Persists the current cached registry configuration to JSON atomically."""
+        if not cls._cached_config:
+            cls._load_config()
+            if not cls._cached_config:
+                return
         try:
-            from src.game.utils.atomic_save import atomic_write_json
+            from src.game.utils.atomic_save import atomic_merge_json
             data = {name: asdict(margins) for name, margins in cls._cached_config.items()}
-            atomic_write_json(CONFIG_PATH, data, indent=4)
-            try:
-                from src.game.services import ConfigClient
-                ConfigClient.push_config("entity_dimensions", data, async_push=False)
-            except Exception:
-                pass
+            success, merged = atomic_merge_json(CONFIG_PATH, data, indent=4, backup=True, max_backups=5)
+            payload = merged if success and isinstance(merged, dict) else data
+            if CONFIG_PATH == "game_data/entity_dimensions.json" and not (
+                os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1"
+            ):
+                try:
+                    from src.game.services import ConfigClient
+                    ConfigClient.push_config("entity_dimensions", payload, async_push=False)
+                except Exception:
+                    pass
         except Exception as e:
             print(f"Error saving hitbox configuration to {CONFIG_PATH}: {e}")
 

@@ -169,7 +169,8 @@ class TestBossEditorGreenMonster(unittest.TestCase):
         self.app.sliders["teleport_dist_min"].val = 500
         self.app.sliders["teleport_dist_max"].val = 300
         
-        self.app.confirm_save_config()
+        with patch("src.game.services.local_cache.LocalCache.set_config"):
+            self.app.confirm_save_config()
         
         # Verify they were clamped to be equal (dist_max updated to dist_min)
         self.assertEqual(self.app.sliders["teleport_dist_max"].val, 500)

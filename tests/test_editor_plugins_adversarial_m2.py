@@ -253,10 +253,11 @@ def test_adversarial_level_editor_commit_atomic_merge_and_backups(tmp_path):
     })
 
     # Step C: Commit 7 times with timestamp offsets to verify atomic writes & backup cap
-    for step in range(1, 8):
-        fake_ts = 1700000000 + (step * 20)
-        with patch("time.time", return_value=fake_ts):
-            app.commit()
+    with patch("level_editor.HitboxRegistry.commit_transaction"):
+        for step in range(1, 8):
+            fake_ts = 1700000000 + (step * 20)
+            with patch("time.time", return_value=fake_ts):
+                app.commit()
 
     # Step D: Verify disk integrity
     with open(level_path, "r", encoding="utf-8") as f:

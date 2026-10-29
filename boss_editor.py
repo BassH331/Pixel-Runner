@@ -1016,7 +1016,7 @@ class BossEditorApp:
                 "green_monster": "enemy_green_monster",
             }
             c_type = config_type_map.get(boss_key)
-            if c_type:
+            if c_type and not (os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("DISABLE_TELEMETRY") == "1"):
                 try:
                     from src.game.services.config_client import ConfigClient
                     from src.game.services.local_cache import LocalCache

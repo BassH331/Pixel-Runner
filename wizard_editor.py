@@ -425,14 +425,14 @@ class WizardEditorApp:
             self.config["attack_cooldown_max"] = self.config["attack_cooldown_min"]
             self.sliders["attack_cooldown_max"].val = self.config["attack_cooldown_min"]
 
-        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
-        # Create timestamped backup of current file
+        os.makedirs(os.path.dirname(self.config_path) or ".", exist_ok=True)
+        # Create timestamped backup of current file relative to self.config_path
         if os.path.exists(self.config_path):
             try:
                 import shutil
                 from datetime import datetime
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                backup_path = f"game_data/boss_wizard_config.backup_{ts}.json"
+                backup_path = f"{self.config_path}.backup_{ts}"
                 shutil.copy2(self.config_path, backup_path)
                 print(f"[INFO] Created config backup at {backup_path}")
             except Exception as e:

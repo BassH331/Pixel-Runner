@@ -132,7 +132,9 @@ class TestBloodZombieEditorPlugin(unittest.TestCase):
         self.app.select_anim("Attack1")
         self.app.frame_index = 6.0
         self.app.set_current_frame_offset(15, -10)
-        self.app.save_config_file()
+        with patch("src.game.services.ConfigClient.save_and_sync"), \
+             patch("src.game.entities.hitbox_registry.HitboxRegistry.save_all"):
+            self.app.save_config_file()
 
         self.assertTrue(os.path.exists(test_file))
         with open(test_file, "r") as f:

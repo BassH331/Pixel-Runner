@@ -3,20 +3,6 @@
   "description": "Canonical Scene and Entity Pop-up Notification Configuration for Pixel-Runner",
   "scenes": [
     {
-      "id": "event_prologue_awakening",
-      "trigger_type": "distance",
-      "distance": 0,
-      "entity_id": null,
-      "flag": null,
-      "title": "The Awakening",
-      "text": "The catacombs stir. Death has not taken you, but the dark beckons. Advance through the shadows.",
-      "theme": "gothic_gold",
-      "icon": "assets/graphics/UI/PNG/Exclamation_Yellow.png",
-      "hold": 6.0,
-      "enabled": true,
-      "description": "Prologue intro at game start"
-    },
-    {
       "id": "event_first_kill",
       "trigger_type": "flag",
       "distance": 850,
@@ -65,7 +51,7 @@
       "entity_id": null,
       "flag": "first_encounter",
       "title": "The Whispering Grimoire",
-      "text": "Look at the wretched thing slithering through the brush. Those who step into this forest change from their very first encounter... breathe it in, runner. The hunt has already marked you.",
+      "text": "come closer warrior... open your eyes beyond human limits!!",
       "theme": "blood_bone",
       "icon": "assets/graphics/magic_book_single/magic_book.png",
       "hold": 5.5,
